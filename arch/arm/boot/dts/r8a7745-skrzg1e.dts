@@ -245,6 +245,15 @@
 		renesas,groups = "audio_clkc";
 		renesas,function = "audio_clk";
 	};
+	du0_pins: du0 {
+		renesas,groups = "du0_rgb888", "du0_sync", "du0_disp", "du0_clk0_out";
+		renesas,function = "du0";
+	};
+
+	du1_pins: du1 {
+		renesas,groups = "du1_rgb666", "du1_sync", "du1_disp", "du1_clk0_out";
+		renesas,function = "du1";
+	};
 };
 
 &scif2 {
@@ -419,6 +428,8 @@
 };
 
 &du {
+	pinctrl-0 = <&du0_pins &du1_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 
 	clocks = <&mstp7_clks R8A7745_CLK_DU0>,
