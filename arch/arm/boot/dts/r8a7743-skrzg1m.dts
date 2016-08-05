@@ -46,6 +46,32 @@
 		reg = <2 0x00000000 0 0x40000000>;
 	};
 
+	gpio-keys {
+		compatible = "gpio-keys";
+		autorepeat;
+		key@0 {
+					gpios = <&gpio7 0 GPIO_ACTIVE_LOW>;
+					linux,code = <2>;
+					label = "SW30";
+					gpio-key,wakeup;
+					debounce-interval = <20>;
+			};
+		key@2{
+					gpios = <&gpio7 1 GPIO_ACTIVE_LOW>;
+					linux,code = <3>;
+					label = "SW31";
+					gpio-key,wakeup;
+					debounce-interval = <20>;
+			};
+		key@3 {
+					gpios = <&gpio7 2 GPIO_ACTIVE_LOW>;
+					linux,code = <4>;
+					label = "SW32";
+					gpio-key,wakeup;
+					debounce-interval = <20>;
+			};
+	};
+
 	vcc_sdhi0: regulator@0 {
 		compatible = "regulator-fixed";
 
