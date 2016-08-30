@@ -728,6 +728,13 @@ static int adv7180_g_mbus_config(struct v4l2_subdev *sd,
 static int adv7180_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *cropcap)
 {
 	struct adv7180_state *state = to_state(sd);
+	cropcap->bounds.left = 0;
+	cropcap->bounds.top = 0;
+	/* set maximum window size */
+	cropcap->bounds.width = 720;
+	cropcap->bounds.height = state->curr_norm & V4L2_STD_525_60 ? 480 : 576;
+	cropcap->defrect = cropcap->bounds;
+	cropcap->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
 	if (state->curr_norm & V4L2_STD_525_60) {
 		cropcap->pixelaspect.numerator = 11;
