@@ -1663,10 +1663,6 @@ static int rcar_vin_set_fmt(struct soc_camera_device *icd,
 	if (mf.code != xlate->code)
 		return -EINVAL;
 
-	/* Prepare VIN crop */
-	cam->width = mf.width;
-	cam->height = mf.height;
-
 	/* Use VIN scaling to scale to the requested user window. */
 
 	/* We cannot scale up */
@@ -1682,6 +1678,14 @@ static int rcar_vin_set_fmt(struct soc_camera_device *icd,
 		pix->width = vin_sub_width;
 		pix->height = vin_sub_height;
 	}
+
+	if (can_scale && !IS_ALIGNED(pix->width, 0x10)) {
+		return -EINVAL;
+	}
+
+	/* Prepare VIN crop */
+	cam->width = mf.width;
+	cam->height = mf.height;
 
 	/*
 	 * We have calculated CFLCR, the actual configuration will be performed
