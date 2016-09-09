@@ -787,6 +787,19 @@ static int adv7180_subscribe_event(struct v4l2_subdev *sd,
 	}
 }
 
+static int adv7180_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+{
+	struct adv7180_state *state = to_state(sd);
+	a->c.left = 0;
+	a->c.top = 0;
+	/* set current window size */
+	a->c.width = 720;		/* width is fixed value */
+	a->c.height = state->curr_norm & V4L2_STD_525_60 ? 480 : 576;	/* heigth is fixed value */
+	a->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+	return 0;
+}
+
 static const struct v4l2_subdev_video_ops adv7180_video_ops = {
 	.s_std = adv7180_s_std,
 	.g_std = adv7180_g_std,
@@ -797,6 +810,7 @@ static const struct v4l2_subdev_video_ops adv7180_video_ops = {
 	.cropcap = adv7180_cropcap,
 	.g_tvnorms = adv7180_g_tvnorms,
 	.s_stream = adv7180_s_stream,
+	.g_crop	= adv7180_g_crop,
 };
 
 static const struct v4l2_subdev_core_ops adv7180_core_ops = {
