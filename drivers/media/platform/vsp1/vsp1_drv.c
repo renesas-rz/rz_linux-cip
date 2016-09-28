@@ -211,7 +211,8 @@ static void vsp1_destroy_entities(struct vsp1_device *vsp1)
 	}
 
 	v4l2_device_unregister(&vsp1->v4l2_dev);
-	media_device_unregister(&vsp1->media_dev);
+	if (!vsp1->info->uapi)
+		media_device_unregister(&vsp1->media_dev);
 
 	if (!vsp1->info->uapi)
 		vsp1_drm_cleanup(vsp1);
@@ -229,13 +230,20 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	strlcpy(mdev->model, "VSP1", sizeof(mdev->model));
 	snprintf(mdev->bus_info, sizeof(mdev->bus_info), "platform:%s",
 		 dev_name(mdev->dev));
-	ret = media_device_register(mdev);
-	if (ret < 0) {
-		dev_err(vsp1->dev, "media device registration failed (%d)\n",
-			ret);
-		return ret;
-	}
 
+	if (!vsp1->info->uapi) {
+		mdev->entity_id = 1;
+		INIT_LIST_HEAD(&mdev->entities);
+		spin_lock_init(&mdev->lock);
+		mutex_init(&mdev->graph_mutex);
+	} else {
+		ret = media_device_register(mdev);
+		if (ret < 0) {
+			dev_err(vsp1->dev, "media device registration failed (%d)\n",
+				ret);
+			return ret;
+		}
+	}
 	vsp1->media_ops.link_setup = vsp1_entity_link_setup;
 	/* Don't perform link validation when the userspace API is disabled as
 	 * the pipeline is configured internally by the driver in that case, and
