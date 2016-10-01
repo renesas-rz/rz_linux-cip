@@ -394,6 +394,10 @@
 	};
 };
 
+&cmt0 {
+	status = "okay";
+};
+
 /* composite video input */
 &vin0 {
 	status = "okay";
