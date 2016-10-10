@@ -255,8 +255,10 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 	/* If VSP+DU integration is enabled the plane assignment is fixed. */
 	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_VSP1_SOURCE)) {
 		if (rcdu->info->gen < 3) {
-			dspr = (rcrtc->index % 2) + 1;
-			hwplanes = 1 << (rcrtc->index % 2);
+			if (rcrtc->vsp->vsp) {
+				dspr = (rcrtc->index % 2) + 1;
+				hwplanes = 1 << (rcrtc->index % 2);
+			}
 		} else {
 			dspr = (rcrtc->index % 2) ? 3 : 1;
 			hwplanes = 1 << ((rcrtc->index % 2) ? 2 : 0);
