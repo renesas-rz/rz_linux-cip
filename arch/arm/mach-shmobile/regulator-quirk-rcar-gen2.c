@@ -80,7 +80,9 @@ static int regulator_quirk_notify(struct notifier_block *nb,
 	client = to_i2c_client(dev);
 	dev_dbg(dev, "Detected %s\n", client->name);
 
-	if ((client->addr == 0x58 && !strcmp(client->name, "da9063")) ||
+	if (((client->addr == 0x58 ||
+	      client->addr == 0x5A) &&
+	     !strcmp(client->name, "da9063")) ||
 	    (client->addr == 0x68 && !strcmp(client->name, "da9210"))) {
 		int ret;
 
