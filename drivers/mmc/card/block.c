@@ -546,6 +546,24 @@ static int __mmc_blk_ioctl_cmd(struct mmc_card *card, struct mmc_blk_data *md,
 
 	mmc_wait_for_req(card->host, &mrq);
 
+	if (cmd.opcode == MMC_SWITCH) {
+		u8 *bw_ext_csd;
+		/* bus width 8 */
+		if ((cmd.arg & (EXT_CSD_BUS_WIDTH_8 << 8)) ==
+		    (EXT_CSD_BUS_WIDTH_8 << 8))
+			mmc_set_bus_width(card->host, MMC_BUS_WIDTH_8);
+		/* bus width 4 */
+		else
+			if ((cmd.arg & (EXT_CSD_BUS_WIDTH_4 << 8)) ==
+			    (EXT_CSD_BUS_WIDTH_4 << 8))
+				mmc_set_bus_width(card->host, MMC_BUS_WIDTH_4);
+			/* bus width 1 */
+			else
+				mmc_set_bus_width(card->host, MMC_BUS_WIDTH_1);
+
+		mmc_get_ext_csd(card, &bw_ext_csd);
+	}
+
 	if (cmd.error) {
 		dev_err(mmc_dev(card->host), "%s: cmd error %d\n",
 						__func__, cmd.error);
