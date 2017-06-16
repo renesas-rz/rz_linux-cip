@@ -145,6 +145,8 @@
 			#size-cells = <0>;
 
 			port@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0>;
 				panel_input: endpoint {
 					reg = <0>;
