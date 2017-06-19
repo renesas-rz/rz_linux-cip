@@ -1066,7 +1066,7 @@ static int rcar_vin_set_rect(struct soc_camera_device *icd)
 	unsigned int left_offset, top_offset;
 	unsigned char dsize = 0;
 	struct v4l2_rect *cam_subrect = &cam->subrect;
-	u32 value, addon = 0;
+	u32 value = 0;
 
 	dev_dbg(icd->parent, "Crop %ux%u@%u:%u\n",
 		icd->user_width, icd->user_height, cam->vin_left, cam->vin_top);
