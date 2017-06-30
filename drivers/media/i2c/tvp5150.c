@@ -429,7 +429,6 @@ static const struct i2c_reg_value tvp5150_init_default[] = {
 /* Default values as sugested at TVP5150AM1 datasheet */
 static const struct i2c_reg_value tvp5150_init_enable[] = {
 	{
-		TVP5150_CONF_SHARED_PIN, 2
 	},{	/* Automatic offset and AGC enabled */
 		TVP5150_ANAL_CHL_CTL, 0x15
 	},{	/* Activate YCrCb output 0x9 or 0xd ? */
@@ -443,7 +442,6 @@ static const struct i2c_reg_value tvp5150_init_enable[] = {
 	},{
 		TVP5150_CHROMA_PROC_CTL_2, 0x54
 	},{	/* Non documented, but initialized on WinTV USB2 */
-		0x27, 0x20
 	},{
 		0xff,0xff
 	}
@@ -716,6 +714,8 @@ static int tvp5150_set_std(struct v4l2_subdev *sd, v4l2_std_id std)
 
 	if (std == V4L2_STD_NTSC_443) {
 		fmt = VIDEO_STD_NTSC_4_43_BIT;
+	} else if (std == V4L2_STD_ALL) {
+		fmt = VIDEO_STD_AUTO_SWITCH_BIT;	/* Autodetect mode */
 	} else if (std == V4L2_STD_PAL_M) {
 		fmt = VIDEO_STD_PAL_M_BIT;
 	} else if (std == V4L2_STD_PAL_N || std == V4L2_STD_PAL_Nc) {
@@ -732,6 +732,21 @@ static int tvp5150_set_std(struct v4l2_subdev *sd, v4l2_std_id std)
 
 	v4l2_dbg(1, debug, sd, "Set video std register to %d.\n", fmt);
 	tvp5150_write(sd, TVP5150_VIDEO_STD, fmt);
+	return 0;
+}
+
+static int tvp5150_g_std(struct v4l2_subdev *sd, v4l2_std_id *norm)
+{
+	struct tvp5150 *decoder = to_tvp5150(sd);
+
+	*norm = decoder->norm;
+
+	return 0;
+}
+
+static int tvp5150_g_tvnorms(struct v4l2_subdev *sd, v4l2_std_id *norm)
+{
+	*norm = V4L2_STD_ALL;
 	return 0;
 }
 
@@ -825,7 +840,7 @@ static int tvp5150_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->pad || code->index)
 		return -EINVAL;
 
-	code->code = MEDIA_BUS_FMT_UYVY8_2X8;
+	code->code = MEDIA_BUS_FMT_YUYV8_2X8;
 	return 0;
 }
 
@@ -845,9 +860,8 @@ static int tvp5150_fill_fmt(struct v4l2_subdev *sd,
 
 	f->width = decoder->rect.width;
 	f->height = decoder->rect.height;
-
-	f->code = MEDIA_BUS_FMT_UYVY8_2X8;
-	f->field = V4L2_FIELD_SEQ_TB;
+	f->field = V4L2_FIELD_INTERLACED;
+	f->code = MEDIA_BUS_FMT_YUYV8_2X8;
 	f->colorspace = V4L2_COLORSPACE_SMPTE170M;
 
 	v4l2_dbg(1, debug, sd, "width = %d, height = %d\n", f->width,
@@ -855,6 +869,16 @@ static int tvp5150_fill_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int tvp5150_g_mbus_config(struct v4l2_subdev *sd,
+		struct v4l2_mbus_config *cfg)
+{
+	cfg->flags = V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_MASTER |
+		V4L2_MBUS_VSYNC_ACTIVE_LOW | V4L2_MBUS_HSYNC_ACTIVE_LOW |
+		V4L2_MBUS_DATA_ACTIVE_HIGH;
+	cfg->type = V4L2_MBUS_BT656;
+
+	return 0;
+}
 static int tvp5150_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 {
 	struct v4l2_rect rect = a->c;
@@ -946,6 +970,7 @@ static int tvp5150_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 		a->bounds.height = TVP5150_V_MAX_OTHERS;
 
 	a->defrect			= a->bounds;
+	a->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	a->pixelaspect.numerator	= 1;
 	a->pixelaspect.denominator	= 1;
 
@@ -1081,6 +1106,9 @@ static const struct v4l2_subdev_video_ops tvp5150_video_ops = {
 	.s_crop = tvp5150_s_crop,
 	.g_crop = tvp5150_g_crop,
 	.cropcap = tvp5150_cropcap,
+	.g_std = tvp5150_g_std,
+	.g_tvnorms = tvp5150_g_tvnorms,
+	.g_mbus_config = tvp5150_g_mbus_config,
 };
 
 static const struct v4l2_subdev_vbi_ops tvp5150_vbi_ops = {
@@ -1165,7 +1193,7 @@ static int tvp5150_probe(struct i2c_client *c,
 	core->input = TVP5150_COMPOSITE1;
 	core->enable = 1;
 
-	v4l2_ctrl_handler_init(&core->hdl, 4);
+	v4l2_ctrl_handler_init(&core->hdl, 5);
 	v4l2_ctrl_new_std(&core->hdl, &tvp5150_ctrl_ops,
 			V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
 	v4l2_ctrl_new_std(&core->hdl, &tvp5150_ctrl_ops,
@@ -1174,6 +1202,10 @@ static int tvp5150_probe(struct i2c_client *c,
 			V4L2_CID_SATURATION, 0, 255, 1, 128);
 	v4l2_ctrl_new_std(&core->hdl, &tvp5150_ctrl_ops,
 			V4L2_CID_HUE, -128, 127, 1, 0);
+	v4l2_ctrl_new_std(&core->hdl, &tvp5150_ctrl_ops,
+			V4L2_CID_PIXEL_RATE, 27000000,
+			27000000, 1, 27000000);
+
 	sd->ctrl_handler = &core->hdl;
 	if (core->hdl.error) {
 		res = core->hdl.error;
