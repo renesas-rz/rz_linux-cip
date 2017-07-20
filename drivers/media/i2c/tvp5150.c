@@ -1081,6 +1081,24 @@ static int tvp5150_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	return 0;
 }
 
+static int tvp5150_querystd(struct v4l2_subdev *sd, v4l2_std_id *std_id)
+{
+	struct tvp5150 *decoder = to_tvp5150(sd);
+	u8 std, current_std ;
+
+	if (std_id == NULL)
+		return -EINVAL;
+
+	std = tvp5150_read(sd, TVP5150_VIDEO_STD);
+	if ((std & VIDEO_STD_MASK) == VIDEO_STD_AUTO_SWITCH_BIT)
+		*std_id = tvp5150_read_std(sd);
+	else
+		/* use the standard register itself */
+		*std_id = V4L2_STD_UNKNOWN;
+
+	return 0;
+}
+
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_ctrl_ops tvp5150_ctrl_ops = {
@@ -1109,6 +1127,7 @@ static const struct v4l2_subdev_video_ops tvp5150_video_ops = {
 	.g_std = tvp5150_g_std,
 	.g_tvnorms = tvp5150_g_tvnorms,
 	.g_mbus_config = tvp5150_g_mbus_config,
+	.querystd = tvp5150_querystd,
 };
 
 static const struct v4l2_subdev_vbi_ops tvp5150_vbi_ops = {
