@@ -1083,8 +1083,7 @@ static int tvp5150_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 
 static int tvp5150_querystd(struct v4l2_subdev *sd, v4l2_std_id *std_id)
 {
-	struct tvp5150 *decoder = to_tvp5150(sd);
-	u8 std, current_std ;
+	u8 std;
 
 	if (std_id == NULL)
 		return -EINVAL;
