@@ -487,6 +487,7 @@ struct rcar_vin_priv {
 	bool				request_to_stop;
 	struct completion		capture_stop;
 	enum chip_id			chip;
+	bool				error_flag;
 };
 
 #define is_continuous_transfer(priv)	(priv->vb_count > MAX_BUFFER_NUM)
@@ -961,6 +962,8 @@ static int rcar_vin_add_device(struct soc_camera_device *icd)
 	dev_dbg(icd->parent, "R-Car VIN driver attached to camera %d\n",
 		icd->devnum);
 
+	priv->error_flag = false;
+
 	return 0;
 }
 
@@ -978,6 +981,7 @@ static void rcar_vin_remove_device(struct soc_camera_device *icd)
 
 	priv->state = STOPPED;
 	priv->request_to_stop = false;
+	priv->error_flag = false;
 
 	/* make sure active buffer is cancelled */
 	spin_lock_irq(&priv->lock);
@@ -1888,6 +1892,25 @@ static int rcar_vin_set_fmt(struct soc_camera_device *icd,
 	dev_dbg(dev, "S_FMT(pix=0x%x, %ux%u)\n",
 		pixfmt, pix->width, pix->height);
 
+	/* At the time of NV16 capture format, the user has to specify the
+	   width of the multiple of 32 for H/W specification. */
+	if (priv->error_flag == false)
+		priv->error_flag = true;
+	else {
+		if (pixfmt == V4L2_PIX_FMT_NV16) {
+			if (pix->width & 0x1F) {
+				dev_err(icd->parent,
+				"Specified width error in NV16 format. Please specify the multiple of 32.\n");
+				return -EINVAL;
+			}
+			if (pix->height != cam->height) {
+				dev_err(icd->parent,
+				"Vertical scaling-up error in NV16 format. Please specify input height size.\n");
+				return -EINVAL;
+			}
+		}
+	}
+
 	switch (pix->field) {
 	default:
 		pix->field = V4L2_FIELD_NONE;
@@ -1934,6 +1957,7 @@ static int rcar_vin_set_fmt(struct soc_camera_device *icd,
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_RGB565:
 	case V4L2_PIX_FMT_RGB555X:
+	case V4L2_PIX_FMT_NV16:
 		can_scale = true;
 		break;
 	default:
