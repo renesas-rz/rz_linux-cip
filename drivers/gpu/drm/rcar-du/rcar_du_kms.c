@@ -160,7 +160,7 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	 * The pitch and alignment constraints are expressed in pixels on the
 	 * hardware side and in bytes in the DRM API.
 	 */
-	bpp = format->planes == 2 ? 1 : format->bpp / 8;
+	bpp = format->planes == 2 ? 2 : format->bpp / 8;
 	max_pitch =  4096 * bpp;
 
 	if (rcar_du_needs(rcdu, RCAR_DU_QUIRK_ALIGN_128B))
