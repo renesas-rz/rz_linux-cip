@@ -8,6 +8,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/r8a7744-clock.h>
+#include <dt-bindings/power/r8a7744-sysc.h>
 
 / {
 	compatible = "renesas,r8a7744";
