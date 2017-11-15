@@ -213,6 +213,14 @@ static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+static const struct snd_soc_dapm_widget sgtl5000_dapm_widgets[] = {
+	SND_SOC_DAPM_MIC("Mic Jack", NULL),
+	SND_SOC_DAPM_LINE("Line In Jack", NULL),
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+	SND_SOC_DAPM_SPK("Line Out Jack", NULL),
+	SND_SOC_DAPM_SPK("Ext Spk", NULL),
+};
+
 static int
 asoc_simple_card_sub_parse_of(struct device_node *np,
 			      struct asoc_simple_dai *dai,
@@ -562,6 +570,9 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	dai_link = priv->dai_link;
 	priv->snd_card.dai_link = dai_link;
 	priv->snd_card.num_links = num_links;
+
+	priv->snd_card.dapm_widgets = sgtl5000_dapm_widgets;
+	priv->snd_card.num_dapm_widgets = ARRAY_SIZE(sgtl5000_dapm_widgets);
 
 	priv->gpio_hp_det = -ENOENT;
 	priv->gpio_mic_det = -ENOENT;
