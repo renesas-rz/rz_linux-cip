@@ -420,11 +420,14 @@ static void _ohci_shutdown(struct usb_hcd *hcd)
 	struct ohci_hcd *ohci;
 
 	ohci = hcd_to_ohci (hcd);
-	ohci_writel(ohci, (u32) ~0, &ohci->regs->intrdisable);
+	if (!ohci_readl(ohci, &ohci->regs->intrdisable))
+		ohci_writel(ohci, (u32) ~0, &ohci->regs->intrdisable);
 
 	/* Software reset, after which the controller goes into SUSPEND */
-	ohci_writel(ohci, OHCI_HCR, &ohci->regs->cmdstatus);
-	ohci_readl(ohci, &ohci->regs->cmdstatus);	/* flush the writes */
+	if (ohci_readl(ohci, &ohci->regs->cmdstatus)) {
+		ohci_writel(ohci, OHCI_HCR, &ohci->regs->cmdstatus);
+		ohci_readl(ohci, &ohci->regs->cmdstatus); /* flush the writes */
+	}
 	udelay(10);
 
 	ohci_writel(ohci, ohci->fminterval, &ohci->regs->fminterval);
