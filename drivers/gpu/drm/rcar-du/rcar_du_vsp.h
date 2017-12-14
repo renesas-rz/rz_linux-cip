@@ -19,6 +19,7 @@
 
 struct rcar_du_format_info;
 struct rcar_du_vsp;
+struct rcar_du_group;
 
 struct rcar_du_vsp_plane {
 	struct drm_plane plane;
@@ -31,6 +32,7 @@ struct rcar_du_vsp {
 	struct device *vsp;
 	struct rcar_du_device *dev;
 	struct rcar_du_vsp_plane *planes;
+	struct rcar_du_group *group;
 	unsigned int num_planes;
 };
 
