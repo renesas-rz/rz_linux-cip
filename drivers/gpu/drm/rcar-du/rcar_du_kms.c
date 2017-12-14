@@ -573,6 +573,8 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 
 			vsp->index = i;
 			vsp->dev = rcdu;
+			vsp->group = &rcdu->groups[i / 2];
+
 			rcdu->crtcs[i].vsp = vsp;
 
 			ret = rcar_du_vsp_init(vsp);
