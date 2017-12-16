@@ -11,7 +11,7 @@ struct drm_mode_fb_cmd2;
 
 struct drm_fbdev_cma *drm_fbdev_cma_init(struct drm_device *dev,
 	unsigned int preferred_bpp, unsigned int num_crtc,
-	unsigned int max_conn_count);
+	unsigned int max_conn_count, unsigned int fb_size_mult);
 void drm_fbdev_cma_fini(struct drm_fbdev_cma *fbdev_cma);
 
 void drm_fbdev_cma_restore_mode(struct drm_fbdev_cma *fbdev_cma);
