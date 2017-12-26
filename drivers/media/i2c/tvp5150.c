@@ -1208,7 +1208,7 @@ static int tvp5150_probe(struct i2c_client *c,
 	}
 
 	core->norm = V4L2_STD_ALL;	/* Default is autodetect */
-	core->input = TVP5150_COMPOSITE1;
+	core->input = TVP5150_COMPOSITE0;
 	core->enable = 1;
 
 	v4l2_ctrl_handler_init(&core->hdl, 5);
