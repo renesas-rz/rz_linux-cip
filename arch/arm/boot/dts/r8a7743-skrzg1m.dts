@@ -421,8 +421,6 @@
 &hsusb {
 	pinctrl-0 = <&usb0_pins>;
 	pinctrl-names = "default";
-
-	status = "okay";
 };
 
 &usbphy {
