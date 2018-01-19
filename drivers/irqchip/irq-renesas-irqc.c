@@ -278,6 +278,7 @@ static int irqc_remove(struct platform_device *pdev)
 
 static const struct of_device_id irqc_dt_ids[] = {
 	{ .compatible = "renesas,irqc", },
+	{ .compatible = "renesas,irqc-r8a7744", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, irqc_dt_ids);
