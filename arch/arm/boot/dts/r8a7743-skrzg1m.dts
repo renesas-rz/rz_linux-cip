@@ -280,7 +280,7 @@
 
 	phy1: ethernet-phy@1 {
 		reg = <1>;
-		interrupt-parent = <&irqc0>;
+		interrupt-parent = <&irqc>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
 	};
@@ -406,7 +406,7 @@
 	pmic@58 {
 		compatible = "dlg,da9063";
 		reg = <0x5A>;
-		interrupt-parent = <&irqc0>;
+		interrupt-parent = <&irqc>;
 		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 
@@ -422,7 +422,7 @@
 	vdd_dvfs: regulator@68 {
 		compatible = "dlg,da9210";
 		reg = <0x68>;
-		interrupt-parent = <&irqc0>;
+		interrupt-parent = <&irqc>;
 		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 
 		regulator-min-microvolt = <1000000>;
