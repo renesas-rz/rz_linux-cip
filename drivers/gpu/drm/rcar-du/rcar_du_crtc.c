@@ -114,6 +114,7 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 	u32 value;
 	u32 escr;
 	u32 div;
+	int vdsr, vder;
 
 	/* Compute the clock divisor and select the internal or external dot
 	 * clock based on the requested frequency.
@@ -162,11 +163,14 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 					mode->hsync_start - 1);
 	rcar_du_crtc_write(rcrtc, HCR,  mode->htotal - 1);
 
-	rcar_du_crtc_write(rcrtc, VDSR, mode->crtc_vtotal -
-					mode->crtc_vsync_end - 2);
-	rcar_du_crtc_write(rcrtc, VDER, mode->crtc_vtotal -
-					mode->crtc_vsync_end +
-					mode->crtc_vdisplay - 2);
+	vdsr = mode->crtc_vtotal - mode->crtc_vsync_end - 2;
+	vder = mode->crtc_vtotal - mode->crtc_vsync_end + mode->crtc_vdisplay - 2;
+	if (vdsr < 1) {
+		vder = vder - vdsr + 1;
+		vdsr = 1;
+	}
+	rcar_du_crtc_write(rcrtc, VDSR, vdsr);
+	rcar_du_crtc_write(rcrtc, VDER, vder);
 	rcar_du_crtc_write(rcrtc, VSPR, mode->crtc_vtotal -
 					mode->crtc_vsync_end +
 					mode->crtc_vsync_start - 1);
