@@ -1578,8 +1578,9 @@ static irqreturn_t sci_er_interrupt(int irq, void *ptr)
 		}
 	} else {
 		sci_handle_fifo_overrun(port);
-		if (!s->chan_rx)
-			sci_receive_chars(ptr);
+		if ((!s->chan_rx) && (port->type != PORT_SCIFA) &&
+			(port->type != PORT_SCIFB))
+			sci_rx_interrupt(irq, ptr);
 	}
 
 	sci_clear_SCxSR(port, SCxSR_ERROR_CLEAR(port));
