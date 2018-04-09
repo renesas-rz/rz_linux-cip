@@ -1485,6 +1485,8 @@ static void sci_free_dma(struct uart_port *port)
 {
 	struct sci_port *s = to_sci_port(port);
 
+	del_timer_sync(&s->rx_timer);
+
 	if (s->chan_tx)
 		sci_tx_dma_release(s, false);
 	if (s->chan_rx)
