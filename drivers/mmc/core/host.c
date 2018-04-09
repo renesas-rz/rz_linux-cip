@@ -255,6 +255,8 @@ int mmc_of_parse(struct mmc_host *host)
 		host->caps |= MMC_CAP_SD_HIGHSPEED;
 	if (of_property_read_bool(np, "cap-mmc-highspeed"))
 		host->caps |= MMC_CAP_MMC_HIGHSPEED;
+	if (of_property_read_bool(np, "cap-mmc-wait-busy"))
+		host->caps |= MMC_CAP_WAIT_WHILE_BUSY;
 	if (of_property_read_bool(np, "sd-uhs-sdr12"))
 		host->caps |= MMC_CAP_UHS_SDR12;
 	if (of_property_read_bool(np, "sd-uhs-sdr25"))
