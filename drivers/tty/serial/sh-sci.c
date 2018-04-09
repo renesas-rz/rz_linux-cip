@@ -1950,6 +1950,27 @@ static int sci_startup(struct uart_port *port)
 	return 0;
 }
 
+#define TX_DRAIN_LOOP_MAX 200
+
+static void sci_drain_tx(struct uart_port *port)
+{
+	unsigned int status;
+	unsigned int mask;
+	int i;
+
+	serial_port_out(port, SCSCR, SCSCR_TE);
+
+	mask = SCxSR_TEND(port);
+	for (i = 0; i < TX_DRAIN_LOOP_MAX; i++) {
+		status = serial_port_in(port, SCxSR);
+		if ((status & mask) == mask)
+			break;
+		mdelay(2);
+	}
+
+	serial_port_out(port, SCSCR, 0x00);
+}
+
 static void sci_shutdown(struct uart_port *port)
 {
 	struct sci_port *s = to_sci_port(port);
@@ -1963,6 +1984,7 @@ static void sci_shutdown(struct uart_port *port)
 	spin_lock_irqsave(&port->lock, flags);
 	sci_stop_rx(port);
 	sci_stop_tx(port);
+	sci_drain_tx(port);
 	spin_unlock_irqrestore(&port->lock, flags);
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
