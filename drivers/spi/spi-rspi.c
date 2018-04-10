@@ -186,7 +186,7 @@
 #define SPBFCR_RXTRG_8B		0x04	/*   8 bytes (24 bytes available) */
 #define SPBFCR_RXTRG_32B	0x07	/*   32 bytes (0 byte available) */
 
-#define SPI_BUFFER_SIZE		32u	/* transmit and receive buffer size *
+#define SPI_BUFFER_SIZE		32u	/* transmit and receive buffer size */
 /* QSPI on R-Car Gen2 */
 #define SPBFCR_TXTRG_1B		0x00	/* 31 bytes (1 byte available) */
 #define SPBFCR_TXTRG_32B	0x30	/* 0 byte (32 bytes available) */
