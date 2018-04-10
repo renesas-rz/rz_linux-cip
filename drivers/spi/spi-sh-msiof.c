@@ -57,6 +57,7 @@ struct sh_msiof_spi_priv {
 	dma_addr_t rx_dma_addr;
 	bool native_cs_inited;
 	bool native_cs_high;
+	int mode;
 };
 
 #define MAX_SS	3	/* Maximum number of native chip selects */
@@ -643,6 +644,9 @@ static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 {
 	int fifo_shift;
 	int ret;
+	unsigned long timeout;
+
+	timeout = (p->mode == SPI_MSIOF_MASTER) ? HZ : MAX_SCHEDULE_TIMEOUT;
 
 	/* limit maximum word transfer to rx/tx fifo size */
 	if (tx_buf)
@@ -673,7 +677,7 @@ static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 	}
 
 	/* wait for tx fifo to be emptied / rx fifo to be filled */
-	if (!wait_for_completion_timeout(&p->done, HZ)) {
+	if (!wait_for_completion_timeout(&p->done, timeout)) {
 		dev_err(&p->pdev->dev, "PIO timeout\n");
 		ret = -ETIMEDOUT;
 		goto stop_reset;
@@ -717,6 +721,9 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 	struct dma_async_tx_descriptor *desc_tx = NULL, *desc_rx = NULL;
 	dma_cookie_t cookie;
 	int ret;
+	unsigned long timeout;
+
+	timeout = (p->mode == SPI_MSIOF_MASTER) ? HZ : MAX_SCHEDULE_TIMEOUT;
 
 	/* First prepare and submit the DMA request(s), as this may fail */
 	if (rx) {
@@ -783,7 +790,7 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 	}
 
 	/* wait for tx fifo to be emptied / rx fifo to be filled */
-	if (!wait_for_completion_timeout(&p->done, HZ)) {
+	if (!wait_for_completion_timeout(&p->done, timeout)) {
 		dev_err(&p->pdev->dev, "DMA timeout\n");
 		ret = -ETIMEDOUT;
 		goto stop_reset;
