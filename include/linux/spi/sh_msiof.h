@@ -11,4 +11,9 @@ struct sh_msiof_spi_info {
 	u32 syncdl;
 };
 
+enum {
+	SPI_MSIOF_MASTER,
+	SPI_MSIOF_SLAVE,
+};
+
 #endif /* __SPI_SH_MSIOF_H__ */
