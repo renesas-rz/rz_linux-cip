@@ -253,6 +253,16 @@ static const struct soc_mbus_lookup mbus_fmt[] = {
 		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 }, {
+	.code = MEDIA_BUS_FMT_YUYV10_1X20,
+	.fmt = {
+			.fourcc                 = V4L2_PIX_FMT_YUYV,
+			.name                   = "YUYV 20bit",
+			.bits_per_sample        = 20,
+			.packing                = SOC_MBUS_PACKING_NONE,
+			.order                  = SOC_MBUS_ORDER_LE,
+			.layout                 = SOC_MBUS_LAYOUT_PACKED,
+	},
+}, {
 	.code = MEDIA_BUS_FMT_UYVY8_1X16,
 	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_UYVY,
