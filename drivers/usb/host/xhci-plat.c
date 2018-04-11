@@ -54,7 +54,9 @@ static void xhci_plat_quirks(struct device *dev, struct xhci_hcd *xhci)
 	 * to call dma_set_coherent_mask(dev, DMA_BIT_MASK(32)) in
 	 * xhci_gen_setup().
 	 */
-	if (of_device_is_compatible(of_node, "renesas,xhci-r8a7743"))
+	if (of_device_is_compatible(of_node, "renesas,xhci-r8a7743") ||
+	    of_device_is_compatible(of_node, "renesas,xhci-r8a7744") ||
+	    of_device_is_compatible(of_node, "renesas,xhci-r8a7742"))
 		xhci->quirks |= XHCI_NO_64BIT_SUPPORT;
 }
 
