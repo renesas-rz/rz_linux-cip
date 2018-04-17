@@ -1840,6 +1840,8 @@
 			dma-names = "tx", "rx", "tx", "rx";
 			max-frequency = <97500000>;
 			power-domains = <&cpg_clocks>;
+			renesas,mmc-scc-tapnum = <8>;
+			sd-uhs-sdr50;
 			status = "disabled";
 		};
 
