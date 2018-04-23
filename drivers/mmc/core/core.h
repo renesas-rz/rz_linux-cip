@@ -42,6 +42,7 @@ void mmc_set_chip_select(struct mmc_host *host, int mode);
 void mmc_set_clock(struct mmc_host *host, unsigned int hz);
 void mmc_set_bus_mode(struct mmc_host *host, unsigned int mode);
 void mmc_set_bus_width(struct mmc_host *host, unsigned int width);
+int mmc_host_set_uhs_voltage(struct mmc_host *host);
 u32 mmc_select_voltage(struct mmc_host *host, u32 ocr);
 int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage, u32 ocr);
 int __mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage);
