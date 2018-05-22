@@ -133,6 +133,7 @@
 #define VNDMR2_HPS		(1 << 29)
 #define VNDMR2_FTEV		(1 << 17)
 #define VNDMR2_VLV(n)		((n & 0xf) << 12)
+#define VNDMR2_YDS		(1 << 22)
 
 #define VIN_MAX_WIDTH		2048
 #define VIN_MAX_HEIGHT		2048
@@ -1286,6 +1287,9 @@ static int rcar_vin_set_bus_param(struct soc_camera_device *icd)
 		val |= VNDMR2_VPS;
 	if (!(common_flags & V4L2_MBUS_HSYNC_ACTIVE_LOW))
 		val |= VNDMR2_HPS;
+	if (priv->pdata_flags & VNDMR2_YDS)
+		val |= VNDMR2_YDS;
+
 	iowrite32(val, priv->base + VNDMR2_REG);
 	/*fixme: hardcode
 	(val == 0x60021000) ? iowrite32(0x21000, priv->base + VNDMR2_REG) : iowrite32(val, priv->base + VNDMR2_REG);*/
@@ -2316,6 +2320,10 @@ static int rcar_vin_probe(struct platform_device *pdev)
 			if (ep.bus.parallel.flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
 				pdata_flags |= RCAR_VIN_VSYNC_ACTIVE_LOW;
 		}
+
+		/* YCrbr 8bit input pin selection flag: VIN_B or VIN_G */
+		if (of_find_property(np, "ycbcr_8b_g_enable", NULL))
+			pdata_flags |= VNDMR2_YDS;
 
 		of_node_put(np);
 
