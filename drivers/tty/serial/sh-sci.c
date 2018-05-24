@@ -2074,6 +2074,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned int baud, smr_val = 0, max_baud, cks = 0;
 	int t = -1;
 	unsigned int srr = 15;
+	unsigned long flags;
 
 	if ((termios->c_cflag & CSIZE) == CS7) {
 		smr_val |= SCSMR_CHR;
@@ -2112,6 +2113,8 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 
 	sci_port_enable(s);
+
+	spin_lock_irqsave(&port->lock, flags);
 
 	sci_reset(port);
 
@@ -2206,6 +2209,15 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	if ((termios->c_cflag & CREAD) != 0)
 		sci_start_rx(port);
 
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	dev_dbg(port->dev, "%s: SMR %x, cks %x, t %x, SCSCR %x\n",
+		__func__, smr_val, cks, t, s->cfg->scscr);
+
+#ifdef CONFIG_SERIAL_SH_SCI_DMA
+	dev_dbg(port->dev, "DMA Rx t-out %ums, tty t-out %u jiffies\n",
+		s->rx_timeout * 1000 / HZ, port->timeout);
+#endif
 	sci_port_disable(s);
 
 	if (UART_ENABLE_MS(port, termios->c_cflag))
