@@ -1022,6 +1022,7 @@ static const struct of_device_id sh_msiof_match[] = {
 	{ .compatible = "renesas,msiof-r8a7744",   .data = &r8a779x_data },
 	{ .compatible = "renesas,msiof-r8a7745",   .data = &r8a779x_data },
 	{ .compatible = "renesas,msiof-r8a77470",   .data = &r8a779x_data },
+	{ .compatible = "renesas,msiof-r8a7742",   .data = &r8a779x_data },
 	{ .compatible = "renesas,msiof-r8a7790",   .data = &r8a779x_data },
 	{ .compatible = "renesas,msiof-r8a7791",   .data = &r8a779x_data },
 	{ .compatible = "renesas,msiof-r8a7792",   .data = &r8a779x_data },
