@@ -927,8 +927,10 @@
 			dmas = <&dmac0 0xc1>, <&dmac0 0xc2>,
 			       <&dmac1 0xc1>, <&dmac1 0xc2>;
 			dma-names = "tx", "rx", "tx", "rx";
-			max-frequency = <97500000>;
 			power-domains = <&cpg_clocks>;
+			renesas,clk-rate = <97500000>;
+			renesas,mmc-scc-tapnum = <8>;
+			sd-uhs-sdr50;
 			status = "disabled";
 		};
 
