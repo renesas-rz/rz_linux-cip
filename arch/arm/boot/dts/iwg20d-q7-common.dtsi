@@ -274,6 +274,12 @@
 		power-source = <3300>;
 	};
 
+	sdhi1_pins_uhs: sd2_uhs {
+		renesas,groups = "sdhi1_data4", "sdhi1_ctrl";
+		renesas,function = "sdhi1";
+		power-source = <1800>;
+	};
+
 	sound_pins: sound {
 		groups = "ssi0129_ctrl", "ssi0_data", "ssi1_data";
 		function = "ssi";
@@ -334,7 +340,8 @@
 
 &sdhi1 {
 	pinctrl-0 = <&sdhi1_pins>;
-	pinctrl-names = "default";
+	pinctrl-1 = <&sdhi1_pins_uhs>;
+	pinctrl-names = "default", "state_uhs";
 
 	vmmc-supply = <&vcc_sdhi1>;
 	vqmmc-supply = <&vccq_sdhi1>;
