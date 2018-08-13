@@ -682,7 +682,7 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
 		break;
 	case V4L2_PIX_FMT_RGB32:
 		if (priv->chip == RCAR_GEN2 || priv->chip == RCAR_H1 ||
-		    priv->chip == RCAR_E1) {
+		    priv->chip == RCAR_E1 || priv->chip == RZ_G1C) {
 			dmr = VNDMR_EXRGB;
 			break;
 		}
