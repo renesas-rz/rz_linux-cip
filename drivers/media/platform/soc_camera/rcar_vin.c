@@ -1062,13 +1062,6 @@ static void set_coeff(struct rcar_vin_priv *priv, unsigned short xs)
 	iowrite32(p_set->coeff_set[23], priv->base + VNC8C_REG);
 }
 
-static u32 get_addon(u32 height, u32 vnys)
-{
-	u32 v;
-	v = ((height * 4096) % (vnys)) == 0 ? 1 : 0 ;
-	return v;
-}
-
 /* rect is guaranteed to not exceed the scaled camera rectangle */
 static int rcar_vin_set_rect(struct soc_camera_device *icd)
 {
