@@ -277,26 +277,6 @@ static int vsp1_video_pipeline_validate_branch(struct vsp1_pipeline *pipe,
 	return 0;
 }
 
-static void __vsp1_pipeline_cleanup(struct vsp1_pipeline *pipe)
-{
-	if (pipe->bru) {
-		struct vsp1_bru *bru = to_bru(&pipe->bru->subdev);
-		unsigned int i;
-
-		for (i = 0; i < ARRAY_SIZE(bru->inputs); ++i)
-			bru->inputs[i].rpf = NULL;
-	}
-
-	INIT_LIST_HEAD(&pipe->entities);
-	pipe->state = VSP1_PIPELINE_STOPPED;
-	pipe->buffers_ready = 0;
-	pipe->num_inputs = 0;
-	pipe->output = NULL;
-	pipe->bru = NULL;
-	pipe->lif = NULL;
-	pipe->uds = NULL;
-}
-
 static int vsp1_video_pipeline_validate(struct vsp1_pipeline *pipe,
 					struct vsp1_video *video)
 {
