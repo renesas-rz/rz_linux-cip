@@ -32,4 +32,7 @@ void cpg_mstp_detach_dev(struct generic_pm_domain *domain, struct device *dev);
 static inline void cpg_mstp_add_clk_domain(struct device_node *np) {}
 #endif
 
+#define cpg_mssr_attach_dev	NULL
+#define cpg_mssr_detach_dev	NULL
+
 #endif
