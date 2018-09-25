@@ -15,10 +15,10 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/smp.h>
+#include <linux/soc/renesas/rcar-sysc.h>
 #include <asm/io.h>
 #include <asm/cputype.h>
 #include "common.h"
-#include "pm-rcar.h"
 #include "rcar-gen2.h"
 
 /* RST */
@@ -54,11 +54,7 @@ static inline u32 phys_to_sbar(phys_addr_t addr)
 
 static void __init rcar_gen2_sysc_init(u32 syscier)
 {
-	void __iomem *base = rcar_sysc_init(0xe6180000);
-
-	/* enable all interrupt sources, but do not use interrupt handler */
-	iowrite32(syscier, base + SYSCIER);
-	iowrite32(0, base + SYSCIMR);
+	rcar_sysc_init(0xe6180000, syscier);
 }
 
 #else /* CONFIG_SMP */
@@ -75,6 +71,7 @@ void __init rcar_gen2_pm_init(void)
 	struct device_node *np, *cpus;
 	bool has_a7 = false;
 	bool has_a15 = false;
+	phys_addr_t boot_vector_addr = ICRAM1;
 	struct resource res;
 	u32 syscier = 0;
 	int error;
