@@ -523,9 +523,14 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 			renesas_sdhi_start_signal_voltage_switch;
 	}
 
-	/* Orginally registers were 16 bit apart, could be 32 or 64 nowadays */
-	if (!host->bus_shift && resource_size(res) > 0x100) /* old way to determine the shift */
+	/* SD control register space size */
+	if (resource_size(res) > 0x400) /* 0x400 for bus_shift=2 */
+		host->bus_shift = 2;
+	/* SD control register space size is 0x100, 0x200 for bus_shift=1 */
+	else if (resource_size(res) > 0x100)
 		host->bus_shift = 1;
+	else
+		host->bus_shift = 0;
 
 	if (mmd)
 		*mmc_data = *mmd;
