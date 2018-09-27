@@ -453,12 +453,14 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		       const struct tmio_mmc_dma_ops *dma_ops)
 {
 	struct tmio_mmc_data *mmd = pdev->dev.platform_data;
+	const struct device_node *np = pdev->dev.of_node;
 	const struct renesas_sdhi_of_data *of_data;
 	struct tmio_mmc_data *mmc_data;
 	struct tmio_mmc_dma *dma_priv;
 	struct tmio_mmc_host *host;
 	struct renesas_sdhi *priv;
 	struct resource *res;
+	int clk_rate = 0;
 	int irq, ret, i;
 
 	of_data = of_device_get_match_data(&pdev->dev);
@@ -488,6 +490,18 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 						PINCTRL_STATE_DEFAULT);
 		priv->pins_uhs = pinctrl_lookup_state(priv->pinctrl,
 						"state_uhs");
+	}
+
+	if (np && !of_property_read_u32(np, "renesas,clk-rate", &clk_rate)) {
+		if (clk_rate) {
+			clk_prepare_enable(priv->clk);
+			ret = clk_set_rate(priv->clk, clk_rate);
+			if (ret < 0)
+				dev_err(&pdev->dev,
+					"cannot set clock rate: %d\n", ret);
+
+			clk_disable_unprepare(priv->clk);
+		}
 	}
 
 	host = tmio_mmc_host_alloc(pdev);
