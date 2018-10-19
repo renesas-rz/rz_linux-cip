@@ -83,6 +83,7 @@ static const struct of_device_id renesas_sdhi_sys_dmac_of_match[] = {
 	{ .compatible = "renesas,sdhi-r8a7743", .data = &of_rcar_gen2_compatible, },
 	{ .compatible = "renesas,sdhi-r8a7744", .data = &of_rcar_gen2_compatible, },
 	{ .compatible = "renesas,sdhi-r8a7745", .data = &of_rcar_gen2_compatible, },
+	{ .compatible = "renesas,sdhi-r8a77470", .data = &of_rcar_gen2_compatible,},
 	{ .compatible = "renesas,sdhi-r8a7790", .data = &of_rcar_gen2_compatible, },
 	{ .compatible = "renesas,sdhi-r8a7791", .data = &of_rcar_gen2_compatible, },
 	{ .compatible = "renesas,sdhi-r8a7792", .data = &of_rcar_gen2_compatible, },
