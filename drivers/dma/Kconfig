@@ -457,6 +457,13 @@ config PXA_DMA
 	  16 to 32 channels for peripheral to memory or memory to memory
 	  transfers.
 
+config RZA_DMA
+	tristate "Renesas RZ/A DMAC support"
+	depends on ARCH_R7S72100
+	select DMA_ENGINE
+	help
+	  Enable support for the Renesas RZA DMA controllers.
+
 config SIRF_DMA
 	tristate "CSR SiRFprimaII/SiRFmarco DMA support"
 	depends on ARCH_SIRF
