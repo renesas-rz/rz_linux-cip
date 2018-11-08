@@ -11,6 +11,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/io.h>
 
 #include "core.h"
 #include "sh_pfc.h"
@@ -34,6 +35,33 @@
 	PORT_GP_26(bank, fn, sfx),					\
 	PORT_GP_1(bank, 26, fn, sfx), PORT_GP_1(bank, 27, fn, sfx)
 
+#define PORT_GP_CFG_24(bank, fn, sfx, cfg)				\
+	PORT_GP_CFG_1(bank, 0,  fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 1,  fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 2,  fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 3,  fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 4,  fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 5,  fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 6,  fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 7,  fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 8,  fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 9,  fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 10, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 11, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 12, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 13, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 14, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 15, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 16, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 17, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 18, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 19, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 20, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 21, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 22, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 23, fn, sfx, cfg)
+#define PORT_GP_24(bank, fn, sfx)	PORT_GP_CFG_24(bank, fn, sfx, 0)
+
 #define CPU_ALL_PORT(fn, sfx)						\
 	PORT_GP_32(0, fn, sfx),						\
 	PORT_GP_26(1, fn, sfx),						\
@@ -41,7 +69,9 @@
 	PORT_GP_32(3, fn, sfx),						\
 	PORT_GP_32(4, fn, sfx),						\
 	PORT_GP_28(5, fn, sfx),						\
-	PORT_GP_26(6, fn, sfx)
+	PORT_GP_CFG_24(6, fn, sfx, SH_PFC_PIN_CFG_IO_VOLTAGE),		\
+	PORT_GP_1(6, 24, fn, sfx),					\
+	PORT_GP_1(6, 25, fn, sfx)
 
 enum {
 	PINMUX_RESERVED = 0,
@@ -5561,9 +5591,79 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ },
 };
 
+#define IOCTRL4 0x6c
+
+static int r8a7745_get_io_voltage(struct sh_pfc *pfc, unsigned int pin)
+{
+	u32 data, mask;
+
+	if (WARN(pin < RCAR_GP_PIN(6, 0) ||
+			pin > RCAR_GP_PIN(6, 23), "invalid pin %#x", pin))
+		return -EINVAL;
+
+	data = ioread32(pfc->windows->virt + IOCTRL4);
+
+	if (pin >= RCAR_GP_PIN(6, 0) && pin <= RCAR_GP_PIN(6, 5))
+		mask = 0x00400000 >> (pin & 0x1f);
+	else if (pin == RCAR_GP_PIN(6, 6))
+		mask = 0x00800000;
+	else if (pin == RCAR_GP_PIN(6, 7))
+		mask = 0x00010000;
+	else if (pin >= RCAR_GP_PIN(6, 8) && pin <= RCAR_GP_PIN(6, 13))
+		mask = 0x00400000 >> (pin & 0x1f);
+	else if (pin == RCAR_GP_PIN(6, 14))
+		mask = 0x00008000;
+	else
+		mask = 0x00000100;
+
+	return (data & mask) ? 3300 : 1800;
+};
+
+static int r8a7745_set_io_voltage(struct sh_pfc *pfc, unsigned int pin, u16 mV)
+{
+	u32 data, mask;
+
+	if (WARN(pin < RCAR_GP_PIN(6, 0) ||
+			pin > RCAR_GP_PIN(6, 23), "invalid pin %#x", pin))
+		return -EINVAL;
+
+	if (mV != 1800 && mV != 3300)
+		return -EINVAL;
+
+	data = ioread32(pfc->windows->virt + IOCTRL4);
+
+	if (pin >= RCAR_GP_PIN(6, 0) && pin <= RCAR_GP_PIN(6, 5))
+		mask = 0x00400000 >> (pin & 0x1f);
+	else if (pin == RCAR_GP_PIN(6, 6))
+		mask = 0x00800000;
+	else if (pin == RCAR_GP_PIN(6, 7))
+		mask = 0x00010000;
+	else if (pin >= RCAR_GP_PIN(6, 8) && pin <= RCAR_GP_PIN(6, 13))
+		mask = 0x00400000 >> (pin & 0x1f);
+	else if (pin == RCAR_GP_PIN(6, 14))
+		mask = 0x00008000;
+	else
+		mask = 0x00000100;
+
+	if (mV == 3300)
+		data |= mask;
+	else
+		data &= ~mask;
+
+	iowrite32(~data, pfc->windows->virt); /* unlock reg */
+	iowrite32(data, pfc->windows->virt + IOCTRL4);
+
+	return 0;
+};
+
+static const struct sh_pfc_soc_operations pinmux_ops = {
+	.get_io_voltage = r8a7745_get_io_voltage,
+	.set_io_voltage = r8a7745_set_io_voltage,
+};
 #ifdef CONFIG_PINCTRL_PFC_R8A7745
 const struct sh_pfc_soc_info r8a7745_pinmux_info = {
 	.name = "r8a77450_pfc",
+	.ops = &pinmux_ops,
 	.unlock_reg = 0xe6060000, /* PMMR */
 
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
