@@ -1242,6 +1242,7 @@
 			dma-names = "tx", "rx", "tx", "rx";
 			max-frequency = <195000000>;
 			power-domains = <&cpg_clocks>;
+			sd-uhs-sdr50;
 			status = "disabled";
 		};
 
