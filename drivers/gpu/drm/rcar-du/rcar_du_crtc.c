@@ -292,8 +292,7 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 				    (dptsr_planes << 16) | dptsr_planes);
 		rcrtc->group->dptsr_planes = dptsr_planes;
 
-		if (rcrtc->group->used_crtcs)
-			rcar_du_group_restart(rcrtc->group);
+		rcar_du_group_restart(rcrtc->group);
 	}
 
 	/* Restart the group if plane sources have changed. */
