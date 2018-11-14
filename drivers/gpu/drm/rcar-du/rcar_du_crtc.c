@@ -258,6 +258,15 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 			if (rcrtc->vsp->vsp) {
 				dspr = (rcrtc->index % 2) + 1;
 				hwplanes = 1 << (rcrtc->index % 2);
+			} else {
+				for (i = 0; i < rcrtc->vsp->num_planes; ++i) {
+					struct rcar_du_vsp_plane *plane = &rcrtc->vsp->planes[i];
+
+					if (plane->plane.state->crtc != &rcrtc->crtc)
+						continue;
+					dspr |= (plane->index + 5) << 4*i;
+					hwplanes |= 1 << (plane->index + 4);
+				}
 			}
 		} else {
 			dspr = (rcrtc->index % 2) ? 3 : 1;
