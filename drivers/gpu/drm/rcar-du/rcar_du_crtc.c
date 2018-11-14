@@ -712,6 +712,8 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 		return irq;
 	}
 
+	rcdu->ddev->irq_enabled = true;
+
 	ret = devm_request_irq(rcdu->dev, irq, rcar_du_crtc_irq, irqflags,
 			       dev_name(rcdu->dev), rcrtc);
 	if (ret < 0) {
