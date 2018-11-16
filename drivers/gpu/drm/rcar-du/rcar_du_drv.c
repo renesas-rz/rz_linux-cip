@@ -1,7 +1,7 @@
 /*
  * rcar_du_drv.c  --  R-Car Display Unit DRM driver
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -36,6 +36,7 @@
  */
 
 static const struct rcar_du_device_info rcar_du_r8a7742_info = {
+	.gen = 2,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
 	.quirks = RCAR_DU_QUIRK_ALIGN_128B,
@@ -62,6 +63,7 @@ static const struct rcar_du_device_info rcar_du_r8a7742_info = {
 };
 
 static const struct rcar_du_device_info rzg1_du_r8a7743_info = {
+	.gen = 2,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
 	.num_crtcs = 2,
@@ -84,6 +86,7 @@ static const struct rcar_du_device_info rzg1_du_r8a7743_info = {
 };
 
 static const struct rcar_du_device_info rzg1_du_r8a7745_info = {
+	.gen = 2,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
 	.num_crtcs = 2,
