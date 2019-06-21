@@ -769,7 +769,7 @@ static int rcsi2_parse_dt(struct rcar_csi2 *priv)
 	}
 
 	priv->asd.match.fwnode =
-		fwnode_graph_get_remote_endpoint(of_fwnode_handle(ep));
+		fwnode_graph_get_remote_port_parent(of_fwnode_handle(ep));
 	priv->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
 
 	of_node_put(ep);
