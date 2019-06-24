@@ -23,6 +23,10 @@ SoCs:
     compatible = "renesas,r8a7745"
   - RZ/G1C (R8A77470)
     compatible = "renesas,r8a77470"
+  - RZ/G2M (R8A774A1)
+    compatible = "renesas,r8a774a1"
+  - RZ/G2E (R8A774C0)
+    compatible = "renesas,r8a774c0"
   - R-Car M1A (R8A77781)
     compatible = "renesas,r8a7778"
   - R-Car H1 (R8A77790)
@@ -127,6 +131,10 @@ Boards:
     compatible = "renesas,salvator-xs", "renesas,r8a7796"
   - Salvator-XS (Salvator-X 2nd version, RTP0RC77965SIPB012S)
     compatible = "renesas,salvator-xs", "renesas,r8a77965"
+  - Silicon Linux RZ/G2E 96board platform (CAT874)
+    compatible = "si-linux,cat874", "renesas,r8a774c0"
+  - Silicon Linux sub board for CAT874 (CAT875)
+    compatible = "si-linux,cat875", "si-linux,cat874", "renesas,r8a774c0"
   - SILK (RTP0RC7794LCB00011S)
     compatible = "renesas,silk", "renesas,r8a7794"
   - SK-RZG1E (YR8A77450S000BE)
