@@ -511,6 +511,22 @@
 			dma-channels = <2>;
 		};
 
+		vspm@fe928000 {
+			compatible = "renesas,vspm-vsps", "renesas-vspm";
+			reg = <0 0xfe928000 0 0x7404>;
+			interrupts = <0 267 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&mstp1_clks R8A77470_CLK_VSP1_SY>;
+			power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
+		};
+
+		vspdu0: vspdu0@fe930000 {
+			compatible = "renesas,vsp1";
+			reg = <0 0xfe930000 0 0x7404>;
+			interrupts = <0 246 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&mstp1_clks R8A77470_CLK_VSP1DU0>;
+			power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
+		};
+
 		du: display@feb00000 {
 			compatible = "renesas,du-r8a77470";
 			reg = <0 0xfeb00000 0 0x40000>;
@@ -522,6 +538,8 @@
 			clock-names = "du.0", "du.1";
 			power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
 			status = "disabled";
+
+			vsps = <&vspdu0>;
 
 			ports {
 				#address-cells = <1>;
