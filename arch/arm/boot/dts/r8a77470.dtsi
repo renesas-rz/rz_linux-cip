@@ -444,7 +444,7 @@
 					  "ch12", "ch13", "ch14";
 			clocks = <&mstp2_clks R8A77470_CLK_SYS_DMAC0>;
 			clock-names = "fck";
-			power-domains = <&cpg_clocks>;
+			power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
 			#dma-cells = <1>;
 			dma-channels = <15>;
 		};
@@ -476,7 +476,7 @@
 					  "ch12", "ch13", "ch14";
 			clocks = <&mstp2_clks R8A77470_CLK_SYS_DMAC1>;
 			clock-names = "fck";
-			power-domains = <&cpg_clocks>;
+			power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
 			#dma-cells = <1>;
 			dma-channels = <15>;
 		};
