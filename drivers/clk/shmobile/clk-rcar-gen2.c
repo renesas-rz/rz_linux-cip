@@ -373,7 +373,10 @@ rcar_gen2_cpg_register_clock(struct device_node *np, struct rcar_gen2_cpg *cpg,
 		mult = config->pll3_mult;
 	} else if (!strcmp(name, "lb")) {
 		parent_name = "pll1";
-		div = cpg_mode & BIT(18) ? 36 : 24;
+		if (of_device_is_compatible(np, r8a77470_compat))
+			div = 12;
+		else
+			div = cpg_mode & BIT(18) ? 36 : 24;
 	} else if (!strcmp(name, "qspi")) {
 		parent_name = "pll1_div2";
 		div = (cpg_mode & (BIT(3) | BIT(2) | BIT(1))) == BIT(2)
@@ -470,7 +473,8 @@ static void __init rcar_gen2_cpg_clocks_init(struct device_node *np)
 
 	of_clk_add_provider(np, of_clk_src_onecell_get, &cpg->data);
 
-	cpg_mstp_add_clk_domain(np);
+	if (!of_device_is_compatible(np, r8a77470_compat))
+		cpg_mstp_add_clk_domain(np);
 }
 CLK_OF_DECLARE(rcar_gen2_cpg_clks, "renesas,rcar-gen2-cpg-clocks",
 	       rcar_gen2_cpg_clocks_init);
