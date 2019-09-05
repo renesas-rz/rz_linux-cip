@@ -183,6 +183,39 @@ x86_toshiba_atom_baytrail_cip.config:
     paths:
       - output
 
+# RT build configurations
+rt_arm_socfpga_defconfig:
+  stage: build
+  image: registry.gitlab.com/cip-project/cip-testing/linux-cip-ci:build-$DOCKER_IMAGE_TAG
+  variables:
+    BUILD_ARCH: arm
+    CONFIG: socfpga_defconfig
+    CONFIG_LOC: cip-kernel-config
+    BUILD_ONLY: "true"
+  script:
+    - /opt/build_kernel.sh
+  artifacts:
+    name: "$CI_JOB_NAME"
+    when: on_success
+    paths:
+      - output
+
+rt_x86_siemens_i386-rt.config:
+  stage: build
+  image: registry.gitlab.com/cip-project/cip-testing/linux-cip-ci:build-$DOCKER_IMAGE_TAG
+  variables:
+    BUILD_ARCH: x86
+    CONFIG: siemens_i386-rt.config
+    CONFIG_LOC: cip-kernel-config
+    BUILD_ONLY: "true"
+  script:
+    - /opt/build_kernel.sh
+  artifacts:
+    name: "$CI_JOB_NAME"
+    when: on_success
+    paths:
+      - output
+
 # Extra build configurations
 arm_shmobile_defconfig:
   stage: build
