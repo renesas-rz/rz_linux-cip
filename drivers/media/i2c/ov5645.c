@@ -72,6 +72,16 @@
 #define		OV5645_TEST_PATTERN_ENABLE	BIT(7)
 #define OV5645_SDE_SAT_U		0x5583
 #define OV5645_SDE_SAT_V		0x5584
+#define OV5645_REG_DEBUG_MODE		0x4814
+
+/*
+ * FIXME: remove this when a subdev API becomes available
+ * to set the MIPI CSI-2 virtual channel.
+ */
+static unsigned int virtual_channel;
+module_param(virtual_channel, int, 0644);
+MODULE_PARM_DESC(virtual_channel,
+		"MIPI CSI-2 virtual channel (0..3), default 0");
 
 struct reg_value {
 	u16 reg;
@@ -1038,12 +1048,34 @@ static int ov5645_get_selection(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int ov5645_set_virtual_channel(struct ov5645 *ov5645)
+{
+	u8 temp, channel = virtual_channel;
+	int ret;
+
+	if (channel > 3)
+		return -EINVAL;
+
+	ret = ov5645_read_reg(ov5645, OV5645_REG_DEBUG_MODE, &temp);
+	if (ret)
+		return ret;
+
+	temp &= ~(3 << 6);
+	temp |= (channel << 6);
+
+	return ov5645_write_reg(ov5645, OV5645_REG_DEBUG_MODE, temp);
+}
+
 static int ov5645_s_stream(struct v4l2_subdev *subdev, int enable)
 {
 	struct ov5645 *ov5645 = to_ov5645(subdev);
 	int ret;
 
 	if (enable) {
+		ret = ov5645_set_virtual_channel(ov5645);
+		if (ret < 0)
+			return ret;
+
 		ret = ov5645_set_register_array(ov5645,
 					ov5645->current_mode->data,
 					ov5645->current_mode->data_size);
