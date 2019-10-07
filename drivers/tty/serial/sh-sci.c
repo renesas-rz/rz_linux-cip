@@ -1164,10 +1164,14 @@ static void sci_tx_dma_release(struct sci_port *s, bool enable_pio)
 	s->chan_tx = NULL;
 	s->cookie_tx = -EINVAL;
 	spin_unlock_irqrestore(&port->lock, flags);
-	dmaengine_terminate_all(chan);
-	dma_unmap_single(chan->device->dev, s->tx_dma_addr, UART_XMIT_SIZE,
-			 DMA_TO_DEVICE);
-	dma_release_channel(chan);
+
+	if (chan) {
+		dmaengine_terminate_all(chan);
+		dma_unmap_single(chan->device->dev, s->tx_dma_addr, UART_XMIT_SIZE,
+				 DMA_TO_DEVICE);
+		dma_release_channel(chan);
+	}
+
 	if (enable_pio)
 		sci_start_tx(port);
 }
@@ -1247,7 +1251,6 @@ static void work_fn_tx(struct work_struct *work)
 					   DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
 		spin_unlock_irq(&port->lock);
-		dev_warn(port->dev, "Failed preparing Tx DMA descriptor\n");
 		/* switch to PIO */
 		sci_tx_dma_release(s, true);
 		return;
