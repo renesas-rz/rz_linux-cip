@@ -26,6 +26,7 @@
 		spi2 = &msiof0;
 		spi3 = &msiof1;
 		spi4 = &msiof2;
+		vin0 = &vin0;
 	};
 
 	cpus {
@@ -1263,6 +1264,15 @@
 					"scu-src4", "scu-src3", "scu-src2",
 					"scu-src1";
 			};
+		};
+
+		vin0: video@e6ef0000 {
+			compatible = "renesas,vin-r8a77470";
+			reg = <0 0xe6ef0000 0 0x1000>;
+			interrupts = <0 188 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&mstp8_clks R8A77470_CLK_VIN0>;
+			power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
+			status = "disabled";
 		};
 	};
 
