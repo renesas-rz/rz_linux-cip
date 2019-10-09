@@ -21,6 +21,8 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c4 = &i2c4;
+		spi0 = &qspi0;
+		spi1 = &qspi1;
 	};
 
 	cpus {
@@ -501,7 +503,7 @@
 			dmas = <&dmac0 0x17>, <&dmac0 0x18>,
 			       <&dmac1 0x17>, <&dmac1 0x18>;
 			dma-names = "tx", "rx", "tx", "rx";
-			power-domains = <&cpg_clocks>;
+			power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -516,7 +518,7 @@
 			dmas = <&dmac0 0xd1>, <&dmac0 0xd2>,
 			       <&dmac1 0xd1>, <&dmac1 0xd2>;
 			dma-names = "tx", "rx", "tx", "rx";
-			power-domains = <&cpg_clocks>;
+			power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
