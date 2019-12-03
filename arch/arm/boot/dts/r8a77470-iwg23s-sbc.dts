@@ -44,8 +44,16 @@
 	};
 };
 
+&ehci1 {
+	status = "okay";
+};
+
 &extal_clk {
 	clock-frequency = <20000000>;
+};
+
+&hsusb0 {
+	status = "okay";
 };
 
 &i2c3 {
@@ -59,6 +67,10 @@
 		compatible = "nxp,pcf85263";
 		reg = <0x51>;
 	};
+};
+
+&ohci1 {
+	status = "okay";
 };
 
 &pfc {
@@ -80,6 +92,16 @@
 	scif1_pins: scif1 {
 		groups = "scif1_data_b";
 		function = "scif1";
+	};
+
+	usb0_pins: usb0 {
+		groups = "usb0";
+		function = "usb0";
+	};
+
+	usb1_pins: usb1 {
+		groups = "usb1";
+		function = "usb1";
 	};
 };
 
@@ -106,6 +128,28 @@
 
 &scif1 {
 	pinctrl-0 = <&scif1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&usb2_phy0 {
+	status = "okay";
+};
+
+&usb2_phy1 {
+	status = "okay";
+};
+
+&usbphy0 {
+	pinctrl-0 = <&usb0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&usbphy1 {
+	pinctrl-0 = <&usb1_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";
