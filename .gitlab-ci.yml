@@ -262,23 +262,6 @@ x86_toshiba_defconfig:
     paths:
       - output
 
-# RT build configurations
-rt_x86_siemens_i386-rt.config:
-  stage: build
-  image: registry.gitlab.com/cip-project/cip-testing/linux-cip-ci:build-$DOCKER_IMAGE_TAG
-  variables:
-    BUILD_ARCH: x86
-    CONFIG: siemens_i386-rt.config
-    CONFIG_LOC: cip-kernel-config
-    BUILD_ONLY: "true"
-  script:
-    - /opt/build_kernel.sh
-  artifacts:
-    name: "$CI_JOB_NAME"
-    when: always
-    paths:
-      - output
-
 # Extra build configurations
 arm_shmobile_defconfig:
   stage: build
