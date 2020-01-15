@@ -29,6 +29,7 @@
 
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/highmem.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -109,6 +110,34 @@ void tmio_mmc_disable_mmc_irqs(struct tmio_mmc_host *host, u32 i)
 	sd_ctrl_write32_as_16_and_16(host, CTL_IRQ_MASK, host->sdcard_irq_mask);
 }
 EXPORT_SYMBOL_GPL(tmio_mmc_disable_mmc_irqs);
+
+int tmio_mmc_pre_dma_transfer(struct tmio_mmc_host *host,
+				struct mmc_data *data, int cookie)
+{
+	unsigned int sg_len;
+
+	if (data->host_cookie == COOKIE_PRE_MAPPED)
+		return data->sg_len;
+
+	sg_len = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len,
+				mmc_get_dma_dir(data));
+	if (sg_len == 0) {
+		dev_err(&host->pdev->dev,
+			"%s: dma_map_sg failed\n", __func__);
+		return 0;
+	}
+	/* This DMAC cannot handle if buffer is not 8-bytes alignment */
+	if (!IS_ALIGNED(sg_dma_address(data->sg), 8)) {
+		dma_unmap_sg(&host->pdev->dev, data->sg, data->sg_len,
+				mmc_get_dma_dir(data));
+		return 0;
+	}
+
+	data->host_cookie = cookie;
+
+	return sg_len;
+}
+EXPORT_SYMBOL_GPL(tmio_mmc_pre_dma_transfer);
 
 static void tmio_mmc_ack_mmc_irqs(struct tmio_mmc_host *host, u32 i)
 {
@@ -790,6 +819,36 @@ static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 	return 0;
 }
 
+static void tmio_mmc_post_req(struct mmc_host *mmc, struct mmc_request *req,
+				int err)
+{
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct mmc_data *data = req->data;
+
+	if (!host->chan_tx || !host->chan_rx || !data)
+		return;
+
+	if (data->host_cookie != COOKIE_UNMAPPED)
+		dma_unmap_sg(&host->pdev->dev, data->sg, data->sg_len,
+				mmc_get_dma_dir(data));
+
+	data->host_cookie = COOKIE_UNMAPPED;
+}
+
+static void tmio_mmc_pre_req(struct mmc_host *mmc, struct mmc_request *req)
+{
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct mmc_data *data = req->data;
+
+	if (!host->chan_tx || !host->chan_rx || !data)
+		return;
+
+	data->host_cookie = COOKIE_UNMAPPED;
+
+	if (tmio_mmc_pre_dma_transfer(host, data, COOKIE_PRE_MAPPED) <= 0)
+		data->host_cookie = COOKIE_UNMAPPED;
+}
+
 static void tmio_mmc_hw_reset(struct mmc_host *mmc)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
@@ -1135,6 +1194,8 @@ static void tmio_mmc_hs400_complete(struct mmc_host *mmc)
 }
 
 static const struct mmc_host_ops tmio_mmc_ops = {
+	.post_req       = tmio_mmc_post_req,
+	.pre_req        = tmio_mmc_pre_req,
 	.request	= tmio_mmc_request,
 	.set_ios	= tmio_mmc_set_ios,
 	.get_ro         = tmio_mmc_get_ro,
