@@ -25,6 +25,8 @@ SoCs:
     compatible = "renesas,r8a77470"
   - RZ/G2M (R8A774A1)
     compatible = "renesas,r8a774a1"
+  - RZ/G2N (R8A774B1)
+    compatible = "renesas,r8a774b1"
   - RZ/G2E (R8A774C0)
     compatible = "renesas,r8a774c0"
   - R-Car M1A (R8A77781)
@@ -90,10 +92,13 @@ Boards:
   - Henninger
     compatible = "renesas,henninger", "renesas,r8a7791"
   - HopeRun expansion board for HiHope RZ/G2 platforms
-    compatible = "hoperun,hihope-rzg2-ex", "hoperun,hihope-rzg2m",
-                 "renesas,r8a774a1"
+    compatible = "hoperun,hihope-rzg2m", "renesas,r8a774a1",
+                 "hoperun,hihope-rzg2n", "renesas,r8a774b1",
+                 "hoperun,hihope-rzg2-ex"
   - HopeRun HiHope RZ/G2M platform
     compatible = "hoperun,hihope-rzg2m", "renesas,r8a774a1"
+  - HopeRun HiHope RZ/G2N platform
+    compatible = "hoperun,hihope-rzg2n", "renesas,r8a774b1"
   - iWave Systems RZ/G1C Single Board Computer (iW-RainboW-G23S)
     compatible = "iwave,g23s", "renesas,r8a77470"
   - iWave Systems RZ/G1E SODIMM SOM Development Platform (iW-RainboW-G22D)
