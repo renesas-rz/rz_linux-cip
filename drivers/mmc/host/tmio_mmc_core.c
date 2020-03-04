@@ -51,6 +51,7 @@
 #include <linux/swiotlb.h>
 #include <linux/workqueue.h>
 
+#include "renesas_sdhi.h"
 #include "tmio_mmc.h"
 
 static inline void tmio_mmc_start_dma(struct tmio_mmc_host *host,
@@ -195,6 +196,7 @@ static void tmio_mmc_set_clock(struct tmio_mmc_host *host,
 			       unsigned int new_clock)
 {
 	u32 clk = 0, clock;
+	struct renesas_sdhi *priv = host_to_priv(host);
 
 	if (new_clock == 0) {
 		tmio_mmc_clk_stop(host);
@@ -205,7 +207,7 @@ static void tmio_mmc_set_clock(struct tmio_mmc_host *host,
 	 * set 400MHz to distinguish the CPG settings in HS400.
 	 */
 	if (host->mmc->ios.timing == MMC_TIMING_MMC_HS400 &&
-	    host->pdata->flags & TMIO_MMC_HAVE_4TAP_HS400 &&
+	    priv->quirks && priv->quirks->hs400_4taps &&
 	    new_clock == 200000000)
 		new_clock = 400000000;
 
