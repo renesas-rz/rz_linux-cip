@@ -384,28 +384,11 @@ static void _rcar_thermal_irq_ctrl(struct rcar_thermal_priv *priv, int enable)
 static void rcar_thermal_work(struct work_struct *work)
 {
 	struct rcar_thermal_priv *priv;
-	int cctemp, nctemp;
-	int ret;
 
 	priv = container_of(work, struct rcar_thermal_priv, work.work);
 
-	ret = rcar_thermal_get_current_temp(priv, &cctemp);
-	if (ret < 0)
-		return;
-
-	ret = rcar_thermal_update_temp(priv);
-	if (ret < 0)
-		return;
-
-	rcar_thermal_irq_enable(priv);
-
-	ret = rcar_thermal_get_current_temp(priv, &nctemp);
-	if (ret < 0)
-		return;
-
-	if (nctemp != cctemp)
-		thermal_zone_device_update(priv->zone,
-					   THERMAL_EVENT_UNSPECIFIED);
+	thermal_zone_device_update(priv->zone,
+					THERMAL_EVENT_UNSPECIFIED);
 }
 
 static u32 rcar_thermal_had_changed(struct rcar_thermal_priv *priv, u32 status)
@@ -446,7 +429,6 @@ static irqreturn_t rcar_thermal_irq(int irq, void *data)
 	 */
 	rcar_thermal_for_each_priv(priv, common) {
 		if (rcar_thermal_had_changed(priv, status)) {
-			rcar_thermal_irq_disable(priv);
 			queue_delayed_work(system_freezable_wq, &priv->work,
 					   msecs_to_jiffies(300));
 		}
