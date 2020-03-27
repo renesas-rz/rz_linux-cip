@@ -29,6 +29,7 @@ endif
 # Family
 obj-$(CONFIG_RST_RCAR)		+= rcar-rst.o
 obj-$(CONFIG_SYSC_RCAR)		+= rcar-sysc.o
+obj-$(CONFIG_RCAR_CPU_TOPOLOGY)	+= rcar-topology.o
 
 # EMS for R-Car Gen3
 obj-$(CONFIG_RCAR_THERMAL_EMS_ENABLED) += rcar_ems_ctrl.o
