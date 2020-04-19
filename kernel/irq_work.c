@@ -81,8 +81,7 @@ bool irq_work_queue(struct irq_work *work)
 
 	/* Queue the entry and raise the IPI if needed. */
 	preempt_disable();
-	if ((IS_ENABLED(CONFIG_PREEMPT_RT_FULL) && !(work->flags & IRQ_WORK_HARD_IRQ))
-	    || (work->flags & IRQ_WORK_LAZY))
+	if (IS_ENABLED(CONFIG_PREEMPT_RT_FULL) && !(work->flags & IRQ_WORK_HARD_IRQ))
 		list = this_cpu_ptr(&lazy_list);
 	else
 		list = this_cpu_ptr(&raised_list);
