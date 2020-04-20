@@ -1068,13 +1068,16 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_POWER_OFF:
 		tmio_mmc_power_off(host);
 		tmio_mmc_clk_stop(host);
+		pm_runtime_put(dev);
 		break;
 	case MMC_POWER_UP:
+		pm_runtime_get_sync(dev);
 		tmio_mmc_power_on(host, ios->vdd);
 		tmio_mmc_set_clock(host, ios->clock);
 		tmio_mmc_set_bus_width(host, ios->bus_width);
 		break;
 	case MMC_POWER_ON:
+		pm_runtime_get_sync(dev);
 		tmio_mmc_set_clock(host, ios->clock);
 		tmio_mmc_set_bus_width(host, ios->bus_width);
 		break;
