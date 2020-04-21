@@ -6707,7 +6707,7 @@ const struct sh_pfc_soc_info r8a7743_pinmux_info = {
 const struct sh_pfc_soc_info r8a7744_pinmux_info = {
 	.name = "r8a77440_pfc",
 	.unlock_reg = 0xe6060000, /* PMMR */
-
+	.ops = &pinmux_ops,
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
 
 	.pins = pinmux_pins,
