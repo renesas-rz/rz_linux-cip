@@ -25,6 +25,9 @@
 #include "r8a7743.h"
 #include "rcar-gen2.h"
 
+#define APMU           0xe6151000
+#define CA15DBGRCR     0x1180
+
 static struct rcar_apmu_config r8a7743_apmu_config[] = {
 	{
 		.iomem = DEFINE_RES_MEM(0xe6152000, 0x188),
@@ -39,6 +42,14 @@ static void __init r8a7743_smp_prepare_cpus(unsigned int max_cpus)
 				       r8a7743_apmu_config,
 				       ARRAY_SIZE(r8a7743_apmu_config));
 
+	/* setup for debug mode */
+	{
+		void __iomem *p = ioremap_nocache(APMU, 0x2000);
+		u32 val = readl_relaxed(p + CA15DBGRCR);
+
+		writel_relaxed((val | 0x01f80000), p + CA15DBGRCR);
+		iounmap(p);
+	}
 	rcar_gen2_pm_init();
 }
 
