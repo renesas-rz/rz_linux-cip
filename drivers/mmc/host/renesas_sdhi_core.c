@@ -567,6 +567,7 @@ static const struct renesas_sdhi_quirks sdhi_quirks_4tap = {
 static const struct soc_device_attribute sdhi_quirks_match[]  = {
 	{ .soc_id = "r8a774a1", .revision = "ES1.*",
 				.data = &sdhi_quirks_4tap },
+	{ .soc_id = "r8a774e1", .data = &sdhi_quirks_4tap },
 	{ .soc_id = "r8a7795",  .data = &sdhi_quirks_4tap },
 	{ .soc_id = "r8a7796",  .data = &sdhi_quirks_4tap },
 	{ /* sentinel */ }
