@@ -316,6 +316,15 @@ static int __swiotlb_get_sgtable(struct device *dev, struct sg_table *sgt,
 
 static int __swiotlb_dma_supported(struct device *hwdev, u64 mask)
 {
+#ifdef CONFIG_PCI
+	if (dev_is_pci(hwdev)) {
+		struct pci_dev *pdev = to_pci_dev(hwdev);
+		struct pci_host_bridge *br = pci_find_host_bridge(pdev->bus);
+
+		if (br->dev.dma_mask && (*br->dev.dma_mask) && (mask & (*br->dev.dma_mask)) != mask)
+			return 0;
+	}
+#endif
 	if (swiotlb)
 		return swiotlb_dma_supported(hwdev, mask);
 	return 1;
