@@ -1822,9 +1822,6 @@ unsigned int get_random_int(void)
 	__u32 *hash;
 	unsigned int ret;
 
-	if (arch_get_random_int(&ret))
-		return ret;
-
 	hash = get_locked_var(hash_entropy_int_lock, get_random_int_hash);
 
 	hash[0] += current->pid + jiffies + random_get_entropy();
@@ -1843,9 +1840,6 @@ unsigned long get_random_long(void)
 {
 	__u32 *hash;
 	unsigned long ret;
-
-	if (arch_get_random_long(&ret))
-		return ret;
 
 	hash = get_locked_var(hash_entropy_int_lock, get_random_int_hash);
 
