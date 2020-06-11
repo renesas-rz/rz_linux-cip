@@ -29,7 +29,6 @@ struct renesas_sdhi_of_data {
 	enum dma_slave_buswidth dma_buswidth;
 	dma_addr_t dma_rx_offset;
 	unsigned int bus_shift;
-	phys_addr_t mmc0_addr;
 	int scc_offset;
 	struct renesas_sdhi_scc *taps;
 	int taps_num;
@@ -43,7 +42,7 @@ struct renesas_sdhi_quirks {
 	bool dtranend1_bit17;
 	bool hs400_manual_calib;
 	u32 hs400_offset;
-	const u32 *hs400_calib_table;
+	u32 hs400_calib;
 };
 
 struct tmio_mmc_dma {
@@ -67,7 +66,7 @@ struct renesas_sdhi {
 	u32 scc_tappos_hs400;
 	bool dtranend1_bit17;
 	u32 adjust_hs400_offset;
-	const u32 *adjust_hs400_calib_table;
+	u32 adjust_hs400_calibrate;
 };
 
 #define host_to_priv(host) \
