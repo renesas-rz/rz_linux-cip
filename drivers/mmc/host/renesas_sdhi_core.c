@@ -275,6 +275,11 @@ static int renesas_sdhi_start_signal_voltage_switch(struct mmc_host *mmc,
 #define SH_MOBILE_SDHI_SCC_RVSCNTL	0x008
 #define SH_MOBILE_SDHI_SCC_RVSREQ	0x00A
 #define SH_MOBILE_SDHI_SCC_TMPPORT2	0x00E
+#define SH_MOBILE_SDHI_SCC_TMPPORT3	0x014
+#define SH_MOBILE_SDHI_SCC_TMPPORT4	0x016
+#define SH_MOBILE_SDHI_SCC_TMPPORT5	0x018
+#define SH_MOBILE_SDHI_SCC_TMPPORT6	0x01A
+#define SH_MOBILE_SDHI_SCC_TMPPORT7	0x01C
 
 /* Definitions for values the SH_MOBILE_SDHI_SCC_DTCNTL register */
 #define SH_MOBILE_SDHI_SCC_DTCNTL_TAPEN		BIT(0)
@@ -290,6 +295,26 @@ static int renesas_sdhi_start_signal_voltage_switch(struct mmc_host *mmc,
 /* Definitions for values the SH_MOBILE_SDHI_SCC_TMPPORT2 register */
 #define SH_MOBILE_SDHI_SCC_TMPPORT2_HS400OSEL	BIT(4)
 #define SH_MOBILE_SDHI_SCC_TMPPORT2_HS400EN	BIT(31)
+
+/* Definitions for values the SH_MOBILE_SDHI_SCC_TMPPORT3 register */
+#define SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_0	3
+#define SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_1	2
+#define SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_2	1
+#define SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_3	0
+#define SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_MASK		0x3
+
+/* Definitions for values the SH_MOBILE_SDHI_SCC_TMPPORT4 register */
+#define SH_MOBILE_SDHI_SCC_TMPPORT4_DLL_ACC_START	BIT(0)
+
+/* Definitions for values the SH_MOBILE_SDHI_SCC_TMPPORT5 register */
+#define SH_MOBILE_SDHI_SCC_TMPPORT5_DLL_RW_SEL_R	BIT(8)
+#define SH_MOBILE_SDHI_SCC_TMPPORT5_DLL_RW_SEL_W	(0 << 8)
+#define SH_MOBILE_SDHI_SCC_TMPPORT5_DLL_ADR_MASK	0x3F
+
+/* Definitions for values the SH_MOBILE_SDHI_SCC register */
+#define SH_MOBILE_SDHI_SCC_TMPPORT_DISABLE_WP_CODE	0xa5000000
+#define SH_MOBILE_SDHI_SCC_TMPPORT_CALIB_CODE_MASK	0x1f
+#define SH_MOBILE_SDHI_SCC_TMPPORT_MANUAL_MODE		BIT(7)
 
 static inline u32 sd_scc_read32(struct tmio_mmc_host *host,
 				struct renesas_sdhi *priv, int addr)
@@ -428,6 +453,8 @@ static void renesas_sdhi_reset_hs400_mode(struct tmio_mmc_host *host,
 		       ~(SH_MOBILE_SDHI_SCC_TMPPORT2_HS400EN |
 			 SH_MOBILE_SDHI_SCC_TMPPORT2_HS400OSEL) &
 			sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT2));
+	if (host->adjust_hs400_mode_disable)
+		host->adjust_hs400_mode_disable(host->mmc);
 
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, CLK_CTL_SCLKEN |
 			sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
@@ -436,8 +463,94 @@ static void renesas_sdhi_reset_hs400_mode(struct tmio_mmc_host *host,
 static void renesas_sdhi_prepare_hs400_tuning(struct tmio_mmc_host *host)
 {
 	renesas_sdhi_reset_hs400_mode(host, host_to_priv(host));
+	/* execute adjust hs400 offset after setting to HS400 mode */
+	host->needs_adjust_hs400 = true;
 }
 
+static u32 sd_scc_tmpport_read32(struct tmio_mmc_host *host,
+				 struct renesas_sdhi *priv, u32 addr)
+{
+	/* read mode */
+	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT5,
+		       SH_MOBILE_SDHI_SCC_TMPPORT5_DLL_RW_SEL_R |
+		       (SH_MOBILE_SDHI_SCC_TMPPORT5_DLL_ADR_MASK & addr));
+
+	/* access start and stop */
+	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT4,
+		       SH_MOBILE_SDHI_SCC_TMPPORT4_DLL_ACC_START);
+	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT4, 0);
+
+	return sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT7);
+}
+
+static void sd_scc_tmpport_write32(struct tmio_mmc_host *host,
+				   struct renesas_sdhi *priv, u32 addr, u32 val)
+{
+	/* write mode */
+	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT5,
+		       SH_MOBILE_SDHI_SCC_TMPPORT5_DLL_RW_SEL_W |
+		       (SH_MOBILE_SDHI_SCC_TMPPORT5_DLL_ADR_MASK & addr));
+
+	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT6, val);
+
+	/* access start and stop */
+	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT4,
+		       SH_MOBILE_SDHI_SCC_TMPPORT4_DLL_ACC_START);
+	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT4, 0);
+}
+
+static void renesas_sdhi_adjust_hs400_mode_enable(struct mmc_host *mmc)
+{
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct renesas_sdhi *priv = host_to_priv(host);
+	u32 calib_code;
+
+	/* Enabled Manual adjust HS400 mode
+	 *
+	 * 1) Disabled Write Protect
+	 *    W(addr=0x00, WP_DISABLE_CODE)
+	 * 2) Read Calibration code and adjust
+	 *    R(addr=0x26) - adjust value
+	 * 3) Enabled Manual Calibration
+	 *    W(addr=0x22, manual mode | Calibration code)
+	 * 4) Set Offset value to TMPPORT3 Reg
+	 */
+	sd_scc_tmpport_write32(host, priv, 0x00,
+			       SH_MOBILE_SDHI_SCC_TMPPORT_DISABLE_WP_CODE);
+	calib_code = sd_scc_tmpport_read32(host, priv, 0x26);
+	calib_code &= SH_MOBILE_SDHI_SCC_TMPPORT_CALIB_CODE_MASK;
+	if (calib_code > priv->adjust_hs400_calibrate)
+		calib_code -= priv->adjust_hs400_calibrate;
+	else
+		calib_code = 0;
+	sd_scc_tmpport_write32(host, priv, 0x22,
+			       SH_MOBILE_SDHI_SCC_TMPPORT_MANUAL_MODE |
+			       calib_code);
+	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT3,
+		       priv->adjust_hs400_offset);
+
+	/* Clear flag */
+	host->needs_adjust_hs400 = false;
+}
+
+static void renesas_sdhi_adjust_hs400_mode_disable(struct mmc_host *mmc)
+{
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct renesas_sdhi *priv = host_to_priv(host);
+
+	/* Disabled Manual adjust HS400 mode
+	 *
+	 * 1) Disabled Write Protect
+	 *    W(addr=0x00, WP_DISABLE_CODE)
+	 * 2) Disabled Manual Calibration
+	 *    W(addr=0x22, 0)
+	 * 3) Clear offset value to TMPPORT3 Reg
+	 */
+	sd_scc_tmpport_write32(host, priv, 0x00,
+			       SH_MOBILE_SDHI_SCC_TMPPORT_DISABLE_WP_CODE);
+	sd_scc_tmpport_write32(host, priv, 0x22, 0);
+	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT3, 0);
+}
 #define SH_MOBILE_SDHI_MAX_TAP 3
 
 static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
@@ -448,6 +561,9 @@ static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
 	unsigned long tap_end;  /* end position of tuning success */
 	unsigned long ntap;     /* temporary counter of tuning success */
 	unsigned long i;
+
+	/* clear flag */
+	host->needs_adjust_hs400 = false;
 
 	/* Clear SCC_RVSREQ */
 	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_RVSREQ, 0);
@@ -540,6 +656,10 @@ static void renesas_sdhi_hw_reset(struct tmio_mmc_host *host)
 	renesas_sdhi_reset_scc(host, priv);
 	renesas_sdhi_reset_hs400_mode(host, priv);
 
+	/* Disaled adjust HS400 mode */
+	if (host->adjust_hs400_mode_disable)
+		host->adjust_hs400_mode_disable(host->mmc);
+
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, CLK_CTL_SCLKEN |
 			sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
 
@@ -624,12 +744,54 @@ static const struct renesas_sdhi_quirks sdhi_quirks_4tap = {
 	.hs400_4taps = true,
 };
 
+static const struct renesas_sdhi_quirks sdhi_quirks_4tap_nohs400_bit17 = {
+	.hs400_disabled = true,
+	.hs400_4taps = true,
+	.dtranend1_bit17 = true,
+};
+
+static const struct renesas_sdhi_quirks sdhi_quirks_4tap_nohs400 = {
+	.hs400_disabled = true,
+	.hs400_4taps = true,
+};
+
+static const struct renesas_sdhi_quirks sdhi_quirks_r8a7796_rev1 = {
+	.hs400_4taps = true,
+	.hs400_manual_calib = true,
+	.hs400_offset = SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_0,
+	.hs400_calib = 0x9,
+};
+
+static const struct renesas_sdhi_quirks sdhi_quirks_r8a77965 = {
+	.hs400_manual_calib = true,
+	.hs400_offset = SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_0,
+	.hs400_calib = 0x0,
+};
+
+static const struct renesas_sdhi_quirks sdhi_quirks_r8a77990 = {
+	.hs400_manual_calib = true,
+	.hs400_offset = SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_0,
+	.hs400_calib = 0x4,
+};
+
 static const struct soc_device_attribute sdhi_quirks_match[]  = {
 	{ .soc_id = "r8a774a1", .revision = "ES1.*",
-				.data = &sdhi_quirks_4tap },
+	  .data = &sdhi_quirks_r8a7796_rev1, },
 	{ .soc_id = "r8a774e1", .data = &sdhi_quirks_4tap },
-	{ .soc_id = "r8a7795",  .data = &sdhi_quirks_4tap },
-	{ .soc_id = "r8a7796",  .data = &sdhi_quirks_4tap },
+	{ .soc_id = "r8a7795", .revision = "ES1.*",
+	  .data = &sdhi_quirks_4tap_nohs400_bit17, },
+	{ .soc_id = "r8a7795", .revision = "ES2.0",
+	  .data = &sdhi_quirks_4tap, },
+	{ .soc_id = "r8a7796", .revision = "ES1.0",
+	  .data = &sdhi_quirks_4tap_nohs400_bit17, },
+	{ .soc_id = "r8a7796", .revision = "ES1.1",
+	  .data = &sdhi_quirks_4tap_nohs400, },
+	{ .soc_id = "r8a7796", .revision = "ES1.*",
+	  .data = &sdhi_quirks_r8a7796_rev1, },
+	{ .soc_id = "r8a77965",
+	  .data = &sdhi_quirks_r8a77965, },
+	{ .soc_id = "r8a77990",
+	  .data = &sdhi_quirks_r8a77990, },
 	{ /* sentinel */ }
 };
 
@@ -647,6 +809,8 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	struct resource *res;
 	int irq, ret, i;
 	u16 ver;
+	const struct device_node *np = pdev->dev.of_node;
+	u32 value;
 
 	of_data = of_device_get_match_data(&pdev->dev);
 
@@ -701,6 +865,9 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 
+	priv->dtranend1_bit17 =
+		(quirks && quirks->dtranend1_bit17) ? true : false;
+
 	if (of_data) {
 		mmc_data->flags |= of_data->tmio_flags;
 		mmc_data->ocr_mask = of_data->tmio_ocr_mask;
@@ -719,6 +886,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	host->set_clock		= renesas_sdhi_set_clock;
 	host->multi_io_quirk	= renesas_sdhi_multi_io_quirk;
 	host->dma_ops		= dma_ops;
+	host->needs_adjust_hs400 = false;
 
 	/* For some SoC, we disable internal WP. GPIO may override this */
 	if (mmc_can_gpio_ro(host->mmc))
@@ -736,6 +904,58 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 			priv->scc_ctl = host->ctl + of_data->scc_offset;
 			host->mmc->caps |= MMC_CAP_HW_RESET;
 			host->hw_reset = renesas_sdhi_hw_reset;
+		}
+	}
+
+	/* Adjust HS400 mode */
+	priv->adjust_hs400_offset = 0;
+	priv->adjust_hs400_calibrate = 0;
+
+	if (np && !of_property_read_u32(np, "adjust_hs400_offset", &value)) {
+		/* DeviceTree can invalidate SoC attribute for HS400 */
+		switch (value) {
+		case 0:
+			priv->adjust_hs400_offset =
+				SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_0;
+			break;
+		case 1:
+			priv->adjust_hs400_offset =
+				SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_1;
+			break;
+		case 2:
+			priv->adjust_hs400_offset =
+				SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_2;
+			break;
+		case 3:
+			priv->adjust_hs400_offset =
+				SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_3;
+			break;
+		default:
+			priv->adjust_hs400_offset =
+				SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_3;
+			dev_warn(&host->pdev->dev, "Unknown adjust hs400 offset\n");
+		}
+		if (!of_property_read_u32(np, "adjust_hs400_calibrate", &value))
+			priv->adjust_hs400_calibrate = value;
+		host->adjust_hs400_mode_enable =
+			renesas_sdhi_adjust_hs400_mode_enable;
+		host->adjust_hs400_mode_disable =
+			renesas_sdhi_adjust_hs400_mode_disable;
+	} else if (host->mmc->caps2 & MMC_CAP2_HS400) {
+		if (quirks && quirks->hs400_disabled) {
+			host->mmc->caps2 &=
+				~(MMC_CAP2_HS400 | MMC_CAP2_HS400_ES);
+		} else if (quirks && quirks->hs400_manual_calib) {
+			priv->adjust_hs400_offset =
+				quirks->hs400_offset &
+				SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_MASK;
+			priv->adjust_hs400_calibrate =
+				quirks->hs400_calib &
+				SH_MOBILE_SDHI_SCC_TMPPORT_CALIB_CODE_MASK;
+			host->adjust_hs400_mode_enable =
+				renesas_sdhi_adjust_hs400_mode_enable;
+			host->adjust_hs400_mode_disable =
+				renesas_sdhi_adjust_hs400_mode_disable;
 		}
 	}
 
