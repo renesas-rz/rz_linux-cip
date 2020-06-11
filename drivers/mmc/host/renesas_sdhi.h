@@ -38,6 +38,11 @@ struct renesas_sdhi_of_data {
 
 struct renesas_sdhi_quirks {
 	bool hs400_4taps;
+	bool hs400_disabled;
+	bool dtranend1_bit17;
+	bool hs400_manual_calib;
+	u32 hs400_offset;
+	u32 hs400_calib;
 };
 
 struct tmio_mmc_dma {
@@ -59,6 +64,9 @@ struct renesas_sdhi {
 	void __iomem *scc_ctl;
 	u32 scc_tappos;
 	u32 scc_tappos_hs400;
+	bool dtranend1_bit17;
+	u32 adjust_hs400_offset;
+	u32 adjust_hs400_calibrate;
 };
 
 #define host_to_priv(host) \
