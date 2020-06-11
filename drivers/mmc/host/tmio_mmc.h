@@ -112,13 +112,6 @@
 
 #define TMIO_MAX_BLK_SIZE 512
 
-/* Check LSI revisions and set specific quirk value */
-#define FORCE_HS200		BIT(2)
-#define HS400_USE_MANUAL_CALIB  BIT(3)
-/* bit[31:16] reserved for HS400 manual calibration */
-#define HS400_CALIB_MASK	GENMASK_ULL(23, 16)
-#define HS400_OFFSET_MASK	GENMASK_ULL(31, 24)
-
 struct tmio_mmc_data;
 struct tmio_mmc_host;
 
