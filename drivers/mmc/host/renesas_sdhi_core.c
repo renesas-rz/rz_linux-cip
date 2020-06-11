@@ -291,6 +291,8 @@ static const u32 r8a77990_calib_table[2][CALIB_TABLE_MAX] = {
 	 12, 13, 14, 16, 17, 18, 18, 18, 19, 19, 20, 24, 26, 26, 26, 26 }
 };
 
+static u32 custom_calib_table[2][CALIB_TABLE_MAX];
+
 static inline u32 sd_scc_read32(struct tmio_mmc_host *host,
 				struct renesas_sdhi *priv, int addr)
 {
@@ -791,12 +793,14 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	const struct renesas_sdhi_quirks *quirks = NULL;
 	const struct renesas_sdhi_of_data *of_data;
 	const struct soc_device_attribute *attr;
+	const struct device_node *np = pdev->dev.of_node;
 	struct tmio_mmc_data *mmc_data;
 	struct tmio_mmc_dma *dma_priv;
 	struct tmio_mmc_host *host;
 	struct renesas_sdhi *priv;
 	struct resource *res;
 	int irq, ret, i;
+	u32 value;
 	u16 ver;
 	int port_num_offset = 0;
 
@@ -901,7 +905,43 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	priv->adjust_hs400_offset = 0;
 	priv->adjust_hs400_calib_table = NULL;
 
-	if (host->mmc->caps2 & MMC_CAP2_HS400) {
+	if ((host->mmc->caps2 & MMC_CAP2_HS400) && np &&
+	     !of_property_read_u32(np, "adjust_hs400_offset", &value) &&
+	     !of_property_read_u32_array(np, "adjust_hs400_calibrate",
+					 custom_calib_table[0] +
+					 port_num_offset,
+					 CALIB_TABLE_MAX)) {
+		/* DeviceTree can invalidate SoC attribute for HS400 */
+		switch (value) {
+		case 0:
+			priv->adjust_hs400_offset =
+				SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_0;
+			break;
+		case 1:
+			priv->adjust_hs400_offset =
+				SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_1;
+			break;
+		case 2:
+			priv->adjust_hs400_offset =
+				SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_2;
+			break;
+		case 3:
+			priv->adjust_hs400_offset =
+				SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_3;
+			break;
+		default:
+			priv->adjust_hs400_offset =
+				SH_MOBILE_SDHI_SCC_TMPPORT3_OFFSET_3;
+			dev_warn(&host->pdev->dev, "Unknown adjust hs400 offset\n");
+		}
+
+		priv->adjust_hs400_calib_table =
+			custom_calib_table[0] + port_num_offset;
+		host->adjust_hs400_mode_enable =
+			renesas_sdhi_adjust_hs400_mode_enable;
+		host->adjust_hs400_mode_disable =
+			renesas_sdhi_adjust_hs400_mode_disable;
+	} else if (host->mmc->caps2 & MMC_CAP2_HS400) {
 		if (quirks && quirks->hs400_disabled) {
 			host->mmc->caps2 &=
 				~(MMC_CAP2_HS400 | MMC_CAP2_HS400_ES);
@@ -916,6 +956,12 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 			host->adjust_hs400_mode_disable =
 				renesas_sdhi_adjust_hs400_mode_disable;
 		}
+	}
+
+	if (np && of_get_property(np, "hs400_auto_calib", NULL)) {
+		/* Force auto calibration */
+		host->adjust_hs400_mode_enable = NULL;
+		host->adjust_hs400_mode_disable = NULL;
 	}
 
 	/* Orginally registers were 16 bit apart, could be 32 or 64 nowadays */
