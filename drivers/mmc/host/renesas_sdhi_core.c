@@ -821,8 +821,6 @@ static const struct soc_device_attribute sdhi_quirks_match[]  = {
 	  .data = &sdhi_quirks_r8a77965, },
 	{ .soc_id = "r8a774c0",
 	  .data = &sdhi_quirks_r8a77990, },
-	{ .soc_id = "r8a774e1",
-	  .data = &sdhi_quirks_4tap, },
 	{ .soc_id = "r8a7795", .revision = "ES1.*",
 	  .data = &sdhi_quirks_4tap_nohs400_bit17, },
 	{ .soc_id = "r8a7795", .revision = "ES2.0",
