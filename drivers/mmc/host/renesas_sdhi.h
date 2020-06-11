@@ -65,6 +65,7 @@ struct renesas_sdhi {
 	void __iomem *scc_ctl;
 	u32 scc_tappos;
 	u32 scc_tappos_hs400;
+	bool doing_tune;
 	bool dtranend1_bit17;
 	u32 adjust_hs400_offset;
 	const u32 *adjust_hs400_calib_table;
