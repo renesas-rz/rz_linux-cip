@@ -3,6 +3,8 @@
  *
  * Copyright (C) 2014-2016 Glider bvba
  *
+ * Copyright (C) 2019-2020 Renesas Electronics Corp.
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; version 2 of the License.
@@ -232,6 +234,9 @@ static const struct of_device_id renesas_socs[] __initconst = {
 #endif
 #ifdef CONFIG_ARCH_R8A774A1
 	{ .compatible = "renesas,r8a774a1",	.data = &soc_rz_g2m },
+#endif
+#ifdef CONFIG_ARCH_R8A774A3
+	{ .compatible = "renesas,r8a774a3",	.data = &soc_rz_g2m },
 #endif
 #ifdef CONFIG_ARCH_R8A774B1
 	{ .compatible = "renesas,r8a774b1",	.data = &soc_rz_g2n },
