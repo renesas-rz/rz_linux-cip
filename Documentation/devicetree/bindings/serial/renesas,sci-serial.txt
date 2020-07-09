@@ -20,8 +20,10 @@ Required properties:
     - "renesas,hscif-r8a7745" for R8A7745 (RZ/G1E) HSCIF compatible UART.
     - "renesas,scif-r8a77470" for R8A77470 (RZ/G1C) SCIF compatible UART.
     - "renesas,hscif-r8a77470" for R8A77470 (RZ/G1C) HSCIF compatible UART.
-    - "renesas,scif-r8a774a1" for R8A774A1 (RZ/G2M) SCIF compatible UART.
-    - "renesas,hscif-r8a774a1" for R8A774A1 (RZ/G2M) HSCIF compatible UART.
+    - "renesas,scif-r8a774a1" for R8A774A1 (RZ/G2M v1.3) SCIF compatible UART.
+    - "renesas,hscif-r8a774a1" for R8A774A1 (RZ/G2M v1.3) HSCIF compatible UART.
+    - "renesas,scif-r8a774a3" for R8A774A3 (RZ/G2M v3.0) SCIF compatible UART.
+    - "renesas,hscif-r8a774a3" for R8A774A3 (RZ/G2M v3.0) HSCIF compatible UART.
     - "renesas,scif-r8a774b1" for R8A774B1 (RZ/G2N) SCIF compatible UART.
     - "renesas,hscif-r8a774b1" for R8A774B1 (RZ/G2N) HSCIF compatible UART.
     - "renesas,scif-r8a774c0" for R8A774C0 (RZ/G2E) SCIF compatible UART.
