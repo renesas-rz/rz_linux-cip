@@ -6,7 +6,7 @@
  * Based on clk-mstp.c, clk-rcar-gen2.c, and clk-rcar-gen3.c
  *
  * Copyright (C) 2013 Ideas On Board SPRL
- * Copyright (C) 2015 Renesas Electronics Corp.
+ * Copyright (C) 2015-2020 Renesas Electronics Corp.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -675,6 +675,12 @@ static const struct of_device_id cpg_mssr_match[] = {
 #ifdef CONFIG_CLK_R8A774A1
 	{
 		.compatible = "renesas,r8a774a1-cpg-mssr",
+		.data = &r8a774a1_cpg_mssr_info,
+	},
+#endif
+#ifdef CONFIG_CLK_R8A774A3
+	{
+		.compatible = "renesas,r8a774a3-cpg-mssr",
 		.data = &r8a774a1_cpg_mssr_info,
 	},
 #endif
