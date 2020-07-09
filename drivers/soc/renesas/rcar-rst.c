@@ -2,6 +2,7 @@
  * R-Car Gen1 RESET/WDT, R-Car Gen2, Gen3, and RZ/G RST Driver
  *
  * Copyright (C) 2016 Glider bvba
+ * Copyright (C) 2020 Renesas Electronics Corp.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -47,6 +48,7 @@ static const struct of_device_id rcar_rst_matches[] __initconst = {
 	{ .compatible = "renesas,r8a77470-rst", .data = &rcar_rst_gen2 },
 	/* RZ/G2 is handled like R-Car Gen3 */
 	{ .compatible = "renesas,r8a774a1-rst", .data = &rcar_rst_gen3 },
+	{ .compatible = "renesas,r8a774a3-rst", .data = &rcar_rst_gen3 },
 	{ .compatible = "renesas,r8a774b1-rst", .data = &rcar_rst_gen3 },
 	{ .compatible = "renesas,r8a774c0-rst", .data = &rcar_rst_gen3 },
 	{ .compatible = "renesas,r8a774e1-rst", .data = &rcar_rst_gen3 },
