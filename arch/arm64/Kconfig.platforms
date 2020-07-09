@@ -191,10 +191,16 @@ config ARCH_RENESAS
 	  This enables support for the ARMv8 based Renesas SoCs.
 
 config ARCH_R8A774A1
-	bool "Renesas RZ/G2M SoC Platform"
+	bool "Renesas RZ/G2M v1.3 SoC Platform"
 	depends on ARCH_RENESAS
 	help
-	  This enables support for the Renesas RZ/G2M SoC.
+	  This enables support for the Renesas RZ/G2M v1.3 SoC.
+
+config ARCH_R8A774A3
+	bool "Renesas RZ/G2M v3.0 SoC Platform"
+	depends on ARCH_RENESAS
+	help
+	  This enables support for the Renesas RZ/G2M v3.0 SoC.
 
 config ARCH_R8A774B1
 	bool "Renesas RZ/G2N SoC Platform"
