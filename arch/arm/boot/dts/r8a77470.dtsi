@@ -814,6 +814,7 @@
 			interrupts = <0 154 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&mstp7_clks R8A77470_CLK_HSCIF0>;
 			clock-names = "sci_ick";
+			power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
 			status = "disabled";
 		};
 
@@ -823,6 +824,7 @@
 			interrupts = <0 155 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&mstp7_clks R8A77470_CLK_HSCIF1>;
 			clock-names = "sci_ick";
+			power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
 			status = "disabled";
 		};
 
@@ -832,6 +834,7 @@
 			interrupts = <0 21 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&mstp7_clks R8A77470_CLK_HSCIF2>;
 			clock-names = "sci_ick";
+			power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
 			status = "disabled";
 		};
 
