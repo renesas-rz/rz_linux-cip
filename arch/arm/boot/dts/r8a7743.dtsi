@@ -12,6 +12,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/r8a7743-clock.h>
+#include <dt-bindings/power/r8a7743-sysc.h>
 
 / {
 	compatible = "renesas,r8a7743";
@@ -1513,6 +1514,12 @@
 				clock-output-names = "scifa3", "scifa4",
 						     "scifa5";
 			};
+		};
+
+		sysc: system-controller@e6180000 {
+			compatible = "renesas,r8a7743-sysc";
+			reg = <0 0xe6180000 0 0x0200>;
+			#power-domain-cells = <1>;
 		};
 
 		hsusb: usb@e6590000 {
