@@ -48,9 +48,11 @@
 			compatible = "arm,cortex-a15";
 			reg = <0>;
 			clock-frequency = <1500000000>;
+			voltage-tolerance = <1>; /* 1% */
 			clocks = <&cpg_clocks R8A7743_CLK_Z>;
 			clock-latency = <300000>; /* 300 us */
 			next-level-cache = <&L2_CA15>;
+			power-domains = <&sysc R8A7743_PD_CA15_CPU0>;
 
 			/* kHz - uV - OPPs unknown yet */
 			operating-points = <1500000 1000000>,
@@ -69,6 +71,7 @@
 			clocks = <&cpg_clocks R8A7743_CLK_Z>;
 			clock-latency = <300000>; /* 300 us */
 			next-level-cache = <&L2_CA15>;
+			power-domains = <&sysc R8A7743_PD_CA15_CPU1>;
 
 			/* kHz - uV - OPPs unknown yet */
 			operating-points = <1500000 1000000>,
