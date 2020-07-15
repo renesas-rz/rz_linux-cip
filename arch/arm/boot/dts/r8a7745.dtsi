@@ -75,6 +75,7 @@
 			reg = <0>;
 			clock-frequency = <1000000000>;
 			clocks = <&z2_clk>;
+			power-domains = <&sysc R8A7745_PD_CA7_CPU0>;
 			operating-points = <1000000 1000000>;
 			next-level-cache = <&L2_CA7>;
 		};
@@ -85,6 +86,7 @@
 			reg = <1>;
 			clock-frequency = <1000000000>;
 			clocks = <&z2_clk>;
+			power-domains = <&sysc R8A7745_PD_CA7_CPU1>;
 			next-level-cache = <&L2_CA7>;
 		};
 
