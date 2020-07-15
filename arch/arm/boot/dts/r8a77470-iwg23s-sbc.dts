@@ -89,6 +89,13 @@
 	};
 };
 
+&can0 {
+	pinctrl-0 = <&can0_pins>;
+	pinctrl-names = "default";
+	renesas,can-clock-select = <0x0>;
+	status = "okay";
+};
+
 &cmt0 {
 	status = "okay";
 };
@@ -126,6 +133,11 @@
 	avb_pins: avb {
 		groups = "avb_mdio", "avb_gmii_tx_rx";
 		function = "avb";
+	};
+
+	can0_pins: can0 {
+		groups = "can0_data_a";
+		function = "can0";
 	};
 
 	i2c3_pins: i2c3 {
