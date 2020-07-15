@@ -753,9 +753,9 @@ static const struct display_timing hannstar_hsd070pww1_timing = {
 	.hsync_len = { 58, 158, 661 },
 	.vactive = { 800, 800, 800 },
 	.vfront_porch = { 1, 1, 10 },
-	.vback_porch = { 1, 1, 10 },
+	.vback_porch = { 2, 2, 10 },
 	.vsync_len = { 1, 21, 203 },
-	.flags = DISPLAY_FLAGS_DE_HIGH,
+	.flags = /*DISPLAY_FLAGS_DE_HIGH*/0,
 };
 
 static const struct panel_desc hannstar_hsd070pww1 = {
