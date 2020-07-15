@@ -116,6 +116,15 @@
 			  1800000 0>;
 	};
 
+	vcc_lvds: regulator@4 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "panel vcc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
 	hdmi-out {
 		compatible = "hdmi-connector";
 		type = "a";
@@ -123,6 +132,24 @@
 		port {
 			hdmi_con: endpoint {
 				remote-endpoint = <&adv7511_out>;
+			};
+		};
+	};
+
+	panel_hannstar: panel@0 {
+		compatible = "hannstar,hsd070pww1", "simple-panel";
+		power-supply = <&vcc_lvds>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel_input: endpoint {
+					reg = <0>;
+					remote-endpoint = <&du_out_lvds0>;
+				};
 			};
 		};
 	};
@@ -485,9 +512,14 @@
 		      "dclkin.0", "dclkin.1";
 
 	ports {
-		port@1 {
+		port@0 {
 			endpoint {
 				remote-endpoint = <&adv7511_in>;
+			};
+		};
+		port@1 {
+			endpoint {
+				remote-endpoint = <&panel_input>;
 			};
 		};
 	};
