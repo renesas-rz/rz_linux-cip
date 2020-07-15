@@ -973,6 +973,14 @@ config RTC_DRV_DA9063
 	  This driver can also be built as a module. If so, the module
 	  will be called "rtc-da9063".
 
+config RTC_DA9063_RESET_RENESAS_SILK
+	bool "DA9063 hack to reset SILK using RTC"
+	depends on RTC_DRV_DA9063
+	default y if MFD_DA9063 || MFD_DA9062
+	help
+	  If you say yes here you will be able to reboot SILK board
+	  via system reboot command.
+
 config RTC_DRV_EFI
 	tristate "EFI RTC"
 	depends on EFI && !X86
