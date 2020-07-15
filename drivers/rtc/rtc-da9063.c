@@ -22,6 +22,7 @@
 #include <linux/regmap.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
+#include <linux/reboot.h>
 
 #include <linux/mfd/da9062/registers.h>
 #include <linux/mfd/da9063/registers.h>
@@ -76,6 +77,7 @@ struct da9063_compatible_rtc {
 	struct regmap *regmap;
 	const struct da9063_compatible_rtc_regmap *config;
 	bool rtc_sync;
+	struct notifier_block restart_handler;
 };
 
 static const struct da9063_compatible_rtc_regmap da9063_ad_regs = {
@@ -391,6 +393,60 @@ static const struct rtc_class_ops da9063_rtc_ops = {
 	.alarm_irq_enable = da9063_rtc_alarm_irq_enable,
 };
 
+#ifdef CONFIG_RTC_DA9063_RESET_RENESAS_SILK
+static int da9063_rtc_restart_handler(struct notifier_block *this,
+				      unsigned long mode, void *cmd)
+{
+	struct da9063_compatible_rtc *rtc = container_of(this,
+						   struct da9063_compatible_rtc,
+						   restart_handler);
+	const struct da9063_compatible_rtc_regmap *config = rtc->config;
+	u8 data[RTC_DATA_LEN];
+	int ret;
+	struct rtc_time tm;
+	time64_t tmptime;
+	/* Switching alarm off */
+	ret = regmap_write_bits(rtc->regmap,
+				  config->rtc_alarm_year_reg,
+				  config->rtc_alarm_on_mask,
+				  0);
+	if (ret < 0) {
+		dev_err(&rtc->rtc_dev->dev, "Failed to stop alarm: %d\n", ret);
+	}
+
+	ret = regmap_bulk_read(rtc->regmap,
+			       config->rtc_count_secs_reg,
+			       data, RTC_DATA_LEN);
+	if (ret < 0) {
+		dev_err(&rtc->rtc_dev->dev, "Failed to read RTC time data: %d\n", ret);
+	}
+
+	da9063_data_to_tm(data, &tm, rtc);
+	tmptime = rtc_tm_to_time64(&tm);
+	tmptime += 1;
+	rtc_time64_to_tm(tmptime, &tm);
+
+	da9063_tm_to_data(&tm, data, rtc);
+	ret = regmap_bulk_write(rtc->regmap,
+				config->rtc_alarm_secs_reg,
+				&data[config->rtc_data_start],
+				config->rtc_alarm_len);
+	if (ret < 0) {
+		dev_err(&rtc->rtc_dev->dev, "Failed to write alarm: %d\n", ret);
+	}
+	/* Enabling alarm */
+	ret = regmap_write_bits(rtc->regmap,
+				  config->rtc_alarm_year_reg,
+				  config->rtc_alarm_on_mask,
+				  config->rtc_alarm_on_mask);
+
+	/* Be sure all RTC configuration settle */
+	mdelay(20);
+
+	return NOTIFY_DONE;
+}
+#endif
+
 static int da9063_rtc_probe(struct platform_device *pdev)
 {
 	struct da9063_compatible_rtc *rtc;
@@ -506,6 +562,16 @@ static int da9063_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		dev_err(&pdev->dev, "Failed to request ALARM IRQ %d: %d\n",
 			irq_alarm, ret);
+	if (of_machine_is_compatible("renesas,skrzg1e")) {
+#ifdef CONFIG_RTC_DA9063_RESET_RENESAS_SILK
+		rtc->restart_handler.notifier_call = da9063_rtc_restart_handler;
+		rtc->restart_handler.priority = 130;
+		ret = register_restart_handler(&rtc->restart_handler);
+		if (ret)
+			dev_err(&pdev->dev,
+				"Failed to register restart handler (err = %d)\n", ret);
+#endif
+	}
 
 	return ret;
 }
