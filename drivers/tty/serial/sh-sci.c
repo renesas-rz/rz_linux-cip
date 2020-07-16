@@ -1187,8 +1187,11 @@ static void sci_tx_dma_release(struct sci_port *s, bool enable_pio)
 		dma_release_channel(chan);
 	}
 
-	if (enable_pio)
+	if (enable_pio) {
+		spin_lock_irqsave(&port->lock, flags);
 		sci_start_tx(port);
+		spin_unlock_irqrestore(&port->lock, flags);
+	}
 }
 
 static void sci_submit_rx(struct sci_port *s)
