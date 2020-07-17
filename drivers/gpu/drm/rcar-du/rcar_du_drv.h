@@ -59,6 +59,7 @@ struct rcar_du_output_routing {
  * @num_crtcs: total number of CRTCs
  * @routes: array of CRTC to output routes, indexed by output (RCAR_DU_OUTPUT_*)
  * @num_lvds: number of internal LVDS encoders
+ * @vsp_crtcs : number of vspd channel
  */
 struct rcar_du_device_info {
 	unsigned int gen;
@@ -67,6 +68,7 @@ struct rcar_du_device_info {
 	unsigned int num_crtcs;
 	struct rcar_du_output_routing routes[RCAR_DU_OUTPUT_MAX];
 	unsigned int num_lvds;
+	unsigned int vspd_crtcs;
 };
 
 #define RCAR_DU_MAX_CRTCS		3
