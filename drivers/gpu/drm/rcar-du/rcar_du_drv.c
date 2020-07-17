@@ -38,9 +38,11 @@
 static const struct rcar_du_device_info rcar_du_r8a7742_info = {
 	.gen = 2,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
-		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
+		  | RCAR_DU_FEATURE_EXT_CTRL_REGS
+		  | RCAR_DU_FEATURE_VSP1_SOURCE,
 	.quirks = RCAR_DU_QUIRK_ALIGN_128B,
 	.num_crtcs = 3,
+	.vspd_crtcs = BIT(0) | BIT(1),
 	.routes = {
 		/* R8A7742 has one RGB output and two LVDS outputs. */
 		[RCAR_DU_OUTPUT_DPAD0] = {
@@ -65,8 +67,10 @@ static const struct rcar_du_device_info rcar_du_r8a7742_info = {
 static const struct rcar_du_device_info rzg1_du_r8a7743_info = {
 	.gen = 2,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
-		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
+		  | RCAR_DU_FEATURE_EXT_CTRL_REGS
+		  | RCAR_DU_FEATURE_VSP1_SOURCE,
 	.num_crtcs = 2,
+	.vspd_crtcs = BIT(0) | BIT(1),
 	.routes = {
 		/*
 		 * R8A774[34] has one RGB output and one LVDS output
@@ -88,8 +92,10 @@ static const struct rcar_du_device_info rzg1_du_r8a7743_info = {
 static const struct rcar_du_device_info rzg1_du_r8a7745_info = {
 	.gen = 2,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
-		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
+		  | RCAR_DU_FEATURE_EXT_CTRL_REGS
+		  | RCAR_DU_FEATURE_VSP1_SOURCE,
 	.num_crtcs = 2,
+	.vspd_crtcs = BIT(0),
 	.routes = {
 		/*
 		 * R8A7745 has two RGB outputs
@@ -111,8 +117,10 @@ static const struct rcar_du_device_info rzg1_du_r8a7745_info = {
 static const struct rcar_du_device_info rcar_du_r8a77470_info = {
 	.gen = 2,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
-		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
+		  | RCAR_DU_FEATURE_EXT_CTRL_REGS
+		  | RCAR_DU_FEATURE_VSP1_SOURCE,
 	.num_crtcs = 1,
+	.vspd_crtcs = BIT(0),
 	.routes = {
 		/* R8A77470 has two RGB outputs, one LVDS output, and
 		*  one (currently unsupported) analog video output
