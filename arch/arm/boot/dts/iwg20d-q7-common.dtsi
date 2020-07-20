@@ -56,12 +56,14 @@
 		pwms = <&pwm3 0 5000000 0>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <7>;
+		power-supply = <&vcc_lvds>;
 		enable-gpios = <&gpio5 14 GPIO_ACTIVE_HIGH>;
 	};
 
 	panel {
 	    compatible = "edt,etm0700g0dh6", "simple-panel";
 	    backlight = <&lcd_backlight>;
+	    power-supply = <&vcc_lvds>;
 
 	    port {
 		    panel_in: endpoint {
@@ -129,6 +131,15 @@
 		gpios-states = <1>;
 		states = <3300000 1
 			  1800000 0>;
+	};
+
+	vcc_lvds: regulator@4 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "panel vcc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
 	};
 };
 
