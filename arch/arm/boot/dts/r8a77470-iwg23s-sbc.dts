@@ -71,6 +71,17 @@
 		states = <3300000 1
 			  1800000 0>;
 	};
+
+	hdmi-out {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con: endpoint {
+				remote-endpoint = <&sii9022_out>;
+			};
+		};
+	};
 };
 
 &cpu0 {
@@ -107,6 +118,20 @@
 
 &cmt1 {
 	status = "okay";
+};
+
+&du {
+	pinctrl-0 = <&du0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	ports {
+		port@0 {
+			endpoint {
+				remote-endpoint = <&sii9022_in>;
+			};
+		};
+	};
 };
 
 &ehci1 {
@@ -183,6 +208,12 @@
 	can0_pins: can0 {
 		groups = "can0_data_a";
 		function = "can0";
+	};
+
+	du0_pins: du0 {
+		groups = "du0_rgb888", "du0_clk0_out", "du0_sync",
+			 "du0_cde", "du0_disp";
+		function = "du0";
 	};
 
 	hscif1_pins: serial5 {
@@ -393,6 +424,39 @@
 	bus-width = <4>;
 	cd-gpios = <&gpio4 20 GPIO_ACTIVE_LOW>;
 	status = "okay";
+};
+
+&i2c4 {
+	pinctrl-0 = <&i2c4_pins>;
+	pinctrl-names = "default";
+	clock-frequency = <100000>;
+	status = "okay";
+
+	hdmi@39 {
+		compatible = "sil,sii9022";
+		reg = <0x39>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				sii9022_in: endpoint {
+					remote-endpoint = <&du_out_rgb0>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				sii9022_out: endpoint {
+					remote-endpoint = <&hdmi_con>;
+				};
+			};
+	        };
+	};
 };
 
 &usb2_phy0 {
