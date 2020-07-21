@@ -15,3 +15,16 @@
 	compatible = "hoperun,hihope-rzg2-ex", "hoperun,hihope-rzg2m",
 			"renesas,r8a774a3";
 };
+
+&pciec1 {
+	status = "okay";
+};
+
+&gpio7 {
+	pcie-en-gpio {
+		gpio-hog;
+		gpios = <3 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "pcie-en-gpio";
+	};
+};
