@@ -133,6 +133,11 @@
 		function = "i2c3";
 	};
 
+	i2c4_pins: i2c4 {
+		groups = "i2c4_e";
+		function = "i2c4";
+	};
+
 	mmc_pins_uhs: mmc_uhs {
 		groups = "mmc_data8", "mmc_ctrl";
 		function = "mmc";
