@@ -459,6 +459,14 @@
 			dma-channels = <15>;
 		};
 
+		tddmac@0xfea00000 {
+			compatible = "renesas,vspm-tddmac","renesas,vspm";
+			reg = <0 0xfea00000 0 0x200>;
+			interrupts = <0 285 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&mstp1_clks R8A7743_CLK_2DDMAC>;
+			power-domains = <&cpg_clocks>;
+		};
+
 		audma0: dma-controller@ec700000 {
 			compatible = "renesas,dmac-r8a7743",
 				     "renesas,rcar-dmac";
