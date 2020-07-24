@@ -1142,6 +1142,24 @@
 			status = "disabled";
 		};
 
+		sata0:sata@ee300000 {
+			compatible= "renesas,sata-r8a7743";
+			reg= <0 0xee300000 0 0x2000>;
+			interrupts= <0 105 IRQ_TYPE_LEVEL_HIGH>;
+			clocks= <&mstp8_clks R8A7743_CLK_SATA0>;
+			power-domains= <&cpg_clocks>;
+			status= "disabled";
+		};
+
+		sata1:sata@ee500000 {
+			compatible= "renesas,sata-r8a7743";
+			reg= <0 0xee500000 0 0x2000>;
+			interrupts= <0 106 IRQ_TYPE_LEVEL_HIGH>;
+			clocks= <&mstp8_clks R8A7743_CLK_SATA1>;
+			power-domains= <&cpg_clocks>;
+			status= "disabled";
+		};
+
 		clocks {
 			#address-cells = <2>;
 			#size-cells = <2>;
