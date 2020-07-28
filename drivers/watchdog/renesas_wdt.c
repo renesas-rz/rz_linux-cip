@@ -57,6 +57,8 @@ struct rwdt_priv {
 	u16 time_left;
 	u8 cks;
 	struct notifier_block restart_handler;
+	struct clk *clk;
+	unsigned int clks_per_sec;
 };
 
 static void rwdt_write(struct rwdt_priv *priv, u32 val, unsigned int reg)
@@ -69,30 +71,29 @@ static void rwdt_write(struct rwdt_priv *priv, u32 val, unsigned int reg)
 	writel_relaxed(val, priv->base + reg);
 }
 
-static int rwdt_set_timeout(struct watchdog_device *wdev, unsigned int seconds)
+static int rwdt_init_timeout(struct watchdog_device *wdev, unsigned int seconds)
 {
 	struct rwdt_priv *priv = watchdog_get_drvdata(wdev);
 
 	wdev->timeout = seconds;
-	rwdt_write(priv, 65536 - MUL_BY_CLKS_PER_SEC(priv, wdev->timeout), RWTCNT);
+	rwdt_write(priv, 65536 - wdev->timeout * priv->clks_per_sec, RWTCNT);
 
 	return 0;
 }
 
 static int rwdt_ping(struct watchdog_device *wdev)
 {
-	return rwdt_set_timeout(wdev, wdev->timeout);
+	return rwdt_init_timeout(wdev, wdev->timeout);
 }
 
 static int rwdt_start(struct watchdog_device *wdev)
 {
 	struct rwdt_priv *priv = watchdog_get_drvdata(wdev);
 
-	pm_runtime_get_sync(wdev->parent);
+	clk_prepare_enable(priv->clk);
 
-	rwdt_write(priv, 0, RWTCSRB);
 	rwdt_write(priv, priv->cks, RWTCSRA);
-	rwdt_set_timeout(wdev, wdev->timeout);
+	rwdt_init_timeout(wdev, wdev->timeout);
 
 	while (readb_relaxed(priv->base + RWTCSRA) & RWTCSRA_WRFLG)
 		cpu_relax();
@@ -107,7 +108,7 @@ static int rwdt_stop(struct watchdog_device *wdev)
 	struct rwdt_priv *priv = watchdog_get_drvdata(wdev);
 
 	rwdt_write(priv, priv->cks, RWTCSRA);
-	pm_runtime_put(wdev->parent);
+	clk_disable_unprepare(priv->clk);
 
 	return 0;
 }
@@ -192,14 +193,13 @@ static const struct watchdog_ops rwdt_ops = {
 	.stop = rwdt_stop,
 	.ping = rwdt_ping,
 	.get_timeleft = rwdt_get_timeleft,
-	.set_timeout = rwdt_set_timeout,
+	.set_timeout = rwdt_init_timeout,
 };
 
 static int rwdt_probe(struct platform_device *pdev)
 {
 	struct rwdt_priv *priv;
 	struct resource *res;
-	struct clk *clk;
 	unsigned long clks_per_sec;
 	int ret, i;
 
@@ -216,35 +216,33 @@ static int rwdt_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	priv->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(priv->clk))
+		return PTR_ERR(priv->clk);
 
-	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_sync(&pdev->dev);
-	priv->clk_rate = clk_get_rate(clk);
-	priv->wdev.bootstatus = (readb_relaxed(priv->base + RWTCSRA) &
-				RWTCSRA_WOVF) ? WDIOF_CARDRESET : 0;
-	pm_runtime_put(&pdev->dev);
-
+	priv->clk_rate = clk_get_rate(priv->clk);
 	if (!priv->clk_rate) {
 		ret = -ENOENT;
 		goto out_pm_disable;
 	}
 
 	for (i = ARRAY_SIZE(clk_divs) - 1; i >= 0; i--) {
-		clks_per_sec = priv->clk_rate / clk_divs[i];
-		if (clks_per_sec && clks_per_sec < 65536) {
+		clks_per_sec = DIV_ROUND_UP(priv->clk_rate, clk_divs[i]);
+		if (clks_per_sec) {
+			priv->clks_per_sec = clks_per_sec;
 			priv->cks = i;
 			break;
 		}
 	}
 
-	if (i < 0) {
+	if (!clks_per_sec) {
 		dev_err(&pdev->dev, "Can't find suitable clock divider\n");
 		ret = -ERANGE;
 		goto out_pm_disable;
 	}
+
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
 
 	priv->wdev.info = &rwdt_ident,
 	priv->wdev.ops = &rwdt_ops,
@@ -265,15 +263,6 @@ static int rwdt_probe(struct platform_device *pdev)
 	ret = watchdog_register_device(&priv->wdev);
 	if (ret < 0)
 		goto out_pm_disable;
-
-	priv->restart_handler.notifier_call = rwdt_restart;
-	priv->restart_handler.priority = 0;
-	ret = register_restart_handler(&priv->restart_handler);
-	if (ret) {
-		dev_err(&pdev->dev, "can't register restart handler (err=%d)\n",
-			ret);
-		priv->restart_handler.notifier_call = NULL;
-	}
 
 	/*
 	 * register restart handler base on machine here
