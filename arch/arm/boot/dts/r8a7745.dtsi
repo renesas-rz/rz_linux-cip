@@ -1418,32 +1418,20 @@
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
 		};
 
-		vsp@fe928000 {
-			compatible = "renesas,vsp1";
+		vspm@fe928000 {
+			compatible = "renesas,vspm-vsps", "renesas-vspm";
 			reg = <0 0xfe928000 0 0x8000>;
 			interrupts = <GIC_SPI 267 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&mstp1_clks R8A7745_CLK_VSP1_SY>;
 			power-domains = <&cpg_clocks>;
-
-			renesas,has-lut;
-			renesas,has-sru;
-			renesas,#rpf = <5>;
-			renesas,#uds = <1>;
-			renesas,#wpf = <4>;
 		};
 
-		vsp@fe930000 {
-			compatible = "renesas,vsp1";
+		vspm@fe930000 {
+			compatible = "renesas,vspm-vspd0", "renesas-vspm";
 			reg = <0 0xfe930000 0 0x8000>;
 			interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&mstp1_clks R8A7745_CLK_VSP1DU0>;
 			power-domains = <&cpg_clocks>;
-
-			renesas,has-lif;
-			renesas,has-lut;
-			renesas,#rpf = <4>;
-			renesas,#uds = <1>;
-			renesas,#wpf = <1>;
 		};
 
 		fdp0: fdpm@fe940000 {
@@ -1452,6 +1440,14 @@
 			interrupts = <0 262 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&mstp1_clks R8A7745_CLK_FDP1_0>;
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+		};
+
+		vspdu0: vspdu0@fe930000 {
+			compatible = "renesas,vsp2";
+			reg = <0 0xfe930000 0 0x7404>;
+			interrupts = <0 246 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&mstp1_clks R8A7745_CLK_VSP1DU0>;
+			power-domains = <&cpg_clocks>;
 		};
 
 		du: display@feb00000 {
@@ -1464,6 +1460,8 @@
 				 <&mstp7_clks R8A7745_CLK_DU1>;
 			clock-names = "du.0", "du.1";
 			status = "disabled";
+
+			vsps = <&vspdu0>;
 
 			ports {
 				#address-cells = <1>;
