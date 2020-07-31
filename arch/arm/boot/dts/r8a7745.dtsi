@@ -1410,6 +1410,14 @@
 			status = "disabled";
 		};
 
+		tddmac@0xfea00000 {
+			compatible = "renesas,vspm-tddmac","renesas-vspm";
+			reg = <0 0xfea00000 0 0x0200>;
+			interrupts = <0 285 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&mstp1_clks R8A7745_CLK_2DDMAC>;
+			power-domains = <&cpg_clocks>;
+		};
+
 		vsp@fe928000 {
 			compatible = "renesas,vsp1";
 			reg = <0 0xfe928000 0 0x8000>;
