@@ -681,6 +681,10 @@ static void rcar_du_crtc_atomic_enable(struct drm_crtc *crtc,
 		const struct drm_display_mode *mode =
 			&crtc->state->adjusted_mode;
 
+		if (rcar_lvds_dual_link(
+		    rcdu->encoders[RCAR_DU_OUTPUT_LVDS0]->base.bridge))
+			encoder = rcdu->encoders[RCAR_DU_OUTPUT_LVDS0];
+
 		rcar_lvds_clk_enable(encoder->base.bridge,
 				     mode->clock * 1000);
 	}
@@ -703,6 +707,9 @@ static void rcar_du_crtc_atomic_disable(struct drm_crtc *crtc,
 		struct rcar_du_encoder *encoder =
 			rcdu->encoders[RCAR_DU_OUTPUT_LVDS0 + rcrtc->index];
 
+		if (rcar_lvds_dual_link(
+		    rcdu->encoders[RCAR_DU_OUTPUT_LVDS0]->base.bridge))
+			encoder = rcdu->encoders[RCAR_DU_OUTPUT_LVDS0];
 		/*
 		 * Disable the LVDS clock output, see
 		 * rcar_du_crtc_atomic_enable().
