@@ -368,6 +368,9 @@ int rcar_lvds_clk_enable(struct drm_bridge *bridge, unsigned long freq)
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
 	int ret;
 
+	if (lvds->link_type != RCAR_LVDS_SINGLE_LINK && lvds->companion)
+		lvds = bridge_to_rcar_lvds(lvds->companion);
+
 	if (WARN_ON(!(lvds->info->quirks & RCAR_LVDS_QUIRK_EXT_PLL)))
 		return -ENODEV;
 
@@ -386,6 +389,9 @@ EXPORT_SYMBOL_GPL(rcar_lvds_clk_enable);
 void rcar_lvds_clk_disable(struct drm_bridge *bridge)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
+
+	if (lvds->link_type != RCAR_LVDS_SINGLE_LINK && lvds->companion)
+		lvds = bridge_to_rcar_lvds(lvds->companion);
 
 	if (WARN_ON(!(lvds->info->quirks & RCAR_LVDS_QUIRK_EXT_PLL)))
 		return;
