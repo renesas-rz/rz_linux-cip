@@ -891,6 +891,11 @@ static void isolate_pcp_pages(int to_free, struct per_cpu_pages *src,
 	int migratetype = 0;
 	int batch_free = 0;
 
+	/*
+	 * Ensure proper count is passed which otherwise would stuck in the
+	 * below while (list_empty(list)) loop.
+	 */
+	to_free = min(src->count, to_free);
 	while (to_free) {
 		struct page *page;
 		struct list_head *list;
@@ -6358,7 +6363,7 @@ int __meminit init_per_zone_wmark_min(void)
 	setup_per_zone_inactive_ratio();
 	return 0;
 }
-core_initcall(init_per_zone_wmark_min)
+postcore_initcall(init_per_zone_wmark_min)
 
 /*
  * min_free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so
