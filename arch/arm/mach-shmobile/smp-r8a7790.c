@@ -31,6 +31,9 @@
 #define CCI_SLAVE4	0x5000
 #define CCI_SNOOP	0x0000
 #define CCI_STATUS	0x000c
+#define APMU           0xe6151000
+#define CA7DBGRCR      0x0180
+#define CA15DBGRCR     0x1180
 
 static const struct rcar_sysc_ch r8a7790_ca15_scu = {
 	.chan_offs = 0x180, /* PWRSR5 .. PWRER5 */
@@ -56,11 +59,22 @@ static struct rcar_apmu_config r8a7790_apmu_config[] = {
 static void __init r8a7790_smp_prepare_cpus(unsigned int max_cpus)
 {
 	void __iomem *p;
+	u32 val;
 
 	/* let APMU code install data related to shmobile_boot_vector */
 	shmobile_smp_apmu_prepare_cpus(max_cpus,
 				       r8a7790_apmu_config,
 				       ARRAY_SIZE(r8a7790_apmu_config));
+
+	/* setup for debug mode */
+	{
+		p = ioremap_nocache(APMU, 0x2000);
+		val = readl_relaxed(p + CA15DBGRCR);
+		writel_relaxed((val | 0x01f80000), p + CA15DBGRCR);
+		val = readl_relaxed(p + CA7DBGRCR);
+		writel_relaxed((val | 0x01f83330), p + CA7DBGRCR);
+		iounmap(p);
+	}
 
 	/* turn on power to SCU */
 	rcar_gen2_pm_init();
