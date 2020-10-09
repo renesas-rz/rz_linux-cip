@@ -1,0 +1,44 @@
+DT bindings for the Renesas R-Car System Controller
+
+== System Controller Node ==
+
+The R-Car System Controller provides power management for the CPU cores and
+various coprocessors.
+
+Required properties:
+  - compatible: Must contain exactly one of the following:
+      - "renesas,r8a7742-sysc" (RZ/G1H)
+      - "renesas,r8a7743-sysc" (RZ/G1M)
+      - "renesas,r8a7744-sysc" (RZ/G1N)
+      - "renesas,r8a7745-sysc" (RZ/G1E)
+      - "renesas,r8a77470-sysc" (RZ/G1C)
+  - reg: Address start and address range for the device.
+  - #power-domain-cells: Must be 1.
+
+Example:
+
+	 sysc: system-controller@e6180000 {
+		compatible = "renesas,r8a7742-sysc";
+		reg = <0 0xe6180000 0 0x0200>;
+		#power-domain-cells = <1>;
+	};
+
+
+== PM Domain Consumers ==
+
+Devices residing in a power area must refer to that power area, as documented
+by the generic PM domain bindings in
+Documentation/devicetree/bindings/power/power_domain.txt.
+
+Required properties:
+  - power-domains: A phandle and symbolic PM domain specifier, as defined in
+		   <dt-bindings/power/r8a77*-sysc.h>.
+
+Example:
+
+	L2_CA15: cache-controller@0 {
+		compatible = "cache";
+		power-domains = <&sysc R8A7743_PD_CA15_SCU>;
+		cache-unified;
+		cache-level = <2>;
+	};
