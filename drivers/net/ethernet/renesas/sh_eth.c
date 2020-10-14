@@ -3349,6 +3349,7 @@ static struct platform_device_id sh_eth_id_table[] = {
 	{ "r8a7791-ether", (kernel_ulong_t)&r8a779x_data },
 	{ "r8a7793-ether", (kernel_ulong_t)&r8a779x_data },
 	{ "r8a7794-ether", (kernel_ulong_t)&r8a779x_data },
+	{ "r8a7745-ether", (kernel_ulong_t)&r8a779x_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, sh_eth_id_table);
