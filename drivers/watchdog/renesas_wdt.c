@@ -276,7 +276,8 @@ static int rwdt_probe(struct platform_device *pdev)
 	 * same ARM core architecture (e.g ARM cortex A15) can use same handler
 	 */
 	if (of_machine_is_compatible("renesas,r8a7743") ||
-	    of_machine_is_compatible("renesas,r8a7744")) {
+	    of_machine_is_compatible("renesas,r8a7744") ||
+	    of_machine_is_compatible("renesas,r8a7742")) {
 		priv->restart_handler.notifier_call = rwdt_restart_handler_ca15;
 		/* 255: Highest priority restart handler */
 		priv->restart_handler.priority = 255;
