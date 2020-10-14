@@ -3,6 +3,7 @@
 Required properties:
 - compatible		: should contain one or more of the following:
 			  - "renesas,sata-r8a7742" for RZ/G1H
+			  - "renesas,sata-r8a7743" for the R8A7743 SoC
 			  - "renesas,sata-r8a7744" for the R8A7744 SoC
 			  - "renesas,sata-r8a7779" for R-Car H1
 			  - "renesas,sata-r8a7790-es1" for R-Car H2 ES1
