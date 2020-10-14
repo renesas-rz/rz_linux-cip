@@ -1998,7 +1998,7 @@
 			interrupt-map = <0 0 0 0 &gic GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&mstp3_clks R8A7742_CLK_PCIEC>, <&pcie_bus_clk>;
 			clock-names = "pcie", "pcie_bus";
-			power-domains = <&cpg_clocks>;
+			power-domains = <&sysc R8A7742_PD_ALWAYS_ON>;
 			status = "disabled";
 		};
 
