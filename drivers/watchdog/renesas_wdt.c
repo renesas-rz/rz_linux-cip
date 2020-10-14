@@ -19,6 +19,8 @@
 #include <linux/watchdog.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
+#define WDTRSTCR        0xE6160054	/*Watchdog Timer Reset Control Register*/
+#define CA15BAR         0xE6160020	/*Cortex A15 Boot Address Register*/
 
 #define RWTCNT		0
 #define RWTCSRA		4
@@ -135,6 +137,30 @@ static const struct watchdog_info rwdt_ident = {
 	.identity = "Renesas WDT Watchdog",
 };
 
+static int rwdt_restart_handler_ca15(struct notifier_block *nb, unsigned long mode, void *cmd)
+{
+	struct rwdt_priv *priv = container_of(nb, struct rwdt_priv, restart_handler);
+	void __iomem *wdtrstcr = ioremap_nocache(WDTRSTCR, 4);
+	void __iomem *ca15bar  = ioremap_nocache(CA15BAR, 4);
+
+	BUG_ON(!ca15bar);
+	BUG_ON(!wdtrstcr);
+
+	/* Enabling RWDT Reset request */
+	iowrite32(0xA55A0002, wdtrstcr);
+	/* setting ROM Address as SYS Boot Address */
+	iowrite32(0x00000002, ca15bar);
+	iowrite32(0x00000012, ca15bar);
+
+	rwdt_start(&priv->wdev);
+	rwdt_write(priv, 0xffff, RWTCNT);
+
+	iounmap(wdtrstcr);
+	iounmap(ca15bar);
+
+	return NOTIFY_DONE;
+}
+
 static const struct watchdog_ops rwdt_ops = {
 	.owner = THIS_MODULE,
 	.start = rwdt_start,
@@ -218,6 +244,20 @@ static int rwdt_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "can't register restart handler (err=%d)\n",
 			ret);
 		priv->restart_handler.notifier_call = NULL;
+	}
+
+	/*
+	 * register restart handler base on machine here
+	 * same ARM core architecture (e.g ARM cortex A15) can use same handler
+	 */
+	if (of_machine_is_compatible("renesas,r8a7743")) {
+		priv->restart_handler.notifier_call = rwdt_restart_handler_ca15;
+		/* 255: Highest priority restart handler */
+		priv->restart_handler.priority = 255;
+		ret = register_restart_handler(&priv->restart_handler);
+		if (ret)
+			dev_err(&pdev->dev,
+				"Failed to register restart handler (err = %d)\n", ret);
 	}
 
 	return 0;
