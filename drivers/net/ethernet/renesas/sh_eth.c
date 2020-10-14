@@ -3346,6 +3346,7 @@ static struct platform_device_id sh_eth_id_table[] = {
 	{ "r7s72100-ether", (kernel_ulong_t)&r7s72100_data },
 	{ "r8a7740-gether", (kernel_ulong_t)&r8a7740_data },
 	{ "r8a7742-ether", (kernel_ulong_t)&r8a779x_data },
+	{ "r8a7743-ether", (kernel_ulong_t)&r8a779x_data },
 	{ "r8a7744-ether", (kernel_ulong_t)&r8a779x_data },
 	{ "r8a777x-ether", (kernel_ulong_t)&r8a777x_data },
 	{ "r8a7790-ether", (kernel_ulong_t)&r8a779x_data },
