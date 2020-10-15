@@ -217,6 +217,10 @@
 	};
 };
 
+&pci0 {
+	status = "okay";
+};
+
 &pfc {
 	backlight_pins: backlight {
 		groups = "tpu_to3_c";
