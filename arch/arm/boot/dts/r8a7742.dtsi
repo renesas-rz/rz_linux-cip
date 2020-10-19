@@ -2068,7 +2068,7 @@
 				     <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&mstp1_clks R8A7742_CLK_CMT0>;
 			clock-names = "fck";
-			power-domains = <&cpg_clocks>;
+			power-domains = <&sysc R8A7742_PD_ALWAYS_ON>;
 
 			renesas,channels-mask = <0x60>;
 
@@ -2089,7 +2089,7 @@
 				     <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&mstp3_clks R8A7742_CLK_CMT1>;
 			clock-names = "fck";
-			power-domains = <&cpg_clocks>;
+			power-domains = <&sysc R8A7742_PD_ALWAYS_ON>;
 
 			renesas,channels-mask = <0xff>;
 
