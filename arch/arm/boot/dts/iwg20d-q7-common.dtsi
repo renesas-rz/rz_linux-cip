@@ -157,6 +157,10 @@
 	status = "okay";
 };
 
+&cmt1 {
+	status = "okay";
+};
+
 &du {
 	status = "okay";
 
