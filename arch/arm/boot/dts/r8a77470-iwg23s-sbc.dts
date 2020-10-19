@@ -100,6 +100,10 @@
 	status = "okay";
 };
 
+&cmt1 {
+	status = "okay";
+};
+
 &ehci1 {
 	status = "okay";
 };
