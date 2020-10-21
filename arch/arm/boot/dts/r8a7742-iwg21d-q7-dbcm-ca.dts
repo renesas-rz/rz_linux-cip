@@ -253,6 +253,7 @@
 		vin2ep: endpoint {
 			remote-endpoint = <&ov5640_2>;
 			bus-width = <8>;
+			ycbcr_8b_g_enable;
 		};
 	};
 };
