@@ -3842,6 +3842,12 @@ static const union vin_data vin1_data_pins = {
 		RCAR_GP_PIN(1, 5), RCAR_GP_PIN(1, 6),
 		RCAR_GP_PIN(1, 10), RCAR_GP_PIN(1, 8),
 	},
+	.data8 = {
+		RCAR_GP_PIN(3, 0), RCAR_GP_PIN(3, 1),
+		RCAR_GP_PIN(3, 2), RCAR_GP_PIN(3, 3),
+		RCAR_GP_PIN(3, 4), RCAR_GP_PIN(3, 5),
+		RCAR_GP_PIN(3, 6), RCAR_GP_PIN(3, 7),
+	},
 };
 static const union vin_data vin1_data_mux = {
 	.data24 = {
@@ -3860,6 +3866,12 @@ static const union vin_data vin1_data_mux = {
 		VI1_R2_MARK, VI1_R3_MARK,
 		VI1_R4_MARK, VI1_R5_MARK,
 		VI1_R6_MARK, VI1_R7_MARK,
+	},
+	.data8 = {
+		VI1_DATA0_VI1_B0_B_MARK, VI1_DATA1_VI1_B1_B_MARK,
+		VI1_DATA2_VI1_B2_B_MARK, VI1_DATA3_VI1_B3_B_MARK,
+		VI1_DATA4_VI1_B4_B_MARK, VI1_DATA5_VI1_B5_B_MARK,
+		VI1_DATA6_VI1_B6_B_MARK, VI1_DATA7_VI1_B7_B_MARK,
 	},
 };
 static const unsigned int vin1_data18_pins[] = {
@@ -3889,6 +3901,18 @@ static const unsigned int vin1_data18_mux[] = {
 	VI1_R2_MARK, VI1_R3_MARK,
 	VI1_R4_MARK, VI1_R5_MARK,
 	VI1_R6_MARK, VI1_R7_MARK,
+};
+static const unsigned int vin1_data8_pins[] = {
+	RCAR_GP_PIN(3, 0), RCAR_GP_PIN(3, 1),
+	RCAR_GP_PIN(3, 2), RCAR_GP_PIN(3, 3),
+	RCAR_GP_PIN(3, 4), RCAR_GP_PIN(3, 5),
+	RCAR_GP_PIN(3, 6), RCAR_GP_PIN(3, 7),
+};
+static const unsigned int vin1_data8_mux[] = {
+	VI1_DATA0_VI1_B0_B_MARK, VI1_DATA1_VI1_B1_B_MARK,
+	VI1_DATA2_VI1_B2_B_MARK, VI1_DATA3_VI1_B3_B_MARK,
+	VI1_DATA4_VI1_B4_B_MARK, VI1_DATA5_VI1_B5_B_MARK,
+	VI1_DATA6_VI1_B6_B_MARK, VI1_DATA7_VI1_B7_B_MARK,
 };
 static const unsigned int vin1_sync_pins[] = {
 	RCAR_GP_PIN(1, 24), /* HSYNC */
@@ -3935,6 +3959,12 @@ static const union vin_data vin2_data_pins = {
 		RCAR_GP_PIN(1, 17), RCAR_GP_PIN(1, 20),
 		RCAR_GP_PIN(1, 22), RCAR_GP_PIN(1, 24),
 	},
+	.data8 = {
+		RCAR_GP_PIN(0, 27), RCAR_GP_PIN(0, 28),
+		RCAR_GP_PIN(0, 29), RCAR_GP_PIN(1, 10),
+		RCAR_GP_PIN(1, 4), RCAR_GP_PIN(1, 5),
+		RCAR_GP_PIN(1, 6), RCAR_GP_PIN(1, 7),
+	},
 };
 static const union vin_data vin2_data_mux = {
 	.data24 = {
@@ -3953,6 +3983,12 @@ static const union vin_data vin2_data_mux = {
 		VI2_R2_MARK, VI2_R3_MARK,
 		VI2_R4_MARK, VI2_R5_MARK,
 		VI2_R6_MARK, VI2_R7_MARK,
+	},
+	.data8 = {
+		VI2_G0_MARK, VI2_G1_MARK,
+		VI2_G2_MARK, VI2_G3_MARK,
+		VI2_G4_MARK, VI2_G5_MARK,
+		VI2_G6_MARK, VI2_G7_MARK,
 	},
 };
 static const unsigned int vin2_data18_pins[] = {
@@ -3982,6 +4018,18 @@ static const unsigned int vin2_data18_mux[] = {
 	VI2_R2_MARK, VI2_R3_MARK,
 	VI2_R4_MARK, VI2_R5_MARK,
 	VI2_R6_MARK, VI2_R7_MARK,
+};
+static const unsigned int vin2_data8_pins[] = {
+	RCAR_GP_PIN(0, 27), RCAR_GP_PIN(0, 28),
+	RCAR_GP_PIN(0, 29), RCAR_GP_PIN(1, 10),
+	RCAR_GP_PIN(1, 4), RCAR_GP_PIN(1, 5),
+	RCAR_GP_PIN(1, 6), RCAR_GP_PIN(1, 7),
+};
+static const unsigned int vin2_data8_mux[] = {
+	VI2_G0_MARK, VI2_G1_MARK,
+	VI2_G2_MARK, VI2_G3_MARK,
+	VI2_G4_MARK, VI2_G5_MARK,
+	VI2_G6_MARK, VI2_G7_MARK,
 };
 static const unsigned int vin2_sync_pins[] = {
 	RCAR_GP_PIN(1, 16), /* HSYNC */
