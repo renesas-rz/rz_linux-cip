@@ -810,7 +810,7 @@
 			reg = <0 0xe61f0000 0 0x10>, <0 0xe61f0100 0 0x38>;
 			interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&mstp5_clks R8A7742_CLK_THERMAL>;
-			power-domains = <&cpg_clocks>;
+			power-domains = <&sysc R8A7742_PD_ALWAYS_ON>;
 			#thermal-sensor-cells = <0>;
 		};
 
