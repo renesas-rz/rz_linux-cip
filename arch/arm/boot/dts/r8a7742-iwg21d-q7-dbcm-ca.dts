@@ -173,7 +173,7 @@
 	};
 
 	vin1_pins: vin1 {
-		groups = "vin1_data8", "vin1_clk";
+		groups = "vin1_data8", "vin1_clk_b";
 		function = "vin1";
 	};
 
