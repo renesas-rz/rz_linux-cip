@@ -12,6 +12,7 @@
  */
 
 #include <linux/export.h>
+#include <linux/of.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
@@ -26,8 +27,21 @@
 /* -----------------------------------------------------------------------------
  * Encoder
  */
+static enum drm_mode_status rcar_du_encoder_mode_valid(
+					struct drm_encoder *crtc,
+					const struct drm_display_mode *mode)
+{
+	struct rcar_du_encoder *renc = to_rcar_encoder(crtc);
+
+	if (of_machine_is_compatible("renesas,r8a774c0") &&
+	    renc->output == RCAR_DU_OUTPUT_DPAD0 && mode->clock > 75000)
+		return MODE_BAD;
+	else
+		return MODE_OK;
+}
 
 static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
+	.mode_valid = rcar_du_encoder_mode_valid,
 };
 
 static const struct drm_encoder_funcs encoder_funcs = {
