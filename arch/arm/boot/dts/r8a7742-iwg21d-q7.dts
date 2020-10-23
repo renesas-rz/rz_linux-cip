@@ -37,6 +37,7 @@
 
 	aliases {
 		serial2 = &scifa2;
+		serial4 = &scifb2;
 		ethernet0 = &avb;
 	};
 
@@ -309,6 +310,11 @@
 		function = "scifa2";
 	};
 
+	scifb2_pins: serial4 {
+		groups = "scifb2_data", "scifb2_ctrl";
+		function = "scifb2";
+	};
+
 	sdhi2_pins: sd2 {
 		groups = "sdhi2_data4", "sdhi2_ctrl";
 		function = "sdhi2";
@@ -362,6 +368,14 @@
 	pinctrl-0 = <&scifa2_pins>;
 	pinctrl-names = "default";
 
+	status = "okay";
+};
+
+&scifb2 {
+	pinctrl-0 = <&scifb2_pins>;
+	pinctrl-names = "default";
+
+	uart-has-rtscts;
 	status = "okay";
 };
 
