@@ -165,8 +165,11 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 
 	if (rcar_du_needs(rcdu, RCAR_DU_QUIRK_ALIGN_128B))
 		align = 128;
+	else if ((format->fourcc == DRM_FORMAT_NV12) ||
+		 (format->fourcc == DRM_FORMAT_NV21))
+		align = 16;
 	else
-		align = 16 * bpp;
+		align = (16 * bpp) / format->planes;
 
 	if (mode_cmd->pitches[0] & (align - 1) ||
 	    mode_cmd->pitches[0] >= max_pitch) {
