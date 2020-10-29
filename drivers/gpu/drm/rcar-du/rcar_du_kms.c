@@ -10,6 +10,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
+#include <linux/moduleparam.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
@@ -29,6 +30,9 @@
 #include "rcar_du_lvdsenc.h"
 #include "rcar_du_regs.h"
 #include "rcar_du_vsp.h"
+
+static bool rcar_du_fbdev_pan = true;
+module_param_named(fb_cma_pan, rcar_du_fbdev_pan, bool, 0444);
 
 /* -----------------------------------------------------------------------------
  * Format helpers
@@ -627,7 +631,8 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 
 	if (dev->mode_config.num_connector) {
 		fbdev = drm_fbdev_cma_init(dev, 32, dev->mode_config.num_crtc,
-					   dev->mode_config.num_connector, 1);
+					   dev->mode_config.num_connector,
+					   rcar_du_fbdev_pan ? 2 : 1);
 		if (IS_ERR(fbdev))
 			return PTR_ERR(fbdev);
 
