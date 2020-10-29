@@ -539,7 +539,16 @@ static bool rcar_du_crtc_mode_fixup(struct drm_crtc *crtc,
 				    const struct drm_display_mode *mode,
 				    struct drm_display_mode *adjusted_mode)
 {
-	/* TODO Fixup modes */
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+	struct rcar_du_device *rcdu = rcrtc->group->dev;
+
+	/* It is prohibition to set up the width of the multiple of 16 */
+	/* for the specification of H/W in R-Car series */
+	if ((mode) && (mode->hdisplay % 16)) {
+		dev_err(rcdu->dev,
+			"Error! width of the multiple of 16 is prohibition\n");
+		return false;
+	}
 	return true;
 }
 
