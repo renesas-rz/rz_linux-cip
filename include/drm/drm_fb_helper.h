@@ -196,6 +196,9 @@ void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper, int state);
 
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
 
+int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
+							unsigned long arg);
+
 int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper);
 int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel);
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper);
@@ -285,6 +288,12 @@ static inline int drm_fb_helper_setcmap(struct fb_cmap *cmap,
 					struct fb_info *info)
 {
 	return 0;
+}
+
+static inline int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
+							unsigned long arg)
+{
+		return 0;
 }
 
 static inline void drm_fb_helper_unlink_fbi(struct drm_fb_helper *fb_helper)
