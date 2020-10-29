@@ -16,8 +16,6 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_encoder_slave.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
 
 #include "rcar_du_drv.h"
 #include "rcar_du_encoder.h"
@@ -87,7 +85,6 @@ int rcar_du_hdmi_connector_init(struct rcar_du_device *rcdu,
 	struct rcar_du_connector *rcon;
 	struct drm_connector *connector;
 	int ret;
-	struct device_node *np;
 
 	rcon = devm_kzalloc(rcdu->dev, sizeof(*rcon), GFP_KERNEL);
 	if (rcon == NULL)
@@ -97,12 +94,7 @@ int rcar_du_hdmi_connector_init(struct rcar_du_device *rcdu,
 	connector->display_info.width_mm = 0;
 	connector->display_info.height_mm = 0;
 	connector->interlace_allowed = true;
-	np = of_find_node_by_name(NULL, "adv7511w");
-	if ((np) && (of_get_gpio(np, 0) > 0))
-		connector->polled = DRM_CONNECTOR_POLL_HPD;
-	else
-		connector->polled = DRM_CONNECTOR_POLL_CONNECT |
-							DRM_CONNECTOR_POLL_DISCONNECT;
+	connector->polled = DRM_CONNECTOR_POLL_HPD;
 
 	ret = drm_connector_init(rcdu->ddev, connector, &connector_funcs,
 				 DRM_MODE_CONNECTOR_HDMIA);
