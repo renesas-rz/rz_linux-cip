@@ -258,6 +258,7 @@
 };
 
 &pci0 {
+	status = "okay";
 	pinctrl-0 = <&usb0_pins>;
 	pinctrl-names = "default";
 };
@@ -409,5 +410,9 @@
 };
 
 &tpu {
+	status = "okay";
+};
+
+&xhci {
 	status = "okay";
 };
