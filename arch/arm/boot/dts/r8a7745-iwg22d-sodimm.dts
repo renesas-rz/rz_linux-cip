@@ -143,6 +143,12 @@
 		output-low;
 		line-name = "can0-trx-en-gpio";
 	};
+
+	touch-interrupt {
+		gpio-hog;
+		gpios = <4 GPIO_ACTIVE_LOW>;
+		input;
+	};
 };
 
 &hscif1 {
