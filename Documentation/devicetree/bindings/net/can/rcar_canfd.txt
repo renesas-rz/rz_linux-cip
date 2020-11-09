@@ -4,7 +4,8 @@ Renesas R-Car CAN FD controller Device Tree Bindings
 Required properties:
 - compatible: Must contain one or more of the following:
   - "renesas,rcar-gen3-canfd" for R-Car Gen3 and RZ/G2 compatible controllers.
-  - "renesas,r8a774a1-canfd" for R8A774A1 (RZ/G2M) compatible controller.
+  - "renesas,r8a774a1-canfd" for R8A774A1 (RZ/G2M v1.3) compatible controller.
+  - "renesas,r8a774a3-canfd" for R8A774A3 (RZ/G2M v3.0) compatible controller.
   - "renesas,r8a774b1-canfd" for R8A774B1 (RZ/G2N) compatible controller.
   - "renesas,r8a774c0-canfd" for R8A774C0 (RZ/G2E) compatible controller.
   - "renesas,r8a774e1-canfd" for R8A774E1 (RZ/G2H) compatible controller.
