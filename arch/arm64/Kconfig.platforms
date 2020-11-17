@@ -207,6 +207,12 @@ config ARCH_R8A774C0
 	help
 	  This enables support for the Renesas RZ/G2E SoC.
 
+config ARCH_R9A07G044L2
+        bool "Renesas RZ/G2L dual A55 SoC Platform"
+        depends on ARCH_RENESAS
+        help
+          This enables support for the Renesas RZ/G2L dual A55 SoC.
+
 config ARCH_R8A7795
 	bool "Renesas R-Car H3 SoC Platform"
 	depends on ARCH_RENESAS
