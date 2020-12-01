@@ -1,0 +1,90 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the HopeRun HiHope RZ/G2N Rev.2
+ * connected with aistarvision-mipi-v2.1-adapter board
+ *
+ * Copyright (C) 2020 Renesas Electronics Corp.
+ */
+
+/dts-v1/;
+#include "r8a774b1-hihope-rzg2n-rev2-ex.dts"
+#define MIPI_PARENT_I2C_CSI20 i2c2
+#include "aistarvision-mipi-adapter-2.1.dtsi"
+
+/ {
+	model = "HopeRun HiHope RZ/G2N Rev.2.0 with sub board with aistarvision-mipi-v2.1-adapter board";
+	compatible = "hoperun,hihope-rzg2-ex", "hoperun,hihope-rzg2n",
+		     "renesas,r8a774b1";
+};
+
+&pfc {
+	i2c2_pins: i2c2 {
+		groups = "i2c2_a";
+		function = "i2c2";
+	};
+};
+
+&i2c2 {
+	status = "okay";
+};
+
+&vin0 {
+	status = "okay";
+};
+
+&vin1 {
+	status = "okay";
+};
+
+&vin2 {
+	status = "okay";
+};
+
+&vin3 {
+	status = "okay";
+};
+
+&vin4 {
+	status = "okay";
+};
+
+&vin5 {
+	status = "okay";
+};
+
+&vin6 {
+	status = "okay";
+};
+
+&vin7 {
+	status = "okay";
+};
+
+&csi20 {
+	status = "okay";
+
+	ports {
+		port {
+			csi20_in: endpoint {
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+				remote-endpoint = <&ov5645_csi20_ep>;
+			};
+		};
+	};
+};
+
+&ov5645_csi20 {
+	enable-gpios = <&gpio6 4 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio6 8 GPIO_ACTIVE_LOW>;
+
+	virtual-channel = /bits/ 8 <0>;
+
+	port {
+		ov5645_csi20_ep: endpoint {
+			clock-lanes = <0>;
+			data-lanes = <1 2>;
+			remote-endpoint = <&csi20_in>;
+		};
+	};
+};
