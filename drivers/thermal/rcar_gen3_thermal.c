@@ -55,15 +55,24 @@
 #define THCTR_PONM	BIT(6)
 #define THCTR_THSST	BIT(0)
 
+/* Fuse registers and base offsets */
+#define PTAT_BASE		0xE6198000
+#define REG_GEN3_PTAT1		0x5C
+#define REG_GEN3_PTAT2		0x60
+#define REG_GEN3_PTAT3		0x64
+#define REG_GEN3_THSCP		0x68
+#define REG_GEN3_MAX_SIZE	(REG_GEN3_THSCP + 0x4)
+
 #define CTEMP_MASK	0xFFF
+#define GEN3_FUSE_MASK	0xFFF
+#define COR_PARA_VLD	(0x3 << 14)
 
 #define MCELSIUS(temp)	((temp) * 1000)
-#define GEN3_FUSE_MASK	0xFFF
 
 #define TSC_MAX_NUM	3
 
 /* default THCODE values if FUSEs are missing */
-static const int thcode[TSC_MAX_NUM][3] = {
+static int thcode[TSC_MAX_NUM][3] = {
 	{ 3397, 2800, 2221 },
 	{ 3393, 2795, 2216 },
 	{ 3389, 2805, 2237 },
@@ -363,6 +372,8 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 	struct thermal_zone_device *zone;
 	int ret, irq, i;
 	char *irqname;
+	void __iomem *ptat_base = NULL;
+	unsigned int cor_para_value = 0;
 
 	/* default values if FUSEs are missing */
 	/* TODO: Read values from hardware on supported platforms */
@@ -403,6 +414,27 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 
+	ptat_base = ioremap_nocache(PTAT_BASE, REG_GEN3_MAX_SIZE);
+	if (!ptat_base) {
+		dev_err(dev, "Cannot map FUSE registers");
+		ret = -ENOMEM;
+		goto error_unregister;
+	}
+
+	cor_para_value = ioread32(ptat_base + REG_GEN3_THSCP) & COR_PARA_VLD;
+	if (cor_para_value != COR_PARA_VLD)
+		dev_info(dev, "is using pseudo fixed FUSE values\n");
+	else {
+		dev_info(dev, "is using hardware FUSE values\n");
+		ptat[0] = ioread32(ptat_base + REG_GEN3_PTAT1) &
+				   GEN3_FUSE_MASK;
+		ptat[1] = ioread32(ptat_base + REG_GEN3_PTAT2) &
+				   GEN3_FUSE_MASK;
+		ptat[2] = ioread32(ptat_base + REG_GEN3_PTAT3) &
+				   GEN3_FUSE_MASK;
+	}
+	iounmap(ptat_base);
+
 	for (i = 0; i < TSC_MAX_NUM; i++) {
 		struct rcar_gen3_thermal_tsc *tsc;
 
@@ -426,6 +458,15 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 		priv->tscs[i] = tsc;
 
 		priv->thermal_init(tsc);
+		if (cor_para_value == COR_PARA_VLD) {
+			thcode[i][0] = GEN3_FUSE_MASK &
+				rcar_gen3_thermal_read(tsc, REG_GEN3_THCODE1);
+			thcode[i][1] = GEN3_FUSE_MASK &
+				rcar_gen3_thermal_read(tsc, REG_GEN3_THCODE2);
+			thcode[i][2] = GEN3_FUSE_MASK &
+				rcar_gen3_thermal_read(tsc, REG_GEN3_THCODE3);
+		}
+
 		rcar_gen3_thermal_calc_coefs(tsc, ptat, thcode[i],
 					     *rcar_gen3_ths_tj_1);
 
