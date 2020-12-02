@@ -98,12 +98,15 @@ Boards:
   - HopeRun expansion board for HiHope RZ/G2 platforms
     compatible = "hoperun,hihope-rzg2h", "renesas,r8a774e1",
                  "hoperun,hihope-rzg2m", "renesas,r8a774a1",
+                 "hoperun,hihope-rzg2m", "renesas,r8a774a3",
                  "hoperun,hihope-rzg2n", "renesas,r8a774b1",
                  "hoperun,hihope-rzg2-ex"
   - HopeRun HiHope RZ/G2H platform
     compatible = "hoperun,hihope-rzg2h", "renesas,r8a774e1"
-  - HopeRun HiHope RZ/G2M platform
+  - HopeRun HiHope RZ/G2M v1.3 platform
     compatible = "hoperun,hihope-rzg2m", "renesas,r8a774a1"
+  - HopeRun HiHope RZ/G2M v3.0 platform
+    compatible = "hoperun,hihope-rzg2m", "renesas,r8a774a3"
   - HopeRun HiHope RZ/G2N platform
     compatible = "hoperun,hihope-rzg2n", "renesas,r8a774b1"
   - iWave Systems RZ/G1C Single Board Computer (iW-RainboW-G23S)
