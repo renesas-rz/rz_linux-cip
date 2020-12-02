@@ -99,13 +99,3 @@
 &ohci1 {
 	memory-region = <&global_cma>;
 };
-
-&sound_card {
-	dais = <&rsnd_port1>;	/* PCM5102A */
-};
-
-&rcar_sound {
-	ports {
-		/delete-node/ rsnd_port0;
-	};
-};
