@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the RZG2 SMARC main board common parts
+ *
+ * Copyright (C) 2020 Renesas Electronics Corp.
+ */
+
+&xinclk {
+	clock-frequency = <24000000>;
+};
+
