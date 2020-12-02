@@ -319,6 +319,8 @@ static int rcar_pcie_enable(struct rcar_pcie_host *host)
 	bridge->ops = &rcar_pcie_ops;
 	bridge->map_irq = of_irq_parse_and_map_pci;
 	bridge->swizzle_irq = pci_common_swizzle;
+	bridge->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	bridge->dev.dma_mask = &bridge->dev.coherent_dma_mask;
 	if (IS_ENABLED(CONFIG_PCI_MSI))
 		bridge->msi = &host->msi.chip;
 
