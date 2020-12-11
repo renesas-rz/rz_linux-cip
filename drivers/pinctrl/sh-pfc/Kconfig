@@ -143,6 +143,11 @@ config PINCTRL_PFC_RZG2L
 	help
 	 This enables pin control and gpio drivers for Renesas RZ/G2L platforms
 
+config PINCTRL_R9A07G044L
+	def_bool y
+	depends on ARCH_R9A07G044L2
+	select PINCTRL_PFC_RZG2L
+
 config PINCTRL_PFC_SH7203
 	def_bool y
 	depends on CPU_SUBTYPE_SH7203
