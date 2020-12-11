@@ -19,6 +19,10 @@ dtb-$(CONFIG_ARCH_R8A774B1) += r8a774b1-hihope-rzg2n-ex-idk-1110wr.dtb \
 dtb-$(CONFIG_ARCH_R8A774C0) += r8a774c0-cat874.dtb r8a774c0-ek874.dtb \
 			       r8a774c0-ek874-idk-2121wr.dtb \
 			       r8a774c0-ek874-mipi-2.1.dtb
+dtb-$(CONFIG_ARCH_R8A774C0) += r8a774c0-cat874-revc.dtb \
+			       r8a774c0-ek874-revc.dtb \
+			       r8a774c0-ek874-revc-idk-2121wr.dtb \
+			       r8a774c0-ek874-revc-mipi-2.1.dtb
 dtb-$(CONFIG_ARCH_R8A774C0) += r8a774c0-es10-cat874.dtb \
 			       r8a774c0-es10-ek874.dtb \
 			       r8a774c0-es10-ek874-idk-2121wr.dtb \
