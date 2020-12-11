@@ -171,4 +171,6 @@ struct rzg2l_pinctrl {
 		(void *) mode,					\
 	}
 
+extern const struct rzg2l_pin_soc r9a07g044l_pinctrl_data;
+
 #endif

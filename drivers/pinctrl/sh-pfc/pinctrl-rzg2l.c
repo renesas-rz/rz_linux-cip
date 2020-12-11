@@ -812,6 +812,12 @@ static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id rzg2l_pinctrl_of_table[] = {
+#ifdef CONFIG_PINCTRL_R9A07G044L
+	{
+		.compatible = "renesas,r9a07g044l-pinctrl",
+		.data = &r9a07g044l_pinctrl_data,
+	},
+#endif
 	{},
 };
 
