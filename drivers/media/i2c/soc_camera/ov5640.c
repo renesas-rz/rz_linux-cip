@@ -952,12 +952,16 @@ err_probe:
 static int ov5640_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ov5640 *ov5640 = to_ov5640(sd);
 
 	v4l2_dbg(1, debug, sd,
 			"ov5640.c: removing ov5640 adapter on address 0x%x\n",
 			client->addr << 1);
 
 	v4l2_device_unregister_subdev(sd);
+	v4l2_async_unregister_subdev(&ov5640->sd);
+	media_entity_cleanup(&ov5640->sd.entity);
+	v4l2_ctrl_handler_free(&ov5640->hdl);
 	kfree(to_ov5640(sd));
 	return 0;
 }
