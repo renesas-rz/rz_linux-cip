@@ -3485,6 +3485,13 @@ static int __init scif_early_console_setup(struct earlycon_device *device,
 {
 	return early_console_setup(device, PORT_SCIF);
 }
+static int __init rzscifa_early_console_setup(struct earlycon_device *device,
+					  const char *opt)
+{
+	port_cfg.regtype = SCIx_RZ_SCIFA_REGTYPE;
+	return early_console_setup(device, PORT_SCIF);
+}
+
 static int __init scifa_early_console_setup(struct earlycon_device *device,
 					  const char *opt)
 {
@@ -3503,6 +3510,8 @@ static int __init hscif_early_console_setup(struct earlycon_device *device,
 
 OF_EARLYCON_DECLARE(sci, "renesas,sci", sci_early_console_setup);
 OF_EARLYCON_DECLARE(scif, "renesas,scif", scif_early_console_setup);
+OF_EARLYCON_DECLARE(scif, "renesas,scif-r9a07g044l",
+		    rzscifa_early_console_setup);
 OF_EARLYCON_DECLARE(scifa, "renesas,scifa", scifa_early_console_setup);
 OF_EARLYCON_DECLARE(scifb, "renesas,scifb", scifb_early_console_setup);
 OF_EARLYCON_DECLARE(hscif, "renesas,hscif", hscif_early_console_setup);
