@@ -311,6 +311,7 @@ static const struct sci_port_params sci_port_params[SCIx_NR_REGTYPES] = {
 			[SCFDR]		= { 0x0E, 16 },
 			[SCSPTR]	= { 0x10, 16 },
 			[SCLSR]		= { 0x12, 16 },
+			[SCSEMR]	= { 0x14, 8 },
 		},
 		.fifosize = 16,
 		.overrun_reg = SCLSR,
@@ -2534,6 +2535,8 @@ done:
 			case 27: smr_val |= SCSMR_SRC_27; break;
 			}
 		smr_val |= cks;
+		/*we not support extended mode yet, make sure it is cleared*/
+		serial_port_out(port, SCSEMR, 0);
 		serial_port_out(port, SCSCR, scr_val | s->hscif_tot);
 		serial_port_out(port, SCSMR, smr_val);
 		serial_port_out(port, SCBRR, brr);
@@ -2568,6 +2571,8 @@ done:
 		scr_val = s->cfg->scscr & (SCSCR_CKE1 | SCSCR_CKE0);
 		smr_val |= serial_port_in(port, SCSMR) &
 			   (SCSMR_CKEDG | SCSMR_SRC_MASK | SCSMR_CKS);
+		/*we not support extended mode yet, make sure it is cleared*/
+		serial_port_out(port, SCSEMR, 0);
 		serial_port_out(port, SCSCR, scr_val | s->hscif_tot);
 		serial_port_out(port, SCSMR, smr_val);
 	}
