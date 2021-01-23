@@ -60,6 +60,12 @@ Optional properties:
 			 200 (2-clock-cycle delay)
 			 300 (3-clock-cycle delay)
 
+- ready-gpios		: Define which gpio pin is for handshaking function.
+- handshake-active-low	: Add this property to devicetree to anounce slave is
+			  ready for transmission when ready-gpio level is low;
+			  otherwise, High level of ready-gpio will be acknowleged
+			  as ready signal.
+
 Optional properties, deprecated for soctype-specific bindings:
 - renesas,tx-fifo-size : Overrides the default tx fifo size given in words
 			 (default is 64)
