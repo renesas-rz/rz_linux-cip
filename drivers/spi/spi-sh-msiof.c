@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/sh_dma.h>
@@ -50,6 +51,7 @@ struct sh_msiof_spi_priv {
 	const struct sh_msiof_chipdata *chipdata;
 	struct sh_msiof_spi_info *info;
 	struct completion done;
+	struct completion done_handshake;
 	unsigned int tx_fifo_size;
 	unsigned int rx_fifo_size;
 	void *tx_dma_page;
@@ -59,6 +61,9 @@ struct sh_msiof_spi_priv {
 	bool native_cs_inited;
 	bool native_cs_high;
 	int mode;
+	u32 ready_gpio;
+	bool handshake_active_level;
+	bool is_handshake;
 };
 
 #define MAX_SS	3	/* Maximum number of native chip selects */
@@ -251,6 +256,15 @@ static irqreturn_t sh_msiof_spi_irq(int irq, void *data)
 	sh_msiof_write(p, IER, 0);
 	complete(&p->done);
 
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t sh_msiof_handshake_handler(int irq, void  *dev)
+{
+	struct sh_msiof_spi_priv *p = dev;
+
+	if (gpio_get_value(p->ready_gpio) == p->handshake_active_level)
+		complete(&p->done_handshake);
 	return IRQ_HANDLED;
 }
 
@@ -641,6 +655,10 @@ static int sh_msiof_spi_start(struct sh_msiof_spi_priv *p, void *rx_buf)
 	if (!ret && p->mode == MSIOF_SPI_MASTER)
 		ret = sh_msiof_modify_ctr_wait(p, 0, CTR_TFSE);
 
+	/* Slave asserts ready gpio if it is ready */
+	if (!ret && p->is_handshake == 1 && p->mode == MSIOF_SPI_SLAVE)
+		gpio_set_value(p->ready_gpio, p->handshake_active_level);
+
 	return ret;
 }
 
@@ -657,6 +675,10 @@ static int sh_msiof_spi_stop(struct sh_msiof_spi_priv *p, void *rx_buf)
 		ret = sh_msiof_modify_ctr_wait(p, CTR_RXE, 0);
 	if (!ret && p->mode == MSIOF_SPI_MASTER)
 		ret = sh_msiof_modify_ctr_wait(p, CTR_TSCKE, 0);
+
+	/* disable ready_gpio after slave resets TXE, RXE*/
+	if (!ret && p->is_handshake == 1 && p->mode == MSIOF_SPI_SLAVE)
+		gpio_set_value(p->ready_gpio, !p->handshake_active_level);
 
 	return ret;
 }
@@ -675,6 +697,18 @@ static int sh_msiof_wait_for_completion(struct sh_msiof_spi_priv *p)
 		}
 	}
 
+	return 0;
+}
+
+static int sh_msiof_master_wait_handshaking(struct sh_msiof_spi_priv *p)
+{
+	if (p->mode == MSIOF_SPI_MASTER && p->is_handshake == 1) {
+		if (gpio_get_value(p->ready_gpio) == p->handshake_active_level)
+			complete(&p->done_handshake);
+		if (wait_for_completion_interruptible(&p->done_handshake))
+			return -EINTR;
+	} else
+		complete(&p->done_handshake);
 	return 0;
 }
 
@@ -710,6 +744,10 @@ static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 		tx_fifo(p, tx_buf, words, fifo_shift);
 
 	reinit_completion(&p->done);
+	reinit_completion(&p->done_handshake);
+
+	/* Master wait for handshaking signal from slave */
+	sh_msiof_master_wait_handshaking(p);
 
 	ret = sh_msiof_spi_start(p, rx_buf);
 	if (ret) {
@@ -1098,6 +1136,15 @@ static struct sh_msiof_spi_info *sh_msiof_spi_parse_dt(struct device *dev)
 
 	info->num_chipselect = num_cs;
 
+	info->ready_gpio = of_get_named_gpio(np, "ready-gpios", 0);
+	if (gpio_is_valid(info->ready_gpio)) {
+		info->is_handshake = 1;
+		info->handshake_active_level = of_property_read_bool(np,
+						"handshake-active-low") ? 0 : 1;
+	} else {
+		info->is_handshake = 0;
+	}
+
 	return info;
 }
 #else
@@ -1145,6 +1192,40 @@ static int sh_msiof_get_cs_gpios(struct sh_msiof_spi_priv *p)
 	}
 	return 0;
 }
+
+static int sh_msiof_set_handshaking_gpios(struct sh_msiof_spi_priv *p)
+{
+	int ret = 0;
+
+	p->ready_gpio = p->info->ready_gpio;
+	p->handshake_active_level = p->info->handshake_active_level;
+
+	if (gpio_is_valid(p->ready_gpio))
+		ret = gpio_request(p->ready_gpio, "msiof-ready-signal");
+	if (ret < 0) {
+		pr_alert("Request gpio for hanshaking failed with %d\n", ret);
+		return ret;
+	}
+
+	if (p->mode == MSIOF_SPI_SLAVE) {
+		gpio_direction_output(p->ready_gpio,
+				      !p->handshake_active_level);
+	} else {
+		gpio_direction_input(p->info->ready_gpio);
+		ret = devm_request_irq(&p->pdev->dev,
+				gpio_to_irq(p->ready_gpio),
+				sh_msiof_handshake_handler,
+				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				"msiof-ready-irq", p);
+		if (ret < 0) {
+			pr_alert("Request interrupt for ready gpio failed with %d\n",
+				 ret);
+			return ret;
+		}
+	}
+	return 0;
+}
+
 
 static struct dma_chan *sh_msiof_request_dma_chan(struct device *dev,
 	enum dma_transfer_direction dir, unsigned int id, dma_addr_t port_addr)
@@ -1319,6 +1400,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	p->info = info;
 
 	init_completion(&p->done);
+	init_completion(&p->done_handshake);
 
 	p->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(p->clk)) {
@@ -1365,6 +1447,11 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	ret = sh_msiof_get_cs_gpios(p);
 	if (ret)
 		goto err1;
+
+	/* Setup handshaking GPIO */
+	p->is_handshake = p->info->is_handshake;
+	if (p->is_handshake)
+		sh_msiof_set_handshaking_gpios(p);
 
 	/* init master code */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
