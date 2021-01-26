@@ -43,6 +43,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 
 #define RIIC_ICCR1	0x00
 #define RIIC_ICCR2	0x04
@@ -95,6 +96,7 @@ struct riic_dev {
 	struct completion msg_done;
 	struct i2c_adapter adapter;
 	struct clk *clk;
+	struct reset_control *rstc;
 };
 
 struct riic_irq_desc {
@@ -414,6 +416,13 @@ static int riic_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "missing controller clock");
 		return PTR_ERR(riic->clk);
 	}
+
+	riic->rstc = devm_reset_control_get(&pdev->dev, NULL);
+
+	if (IS_ERR(riic->rstc))
+		dev_warn(&pdev->dev, "failed to get cpg reset\n");
+	else
+		reset_control_deassert(riic->rstc);
 
 	for (i = 0; i < ARRAY_SIZE(riic_irqs); i++) {
 		res = platform_get_resource(pdev, IORESOURCE_IRQ, riic_irqs[i].res_num);
