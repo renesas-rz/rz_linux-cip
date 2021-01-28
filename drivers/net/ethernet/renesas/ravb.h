@@ -19,6 +19,7 @@
 #include <linux/phy.h>
 #include <linux/platform_device.h>
 #include <linux/ptp_clock_kernel.h>
+#include <linux/reset.h>
 
 #define BE_TX_RING_SIZE	64	/* TX ring size for Best Effort */
 #define BE_RX_RING_SIZE	1024	/* RX ring size for Best Effort */
@@ -81,6 +82,9 @@ enum ravb_reg {
 	RQC3	= 0x00A0,
 	RQC4	= 0x00A4,
 	RPC	= 0x00B0,
+#ifdef CONFIG_ARCH_ESPADA
+	RTC	= 0x00B4,
+#endif /* CONFIG_ARCH_ESPADA */
 	UFCW	= 0x00BC,
 	UFCS	= 0x00C0,
 	UFCV0	= 0x00C4,
@@ -155,6 +159,9 @@ enum ravb_reg {
 	TIC	= 0x0378,
 	TIS	= 0x037C,
 	ISS	= 0x0380,
+#ifdef CONFIG_ARCH_ESPADA
+	RIC3	= 0x0388,
+#endif /* CONFIG_ARCH_ESPADA */
 	CIE	= 0x0384,	/* R-Car Gen3 only */
 	GCCR	= 0x0390,
 	GMTT	= 0x0394,
@@ -187,6 +194,10 @@ enum ravb_reg {
 	PIR	= 0x0520,
 	PSR	= 0x0528,
 	PIPR	= 0x052c,
+#ifdef CONFIG_ARCH_ESPADA
+	CXR31	= 0x0530,
+	CXR35	= 0x0540,
+#endif /* CONFIG_ARCH_ESPADA */
 	MPR	= 0x0558,
 	PFTCR	= 0x055c,
 	PFRCR	= 0x0560,
@@ -204,6 +215,64 @@ enum ravb_reg {
 	CERCR	= 0x0768,	/* Undocumented? */
 	CEECR	= 0x0770,	/* Undocumented? */
 	MAFCR	= 0x0778,
+#ifdef CONFIG_ARCH_ESPADA
+	MDIOSTS = 0x0780,
+	MDIOCMD = 0x0784,
+	MDIOADR = 0x0788,
+	MDIODAT = 0x078C,
+	MDIOMOD = 0x0790,
+	LPTXMOD1 = 0x07B0,
+	LPTXMOD2 = 0x07B4,
+	LPTXGTH1 = 0x07C0,
+	LPTXGTH2 = 0x07C4,
+	LPTXGTH3 = 0x07C8,
+	LPTXGTH4 = 0x07CC,
+	LPTXMTH1 = 0x07D0,
+	LPTXMTH2 = 0x07D4,
+	LPTXMTH3 = 0x07D8,
+	LPTXMTH4 = 0x07DC,
+	CSR0     = 0x0800,
+	CSR1     = 0x0804,
+	CSR2     = 0x0808,
+	CSR3     = 0x080C,
+	CSR4     = 0x0810,
+	CSR20    = 0x0820,
+	CSR30    = 0x0824,
+	CSR31    = 0x0828,
+	CSR32    = 0x082C,
+	CSFR00   = 0x0840,
+	CSFR01   = 0x0844,
+	CSFR02_0 = 0x0848,
+	CSFR03_U = 0x0858,
+	CSFR03_L = 0x085C,
+	CSFR04   = 0x0860,
+	CSFR10_0 = 0x0870,
+	CSFR10   = 0x0880,
+	CSFR11_0 = 0x0884,
+	CSFR11   = 0x0894,
+	CSFR12_0 = 0x0898,
+	CSFR12   = 0x08C8,
+	CSFR13_U = 0x08CC,
+	CSFR13_L = 0x08D0,
+	CSFR14_U = 0x08D4,
+	CSFR14_L = 0x08D8,
+	CSFR15_U_0 = 0x08DC,
+	CSFR15_L_0 = 0x08E0,
+	CSFR15   = 0x097C,
+	CSFR16_0 = 0x0980,
+	CSFR16_1 = 0x0984,
+	CSFR16_2 = 0x0988,
+	CSFR16   = 0x098C,
+	CSFR20   = 0x09A0,
+	CSFR21   = 0x09A4,
+	CSFR30   = 0x09B0,
+	CSFR31   = 0x09B4,
+	CSFR40   = 0x09C0,
+	CSFR41   = 0x09C4,
+	CSFR42_U = 0x09C8,
+	CSFR42_L = 0x09CC,
+	CSFR43_i = 0x09D0,
+#endif /* CONFIG_ARCH_ESPADA */
 };
 
 
@@ -216,6 +285,9 @@ enum CCC_BIT {
 	CCC_OPC_OPERATION = 0x00000002,
 	CCC_GAC		= 0x00000080,
 	CCC_DTSR	= 0x00000100,
+#ifdef CONFIG_ARCH_ESPADA
+	CCC_RDFD	= 0x00000200,
+#endif	/* CONFIG_ARCH_ESPADA */
 	CCC_CSEL	= 0x00030000,
 	CCC_CSEL_HPB	= 0x00010000,
 	CCC_CSEL_ETH_TX	= 0x00020000,
@@ -223,6 +295,13 @@ enum CCC_BIT {
 	CCC_BOC		= 0x00100000,	/* Undocumented? */
 	CCC_LBME	= 0x01000000,
 };
+
+#ifdef CONFIG_ARCH_ESPADA
+enum DLR_BIT {
+	DLR_LBA0	= 0x00000001,
+	DLR_LBA4	= 0x00000010,
+};
+#endif	/* CONFIG_ARCH_ESPADA */
 
 /* CSR */
 enum CSR_BIT {
@@ -232,6 +311,9 @@ enum CSR_BIT {
 	CSR_OPS_OPERATION = 0x00000004,
 	CSR_OPS_STANDBY	= 0x00000008,	/* Undocumented? */
 	CSR_DTS		= 0x00000100,
+#ifdef CONFIG_ARCH_ESPADA
+	CSR_RDFDM	= 0x00000200,
+#endif	/* CONFIG_ARCH_ESPADA */
 	CSR_TPO0	= 0x00010000,
 	CSR_TPO1	= 0x00020000,
 	CSR_TPO2	= 0x00040000,
@@ -348,8 +430,13 @@ enum TCCR_BIT {
 	TCCR_TSRQ1	= 0x00000002,
 	TCCR_TSRQ2	= 0x00000004,
 	TCCR_TSRQ3	= 0x00000008,
+#ifdef CONFIG_ARCH_ESPADA
+	TCCR_TFEN	= 0x00010000,
+	TCCR_TFR	= 0x00020000,
+#else	/* CONFIG_ARCH_ESPADA */
 	TCCR_TFEN	= 0x00000100,
 	TCCR_TFR	= 0x00000200,
+#endif	/* CONFIG_ARCH_ESPADA */
 };
 
 /* TSR */
@@ -382,6 +469,9 @@ enum DIC_BIT {
 	DIC_DPE13	= 0x00002000,
 	DIC_DPE14	= 0x00004000,
 	DIC_DPE15	= 0x00008000,
+#ifdef CONFIG_ARCH_ESPADA
+	DIC_ALL		= 0x00000FFE,
+#endif	/* CONFIG_ARCH_ESPADA */
 };
 
 /* DIS */
@@ -404,6 +494,15 @@ enum DIS_BIT {
 };
 
 /* EIC */
+#ifdef CONFIG_ARCH_ESPADA
+enum EIC_BIT {
+	EIC_MREE	= 0x00000001,
+	EIC_MTEE	= 0x00000002,
+	EIC_QEE		= 0x00000004,
+	EIC_MFFE	= 0x00000200,
+	EIC_MFFE2	= 0x00000400,
+};
+#else	/* CONFIG_ARCH_ESPADA */
 enum EIC_BIT {
 	EIC_MREE	= 0x00000001,
 	EIC_MTEE	= 0x00000002,
@@ -415,6 +514,7 @@ enum EIC_BIT {
 	EIC_CULE1	= 0x00000080,
 	EIC_TFFE	= 0x00000100,
 };
+#endif
 
 /* EIS */
 enum EIS_BIT {
@@ -509,6 +609,13 @@ enum RIC2_BIT {
 	RIC2_RFFE	= 0x80000000,
 };
 
+#ifdef CONFIG_ARCH_ESPADA
+/* RIC3 */
+enum RIC3_BIT {
+	RIC3_RDPE	= 0x00000001,
+};
+#endif
+
 /* RIS2 */
 enum RIS2_BIT {
 	RIS2_QFF0	= 0x00000001,
@@ -535,18 +642,38 @@ enum RIS2_BIT {
 
 /* TIC */
 enum TIC_BIT {
+#ifdef CONFIG_ARCH_ESPADA
+	TIC_FTE		= 0x00000001,
+	TIC_MFUE	= 0x00000400,
+	TIC_MFWE	= 0x00000800,
+	TIC_MFUE2	= 0x00001000,
+	TIC_MFWE2	= 0x00002000,
+	TIC_RCSRE	= 0x00004000,
+	TIC_TDPE	= 0x00010000,
+#else	/* CONFIG_ARCH_ESPADA */
 	TIC_FTE0	= 0x00000001,	/* Undocumented? */
 	TIC_FTE1	= 0x00000002,	/* Undocumented? */
 	TIC_TFUE	= 0x00000100,
 	TIC_TFWE	= 0x00000200,
+#endif
 };
 
 /* TIS */
 enum TIS_BIT {
+#ifdef CONFIG_ARCH_ESPADA
+	TIS_FTF		= 0x00000001,
+	TIS_TFUF	= 0x00000400,
+	TIS_MFWF	= 0x00000800,
+	TIS_TFUF2	= 0x00001000,
+	TIS_MFWF2	= 0x00002000,
+	TIS_RCSRF	= 0x00004000,
+	TIS_TDPF	= 0x00010000,
+#else	/* CONFIG_ARCH_ESPADA */
 	TIS_FTF0	= 0x00000001,	/* Undocumented? */
 	TIS_FTF1	= 0x00000002,	/* Undocumented? */
 	TIS_TFUF	= 0x00000100,
 	TIS_TFWF	= 0x00000200,
+#endif
 	TIS_RESERVED	= (GENMASK(31, 20) | GENMASK(15, 12) | GENMASK(7, 4))
 };
 
@@ -577,6 +704,12 @@ enum ISS_BIT {
 	ISS_DPS15	= 0x80000000,
 };
 
+#ifdef CONFIG_ARCH_ESPADA
+enum CIE_BIT {
+	CIE_CRIE	= 0x00000001,
+	CIE_CTIE	= 0x00000100,
+};
+#else	/* CONFIG_ARCH_ESPADA */
 /* CIE (R-Car Gen3 only) */
 enum CIE_BIT {
 	CIE_CRIE	= 0x00000001,
@@ -586,6 +719,7 @@ enum CIE_BIT {
 	CIE_RFWL	= 0x00040000,
 	CIE_RFFL	= 0x00080000,
 };
+#endif
 
 /* GCCR */
 enum GCCR_BIT {
@@ -810,16 +944,29 @@ enum TID_BIT {
 enum ECMR_BIT {
 	ECMR_PRM	= 0x00000001,
 	ECMR_DM		= 0x00000002,
+#ifdef CONFIG_ARCH_ESPADA
+	CXR20_LPM	= 0x00000010,
+#endif /* CONFIG_ARCH_ESPADA */
 	ECMR_TE		= 0x00000020,
 	ECMR_RE		= 0x00000040,
 	ECMR_MPDE	= 0x00000200,
+#ifdef CONFIG_ARCH_ESPADA
+	CXR20_CER	= 0x00001000,
+#endif /* CONFIG_ARCH_ESPADA */
 	ECMR_TXF	= 0x00010000,	/* Undocumented? */
 	ECMR_RXF	= 0x00020000,
 	ECMR_PFR	= 0x00040000,
 	ECMR_ZPF	= 0x00080000,	/* Undocumented? */
 	ECMR_RZPF	= 0x00100000,
 	ECMR_DPAD	= 0x00200000,
+#ifdef CONFIG_ARCH_ESPADA
+	CXR20_CXSER	= 0x00400000,
+#endif /* CONFIG_ARCH_ESPADA */
 	ECMR_RCSC	= 0x00800000,
+#ifdef CONFIG_ARCH_ESPADA
+	CXR20_TCPT	= 0x01000000,
+	CXR20_RCPT	= 0x02000000,
+#endif /* CONFIG_ARCH_ESPADA */
 	ECMR_TRCCM	= 0x04000000,
 };
 
@@ -829,6 +976,9 @@ enum ECSR_BIT {
 	ECSR_MPD	= 0x00000002,
 	ECSR_LCHNG	= 0x00000004,
 	ECSR_PHYI	= 0x00000008,
+#ifdef CONFIG_ARCH_ESPADA
+	ECSR_RFRI	= 0x00000010,
+#endif /* CONFIG_ARCH_ESPADA */
 };
 
 /* ECSIPR */
@@ -836,6 +986,10 @@ enum ECSIPR_BIT {
 	ECSIPR_ICDIP	= 0x00000001,
 	ECSIPR_MPDIP	= 0x00000002,
 	ECSIPR_LCHNGIP	= 0x00000004,	/* Undocumented? */
+#ifdef CONFIG_ARCH_ESPADA
+	ECSIPR_PHYIM	= 0x00000008,
+	ECSIPR_PFRIM	= 0x00000010,
+#endif /* CONFIG_ARCH_ESPADA */
 };
 
 /* PIR */
@@ -863,9 +1017,16 @@ enum MPR_BIT {
 
 /* GECMR */
 enum GECMR_BIT {
+#ifdef CONFIG_ARCH_ESPADA
+	GECMR_SPEED	= 0x00000030,
+	GECMR_SPEED_10	= 0x00000000,
+	GECMR_SPEED_100	= 0x00000010,
+	GECMR_SPEED_1000 = 0x00000020,
+#else
 	GECMR_SPEED	= 0x00000001,
 	GECMR_SPEED_100	= 0x00000000,
 	GECMR_SPEED_1000 = 0x00000001,
+#endif
 };
 
 /* The Ethernet AVB descriptor definitions. */
@@ -955,6 +1116,75 @@ enum RAVB_QUEUE {
 	RAVB_NC,	/* Network Control Queue */
 };
 
+#ifdef CONFIG_ARCH_ESPADA
+enum CXR31_BIT {
+	CXR31_SEL_LINK0		= 0x00000001,
+	CXR31_SEL_LINK1		= 0x00000008,
+};
+enum CXR35_BIT {
+	CXR35_SEL_MODIN		= 0x00000100,
+};
+
+enum CSR0_BIT {
+	CSR0_CCM		= 0x00000001,
+	CSR0_TPE		= 0x00000010,
+	CSR0_RPE		= 0x00000020,
+	CSR0_TBP		= 0x00000100,
+	CSR0_RBP		= 0x00000200,
+	CSR0_FIFOCAP	= 0x00003000,
+};
+
+enum CSR1_BIT {
+	CSR1_TIP4		= 0x00000001,
+	CSR1_TTCP4		= 0x00000010,
+	CSR1_TUDP4		= 0x00000020,
+	CSR1_TICMP4		= 0x00000040,
+	CSR1_TTCP6		= 0x00100000,
+	CSR1_TUDP6		= 0x00200000,
+	CSR1_TICMP6		= 0x00400000,
+	CSR1_THOP		= 0x01000000,
+	CSR1_TROUT		= 0x02000000,
+	CSR1_TAHD		= 0x04000000,
+	CSR1_TDHD		= 0x08000000,
+	CSR1_ALL		= 0x0F700071,
+};
+
+enum CSR2_BIT {
+	CSR2_RIP4		= 0x00000001,
+	CSR2_RTCP4		= 0x00000010,
+	CSR2_RUDP4		= 0x00000020,
+	CSR2_RICMP4		= 0x00000040,
+	CSR2_RTCP6		= 0x00100000,
+	CSR2_RUDP6		= 0x00200000,
+	CSR2_RICMP6		= 0x00400000,
+	CSR2_RHOP		= 0x01000000,
+	CSR2_RROUT		= 0x02000000,
+	CSR2_RAHD		= 0x04000000,
+	CSR2_RDHD		= 0x08000000,
+	CSR2_ALL		= 0x0F700071,
+};
+
+enum LPTXMOD2_BIT {
+	LPTXMOD2_STP_TXC_LPI	= 0x00000001,
+	LPTXMOD2_MAC_TLPI_TYPE	= 0x00000010,
+};
+
+enum CSFR20_BIT {
+	CSFR20_TRA_MAC  = 0x10000000,
+	CSFR20_ALL	= 0x101FFFFF,
+};
+
+enum CSFR40_BIT {
+	CSFR40_ARP_NS   = 0x00000001,
+	CSFR40_ALL	= 0x00000007,
+};
+
+enum CSFR00_BIT {
+	CSFR00_SBY_MOD	= 0x00000002,
+};
+
+#endif
+
 #define DBAT_ENTRY_NUM	22
 #define RX_QUEUE_OFFSET	4
 #define NUM_RX_QUEUE	2
@@ -990,7 +1220,101 @@ struct ravb_ptp {
 enum ravb_chip_id {
 	RCAR_GEN2,
 	RCAR_GEN3,
+	ESPADA,
 };
+
+#ifdef CONFIG_ARCH_ESPADA
+
+struct ravb_reg_dmac_backup {
+	u32 CCC_B;
+	u32 DBAT_B;
+	u32 RCR_B;
+	u32 RTC_B;
+	u32 TGC_B;
+	u32 EIC_B;
+	u32 RIC0_B;
+	u32 RIC1_B;
+	u32 RIC2_B;
+	u32 TIC_B;
+	u32 CIE_B;
+	u32 RIC3_B;
+	u32 DIC_B;
+};
+
+struct ravb_reg_emac_backup {
+	u32 CXR20_B;
+	u32 CXR2A_B;
+	u32 CXR22_B;
+	u32 CXR2C_B;
+	u32 CXR35_B;
+	u32 CXR2D_B;
+	u32 CXR24_B;
+	u32 CXR25_B;
+	u32 CXR31_B;
+	u32 CXR72_B;
+	u32 LPTXGTH1_B;
+	u32 LPTXMTH1_B;
+	u32 LPTXMOD2_B;
+};
+
+struct ravb_reg_toe_backup {
+	u32 CSR0_B;
+	u32 CSR1_B;
+	u32 CSR2_B;
+	u32 CSR3_B;
+	u32 CSR4_B;
+	u32 CSR20_B;
+	u32 CSR30_B;
+	u32 CSR31_B;
+	u32 CSR32_B;
+	u32 CSFR01_B;
+	u32 CSFR02_i_B[4];
+	u32 CSFR03_U_B;
+	u32 CSFR03_L_B;
+	u32 CSFR04_B;
+	u32 CSFR10_i_B[4];
+	u32 CSFR10_B;
+	u32 CSFR11_i_B[4];
+	u32 CSFR11_B;
+	u32 CSFR12_i_B[12];
+	u32 CSFR12_B;
+	u32 CSFR13_U_B;
+	u32 CSFR13_L_B;
+	u32 CSFR14_U_B;
+	u32 CSFR14_L_B;
+	u32 CSFR15_U_i_B[20];
+	u32 CSFR15_L_i_B[20];
+	u32 CSFR15_B;
+	u32 CSFR16_0_B;
+	u32 CSFR16_1_B;
+	u32 CSFR16_2_B;
+	u32 CSFR16_B;
+	u32 CSFR21_B;
+	u32 CSFR30_B;
+	u32 CSFR31_B;
+	u32 CSFR40_B;
+	u32 CSFR41_B;
+	u32 CSFR00_B;
+};
+
+struct ravb_backup {
+	struct ravb_reg_dmac_backup dmac;
+	struct ravb_reg_emac_backup emac;
+	struct ravb_reg_toe_backup toe;
+	/* SendData 1500 byte + SendTimming 4 byte + SendSize 4byte */
+	unsigned char periodical_trandata[1508];
+};
+
+#define LPTXGTH1_RESOLUTION 32
+#define LPTXMTH1_RESOLUTION 320
+#define RAVB_NS2MS 1000
+#define RAVB_RCV_DESCRIPTOR_DATA_SIZE 4080
+#define RAVB_RCV_BUFF_MAX 8192
+#define RAVB_MDIO_STAT1_CLKSTOP_EN 0x40
+#define RAVB_NOT_SUSPEND 0
+#define RAVB_SUSPEND 1
+#define RAVB_SET_SUSPEND_ROLLBACK 0x80000000
+#endif	/* CONFIG_ARCH_ESPADA */
 
 struct ravb_private {
 	struct net_device *ndev;
@@ -1005,7 +1329,11 @@ struct ravb_private {
 	struct ravb_desc *desc_bat;
 	dma_addr_t rx_desc_dma[NUM_RX_QUEUE];
 	dma_addr_t tx_desc_dma[NUM_TX_QUEUE];
+#ifdef CONFIG_ARCH_ESPADA
+	struct ravb_rx_desc *rx_ring[NUM_RX_QUEUE];
+#else  /* CONFIG_ARCH_ESPADA */
 	struct ravb_ex_rx_desc *rx_ring[NUM_RX_QUEUE];
+#endif
 	struct ravb_tx_desc *tx_ring[NUM_TX_QUEUE];
 	void *tx_align[NUM_TX_QUEUE];
 	struct sk_buff **rx_skb[NUM_RX_QUEUE];
@@ -1032,6 +1360,7 @@ struct ravb_private {
 	phy_interface_t phy_interface;
 	int msg_enable;
 	int speed;
+	int duplex;
 	int emac_irq;
 	enum ravb_chip_id chip_id;
 	int rx_irqs[NUM_RX_QUEUE];
@@ -1041,6 +1370,20 @@ struct ravb_private {
 	unsigned avb_link_active_low:1;
 	unsigned wol_enabled:1;
 	int num_tx_desc;	/* TX descriptors per packet */
+
+#ifdef CONFIG_ARCH_ESPADA
+	void __iomem *gbe_addr;
+	int eee_enabled;
+	int eee_active;
+	int tx_lpi_timer;
+	int tx_lpi_enabled;
+	int wol_ecspir;
+	struct ravb_backup backup_data;
+	struct sk_buff *rxtop_skb;
+	int do_suspend;
+#endif /* CONFIG_ARCH_ESPADA */
+
+	struct reset_control *rstc;
 };
 
 static inline u32 ravb_read(struct net_device *ndev, enum ravb_reg reg)
