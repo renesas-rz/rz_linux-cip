@@ -29,9 +29,17 @@ config SH_ETH
 		- SH7619, SH7710, SH7712, SH7724, SH7734, SH7763, SH7757,
 		  R8A7740, R8A774x, R8A777x and R8A779x.
 
+config ARCH_ESPADA
+	tristate "Renesas Ethernet support for G2L SMARC"
+	---help---
+		Renesas GbEthernet device driver.
+
+		This driver only supports the following SoCs:
+			- R9A07G004L.
+
 config RAVB
 	tristate "Renesas Ethernet AVB support"
-	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on ARCH_RENESAS || ARCH_ESPADA || COMPILE_TEST
 	select CRC32
 	select MII
 	select MDIO_BITBANG
