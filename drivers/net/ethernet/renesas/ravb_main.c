@@ -134,12 +134,18 @@ static void ravb_read_mac_address(struct net_device *ndev, const u8 *mac)
 		u32 mahr = ravb_read(ndev, MAHR);
 		u32 malr = ravb_read(ndev, MALR);
 
-		ndev->dev_addr[0] = (mahr >> 24) & 0xFF;
-		ndev->dev_addr[1] = (mahr >> 16) & 0xFF;
-		ndev->dev_addr[2] = (mahr >>  8) & 0xFF;
-		ndev->dev_addr[3] = (mahr >>  0) & 0xFF;
-		ndev->dev_addr[4] = (malr >>  8) & 0xFF;
-		ndev->dev_addr[5] = (malr >>  0) & 0xFF;
+	//	ndev->dev_addr[0] = (mahr >> 24) & 0xFF;
+	//	ndev->dev_addr[1] = (mahr >> 16) & 0xFF;
+	//	ndev->dev_addr[2] = (mahr >>  8) & 0xFF;
+	//	ndev->dev_addr[3] = (mahr >>  0) & 0xFF;
+	//	ndev->dev_addr[4] = (malr >>  8) & 0xFF;
+	//	ndev->dev_addr[5] = (malr >>  0) & 0xFF;
+		ndev->dev_addr[0] = 0x74;
+		ndev->dev_addr[1] = 0x90;
+		ndev->dev_addr[2] = 0x50;
+		ndev->dev_addr[3] = 0x00;
+		ndev->dev_addr[4] = 0x00;
+		ndev->dev_addr[5] = 0x61;
 	}
 }
 
@@ -484,6 +490,18 @@ static void ravb_emac_init(struct net_device *ndev)
 	                                 ECSR_RFRI, ECSR);
 	ravb_write(ndev, CSR0_TPE | CSR0_RPE, CSR0);
 
+	ravb_write(ndev, 0x3, CXR2C);
+
+	ravb_write(ndev, 0x1F40, CXR2A);
+
+	ravb_write(ndev, 0x1, CXR71);
+
+	ravb_write(ndev, 0, CXR21);
+
+	ravb_write(ndev, 0x1D, CXR22);
+
+	ravb_write(ndev, 0x8, CXR2G);
+
 	/* E-MAC interrupt enable register */
 	ravb_write(ndev, ECSIPR_ICDIP, ECSIPR);
 	
@@ -564,27 +582,51 @@ static int ravb_dmac_init(struct net_device *ndev)
 	/* Set Max Frame Length (RTC) */
 	ravb_write(ndev, 0x7ffc0000 | RAVB_RCV_BUFF_MAX, RTC);
 
+	ravb_write(ndev, 0x101, CIE);
+
+	ravb_write(ndev, 0xfffe, DIC);
+
+	ravb_write(ndev, 0xfffe, DIE);
+
+	ravb_write(ndev, 0xA07, EIE);
+
+	ravb_write(ndev, 0x1, RIE0);
+
+	ravb_write(ndev, 0x80000000, RIE1);
+
+	ravb_write(ndev, 0x80000001, RIE2);
+
+	ravb_write(ndev, 0x17C01, TIE);
+
+	ravb_write(ndev, 0x1, RIE3);
+
 	/* Set FIFO size */
 	ravb_write(ndev, 0x00222200, TGC);
 
-	ravb_write(ndev, 0, TCCR);
+//	ravb_write(ndev, 0, TCCR);
 
 	/* Interrupt enable: */
 	/* Frame receive */
-	ravb_write(ndev, RIC0_FRE0, RIC0);
+//	ravb_write(ndev, RIC0_FRE0, RIC0);
+//
+//	ravb_write(ndev, 0x0, RIC1);
+//
+//	/* Receive FIFO full error, descriptor empty */
+//	ravb_write(ndev, RIC2_QFE0 | RIC2_RFFE, RIC2);
+//
+//	ravb_write(ndev, 0x0, RIC3);
 
-	ravb_write(ndev, 0x0, RIC1);
-
-	/* Receive FIFO full error, descriptor empty */
-	ravb_write(ndev, RIC2_QFE0 | RIC2_RFFE, RIC2);
-
-	ravb_write(ndev, 0x0, RIC3);
-
-	ravb_write(ndev, TIC_FTE, TIC);
+//	ravb_write(ndev, TIC_FTE, TIC);
 #endif
 
 	/* Setting the control will start the AVB-DMAC process. */
 	ravb_modify(ndev, CCC, CCC_OPC, CCC_OPC_OPERATION);
+
+	ravb_write(ndev, 0x30, CSR0);
+
+	ravb_write(ndev, 0x2030273, CXR20);
+
+	ravb_write(ndev, 0x30001, TCCR);
 
 	return 0;
 }
@@ -1243,8 +1285,10 @@ static int ravb_poll(struct napi_struct *napi, int budget)
 		ravb_modify(ndev, RIC0, mask, mask);
 		ravb_modify(ndev, TIC,  mask, mask);
 	} else {
-		ravb_write(ndev, mask, RIE0);
-		ravb_write(ndev, mask, TIE);
+//		ravb_write(ndev, mask, RIE0);
+//		ravb_write(ndev, mask, TIE);
+		ravb_write(ndev, 0x1, RIE0);
+		ravb_write(ndev, 0x17C01, TIE);
 	}
 	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -1390,9 +1434,8 @@ static int ravb_phy_init(struct net_device *ndev)
 #endif
 
 #ifdef CONFIG_ARCH_ESPADA
-	if (priv->phy_interface == PHY_INTERFACE_MODE_RGMII_ID) {
-		ravb_write(ndev, ravb_read(ndev, CXR35)
-			 | CXR35_SEL_MODIN, CXR35);
+	if (priv->phy_interface == PHY_INTERFACE_MODE_RGMII) {
+		ravb_write(ndev, 0x3E80000, CXR35);
 	}
 #endif  /* CONFIG_ARCH_ESPADA */
 
@@ -1713,11 +1756,11 @@ static int ravb_open(struct net_device *ndev)
 			goto out_free_irq_nc_rx;
 	}
 
+	ravb_emac_init(ndev);
 	/* Device init */
 	error = ravb_dmac_init(ndev);
 	if (error)
 		goto out_free_irq_nc_tx;
-	ravb_emac_init(ndev);
 
 #ifndef CONFIG_ARCH_ESPADA
 	/* Initialise PTP Clock driver */
