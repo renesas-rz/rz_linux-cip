@@ -32,6 +32,7 @@
 #include <linux/sh_dma.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/rspi.h>
+#include <linux/reset.h>
 
 #define RSPI_SPCR		0x00	/* Control Register */
 #define RSPI_SSLP		0x01	/* Slave Select Polarity Register */
@@ -199,6 +200,7 @@ struct rspi_data {
 
 	unsigned dma_callbacked:1;
 	unsigned byte_access:1;
+	struct reset_control *rstc;
 };
 
 static void rspi_write8(const struct rspi_data *rspi, u8 data, u16 offset)
@@ -1265,6 +1267,13 @@ static int rspi_probe(struct platform_device *pdev)
 		ret = PTR_ERR(rspi->addr);
 		goto error1;
 	}
+
+	rspi->rstc = devm_reset_control_get(&pdev->dev, NULL);
+
+	if (IS_ERR(rspi->rstc))
+		dev_warn(&pdev->dev, "failed to get cpg reset\n");
+	else
+		reset_control_deassert(rspi->rstc);
 
 	rspi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(rspi->clk)) {
