@@ -11,6 +11,8 @@
 / {
 	aliases {
 		serial0 = &scif0;
+		can0 = &can;
+		can1 = &can;
 	};
 
 	chosen {
@@ -119,6 +121,30 @@
 		output-high;
 		line-name = "sd1_pwr_en";
 	};
+
+	can0_stb {
+		gpio-hog;
+		gpios = <RZG2L_GPIO(42, 2) GPIO_ACTIVE_LOW>;
+		output-high;
+		line-name = "can0_stb";
+	};
+
+	can1_stb {
+		gpio-hog;
+		gpios = <RZG2L_GPIO(42, 3) GPIO_ACTIVE_LOW>;
+		output-high;
+		line-name = "can1_stb";
+	};
+
+	can0_pins: can0 {
+		groups = "can0_data_a";
+		function = "can0";
+	};
+
+	can1_pins: can1 {
+		groups = "can1_data_a";
+		function = "can1";
+	};
 };
 
 &scif0 {
@@ -153,4 +179,18 @@
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
 	status = "okay";
+};
+
+&can {
+	pinctrl-0 = <&can0_pins &can1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+	channel0 {
+		renesas,channel = <0>;
+		status = "okay";
+	};
+	channel1 {
+		renesas,channel = <1>;
+		status = "okay";
+	};
 };
