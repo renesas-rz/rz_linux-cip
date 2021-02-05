@@ -51,6 +51,7 @@
 #include <linux/timer.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
+#include <linux/reset.h>
 
 #ifdef CONFIG_SUPERH
 #include <asm/sh_bios.h>
@@ -125,6 +126,7 @@ struct sci_port {
 	unsigned int		sampling_rate_mask;
 	resource_size_t		reg_size;
 	struct mctrl_gpios	*gpios;
+	struct reset_control *rstc;
 
 	/* Clocks */
 	struct clk		*clks[SCI_NUM_CLKS];
@@ -2902,6 +2904,13 @@ static int sci_init_single(struct platform_device *dev,
 
 	port->mapbase = res->start;
 	sci_port->reg_size = resource_size(res);
+
+	sci_port->rstc = devm_reset_control_get(&dev->dev, NULL);
+
+	if (IS_ERR(sci_port->rstc))
+		dev_warn(&dev->dev, "Failed to get reset controler\n");
+	else
+		reset_control_deassert(sci_port->rstc);
 
 	for (i = 0; i < ARRAY_SIZE(sci_port->irqs); ++i)
 		sci_port->irqs[i] = platform_get_irq(dev, i);
