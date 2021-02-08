@@ -21,6 +21,8 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/reset.h>
 
+#define NUM_TX_DESC	2	/* TX descriptors per packet */
+
 #define BE_TX_RING_SIZE	64	/* TX ring size for Best Effort */
 #define BE_RX_RING_SIZE	1024	/* RX ring size for Best Effort */
 #define NC_TX_RING_SIZE	64	/* TX ring size for Network Control */
@@ -955,9 +957,7 @@ enum TID_BIT {
 enum ECMR_BIT {
 	ECMR_PRM	= 0x00000001,
 	ECMR_DM		= 0x00000002,
-#ifdef CONFIG_ARCH_ESPADA
 	CXR20_LPM	= 0x00000010,
-#endif /* CONFIG_ARCH_ESPADA */
 	ECMR_TE		= 0x00000020,
 	ECMR_RE		= 0x00000040,
 	ECMR_MPDE	= 0x00000200,
@@ -1320,12 +1320,13 @@ struct ravb_backup {
 #define LPTXMTH1_RESOLUTION 320
 #define RAVB_NS2MS 1000
 #define RAVB_RCV_DESCRIPTOR_DATA_SIZE 4080
-#define RAVB_RCV_BUFF_MAX 8192
 #define RAVB_MDIO_STAT1_CLKSTOP_EN 0x40
-#define RAVB_NOT_SUSPEND 0
-#define RAVB_SUSPEND 1
 #define RAVB_SET_SUSPEND_ROLLBACK 0x80000000
 #endif	/* CONFIG_ARCH_ESPADA */
+
+#define RAVB_NOT_SUSPEND 0
+#define RAVB_SUSPEND 1
+#define RAVB_RCV_BUFF_MAX 8192
 
 struct ravb_private {
 	struct net_device *ndev;
@@ -1367,12 +1368,14 @@ struct ravb_private {
 	struct work_struct work;
 	/* MII transceiver section. */
 	struct mii_bus *mii_bus;	/* MDIO bus control */
+	struct phy_device *phydev;	/* PHY device control */
 	int link;
 	phy_interface_t phy_interface;
 	int msg_enable;
 	int speed;
 	int duplex;
 	int emac_irq;
+	int toe_irq;
 	enum ravb_chip_id chip_id;
 	int rx_irqs[NUM_RX_QUEUE];
 	int tx_irqs[NUM_TX_QUEUE];
