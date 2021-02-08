@@ -50,4 +50,10 @@ config RAVB
 	  This driver supports the following SoCs:
 		- R8A779x.
 
+config GNETSETTING
+	tristate "Renesas Ethernet Sysfs support"
+	select ARCH_ESPADA
+	help
+	  Renesas Ethernet Sysfs device driver.
+
 endif # NET_VENDOR_RENESAS
