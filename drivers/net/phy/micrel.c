@@ -621,6 +621,7 @@ err_force_master:
 	return result;
 }
 
+#if 0
 #define KSZ9131_SKEW_5BIT_MAX	2400
 #define KSZ9131_SKEW_4BIT_MAX	800
 #define KSZ9131_OFFSET		700
@@ -677,6 +678,7 @@ static int ksz9131_of_load_skew_values(struct phy_device *phydev,
 
 	return ksz9031_extended_write(phydev, OP_DATA, 2, reg, newval);
 }
+#endif
 
 #define KSZ9131RN_MMD_COMMON_CTRL_REG	2
 #define KSZ9131RN_RXC_DLL_CTRL		76
@@ -685,6 +687,7 @@ static int ksz9131_of_load_skew_values(struct phy_device *phydev,
 #define KSZ9131RN_DLL_ENABLE_DELAY	0
 #define KSZ9131RN_DLL_DISABLE_DELAY	BIT(12)
 
+#if 0
 static int ksz9131_config_rgmii_delay(struct phy_device *phydev)
 {
 	u16 rxcdll_val, txcdll_val;
@@ -729,9 +732,23 @@ static int ksz9131_config_rgmii_delay(struct phy_device *phydev)
 	val |= txcdll_val;
 	return phy_write_mmd(phydev, KSZ9131RN_MMD_COMMON_CTRL_REG, KSZ9131RN_TXC_DLL_CTRL, val);
 }
+#endif
+
+static int ksz9131_clock_skew(struct phy_device *phydev)
+{
+	int val;
+
+	val = phy_read_mmd(phydev, KSZ9131RN_MMD_COMMON_CTRL_REG, MII_KSZ9031RN_CLK_PAD_SKEW);
+	if (val < 0)
+		return val;
+
+	val |= 0xffff;
+	return phy_write_mmd(phydev, KSZ9131RN_MMD_COMMON_CTRL_REG, MII_KSZ9031RN_CLK_PAD_SKEW, val);
+}
 
 static int ksz9131_config_init(struct phy_device *phydev)
 {
+#if 0
 	const struct device *dev = &phydev->mdio.dev;
 	struct device_node *of_node = dev->of_node;
 	char *clk_skews[2] = {"rxc-skew-psec", "txc-skew-psec"};
@@ -787,6 +804,8 @@ static int ksz9131_config_init(struct phy_device *phydev)
 		return ret;
 
 	return 0;
+#endif
+	return ksz9131_clock_skew(phydev);
 }
 
 #define KSZ8873MLL_GLOBAL_CONTROL_4	0x06
