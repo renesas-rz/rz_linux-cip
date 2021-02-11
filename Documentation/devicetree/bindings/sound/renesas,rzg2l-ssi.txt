@@ -1,0 +1,30 @@
+Renesas RZ/G2L SSI
+
+Required properties:
+- compatible			: "renesas,rzg2l-ssi",
+- reg				: Should contain the register physical address and length
+- interrupts			: Should contain SSI interrupt int, dma rx and dma tx
+
+- clocks			: References to SSI/AUDIO_CLK clocks.
+- clock-names			: List of necessary clock names.
+				  "ssi", "audio_clk1", "audio_clk2"
+- resets			: References to SSI resets.
+
+Example:
+
+	ssi0: ssi@10049c00 {
+		#sound-dai-cells = <0>;
+		compatible = "renesas,rzg2l-ssi";
+		reg = <0 0x10049c00 0 0x00000028>;
+		interrupts = <GIC_SPI 326 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 327 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 328 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "int", "rx", "tx";
+		clocks = <&cpg CPG_MOD R9A07G044L_CLK_SSI0> ,
+			 <&audio_clk1>,
+			 <&audio_clk2>;
+		clock-names = "ssi", "audio_clk1", "audio_clk2";
+		resets = <&cpg R9A07G044L_CLK_SSI0>;
+		power-domains = <&cpg>;
+		status = "disabled";
+	};
