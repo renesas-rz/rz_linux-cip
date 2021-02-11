@@ -135,6 +135,9 @@ struct ssi_priv {
 	struct ssi_stream playback;
 	struct ssi_stream capture;
 
+	int playback_running;
+	int record_running;
+
 	/* clock */
 	unsigned long audio_mck;
 	int use_audio_clk_1;
@@ -344,9 +347,11 @@ static int ssi_start_stop(struct ssi_priv *ssi, struct ssi_stream *strm,
 		if (ssi_stream_is_play(ssi, strm)) {
 			ssicr |= SSICR_TUIEN | SSICR_TOIEN;
 			ssifcr |= SSIFCR_TIE | SSIFCR_RFRST;
+			ssi->playback_running = 1;
 		} else {
 			ssicr |= SSICR_RUIEN | SSICR_ROIEN;
 			ssifcr |= SSIFCR_RIE | SSIFCR_TFRST;
+			ssi->record_running = 1;
 		}
 		ssi_reg_writel(ssi, SSICR, ssicr);
 		ssi_reg_writel(ssi, SSIFCR, ssifcr);
@@ -364,10 +369,32 @@ static int ssi_start_stop(struct ssi_priv *ssi, struct ssi_stream *strm,
 
 	} else {
 		strm->running = 0;
+		ssicr = ssi_reg_readl(ssi, SSICR);
+		ssifcr = ssi_reg_readl(ssi, SSIFCR);
+
+		if (ssi_stream_is_play(ssi, strm)) {
+			ssi->playback_running = 0;
+			ssi_reg_mask_setl(ssi, SSICR, SSICR_TEN, 0);
+			ssi_reg_mask_setl(ssi, SSICR, SSICR_TUIEN | SSICR_TOIEN, 0);
+			ssi_reg_mask_setl(ssi, SSISR, (SSISR_TOIRQ | SSISR_TUIRQ), 0);
+			ssi_reg_mask_setl(ssi, SSIFCR, SSIFCR_TIE, 0);
+			ssi_reg_mask_setl(ssi, SSIFCR, 0, SSIFCR_RFRST);
+		} else {
+			ssi->record_running = 0;
+			ssi_reg_mask_setl(ssi, SSICR, SSICR_REN, 0);
+			ssi_reg_mask_setl(ssi, SSICR, SSICR_RUIEN | SSICR_ROIEN, 0);
+			ssi_reg_mask_setl(ssi, SSISR, (SSISR_ROIRQ | SSISR_RUIRQ), 0);
+			ssi_reg_mask_setl(ssi, SSIFCR, SSIFCR_RIE, 0);
+			ssi_reg_mask_setl(ssi, SSIFCR, 0, SSIFCR_TFRST);
+		}
 
 		/* Cancel all remaining DMA transactions */
 		if (ssi->dma_enabled)
 			dmaengine_terminate_all(strm->dma_ch);
+
+
+		if (ssi->playback_running || ssi->record_running)
+			return 0;
 
 		/* Disable irqs */
 		ssi_reg_mask_setl(ssi, SSICR, SSICR_TUIEN | SSICR_TOIEN | SSICR_RUIEN | SSICR_ROIEN, 0);
