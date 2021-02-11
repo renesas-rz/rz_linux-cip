@@ -518,10 +518,10 @@ static void prepare_descs_for_slave_sg(struct dmac_desc *d)
 	const struct rza_dma_slave_config *slave = channel->slave;
 	struct scatterlist *sg, *sgl = d->sg;
 	unsigned int i, sg_len = d->sgcount;
-	unsigned long flags;
+	//unsigned long flags;
 	u32 chcfg;
 	u32 dmars;
-	
+
 	dev_dbg(rzadma->dev, "%s called\n", __func__);
 
 	chcfg = channel->slave->chcfg.v | (CHCFG_SEL(channel->nr) | CHCFG_DEM | CHCFG_DMS);
@@ -534,7 +534,7 @@ static void prepare_descs_for_slave_sg(struct dmac_desc *d)
 	channel->chcfg = chcfg;			/* save */
 	channel->per_address = slave->addr;	/* slave device address */
 
-	spin_lock_irqsave(&channel->lock, flags);
+	//spin_lock_irqsave(&channel->lock, flags);
 
 	/* Prepare descriptors */
 	lmdesc = channel->lmdesc.tail;
@@ -577,7 +577,7 @@ static void prepare_descs_for_slave_sg(struct dmac_desc *d)
 
 	channel->chctrl = CHCTRL_SETEN;		/* always */
 
-	spin_unlock_irqrestore(&channel->lock, flags);
+	//spin_unlock_irqrestore(&channel->lock, flags);
 
 }
 
