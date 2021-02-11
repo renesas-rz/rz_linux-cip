@@ -865,7 +865,7 @@ static struct dma_async_tx_descriptor *rzadma_prep_dma_memcpy(
 	struct rzadma_engine *rzadma = channel->rzadma;
 	struct dmac_desc *desc;
 
-	dev_dbg(rzadma->dev, "%s channel: %d src=0x%x dst=0x%x len=%d\n",
+	dev_dbg(rzadma->dev, "%s channel: %d src=0x%llx dst=0x%llx len=%ld\n",
 			__func__, channel->nr, src, dest, len);
 
 	if (list_empty(&channel->ld_free))
@@ -1162,7 +1162,7 @@ static int rzadma_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "unable to register as provider provider for DT\n");
 
 	/* Initialize register for all channels */
-	rzadma_writel(rzadma, DCTRL_DEFAULT, CHANNEL_0_7_COMMON_BASE	+ DCTRL);
+	rzadma_writel(rzadma, DCTRL_DEFAULT, CHANNEL_0_7_COMMON_BASE + DCTRL);
 	rzadma_writel(rzadma, DCTRL_DEFAULT, CHANNEL_8_15_COMMON_BASE + DCTRL);
 
 	rzadma->dev = &pdev->dev;
