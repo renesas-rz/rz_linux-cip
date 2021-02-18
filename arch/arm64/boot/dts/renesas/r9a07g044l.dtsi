@@ -224,6 +224,16 @@
 			status = "disabled";
 		};
 
+		adc: adc@10059000 {
+			compatible = "renesas,adc-r9a07g044l";
+			reg = <0 0x10059000 0 0x400>;
+			interrupts = <GIC_SPI 347  IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD R9A07G044L_CLK_ADC>;
+			resets = <&cpg R9A07G044L_CLK_ADC>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
 		dma0: dma-controller@11800000 {
 			compatible = "renesas,rza-dma";
 			reg =   <0 0x11820000 0 0x10000>,
