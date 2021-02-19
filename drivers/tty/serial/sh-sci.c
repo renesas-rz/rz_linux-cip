@@ -48,6 +48,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/sysrq.h>
+#include <linux/sys_soc.h>
 #include <linux/timer.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
@@ -161,6 +162,7 @@ struct sci_port {
 
 	bool has_rtscts;
 	bool autorts;
+	bool is_rzg2l;
 };
 
 #define SCI_NPORTS CONFIG_SERIAL_SH_SCI_NR_UARTS
@@ -2544,7 +2546,8 @@ done:
 			}
 		smr_val |= cks;
 		/*we not support extended mode yet, make sure it is cleared*/
-		serial_port_out(port, SCSEMR, 0);
+		if ((sci_getreg(port, SCSEMR)) && (sci_getreg(port, SCSEMR)->size))
+			serial_port_out(port, SCSEMR, 0);
 		serial_port_out(port, SCSCR, scr_val | s->hscif_tot);
 		serial_port_out(port, SCSMR, smr_val);
 		serial_port_out(port, SCBRR, brr);
@@ -2580,7 +2583,8 @@ done:
 		smr_val |= serial_port_in(port, SCSMR) &
 			   (SCSMR_CKEDG | SCSMR_SRC_MASK | SCSMR_CKS);
 		/*we not support extended mode yet, make sure it is cleared*/
-		serial_port_out(port, SCSEMR, 0);
+		if (s->is_rzg2l)
+			serial_port_out(port, SCSEMR, 0);
 		serial_port_out(port, SCSCR, scr_val | s->hscif_tot);
 		serial_port_out(port, SCSMR, smr_val);
 	}
@@ -3287,12 +3291,21 @@ static struct plat_sci_port *sci_parse_dt(struct platform_device *pdev,
 	return p;
 }
 
+static const struct soc_device_attribute soc_r9a07g044l[] = {
+	{
+		.soc_id = "r9a07g044l",
+		.data = (void *)1,
+	},
+	{ /* Sentinel */ }
+};
+
 static int sci_probe_single(struct platform_device *dev,
 				      unsigned int index,
 				      struct plat_sci_port *p,
 				      struct sci_port *sciport)
 {
 	int ret;
+	const struct soc_device_attribute *attr;
 
 	/* Sanity check */
 	if (unlikely(index >= SCI_NPORTS)) {
@@ -3339,6 +3352,10 @@ static int sci_probe_single(struct platform_device *dev,
 		sci_cleanup_single(sciport);
 		return ret;
 	}
+
+	attr = soc_device_match(soc_r9a07g044l);
+	if (attr)
+		sciport->is_rzg2l = attr->data;
 
 	return 0;
 }
