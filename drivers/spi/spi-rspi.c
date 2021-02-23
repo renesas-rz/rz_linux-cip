@@ -1273,6 +1273,8 @@ static int rspi_probe(struct platform_device *pdev)
 		goto error1;
 	}
 
+	clk_prepare_enable(rspi->clk);
+
 	pm_runtime_enable(&pdev->dev);
 
 	init_waitqueue_head(&rspi->wait);
