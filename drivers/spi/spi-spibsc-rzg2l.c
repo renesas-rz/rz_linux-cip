@@ -13,6 +13,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
+#include <linux/reset.h>
 
 /* SPIBSC registers */
 #define	CMNCR	0x00
@@ -506,6 +507,13 @@ static int spibsc_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, sbsc);
 	sbsc->master	= master;
 	sbsc->dev	= &pdev->dev;
+
+	sbsc->rstc = devm_reset_control_get(&pdev->dev, NULL);
+
+	if (IS_ERR(sbsc->rstc))
+		dev_warn(&pdev->dev, "failed to get cpg reset\n");
+	else
+		reset_control_deassert(sbsc->rstc);
 
 	sbsc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(sbsc->clk)) {
