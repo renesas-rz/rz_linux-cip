@@ -123,6 +123,12 @@ void usbhs_sys_function_ctrl(struct usbhs_priv *priv, int enable)
 	u16 mask = DCFM | DRPD | DPRPU | HSE | USBE;
 	u16 val  = HSE | USBE;
 
+	/* CNEN bit is required for function operation */
+	if (usbhs_get_dparam(priv, has_cnen)) {
+		mask |= CNEN;
+		val  |= CNEN;
+	}
+
 	/*
 	 * if enable
 	 *
@@ -579,6 +585,10 @@ static const struct of_device_id usbhs_of_match[] = {
 		.compatible = "renesas,rza1-usbhs",
 		.data = (void *)USBHS_TYPE_RZA1,
 	},
+	{
+		.compatible = "renesas,g2l-usbhs",
+		.data = (void *)USBHS_TYPE_G2L,
+	},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, usbhs_of_match);
@@ -613,6 +623,13 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 
 	if (dparam->type == USBHS_TYPE_RZA1) {
 		dparam->pipe_configs = usbhsc_new_pipe;
+		dparam->pipe_size = ARRAY_SIZE(usbhsc_new_pipe);
+	}
+
+	if (dparam->type == USBHS_TYPE_G2L) {
+		dparam->pipe_configs = usbhsc_new_pipe;
+		dparam->has_cnen = 1;
+		dparam->cfifo_byte_addr = 1;
 		dparam->pipe_size = ARRAY_SIZE(usbhsc_new_pipe);
 	}
 
@@ -684,6 +701,9 @@ static int usbhs_probe(struct platform_device *pdev)
 		break;
 	case USBHS_TYPE_RZA1:
 		priv->pfunc = usbhs_rza1_ops;
+		break;
+	case USBHS_TYPE_G2L:
+		priv->pfunc = usbhs_g2l_ops;
 		break;
 	default:
 		if (!info->platform_callback.get_id) {
