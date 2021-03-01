@@ -17,6 +17,8 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/videodev2.h>
+#include <linux/reset.h>
+#include <linux/sys_soc.h>
 
 #include <media/rcar-fcp.h>
 #include <media/v4l2-subdev.h>
@@ -780,7 +782,20 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.uif_count = 2,
 		.wpf_count = 2,
 		.num_bru_inputs = 5,
+	}, {
+		.version = VI6_IP_VERSION_MODEL_VSPD_RZG2L,
+		.model = "VSP2-D",
+		.gen = 3,
+		.features = VSP1_HAS_BRS | VSP1_HAS_WPF_VFLIP | VSP1_HAS_EXT_DL,
+		.lif_count = 1,
+		.rpf_count = 2,
+		.wpf_count = 1,
 	},
+};
+
+static const struct soc_device_attribute rzg2l_match[] = {
+	{ .family = "RZ/G2L" },
+	{ /* sentinel*/ }
 };
 
 static int vsp1_probe(struct platform_device *pdev)
@@ -842,6 +857,16 @@ static int vsp1_probe(struct platform_device *pdev)
 		vsp1->bus_master = vsp1->dev;
 	}
 
+	if (soc_device_match(rzg2l_match)) {
+		vsp1->rstc = devm_reset_control_get(&pdev->dev, NULL);
+		if (IS_ERR(vsp1->rstc)) {
+			dev_err(&pdev->dev, "failed to get cpg reset\n");
+			return PTR_ERR(vsp1->rstc);
+		}
+
+		reset_control_deassert(vsp1->rstc);
+	}
+
 	/* Configure device parameters based on the version register. */
 	pm_runtime_enable(&pdev->dev);
 
@@ -849,7 +874,11 @@ static int vsp1_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto done;
 
-	vsp1->version = vsp1_read(vsp1, VI6_IP_VERSION);
+	if (soc_device_match(rzg2l_match))
+		vsp1->version = VI6_IP_VERSION_MODEL_VSPD_RZG2L;
+	else
+		vsp1->version = vsp1_read(vsp1, VI6_IP_VERSION);
+
 	pm_runtime_put_sync(&pdev->dev);
 
 	for (i = 0; i < ARRAY_SIZE(vsp1_device_infos); ++i) {

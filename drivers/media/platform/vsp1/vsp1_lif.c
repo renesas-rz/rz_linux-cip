@@ -88,9 +88,20 @@ static void lif_configure_stream(struct vsp1_entity *entity,
 {
 	const struct v4l2_mbus_framefmt *format;
 	struct vsp1_lif *lif = to_lif(&entity->subdev);
-	unsigned int hbth = 1300;
-	unsigned int obth = 400;
-	unsigned int lbth = 200;
+	unsigned int hbth;
+	unsigned int obth;
+	unsigned int lbth;
+
+	if ((entity->vsp1->version & VI6_IP_VERSION_MODEL_MASK) ==
+	     VI6_IP_VERSION_MODEL_VSPD_RZG2L) {
+		hbth = 0;
+		obth = 1500;
+		lbth = 0;
+	} else {
+		hbth = 1300;
+		obth = 400;
+		lbth = 200;
+	}
 
 	format = vsp1_entity_get_pad_format(&lif->entity, lif->entity.config,
 					    LIF_PAD_SOURCE);
@@ -112,8 +123,10 @@ static void lif_configure_stream(struct vsp1_entity *entity,
 	 * may appear on the output). The value required by the manual is not
 	 * explained but is likely a buffer size or threshold.
 	 */
-	if ((entity->vsp1->version & VI6_IP_VERSION_MASK) ==
-	    (VI6_IP_VERSION_MODEL_VSPD_V3 | VI6_IP_VERSION_SOC_V3M))
+	if (((entity->vsp1->version & VI6_IP_VERSION_MASK) ==
+	    (VI6_IP_VERSION_MODEL_VSPD_V3 | VI6_IP_VERSION_SOC_V3M)) ||
+	    ((entity->vsp1->version & VI6_IP_VERSION_MASK) ==
+	     VI6_IP_VERSION_MODEL_VSPD_RZG2L))
 		vsp1_lif_write(lif, dlb, VI6_LIF_LBA,
 			       VI6_LIF_LBA_LBA0 |
 			       (1536 << VI6_LIF_LBA_LBA1_SHIFT));
