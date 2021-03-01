@@ -424,6 +424,23 @@
 		};
 	};
 
+	thermal-zones {
+		sensor_thermal: sensor-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			sustainable-power = <3874>;
+			thermal-sensors = <&tsu 0>;
+
+			trips {
+				sensor_crit: sensor-crit {
+				temperature = <110000>;
+				hysteresis = <1000>;
+				type = "critical";
+				};
+			};
+		};
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts-extended =
