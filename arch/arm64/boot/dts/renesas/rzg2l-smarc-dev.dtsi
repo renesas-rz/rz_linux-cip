@@ -22,6 +22,12 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	audio_mclock: audio_mclock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <11289600>;
+	};
+
 	reg_1p8v: regulator0 {
 		compatible = "regulator-fixed";
 
@@ -40,6 +46,21 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
 		regulator-always-on;
+	};
+
+	snd_rzg2l: sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&cpu_dai>;
+		simple-audio-card,frame-master = <&cpu_dai>;
+
+		cpu_dai: simple-audio-card,cpu {
+			sound-dai = <&ssi0>;
+		};
+
+		codec_dai: simple-audio-card,codec {
+			sound-dai = <&wm8978>;
+		};
 	};
 
 	vccq_sdhi1: regulator-vccq-sdhi1 {
@@ -117,6 +138,11 @@
 		line-name = "eth1_irq_pin";
 	};
 
+	i2c3_pins: i2c3 {
+		groups = "i2c3_b";
+		function = "i2c3";
+	};
+
 	scif0_pins: scif0 {
 		groups = "scif0_data";
 		function = "scif0";
@@ -179,6 +205,16 @@
 		line-name = "sd1_pwr_en";
 	};
 
+	sound_clk_pins: sound_clk {
+		pins = "AUDIO_CLK1", "AUDIO_CLK2";
+		input-enable;
+	};
+
+	ssi0_pins: ssi0 {
+		groups = "ssi0_ctrl_d", "ssi0_data_d";
+		function = "ssi0";
+	};
+
 	can0_stb {
 		gpio-hog;
 		gpios = <RZG2L_GPIO(42, 2) GPIO_ACTIVE_LOW>;
@@ -231,6 +267,26 @@
 	i2c1_pins: i2c1 {
 		pins = "RIIC1_SDA", "RIIC1_SCL";
 		input-enable;
+	};
+};
+
+&audio_clk1{
+	clock-frequency = <11289600>;
+};
+
+&i2c3 {
+	pinctrl-0 = <&i2c3_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+	clock-frequency = <400000>;
+
+	wm8978: codec@1a {
+		compatible = "wlf,wm8978";
+		#sound-dai-cells = <0>;
+		reg = <0x1a>;
+		clocks = <&audio_mclock>;
+		clock-names = "mclk";
 	};
 };
 
@@ -333,6 +389,13 @@
 /* Delete our XIP QSPI partitions from the top of this file. You would not have these for non-XIP systems */
 / {
 	/delete-node/ qspi@20000000;
+};
+
+&ssi0 {
+	pinctrl-0 = <&ssi0_pins &sound_clk_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
 };
 
 &spibsc {
