@@ -41,7 +41,9 @@ u32 rcar_du_group_read(struct rcar_du_group *rgrp, u32 reg)
 
 void rcar_du_group_write(struct rcar_du_group *rgrp, u32 reg, u32 data)
 {
-	rcar_du_write(rgrp->dev, rgrp->mmio_offset + reg, data);
+	struct rcar_du_device *rcdu = rgrp->dev;
+	if (!rcar_du_has(rcdu, RCAR_DU_FEATURE_RZG2L))
+		rcar_du_write(rgrp->dev, rgrp->mmio_offset + reg, data);
 }
 
 static void rcar_du_group_setup_pins(struct rcar_du_group *rgrp)
@@ -96,6 +98,9 @@ static void rcar_du_group_setup_didsr(struct rcar_du_group *rgrp)
 	unsigned int i;
 	u32 didsr;
 
+	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_RZG2L))
+		return;
+
 	/*
 	 * Configure input dot clock routing with a hardcoded configuration. If
 	 * the DU channel can use the LVDS encoder output clock as the dot
@@ -139,6 +144,9 @@ static void rcar_du_group_setup_didsr(struct rcar_du_group *rgrp)
 static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 {
 	struct rcar_du_device *rcdu = rgrp->dev;
+
+	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_RZG2L))
+		return;
 
 	/* Enable extended features */
 	rcar_du_group_write(rgrp, DEFR, DEFR_CODE | DEFR_DEFE);
@@ -208,8 +216,11 @@ static void __rcar_du_group_start_stop(struct rcar_du_group *rgrp, bool start)
 {
 	struct rcar_du_crtc *rcrtc = &rgrp->dev->crtcs[rgrp->index * 2];
 
-	rcar_du_crtc_dsysr_clr_set(rcrtc, DSYSR_DRES | DSYSR_DEN,
-				   start ? DSYSR_DEN : DSYSR_DRES);
+	if (rcar_du_has(rgrp->dev, RCAR_DU_FEATURE_RZG2L))
+		rcar_du_write(rgrp->dev, DU_MCR0, start ? DU_MCR0_DI_EN : 0);
+	else
+		rcar_du_crtc_dsysr_clr_set(rcrtc, DSYSR_DRES | DSYSR_DEN,
+					   start ? DSYSR_DEN : DSYSR_DRES);
 }
 
 void rcar_du_group_start_stop(struct rcar_du_group *rgrp, bool start)
