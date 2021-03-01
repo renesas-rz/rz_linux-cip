@@ -193,6 +193,11 @@
 		groups = "eth1_link", "eth1_mdio", "eth1_mii";
 		function = "eth1";
 	};
+
+	spi1_pins: rspi1 {
+		groups = "rspi1_clk_b", "rspi1_data_b", "rspi1_ssl_b";
+		function = "rspi1";
+	};
 };
 
 &scif0 {
@@ -343,4 +348,10 @@
 			};
 		};
 	};
+};
+
+&rspi1 {
+	pinctrl-0 = <&spi1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
 };
