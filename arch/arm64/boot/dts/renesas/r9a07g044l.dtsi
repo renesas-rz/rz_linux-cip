@@ -18,6 +18,9 @@
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
+		spi0 = &rspi0;
+		spi1 = &rspi1;
+		spi2 = &rspi2;
 	};
 
 	xinclk: xinclk {
@@ -322,6 +325,54 @@
 			power-domains = <&cpg>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		rspi0: spi@1004ac00 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "renesas,rspi-r9a07g044l", "renesas,rspi-rz";
+			reg = <0 0x1004ac00 0 0x24>;
+			interrupts = <GIC_SPI 415 IRQ_TYPE_LEVEL_HIGH>,
+			             <GIC_SPI 413 IRQ_TYPE_LEVEL_HIGH>,
+			             <GIC_SPI 414 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "error", "rx", "tx";
+			clocks = <&cpg CPG_MOD R9A07G044L_CLK_RSPI0>;
+			resets = <&cpg R9A07G044L_CLK_RSPI0>;
+			power-domains = <&cpg>;
+			num-cs = <1>;
+			status = "disabled";
+		};
+
+		rspi1: spi@1004b000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "renesas,rspi-r9a07g044l", "renesas,rspi-rz";
+			reg = <0 0x1004b000 0 0x24>;
+			interrupts = <GIC_SPI 418 IRQ_TYPE_LEVEL_HIGH>,
+			             <GIC_SPI 416 IRQ_TYPE_LEVEL_HIGH>,
+			             <GIC_SPI 417 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "error", "rx", "tx";
+			clocks = <&cpg CPG_MOD R9A07G044L_CLK_RSPI1>;
+			resets = <&cpg R9A07G044L_CLK_RSPI1>;
+			power-domains = <&cpg>;
+			num-cs = <1>;
+			status = "disabled";
+		};
+
+		rspi2: spi@1004b400 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "renesas,rspi-r9a07g044l", "renesas,rspi-rz";
+			reg = <0 0x1004b400 0 0x24>;
+			interrupts = <GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>,
+			             <GIC_SPI 419 IRQ_TYPE_LEVEL_HIGH>,
+			             <GIC_SPI 420 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "error", "rx", "tx";
+			clocks = <&cpg CPG_MOD R9A07G044L_CLK_RSPI2>;
+			resets = <&cpg R9A07G044L_CLK_RSPI2>;
+			power-domains = <&cpg>;
+			num-cs = <1>;
 			status = "disabled";
 		};
 	};
