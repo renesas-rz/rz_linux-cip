@@ -354,6 +354,30 @@
 			status = "disabled";
 		};
 
+		usb2_phy0: usb-phy@11c50200 {
+			compatible = "renesas,usb2-phy-r9a07g044l",
+				     "renesas,rcar-gen3-usb2-phy";
+			reg = <0 0x11c50200 0 0x700>;
+			interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A07G044L_CLK_USB0>;
+			power-domains = <&cpg>;
+			resets = <&cpg R9A07G044L_CLK_USB0>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		usb2_phy1: usb-phy@11C70200 {
+			compatible = "renesas,usb2-phy-r9a07g044l",
+				     "renesas,rcar-gen3-usb2-phy";
+			reg = <0 0x11C70200 0 0x700>;
+			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A07G044L_CLK_USB1>;
+			power-domains = <&cpg>;
+			resets = <&cpg R9A07G044L_CLK_USB1>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
 		spibsc: spi@10060000 {
 			compatible = "renesas,r9a07g044l-spibsc";
 			reg = <0 0x10060000 0 0x78>, <0 0x20000000 0 0x10000000>;
