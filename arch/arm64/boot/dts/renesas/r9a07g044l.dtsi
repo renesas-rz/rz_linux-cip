@@ -234,6 +234,17 @@
 			status = "disabled";
 		};
 
+		tsu: serial@10059400 {
+			compatible = "renesas,tsu-r9a07g044l";
+			reg = <0 0x10059400 0 0x400>;
+			clocks = <&cpg CPG_MOD R9A07G044L_CLK_TSU_PCLK>;
+			resets = <&cpg R9A07G044L_CLK_TSU_PCLK>;
+			clock-names = "tsu";
+			thermal-cal = <1>;
+			#thermal-sensor-cells = <0>;
+			power-domains = <&cpg>;
+		};
+
 		dma0: dma-controller@11800000 {
 			compatible = "renesas,rza-dma";
 			reg =   <0 0x11820000 0 0x10000>,
