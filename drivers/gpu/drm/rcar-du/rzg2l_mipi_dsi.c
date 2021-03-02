@@ -642,8 +642,6 @@ static void rzg2l_mipi_dsi_mode_set(struct drm_bridge *bridge,
 	struct rzg2l_mipi_dsi *mipi_dsi = bridge_to_rzg2l_mipi_dsi(bridge);
 
 	mipi_dsi->display_mode = *adjusted_mode;
-
-	clk_set_rate(mipi_dsi->vclk, adjusted_mode->clock * 1000);
 }
 
 static void rzg2l_mipi_dsi_enable(struct drm_bridge *bridge)
