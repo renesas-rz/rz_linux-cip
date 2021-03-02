@@ -186,6 +186,7 @@ config ARCH_RENESAS
 	select SOC_BUS
 	select SYS_SUPPORTS_SH_CMT
 	select SYS_SUPPORTS_SH_TMU
+	select SYS_SUPPORTS_RZG2L_MTU3
 	help
 	  This enables support for the ARMv8 based Renesas SoCs.
 
