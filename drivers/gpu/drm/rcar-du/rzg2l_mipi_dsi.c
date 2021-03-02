@@ -81,10 +81,12 @@ static void rzg2l_mipi_dsi_clr(void __iomem *mem, u32 reg, u32 clr)
 	rzg2l_mipi_dsi_write(mem, reg, rzg2l_mipi_dsi_read(mem, reg) & ~clr);
 }
 
-static void rzg2l_mipi_dsi_set(void __iomem *mem, u32 reg, u32 set)
-{
-	rzg2l_mipi_dsi_write(mem, reg, rzg2l_mipi_dsi_read(mem, reg) | set);
-}
+/*
+ *static void rzg2l_mipi_dsi_set(void __iomem *mem, u32 reg, u32 set)
+ *{
+ *	rzg2l_mipi_dsi_write(mem, reg, rzg2l_mipi_dsi_read(mem, reg) | set);
+ *}
+ */
 
 /* -----------------------------------------------------------------------------
  * Hardware Setup
@@ -93,7 +95,7 @@ static void rzg2l_mipi_dsi_set(void __iomem *mem, u32 reg, u32 set)
 static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *mipi_dsi)
 {
 	struct drm_display_mode *mode = &mipi_dsi->display_mode;
-	u32 rstsr;
+	/* u32 rstsr; */
 	u32 txsetr;
 	u32 clstptsetr;
 	u32 lptrnstsetr;
@@ -102,7 +104,7 @@ static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *mipi_dsi)
 	u32 clkbfht;
 	u32 clkstpt;
 	u32 golpbkt;
-	unsigned int timeout;
+	/* unsigned int timeout; */
 	unsigned int bpp;
 	struct {
 		u32 tclk_miss;
@@ -642,8 +644,6 @@ static void rzg2l_mipi_dsi_mode_set(struct drm_bridge *bridge,
 	struct rzg2l_mipi_dsi *mipi_dsi = bridge_to_rzg2l_mipi_dsi(bridge);
 
 	mipi_dsi->display_mode = *adjusted_mode;
-
-	clk_set_rate(mipi_dsi->vclk, adjusted_mode->clock * 1000);
 }
 
 static void rzg2l_mipi_dsi_enable(struct drm_bridge *bridge)
