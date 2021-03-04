@@ -34,6 +34,10 @@
 
 #include "ravb.h"
 
+#if defined(CONFIG_ARCH_ESPADA)
+#include "../../../pinctrl/sh-pfc/pinctrl-rzg2l.h"
+#endif
+
 #define RAVB_DEF_MSG_ENABLE \
 		(NETIF_MSG_LINK	  | \
 		 NETIF_MSG_TIMER  | \
@@ -2473,6 +2477,39 @@ static void ravb_set_delay_mode(struct net_device *ndev)
 	ravb_modify(ndev, APSR, APSR_DM, set);
 }
 
+#if defined(CONFIG_ARCH_ESPADA)
+static int ravb_mode_set_io_buffer(struct device_node *np,
+				   phy_interface_t interface)
+{
+	struct property *prop;
+	const char *propname = "eth-pin-mode-switch";
+
+	prop = of_find_property(np, propname, NULL);
+	if (prop) {
+		struct of_phandle_args args;
+		struct platform_device *pdev_cpg;
+		int ret;
+
+		ret = of_parse_phandle_with_fixed_args(np, propname, 1, 0,
+							 &args);
+		if (ret)
+			return -EINVAL;
+
+		pdev_cpg = of_find_device_by_node(args.np);
+		if (!pdev_cpg)
+			return -ENODEV;
+
+		ret = rzg2l_pinctrl_eth_mode_set(&pdev_cpg->dev,
+						 interface,
+						 args.args[0]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+#endif
+
 static int ravb_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -2537,6 +2574,12 @@ static int ravb_probe(struct platform_device *pdev)
 	INIT_WORK(&priv->work, ravb_tx_timeout_work);
 
 	priv->phy_interface = of_get_phy_mode(np);
+
+#if defined(CONFIG_ARCH_ESPADA)
+	error = ravb_mode_set_io_buffer(np, priv->phy_interface);
+	if (error)
+		goto out_release;
+#endif
 
 	priv->no_avb_link = of_property_read_bool(np, "renesas,no-ether-link");
 	priv->avb_link_active_low =
