@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/clk.h>
+#include <linux/phy.h>
 
 #include "../core.h"
 #include "../pinconf.h"
@@ -38,6 +39,7 @@
 #define SD_CH(n) (0x3000 + (n) * 4)	/* SD IO Voltage Control Register */
 #define QSPI	(0x3008)		/* QSPI IO Voltage Control Register */
 #define ETH_CH(n) (0x300C + (n) * 4)	/* Ether Voltage Control Register */
+#define ETH_MODE_CTRL	0x3018	/* Ether MII/RGMII Mode Control Register */
 
 #define PWPR_B0WI		BIT(7)	/* Bit Write Disable */
 #define PWPR_PFCWE		BIT(6)	/* PFC Register Write Enable */
@@ -46,6 +48,8 @@
 #define ETH_PVDD_2500		BIT(1)	/* Ether I/O voltage 2.5V */
 #define ETH_PVDD_1800		BIT(0)	/* Ether I/O voltage 1.8V */
 #define ETH_PVDD_3300		0	/* Ether I/O voltage 3.3V */
+#define ETH_MII_CH(x)		(1 << (x)) /* Ether channel x MII mode */
+#define ETH_RGMII_CH(x)		(0 << (x)) /* Ether channel x RGMII mode */
 
 #define PM_INPUT		0x1	/* Input Mode */
 #define PM_OUTPUT		0x2	/* Output Mode (disable Input) */
@@ -173,4 +177,7 @@ struct rzg2l_pinctrl {
 
 extern const struct rzg2l_pin_soc r9a07g044l_pinctrl_data;
 
+int rzg2l_pinctrl_eth_mode_set(struct device *dev,
+			       phy_interface_t interface,
+			       unsigned int eth_channel);
 #endif
