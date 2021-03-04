@@ -482,6 +482,49 @@ static int rzg2l_pinctrl_pinconf_group_get(struct pinctrl_dev *pctldev,
 	return 0;
 };
 
+/* -----------------------------------------------------------------------------
+ * Switch between MII / RGMII of ETH
+ * Ethernet driver API
+ */
+
+int rzg2l_pinctrl_eth_mode_set(struct device *dev,
+			       phy_interface_t interface,
+			       unsigned int eth_channel)
+{
+	struct rzg2l_pinctrl *pctrl = dev_get_drvdata(dev);
+	u32 reg32;
+	unsigned long flags;
+
+	if (eth_channel < 2)
+		reg32 = readl(pctrl->base + ETH_MODE_CTRL) & ~BIT(eth_channel);
+	else
+		return -EINVAL;
+
+	switch (interface) {
+	case PHY_INTERFACE_MODE_MII: {
+		spin_lock_irqsave(&pctrl->lock, flags);
+		writel(reg32 | ETH_MII_CH(eth_channel),
+						pctrl->base + ETH_MODE_CTRL);
+		spin_unlock_irqrestore(&pctrl->lock, flags);
+		break;
+	}
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID: {
+		spin_lock_irqsave(&pctrl->lock, flags);
+		writel(reg32 | ETH_RGMII_CH(eth_channel),
+						pctrl->base + ETH_MODE_CTRL);
+		spin_unlock_irqrestore(&pctrl->lock, flags);
+		break;
+	}
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+};
+
 static const struct pinctrl_ops rzg2l_pinctrl_pctlops = {
 	.get_groups_count = pinctrl_generic_get_group_count,
 	.get_group_name = pinctrl_generic_get_group_name,
