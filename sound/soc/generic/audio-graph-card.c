@@ -163,7 +163,8 @@ static int asoc_graph_card_dai_link_of(struct device_node *cpu_port,
 	struct graph_dai_props *dai_props = graph_priv_to_props(priv, idx);
 	struct asoc_simple_dai *cpu_dai = &dai_props->cpu_dai;
 	struct asoc_simple_dai *codec_dai = &dai_props->codec_dai;
-	struct device_node *cpu_ep    = of_get_next_child(cpu_port, NULL);
+	struct device_node *cpuport = of_get_next_child(cpu_port, NULL);
+	struct device_node *cpu_ep = of_graph_get_next_endpoint(cpuport,0);
 	struct device_node *codec_ep = of_graph_get_remote_endpoint(cpu_ep);
 	struct device_node *rcpu_ep = of_graph_get_remote_endpoint(codec_ep);
 	int ret;
