@@ -293,6 +293,7 @@
 			phy-mode = "rgmii";
 			#address-cells = <1>;
 			#size-cells = <0>;
+			eth-pin-mode-switch = <&pinctrl 0>;
 			status = "disabled";
 		};
 		
@@ -308,6 +309,7 @@
 			phy-mode = "rgmii";
 			#address-cells = <1>;
 			#size-cells = <0>;
+			eth-pin-mode-switch = <&pinctrl 1>;
 			status = "disabled";
 		};
 	};
