@@ -109,6 +109,30 @@
 			power-domains = <&cpg>;
 			status = "disable";
 		};
+
+		sdhi0: sd@11c00000 {
+			compatible = "renesas,sdhi-r9a07g044l",
+				     "renesas,rcar-gen3-sdhi";
+			reg = <0 0x11c00000 0 0x10000>;
+			interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A07G044L_CLK_SDHI0>;
+			resets = <&cpg R9A07G044L_CLK_SDHI0>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		sdhi1: sd@11c10000 {
+			compatible = "renesas,sdhi-r9a07g044l",
+				     "renesas,rcar-gen3-sdhi";
+			reg = <0x0 0x11c10000 0 0x10000>;
+			interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A07G044L_CLK_SDHI1>;
+			resets = <&cpg R9A07G044L_CLK_SDHI1>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
 	};
 
 	timer {
