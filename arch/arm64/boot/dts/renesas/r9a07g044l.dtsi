@@ -44,6 +44,8 @@
 			interrupt-controller;
 			reg = <0x0 0x11900000 0 0x40000>,
 			      <0x0 0x11940000 0 0x60000>;
+			clocks = <&cpg CPG_MOD R9A07G044L_CLK_GIC600>;
+			clock-names = "gic6000";
 			interrupts = <GIC_PPI 9
 				(GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>;
 		};
