@@ -409,9 +409,38 @@
 	/delete-node/ qspi@20000000;
 };
 
+/* Assign IDs to DMA channels (actual number is not important) */
+#define RZADMA_SSI0_TX	1
+#define RZADMA_SSI0_RX	2
+
+/* DMA Configuration */
+&dma0  {
+	/* Assign Slave IDs */
+	slave_id = <RZADMA_SSI0_TX
+		    RZADMA_SSI0_RX>;
+	/* Address of data source/destination */
+	addr = <0x10049C18	/* SSIFTDR_0 */
+		0x10049C1C	/* SSIFRDR_0 */
+		>;
+	/* Channel Configuration Register (CHCFG) for slave device */
+	/* .reqd .loen .hien .lvl .am .sds .dds .tm */
+	chcfg = <0x1 0x0 0x1 0x0 0x2 0x1 0x1 0x0	/* SSI ch0 TX (req sig=SSIFTDR_0) */
+		 0x0 0x0 0x1 0x0 0x2 0x1 0x1 0x0	/* SSI ch0 RX (req sig=SSIFRDR_0) */
+		 >;
+	/* DMARS for slave device */
+	/* .rid .mid */
+	dmars = <0x1 0x95	/* SSI ch0 TX */
+		 0x2 0x95	/* SSI ch0 RX */
+		 >;
+};
+
 &ssi0 {
 	pinctrl-0 = <&ssi0_pins &sound_clk_pins>;
 	pinctrl-names = "default";
+
+	dmas = <&dma0 RZADMA_SSI0_TX>,
+	       <&dma0 RZADMA_SSI0_RX>;
+	dma-names = "tx", "rx";
 
 	status = "okay";
 };
