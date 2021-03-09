@@ -71,6 +71,11 @@
 		};
 	};
 
+	sound_card {
+		compatible = "audio-graph-card";
+		dais = <&ssi1>;
+	};
+
 	vccq_sdhi1: regulator-vccq-sdhi1 {
 		compatible = "regulator-gpio";
 
@@ -221,6 +226,11 @@
 	ssi0_pins: ssi0 {
 		groups = "ssi0_ctrl_d", "ssi0_data_d";
 		function = "ssi0";
+	};
+
+	ssi1_pins: ssi1 {
+		groups = "ssi1_ctrl_d", "ssi1_data_d";
+		function = "ssi1";
 	};
 
 	can0_stb {
@@ -412,25 +422,35 @@
 /* Assign IDs to DMA channels (actual number is not important) */
 #define RZADMA_SSI0_TX	1
 #define RZADMA_SSI0_RX	2
+#define RZADMA_SSI1_TX	3
+#define RZADMA_SSI1_RX	4
 
 /* DMA Configuration */
 &dma0  {
 	/* Assign Slave IDs */
 	slave_id = <RZADMA_SSI0_TX
-		    RZADMA_SSI0_RX>;
+		    RZADMA_SSI0_RX
+		    RZADMA_SSI1_TX
+		    RZADMA_SSI1_RX>;
 	/* Address of data source/destination */
 	addr = <0x10049C18	/* SSIFTDR_0 */
 		0x10049C1C	/* SSIFRDR_0 */
+		0x1004A018	/* SSIFTDR_1 */
+		0x1004A01C	/* SSIFRDR_1 */
 		>;
 	/* Channel Configuration Register (CHCFG) for slave device */
 	/* .reqd .loen .hien .lvl .am .sds .dds .tm */
 	chcfg = <0x1 0x0 0x1 0x0 0x2 0x1 0x1 0x0	/* SSI ch0 TX (req sig=SSIFTDR_0) */
 		 0x0 0x0 0x1 0x0 0x2 0x1 0x1 0x0	/* SSI ch0 RX (req sig=SSIFRDR_0) */
+		 0x1 0x0 0x1 0x0 0x2 0x1 0x1 0x0	/* SSI ch1 TX (req sig=SSIFTDR_0) */
+		 0x0 0x0 0x1 0x0 0x2 0x1 0x1 0x0	/* SSI ch1 RX (req sig=SSIFRDR_0) */
 		 >;
 	/* DMARS for slave device */
 	/* .rid .mid */
 	dmars = <0x1 0x95	/* SSI ch0 TX */
 		 0x2 0x95	/* SSI ch0 RX */
+		 0x1 0x96	/* SSI ch1 TX */
+		 0x2 0x96	/* SSI ch1 RX */
 		 >;
 };
 
@@ -443,6 +463,24 @@
 	dma-names = "tx", "rx";
 
 	status = "okay";
+};
+
+&ssi1 {
+	pinctrl-0 = <&ssi1_pins>;
+	pinctrl-names = "default";
+
+	dmas = <&dma0 RZADMA_SSI1_TX>,
+	       <&dma0 RZADMA_SSI1_RX>;
+	dma-names = "tx", "rx";
+	status = "okay";
+	ports {
+		i2s2_port0: port@0 {
+			i2s2_cpu_endpoint: endpoint {
+				remote-endpoint = <&codec_endpoint>;
+				dai-format = "i2s";
+			};
+		};
+	};
 };
 
 &spibsc {
@@ -532,6 +570,7 @@
 		v1p2-supply = <&reg_1p8v>;
 
 		adi,dsi-lanes = <4>;
+		#sound-dai-cells = <0>;
 
 		ports {
 			#address-cells = <1>;
@@ -548,6 +587,13 @@
 				reg = <1>;
 				adv7535_out: endpoint@1 {
 					remote-endpoint = <&hdmi_con_out>;
+				};
+			};
+
+			port@2 {
+				reg = <2>;
+				codec_endpoint: endpoint {
+					remote-endpoint = <&i2s2_cpu_endpoint>;
 				};
 			};
 		};
