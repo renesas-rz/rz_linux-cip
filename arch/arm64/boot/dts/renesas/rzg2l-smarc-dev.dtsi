@@ -212,6 +212,10 @@
 		function = "gpt3";
 	};
 
+	adc_pins: adc {
+		groups = "adc_d";
+		function = "adc";
+	};
 };
 
 &scif0 {
@@ -374,5 +378,12 @@
 	pinctrl-0 = <&gpt3_pins>;
 	pinctrl-names = "default";
 	//conflict pin with SD1 WP, disable as default
+	//status = "okay";
+};
+
+&adc {
+	pinctrl-0 = <&adc_pins>;
+	pinctrl-names = "default";
+	//conflict pin with CAN0 pin, disable as default
 	//status = "okay";
 };
