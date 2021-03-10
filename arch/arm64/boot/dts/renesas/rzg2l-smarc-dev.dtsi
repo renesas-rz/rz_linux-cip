@@ -77,6 +77,14 @@
 			read-only;
 		};
 	};
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&gpt3 0 50000>;
+
+		brightness-levels = <0 2 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+	};
 };
 
 &xinclk {
@@ -198,6 +206,12 @@
 		groups = "rspi1_clk_b", "rspi1_data_b", "rspi1_ssl_b";
 		function = "rspi1";
 	};
+
+	gpt3_pins: gpt3 {
+		groups = "gpt3_b_b";
+		function = "gpt3";
+	};
+
 };
 
 &scif0 {
@@ -354,4 +368,11 @@
 	pinctrl-0 = <&spi1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+};
+
+&gpt3 {
+	pinctrl-0 = <&gpt3_pins>;
+	pinctrl-names = "default";
+	//conflict pin with SD1 WP, disable as default
+	//status = "okay";
 };
