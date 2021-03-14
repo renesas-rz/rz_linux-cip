@@ -694,6 +694,39 @@
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
+
+		wdt0: watchdog@12800800 {
+			compatible = "renesas,rzg2l-wdt";
+			reg = <0 0x12800800 0 0x60>;
+			clocks = <&xinclk>,
+				 <&cpg CPG_MOD R9A07G044L_CLK_WDT0>;
+			interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&cpg R9A07G044L_CLK_WDT0>;
+			status = "disabled";
+		};
+
+		wdt1: watchdog@12800c00 {
+			compatible = "renesas,rzg2l-wdt";
+			reg = <0 0x12800C00 0 0x60>;
+			clocks = <&xinclk>,
+				 <&cpg CPG_MOD R9A07G044L_CLK_WDT1>;
+			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&cpg R9A07G044L_CLK_WDT1>;
+			status = "disabled";
+		};
+
+		wdt2: watchdog@12800400 {
+			compatible = "renesas,rzg2l-wdt";
+			reg = <0 0x12800400 0 0x60>;
+			clocks = <&xinclk>,
+				 <&cpg CPG_MOD R9A07G044L_CLK_WDT2>;
+			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&cpg R9A07G044L_CLK_WDT2>;
+			status = "disabled";
+		};
 	};
 
 	thermal-zones {
