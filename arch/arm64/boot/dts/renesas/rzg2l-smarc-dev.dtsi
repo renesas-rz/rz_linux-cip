@@ -8,6 +8,21 @@
 #include <dt-bindings/pinctrl/pinctrl-rzg2l.h>
 #include <dt-bindings/gpio/gpio.h>
 
+/*
+ * SSI-WM8978
+ *
+ * This command is required when Playback/Capture
+ *
+ *	amixer cset name='Left Input Mixer L2 Switch' on
+ *	amixer cset name='Right Input Mixer R2 Switch' on
+ *	amixer cset name='Headphone Playback Volume' 100
+ *	amixer cset name='PCM Volume' 100%
+ *	amixer cset name='Input PGA Volume' 25
+ *
+ * ADV7535 Audio playback
+ *	aplay -D hw:1,0 xxx.wav
+ */
+
 / {
 	aliases {
 		serial0 = &scif0;
