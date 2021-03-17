@@ -810,6 +810,10 @@
 	status = "okay";
 };
 
+&mtu3 {
+	status = "okay";
+};
+
 &ohci0 {
 	dr_mode = "otg";
 	status = "okay";
