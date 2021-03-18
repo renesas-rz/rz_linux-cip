@@ -140,7 +140,8 @@ struct ssi_priv {
 
 	/* clock */
 	unsigned long audio_mck;
-	int use_audio_clk_1;
+	unsigned long audio_clk_1;
+	unsigned long audio_clk_2;
 
 	int chan_num;			/* Number of channels */
 	unsigned int bckp:1;		/* Bit clock polarity (SSICR.BCKP) */
@@ -265,10 +266,10 @@ static int ssi_clk_setup(struct ssi_priv *ssi, unsigned int rate, unsigned int c
 {
 	static s8 ckdv[16] = { 1,  2,  4,  8, 16, 32, 64, 128,
 			       6, 12, 24, 48, 96, -1, -1, -1 };
-	unsigned long bclk_rate;
 	unsigned int div;
 	u32 clk_ckdv;
 	unsigned int channel_bits = 32;	/* System Word Length */
+	unsigned long bclk_rate = rate * channels * channel_bits;
 	u32 ssicr = 0;
 	int i;
 
@@ -277,10 +278,16 @@ static int ssi_clk_setup(struct ssi_priv *ssi, unsigned int rate, unsigned int c
 
 	/* Continue to output LRCK pin even when idle */
 	ssi_reg_writel(ssi, SSIOFR, SSIOFR_LRCONT);
+	if (ssi->audio_clk_1 && ssi->audio_clk_2) {
+		if (ssi->audio_clk_1 % bclk_rate)
+			ssi->audio_mck = ssi->audio_clk_2;
+		else
+			ssi->audio_mck = ssi->audio_clk_1;
+	}
 
 	/* Clock setting */
 	ssicr |= SSICR_MST;
-	if (ssi->use_audio_clk_1)
+	if (ssi->audio_mck == ssi->audio_clk_1)
 		ssicr |= SSICR_CKS;
 	if (ssi->bckp)
 		ssicr |= SSICR_BCKP;
@@ -288,7 +295,6 @@ static int ssi_clk_setup(struct ssi_priv *ssi, unsigned int rate, unsigned int c
 		ssicr |= SSICR_LRCKP;
 
 	/* Determine the clock divider */
-	bclk_rate = rate * channels * channel_bits;
 	clk_ckdv = 0;
 	div = ssi->audio_mck / bclk_rate;
 	/* try to find an match */
@@ -985,25 +991,32 @@ static int ssi_probe(struct platform_device *pdev)
 		goto exit_ssi_probe;
 	}
 
-	ssi->use_audio_clk_1 = 1;
 	audio_clk = devm_clk_get(&pdev->dev, "audio_clk1");
-	if (IS_ERR(audio_clk) || (clk_get_rate(audio_clk) == 0)) {
-		ssi->use_audio_clk_1 = 0;
-		audio_clk = devm_clk_get(&pdev->dev, "audio_clk2");
-		if (IS_ERR(audio_clk)) {
-			ret = PTR_ERR(audio_clk);
-			dev_err(&pdev->dev, "no audio clk1 or audio clk2");
-			goto exit_ssi_probe;
-		}
+	if (IS_ERR(audio_clk)) {
+		ret = PTR_ERR(audio_clk);
+		ssi->audio_clk_1 = 0;
 	}
 
-	ssi->audio_mck = clk_get_rate(audio_clk);
-	dev_info(&pdev->dev, "Using %s, %lu Hz\n",
-		(ssi->use_audio_clk_1 ? "audio_clk_1" : "audio_clk_2"),
-		ssi->audio_mck);
+	ssi->audio_clk_1 = clk_get_rate(audio_clk);
+
+	audio_clk = devm_clk_get(&pdev->dev, "audio_clk2");
+	if (IS_ERR(audio_clk)) {
+		ret = PTR_ERR(audio_clk);
+		ssi->audio_clk_2 = 0;
+	}
+
+	ssi->audio_clk_2 = clk_get_rate(audio_clk);
+	if (!(ssi->audio_clk_1 || ssi->audio_clk_2)) {
+		dev_err(&pdev->dev, "no audio clk1 or audio clk2");
+		goto exit_ssi_probe;
+	}
+
+	if (!ssi->audio_clk_1)
+		ssi->audio_mck = ssi->audio_clk_2;
+	else
+		ssi->audio_mck = ssi->audio_clk_1;
 
 	rstc = devm_reset_control_get(&pdev->dev, NULL);
-
 	if (IS_ERR(rstc)) {
 		dev_err(&pdev->dev, "failed to get cpg reset\n");
 		return PTR_ERR(rstc);
