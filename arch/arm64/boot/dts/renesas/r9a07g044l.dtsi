@@ -296,8 +296,7 @@
 		};
 
 		can: can@10050000 {
-			compatible = "renesas,rcar-gen3-canfd",
-					"renesas,r9a07g044l-canfd";
+			compatible = "renesas,r9a07g044l-canfd";
 			reg = <0 0x10050000 0 0x6000>;
 			interrupts =    <GIC_SPI 426 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 422 IRQ_TYPE_LEVEL_HIGH>,
