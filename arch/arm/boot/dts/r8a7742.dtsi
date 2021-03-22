@@ -742,6 +742,16 @@
 			reg = <0 0xe6060000 0 0x250>;
 		};
 
+		tpu: pwm@e60f0000 {
+			compatible = "renesas,tpu-r8a7742", "renesas,tpu";
+			reg = <0 0xe60f0000 0 0x148>;
+			interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&mstp3_clks R8A7742_CLK_TPU0>;
+			power-domains = <&cpg_clocks>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
 		apmu@e6151000 {
 			compatible = "renesas,r8a7742-apmu", "renesas,apmu";
 			reg = <0 0xe6151000 0 0x188>;
@@ -1361,6 +1371,69 @@
 			status = "disabled";
 		};
 
+		pwm0: pwm@e6e30000 {
+			compatible = "renesas,pwm-r8a7742", "renesas,pwm-rcar";
+			reg = <0 0xe6e30000 0 0x8>;
+			clocks = <&mstp5_clks R8A7742_CLK_PWM>;
+			power-domains = <&cpg_clocks>;
+			#pwm-cells = <2>;
+			status = "disabled";
+		};
+
+		pwm1: pwm@e6e31000 {
+			compatible = "renesas,pwm-r8a7742", "renesas,pwm-rcar";
+			reg = <0 0xe6e31000 0 0x8>;
+			clocks = <&mstp5_clks R8A7742_CLK_PWM>;
+			power-domains = <&cpg_clocks>;
+			#pwm-cells = <2>;
+			status = "disabled";
+		};
+
+		pwm2: pwm@e6e32000 {
+			compatible = "renesas,pwm-r8a7742", "renesas,pwm-rcar";
+			reg = <0 0xe6e32000 0 0x8>;
+			clocks = <&mstp5_clks R8A7742_CLK_PWM>;
+			power-domains = <&cpg_clocks>;
+			#pwm-cells = <2>;
+			status = "disabled";
+		};
+
+		pwm3: pwm@e6e33000 {
+			compatible = "renesas,pwm-r8a7742", "renesas,pwm-rcar";
+			reg = <0 0xe6e33000 0 0x8>;
+			clocks = <&mstp5_clks R8A7742_CLK_PWM>;
+			power-domains = <&cpg_clocks>;
+			#pwm-cells = <2>;
+			status = "disabled";
+		};
+
+		pwm4: pwm@e6e34000 {
+			compatible = "renesas,pwm-r8a7742", "renesas,pwm-rcar";
+			reg = <0 0xe6e34000 0 0x8>;
+			clocks = <&mstp5_clks R8A7742_CLK_PWM>;
+			power-domains = <&cpg_clocks>;
+			#pwm-cells = <2>;
+			status = "disabled";
+		};
+
+		pwm5: pwm@e6e35000 {
+			compatible = "renesas,pwm-r8a7742", "renesas,pwm-rcar";
+			reg = <0 0xe6e35000 0 0x8>;
+			clocks = <&mstp5_clks R8A7742_CLK_PWM>;
+			power-domains = <&cpg_clocks>;
+			#pwm-cells = <2>;
+			status = "disabled";
+		};
+
+		pwm6: pwm@e6e36000 {
+			compatible = "renesas,pwm-r8a7742", "renesas,pwm-rcar";
+			reg = <0 0xe6e36000 0 0x8>;
+			clocks = <&mstp5_clks R8A7742_CLK_PWM>;
+			power-domains = <&cpg_clocks>;
+			#pwm-cells = <2>;
+			status = "disabled";
+		};
+
 		rcar_sound: sound@ec500000 {
 			/*
 			 * #sound-dai-cells is required
@@ -1925,6 +1998,45 @@
 			renesas,#rpf = <4>;
 			renesas,#uds = <1>;
 			renesas,#wpf = <4>;
+		};
+
+		du: display@feb00000 {
+			compatible = "renesas,du-r8a7742";
+			reg = <0 0xfeb00000 0 0x70000>,
+			      <0 0xfeb90000 0 0x1c>,
+			      <0 0xfeb94000 0 0x1c>;
+			reg-names = "du", "lvds.0", "lvds.1";
+			interrupts = <GIC_SPI 256 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 268 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 269 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&mstp7_clks R8A7742_CLK_DU0>,
+				 <&mstp7_clks R8A7742_CLK_DU1>,
+				 <&mstp7_clks R8A7742_CLK_DU2>,
+				 <&mstp7_clks R8A7742_CLK_LVDS0>,
+				 <&mstp7_clks R8A7742_CLK_LVDS1>;
+			clock-names = "du.0", "du.1", "du.2", "lvds.0", "lvds.1";
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					du_out_rgb: endpoint {
+					};
+				};
+				port@1 {
+					reg = <1>;
+					du_out_lvds0: endpoint {
+					};
+				};
+				port@2 {
+					reg = <2>;
+					du_out_lvds1: endpoint {
+					};
+				};
+			};
 		};
 
 		prr: chipid@ff000044 {
