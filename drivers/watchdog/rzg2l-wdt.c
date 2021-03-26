@@ -50,23 +50,32 @@ struct rzg2l_wdt_priv {
 	struct reset_control *rstc;
 };
 
-static void rzg2l_wdt_write(struct rzg2l_wdt_priv *priv, u32 val,
-				unsigned int reg)
-{
-	if (reg == WDTSET)
-		val &= 0xFFF00000;
-
-	writel_relaxed(val, priv->base + reg);
-}
-
 static void rzg2l_wdt_wait_delay(struct rzg2l_wdt_priv *priv)
 {
 	u32 delay;
 
 	/* delay timer when change the setting register */
 	delay =  F2CYCLE_NSEC(priv->xinclk)*6 + F2CYCLE_NSEC(priv->clk_rate)*9;
-
 	ndelay(delay);
+}
+
+static int rzg2l_wdt_write(struct rzg2l_wdt_priv *priv, u32 val,
+				unsigned int reg)
+{
+	int i;
+
+	if (reg == WDTSET)
+		val &= 0xFFF00000;
+
+	writel_relaxed(val, priv->base + reg);
+
+	for (i = 0; i < 1000; i++) {
+		if (readl_relaxed(priv->base + reg) == val)
+			return 0;
+		rzg2l_wdt_wait_delay(priv);
+	}
+
+	return -ETIMEDOUT;
 }
 
 static int rzg2l_wdt_init_timeout(struct watchdog_device *wdev)
