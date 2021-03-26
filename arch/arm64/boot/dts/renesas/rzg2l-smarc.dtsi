@@ -590,6 +590,10 @@
 		 >;
 };
 
+&mtu3 {
+	status = "okay";
+};
+
 &ssi0 {
 	pinctrl-0 = <&ssi0_pins>;
 	pinctrl-names = "default";
