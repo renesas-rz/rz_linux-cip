@@ -79,6 +79,7 @@ enum clk_ids {
 	CLK_SEL_PLL6_2,
 	CLK_SD0_DIV4,
 	CLK_SD1_DIV4,
+	CLK_M2_DIV2,
 
 	/* Module Clocks */
 	CLK_MODE_BASE,
@@ -233,6 +234,7 @@ static const struct cpg_core_clk r9a07g044l_core_clks[] __initconst = {
 	DEF_FIXED("M0", R9A07G044L_CLK_M0, CLK200FIX_CD, 1, 1),
 	DEF_FIXED("M1", R9A07G044L_CLK_M1, CLK_SEL_PLL5_1, 1, 1),
 	DEF_FIXED("M2", R9A07G044L_CLK_M2, CLK533FIX_CD, 1, 2),
+	DEF_FIXED("M2_DIV2", CLK_M2_DIV2, R9A07G044L_CLK_M2, 1, 2),
 	DEF_2DIV("M3", R9A07G044L_CLK_M3, CLK_SEL_PLL5_4,
 		DIVDSIA, DIVDSIB, dtable_2b, dtable_4b, 0),
 	DEF_DIV("M4", R9A07G044L_CLK_M4, CLK533FIX_LPCLK,
@@ -419,6 +421,9 @@ static struct mssr_mod_clk r9a07g044l_mod_clks[] = {
 				R9A07G044L_CLK_M3, 0),
 	DEF_MOD("mipi_dsi_pin", R9A07G044L_CLK_MIPI_DSI_PIN,
 				R9A07G044L_CLK_M1, 0),
+	DEF_MOD("csi2",		R9A07G044L_CLK_CSI2,
+				CLK_M2_DIV2,
+				MSSR(25, BIT(0), BIT(0))),
 };
 
 static const unsigned int r9a07g044l_crit_mod_clks[] __initconst = {
@@ -437,5 +442,5 @@ const struct cpg_mssr_info r9a07g044l_cpg_info = {
 	/* Module clk */
 	.mod_clks = r9a07g044l_mod_clks,
 	.num_mod_clks = ARRAY_SIZE(r9a07g044l_mod_clks),
-	.num_hw_mod_clks = R9A07G044L_CLK_MIPI_DSI_PIN + 1,
+	.num_hw_mod_clks = R9A07G044L_CLK_CSI2 + 1,
 };
