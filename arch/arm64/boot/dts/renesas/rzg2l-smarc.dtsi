@@ -105,7 +105,7 @@
 	};
 
 	vccq_sdhi0: regulator-vccq-sdhi0 {
-		compatible = "regulator-fixed";
+		compatible = "regulator-gpio";
 
 		regulator-name = "SDHI0 VccQ";
 		regulator-min-microvolt = <1800000>;
@@ -562,7 +562,7 @@
 	bus-width = <4>;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
-	status = "disabled";
+	status = "okay";
 };
 */
 
