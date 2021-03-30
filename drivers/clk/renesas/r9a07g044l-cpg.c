@@ -384,8 +384,8 @@ static struct mssr_mod_clk r9a07g044l_mod_clks[] = {
 				MSSR(24, BIT(0), (BIT(0) | BIT(1)))),
 	DEF_MOD("cru",		R9A07G044L_CLK_CRU,
 				R9A07G044L_CLK_M2,
-				MSSR(25, (BIT(0) | BIT(1) | BIT(3) | BIT(4)),
-					 (BIT(0) | BIT(1) | BIT(2)))),
+				MSSR(25, (BIT(1) | BIT(2) | BIT(3) | BIT(4)),
+					 (BIT(1) | BIT(2)))),
 	DEF_MOD("mipi_dsi",	R9A07G044L_CLK_MIPI_DSI,
 				R9A07G044L_CLK_P2,
 				MSSR(26, (BIT(0) | BIT(1) | BIT(2) | BIT(3)
