@@ -1,0 +1,65 @@
+Renesas RZ/G2L Camera Receiving Unit driver (rzg2l-cru)
+------------------------------------------------------
+
+The rzg2l-cru device provides receiving data output from camera and
+convert capabilities for the Renesas RZ/G2L family of devices.
+
+CRU has 2 blocks: CSI2 receiver and image processing block. Image processing
+block can receive video data from the external Digital Parallel Interface that
+support YUV video with both external synchronization and BT.656
+synchronization for the latter.
+
+ - compatible: Must be one or more of the following
+   - "renesas,cru-r9a07g044l" for the R9A07G044L device.
+   - "renesas,cru-rzg2l" for the generic RZ/G2L device.
+ - reg: the register base and size for the device registers
+ - interrupts: the interrupt for the device
+ - clocks: Reference to the parent clock
+ - reset: Reference to the reset block.
+
+The per-board settings:
+RZ/G2L can only support a single connected parallel input source from external
+SoC pins (port@0) or a parallel input source from local SoC CSI-2 receiver
+(port@1) depending on SoC.
+
+- ports
+    - port@0 - sub-node describing a single endpoint connected to the CRU
+      from external SoC pins as described in video-interfaces.txt[1].
+
+    - port@1 - sub-nodes describing a single endpoint connected to the CRU
+      from local SoC CSI-2 receiver.
+
+Device node example
+-------------------
+
+	cru: video@10830000 {
+		compatible = "renesas,cru-r9a07g044l", "renesas,cru-rzg2l";
+		reg = <0 0x10830000 0 0x400>;
+		clocks = <&cpg CPG_MOD R9A07G044L_CLK_CRU>;
+		interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
+		resets = <&cpg R9A07G044L_CLK_CRU>;
+		power-domains = <&cpg>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				cru_to_parallel: endpoint {
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				cru_to_csi2: endpoint {
+					remote-endpoint = <&csi2_to_cru>;
+				};
+			};
+		};
+	};
+
+[1] video-interfaces.txt common video media interface
