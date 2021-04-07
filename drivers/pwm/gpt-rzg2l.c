@@ -56,21 +56,31 @@
 #define GTIOB_OUTPUT_HIGH_END_LOW_COMPARE	(0x119<<16)
 /* GTIOR.GTIOB = 11001 */
 /* GTIOR.OBE = 1 */
+#define GTIOA_OUTPUT_HIGH_END_LOW_COMPARE	0x119
 #define GTCR_CST	0x00000001
 #define UP_COUNTING	3
 #define P0_1024		(0x05<<24)
 #define INPUT_CAP_GTIOB_BOTH_EDGE	0x0000F000
 #define INPUT_CAP_GTIOB_RISING_EDGE	0x00003000
 #define INPUT_CAP_GTIOB_FALLING_EDGE	0x0000C000
+#define INPUT_CAP_GTIOA_BOTH_EDGE	0x00000F00
+#define INPUT_CAP_GTIOA_RISING_EDGE	0x00000300
+#define INPUT_CAP_GTIOA_FALLING_EDGE	0x00000C00
 #define NOISE_FILT_BEN	(1<<29)
 #define NOISE_FILT_B_P0_64	(0x11<<30)
+#define NOISE_FILT_AEN	(1<<13)
+#define NOISE_FILT_A_P0_64	(0x11<<14)
 #define GTINTB	(1<<1)
+#define GTINTA	(1<<0)
 #define TCFB	(1<<1)
+#define TCFA	(1<<0)
 #define TCFPO	(1<<6)
 #define GTINTPROV	(0x01<<6)
 #define CCRSWT	(1<<22)
 #define GTCCRB_BUFFER_SINGLE	(0x01<<18)
 #define GTCCRB_BUFFER_DOUBLE	(1<<19)
+#define GTCCRA_BUFFER_SINGLE	(0x01<<16)
+#define GTCCRA_BUFFER_DOUBLE	(1<<17)
 
 struct rzg2l_gpt_chip {
 	struct	pwm_chip chip;
@@ -86,6 +96,7 @@ struct rzg2l_gpt_chip {
 	unsigned int overflow_count, buffer_mode_count;
 	unsigned long buffer[3];
 	unsigned int period_ns;
+	const char *channel;
 };
 
 static inline struct rzg2l_gpt_chip *to_rzg2l_gpt_chip(struct pwm_chip *chip)
@@ -278,13 +289,23 @@ static int rzg2l_gpt_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	rzg2l_gpt_write(pc, SAW_WAVE|(prescale<<24), GTCR);
 	/* Set counting mode */
 	rzg2l_gpt_write(pc, UP_COUNTING, GTUDDTYC); //up-counting
-	/* Set period and duty */
+	/* Set period */
 	rzg2l_gpt_write(pc, pv, GTPR);
-	rzg2l_gpt_write(pc, dc, GTCCRB);
+
+	if (!strcmp(pc->channel, "channel_B")) {
+		/* Set duty */
+		rzg2l_gpt_write(pc, dc, GTCCRB);
+		/* Enable pin output */
+		rzg2l_gpt_write(pc, GTIOB_OUTPUT_HIGH_END_LOW_COMPARE, GTIOR);
+	} else {
+		/* Set duty */
+		rzg2l_gpt_write(pc, dc, GTCCRA);
+		/* Enable pin output */
+		rzg2l_gpt_write(pc, GTIOA_OUTPUT_HIGH_END_LOW_COMPARE, GTIOR);
+	}
+
 	/* Set initial value for counter */
 	rzg2l_gpt_write(pc, 0, GTCNT); // reset counter value
-	/* Enable pin output */
-	rzg2l_gpt_write(pc, GTIOB_OUTPUT_HIGH_END_LOW_COMPARE, GTIOR);
 	/* Set no buffer operation */
 	rzg2l_gpt_write(pc, 0, GTBER);
 
@@ -355,12 +376,21 @@ rzg2l_gpt_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 	/* Set initial value in GTCNT */
 	rzg2l_gpt_write(pc, 0, GTCNT);
 	/* Set input pin as capture mode */
-	//Using noise filter with P0/64 clock
-	rzg2l_gpt_write(pc, NOISE_FILT_BEN|NOISE_FILT_B_P0_64, GTIOR);
-	/* Select input capture source in GTICASR and GTICBSR */
-	rzg2l_gpt_write(pc, INPUT_CAP_GTIOB_RISING_EDGE, GTICBSR);
-	/* Enable input capture and overflow interrupt*/
-	rzg2l_gpt_write(pc, GTINTB|GTINTPROV, GTINTAD);
+	if (!strcmp(pc->channel, "channel_B")) {
+		//Using noise filter with P0/64 clock
+		rzg2l_gpt_write(pc, NOISE_FILT_BEN|NOISE_FILT_B_P0_64, GTIOR);
+		/* Select input capture source in GTICASR and GTICBSR */
+		rzg2l_gpt_write(pc, INPUT_CAP_GTIOB_RISING_EDGE, GTICBSR);
+		/* Enable input capture and overflow interrupt*/
+		rzg2l_gpt_write(pc, GTINTB|GTINTPROV, GTINTAD);
+	} else {
+		//Using noise filter with P0/64 clock
+		rzg2l_gpt_write(pc, NOISE_FILT_AEN|NOISE_FILT_A_P0_64, GTIOR);
+		/* Select input capture source in GTICASR and GTICBSR */
+		rzg2l_gpt_write(pc, INPUT_CAP_GTIOA_RISING_EDGE, GTICASR);
+		/* Enable input capture and overflow interrupt*/
+		rzg2l_gpt_write(pc, GTINTA|GTINTPROV, GTINTAD);
+	}
 	/* Start count operation set GTCR.CST to 1 to start count operation*/
 	rzg2l_timer_count_start(pc);
 
@@ -393,8 +423,13 @@ rzg2l_gpt_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 out:
-	/* Disable capture operation */
-	rzg2l_gpt_write(pc, 0, GTICBSR);
+	if (!strcmp(pc->channel, "channel_B")) {
+		/* Disable capture operation */
+		rzg2l_gpt_write(pc, 0, GTICBSR);
+	} else {
+		/* Disable capture operation */
+		rzg2l_gpt_write(pc, 0, GTICASR);
+	}
 	/* Disable interrupt */
 	rzg2l_gpt_write(pc, 0, GTINTAD);
 
@@ -428,20 +463,42 @@ static irqreturn_t gpt_gtciv_interrupt(int irq, void *data)
 		pc->overflow_count++;
 		pc->buffer_mode_count--;
 
-		tmp = rzg2l_gpt_read(pc, GTBER);
-		if (tmp & GTCCRB_BUFFER_SINGLE) {
-			rzg2l_gpt_write(pc, pc->buffer[pc->buffer_mode_count],
+		if (!strcmp(pc->channel, "channel_B")) {
+			tmp = rzg2l_gpt_read(pc, GTBER);
+			if (tmp & GTCCRB_BUFFER_SINGLE) {
+				rzg2l_gpt_write(pc,
+					pc->buffer[pc->buffer_mode_count],
 					GTCCRE);
-			if (pc->buffer_mode_count == 0)
-				pc->buffer_mode_count = 2;
-		}
+				if (pc->buffer_mode_count == 0)
+					pc->buffer_mode_count = 2;
+			}
 
-		tmp = rzg2l_gpt_read(pc, GTBER);
-		if (tmp & GTCCRB_BUFFER_DOUBLE) {
-			rzg2l_gpt_write(pc, pc->buffer[pc->buffer_mode_count],
+			tmp = rzg2l_gpt_read(pc, GTBER);
+			if (tmp & GTCCRB_BUFFER_DOUBLE) {
+				rzg2l_gpt_write(pc,
+					pc->buffer[pc->buffer_mode_count],
 					GTCCRF);
-			if (pc->buffer_mode_count == 0)
-				pc->buffer_mode_count = 3;
+				if (pc->buffer_mode_count == 0)
+					pc->buffer_mode_count = 3;
+			}
+		} else {
+			tmp = rzg2l_gpt_read(pc, GTBER);
+			if (tmp & GTCCRA_BUFFER_SINGLE) {
+				rzg2l_gpt_write(pc,
+					pc->buffer[pc->buffer_mode_count],
+					GTCCRC);
+				if (pc->buffer_mode_count == 0)
+					pc->buffer_mode_count = 2;
+			}
+
+			tmp = rzg2l_gpt_read(pc, GTBER);
+			if (tmp & GTCCRA_BUFFER_DOUBLE) {
+				rzg2l_gpt_write(pc,
+					pc->buffer[pc->buffer_mode_count],
+					GTCCRD);
+				if (pc->buffer_mode_count == 0)
+					pc->buffer_mode_count = 3;
+			}
 		}
 
 		irq_flags &= ~TCFPO;
@@ -449,6 +506,53 @@ static irqreturn_t gpt_gtciv_interrupt(int irq, void *data)
 	}
 
 	/* Disable overflow interrupt flags */
+	rzg2l_gpt_write(pc, irq_flags, GTST);
+
+	spin_unlock_irqrestore(&pc->lock, flags);
+
+	return ret;
+}
+
+static irqreturn_t gpt_gtcia_interrupt(int irq, void *data)
+{
+	struct rzg2l_gpt_chip *pc = data;
+	int ret = IRQ_NONE;
+	uint32_t irq_flags;
+	unsigned long flags;
+	uint32_t tmp = 0;
+
+	spin_lock_irqsave(&pc->lock, flags);
+
+	irq_flags = rzg2l_gpt_read(pc, GTST);
+	if (irq_flags & TCFA) {
+		pc->snapshot[pc->index] = rzg2l_gpt_read(pc, GTCCRA) +
+			(pc->overflow_count) * GTPR_MAX_VALUE;
+		switch (pc->index) {
+		case 0:
+		case 1:
+			tmp = rzg2l_gpt_read(pc, GTICASR);
+			if (tmp & INPUT_CAP_GTIOA_RISING_EDGE)
+				rzg2l_gpt_write(pc,
+				INPUT_CAP_GTIOA_FALLING_EDGE, GTICASR);
+			if (tmp & INPUT_CAP_GTIOA_FALLING_EDGE)
+				rzg2l_gpt_write(pc, INPUT_CAP_GTIOA_RISING_EDGE,
+						GTICASR);
+			pc->index++;
+			break;
+		case 2:
+			/* Disable capture operation */
+			rzg2l_gpt_write(pc, 0, GTICASR);
+			wake_up(&pc->wait);
+			break;
+		default:
+			dev_err(pc->chip.dev, "Internal error\n");
+		}
+
+		irq_flags &= ~TCFA;
+		ret = IRQ_HANDLED;
+	}
+
+	/* Disable input capture interrupt flags */
 	rzg2l_gpt_write(pc, irq_flags, GTST);
 
 	spin_unlock_irqrestore(&pc->lock, flags);
@@ -535,7 +639,10 @@ static ssize_t buff0_store(struct device *dev, struct device_attribute *attr,
 	}
 
 	/*Set compare match value in GTCCRA in GTCCRB*/
-	rzg2l_gpt_write(pc, pc->buffer[0], GTCCRB);
+	if (!strcmp(pc->channel, "channel_B"))
+		rzg2l_gpt_write(pc, pc->buffer[0], GTCCRB);
+	else
+		rzg2l_gpt_write(pc, pc->buffer[0], GTCCRA);
 
 	clk_disable_unprepare(pc->clk);
 
@@ -592,10 +699,18 @@ static ssize_t buff1_store(struct device *dev, struct device_attribute *attr,
 		goto out;
 	}
 
-	/*Set buffer operation with CCRA CCRB in GTBER*/
-	rzg2l_gpt_write(pc, GTCCRB_BUFFER_SINGLE, GTBER);
-	/* Set buffer value for B in GTCCRE(single), GTCCRF(double)*/
-	rzg2l_gpt_write(pc, pc->buffer[1], GTCCRE);
+	if (!strcmp(pc->channel, "channel_B")) {
+		/*Set buffer operation with CCRA CCRB in GTBER*/
+		rzg2l_gpt_write(pc, GTCCRB_BUFFER_SINGLE, GTBER);
+		/* Set buffer value for B in GTCCRE(single), GTCCRF(double)*/
+		rzg2l_gpt_write(pc, pc->buffer[1], GTCCRE);
+	} else {
+		/*Set buffer operation with CCRA CCRB in GTBER*/
+		rzg2l_gpt_write(pc, GTCCRA_BUFFER_SINGLE, GTBER);
+		/* Set buffer value for A in GTCCRC(single), GTCCRD(double)*/
+		rzg2l_gpt_write(pc, pc->buffer[1], GTCCRC);
+	}
+
 	/* Enable overflow interrupt*/
 	rzg2l_gpt_write(pc, GTINTPROV, GTINTAD);
 
@@ -654,10 +769,18 @@ static ssize_t buff2_store(struct device *dev, struct device_attribute *attr,
 		goto out;
 	}
 
-	/*Set buffer operation with CCRA CCRB in GTBER*/
-	rzg2l_gpt_write(pc, GTCCRB_BUFFER_DOUBLE, GTBER);
-	/* Set buffer value for B in GTCCRE(single), GTCCRF(double)*/
-	rzg2l_gpt_write(pc, pc->buffer[2], GTCCRF);
+	if (!strcmp(pc->channel, "channel_B")) {
+		/*Set buffer operation with CCRA CCRB in GTBER*/
+		rzg2l_gpt_write(pc, GTCCRB_BUFFER_DOUBLE, GTBER);
+		/* Set buffer value for B in GTCCRE(single), GTCCRF(double)*/
+		rzg2l_gpt_write(pc, pc->buffer[2], GTCCRF);
+	} else {
+		/*Set buffer operation with CCRA CCRB in GTBER*/
+		rzg2l_gpt_write(pc, GTCCRA_BUFFER_DOUBLE, GTBER);
+		/* Set buffer value for B in GTCCRC(single), GTCCRD(double)*/
+		rzg2l_gpt_write(pc, pc->buffer[2], GTCCRD);
+	}
+
 	/* Enable overflow interrupt*/
 	rzg2l_gpt_write(pc, GTINTPROV, GTINTAD);
 
@@ -740,6 +863,19 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	irq = platform_get_irq_byname(pdev, "gtcia");
+	if (irq < 0) {
+		dev_err(&pdev->dev, "Failed to obtain IRQ\n");
+		return irq;
+	}
+
+	ret = devm_request_irq(&pdev->dev, irq, gpt_gtcia_interrupt, 0,
+				dev_name(&pdev->dev), rzg2l_gpt);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to request IRQ\n");
+		return ret;
+	}
+
 	irq = platform_get_irq_byname(pdev, "gtciv");
 	if (irq < 0) {
 		dev_err(&pdev->dev, "Failed to obtain IRQ\n");
@@ -751,6 +887,19 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to request IRQ\n");
 		return ret;
+	}
+
+	ret = of_property_read_string(pdev->dev.of_node, "channel",
+					&rzg2l_gpt->channel);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Not define GPT channel\n");
+		return ret;
+	}
+
+	if (strcmp(rzg2l_gpt->channel, "channel_A")
+	    && strcmp(rzg2l_gpt->channel, "channel_B")) {
+		dev_err(&pdev->dev, "Failed to get GPT channel\n");
+		return -ENODEV;
 	}
 
 	rzg2l_gpt->clk = devm_clk_get(&pdev->dev, NULL);
