@@ -690,6 +690,7 @@
 &gpt3 {
 	pinctrl-0 = <&gpt3_pins>;
 	pinctrl-names = "default";
+	channel="channel_B";
 	//conflict pin with SD1 WP
 	status = "okay";
 };
