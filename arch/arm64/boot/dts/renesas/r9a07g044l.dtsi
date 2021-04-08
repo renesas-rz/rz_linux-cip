@@ -549,6 +549,32 @@
 			status = "disabled";
 		};
 
+		gpt5: gpt@10048500 {
+			compatible = "renesas,gpt-r9a07g044l";
+			reg = <0 0x10048500 0 0xa4>;
+			#pwm-cells = <2>;
+			interrupts = <GIC_SPI 283 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 284 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 285 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 286 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 287 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 288 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 289 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 290 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 291 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 292 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 293 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 294 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 295 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "gtcia", "gtcib", "gtcic", "gtcid",
+				"gtcie", "gtcif", "gtciada", "gtciadb",
+				"gtciv", "gtciu", "gtcih", "gtcil",
+				"gtdei";
+			clocks = <&cpg CPG_MOD R9A07G044L_CLK_GPT>;
+			resets =  <&cpg R9A07G044L_CLK_GPT>;
+			status = "disabled";
+		};
+
 		vspd0: vsp@10870000 {
 			compatible = "renesas,vsp2";
 			reg = <0 0x10870000 0 0x10000>;
