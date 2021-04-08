@@ -430,6 +430,11 @@
 		function = "scif2";
 	};
 
+	gpt5_pins: gpt5 {
+		groups = "gpt5_a_b";
+		function = "gpt5";
+	};
+
 	sd0_pwr_en {
 		gpio-hog;
 		gpios = <RZG2L_GPIO(4, 1) GPIO_ACTIVE_HIGH>;
@@ -568,6 +573,13 @@
 	pinctrl-0 = <&scif2_pins>;
 	pinctrl-names = "default";
 	uart-has-rtscts;
+	status = "okay";
+};
+
+&gpt5 {
+	pinctrl-0 = <&gpt5_pins>;
+	pinctrl-names = "default";
+	channel="channel_A";
 	status = "okay";
 };
 
