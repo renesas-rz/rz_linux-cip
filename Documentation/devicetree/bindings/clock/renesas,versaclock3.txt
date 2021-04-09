@@ -1,0 +1,61 @@
+Binding for Renesas VersaClock 3 programmable i2c clock generators.
+
+The Renesas VersaClock 3 is programmable i2c clock generators providing
+from 5 to 7 output clocks.
+
+==I2C device node==
+
+Required properties:
+- compatible:	must be
+		"renesas,5p35023"
+- reg:		i2c device address, shall be 0x68 or 0x69 or 0x6a or 0x6b.
+- #clock-cells:	from common clock binding; shall be set to 1.
+- clocks:	from common clock binding; list of parent clock handles,
+		- 5p35023: either X1 or CLKIN reference clock.
+- clock-names:	from common clock binding; clock input names, can be
+		- 5p35023: (required) either "x1" or "clkin".
+- clock-divider-read-only:	(optional) specify divider is read only or not.
+- clock-flags: (optional) specify clock flags.
+
+==Mapping between clock specifier and physical pins==
+
+When referencing the provided clock in the DT using phandle and
+clock specifier, the following mapping applies:
+
+5P35023:
+	0 -- DIFF2
+	1 -- DIFF1
+	2 -- SE3
+	3 -- SE2
+	4 -- SE1
+	5 -- Ref
+
+==Example==
+
+/* 24MHz reference crystal */
+x1_clk: x1-clock {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <24000000>;
+};
+
+i2c-master-node {
+
+	/* Renesas 5P35023 i2c clock generator */
+	versa3: versa3@68 {
+		compatible = "renesas,5p35023";
+		reg = <0x68>;
+		#clock-cells = <1>;
+
+		/* Connect X1 input to 24MHz reference */
+		clocks = <&x1_clk>;
+		clock-names = "x1";
+	};
+};
+
+/* Consumer referencing the 5P35023 pin SE2 */
+consumer {
+	...
+	clocks = <&versa3 3>;
+	...
+}
