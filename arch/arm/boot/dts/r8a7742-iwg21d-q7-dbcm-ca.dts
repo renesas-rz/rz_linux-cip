@@ -79,6 +79,26 @@
 			};
 		};
 	};
+
+	ov7725@0 {
+		compatible = "ov772x";
+		reg = <0x21>;
+		remote = <&vin0>;
+
+		/* mark OV7725 as disabled by default
+		 * to enable, run command below under U-boot command line
+		 * 	setenv vin0_camera 'ov7725'
+		 * Note: no need to update status here
+		 */
+		status = "disabled";
+
+		port {
+			ov7725_0: endpoint {
+				bus-width = <8>;
+				remote-endpoint = <&vin0ep>;
+			};
+		};
+	};
 };
 
 &i2c1 {
@@ -100,6 +120,26 @@
 			};
 		};
 	};
+
+	ov7725@1 {
+		compatible = "ov772x";
+		reg = <0x21>;
+		remote = <&vin1>;
+
+		/* mark OV7725 as disabled by default
+		 * to enable, run command below under U-boot command line
+		 * 	setenv vin1_camera 'ov7725'
+		 * Note: no need to update status here
+		 */
+		status = "disabled";
+
+		port {
+			ov7725_1: endpoint {
+				bus-width = <8>;
+				remote-endpoint = <&vin1ep>;
+			};
+		};
+	};
 };
 
 &i2c2 {
@@ -110,6 +150,26 @@
 
 		port {
 			ov5640_2: endpoint {
+				bus-width = <8>;
+				remote-endpoint = <&vin2ep>;
+			};
+		};
+	};
+
+	ov7725@2 {
+		compatible = "ov772x";
+		reg = <0x21>;
+		remote = <&vin2>;
+
+		/* mark OV7725 as disabled by default
+		 * to enable, run command below under U-boot command line
+		 * 	setenv vin2_camera 'ov7725'
+		 * Note: no need to update status here
+		 */
+		status = "disabled";
+
+		port {
+			ov7725_2: endpoint {
 				bus-width = <8>;
 				remote-endpoint = <&vin2ep>;
 			};
@@ -131,6 +191,26 @@
 
 		port {
 			ov5640_3: endpoint {
+				bus-width = <8>;
+				remote-endpoint = <&vin3ep>;
+			};
+		};
+	};
+
+	ov7725@3 {
+		compatible = "ov772x";
+		reg = <0x21>;
+		remote = <&vin3>;
+
+		/* mark OV7725 as disabled by default
+		 * to enable, run command below under U-boot command line
+		 * 	setenv vin3_camera 'ov7725'
+		 * Note: no need to update status here
+		 */
+		status = "disabled";
+
+		port {
+			ov7725_3: endpoint {
 				bus-width = <8>;
 				remote-endpoint = <&vin3ep>;
 			};
