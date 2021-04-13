@@ -221,6 +221,26 @@
 			};
 		};
 	};
+
+	ov7725@21 {
+		compatible = "ov772x";
+		reg = <0x21>;
+		remote = <&vin1>;
+
+		/* mark OV7725 as disabled by default
+		 * to enable, run command below under U-boot command line
+		 * 	setenv vin1_camera 'ov7725'
+		 * Note: no need to update status here
+		 */
+		status = "disabled";
+
+		port {
+			ov7725: endpoint {
+				bus-width = <8>;
+				remote-endpoint = <&vin1ep>;
+			};
+		};
+	};
 };
 
 &pci0 {
