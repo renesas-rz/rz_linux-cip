@@ -17,7 +17,6 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/videodev2.h>
-#include <linux/reset.h>
 #include <linux/sys_soc.h>
 
 #include <media/rcar-fcp.h>
@@ -855,16 +854,6 @@ static int vsp1_probe(struct platform_device *pdev)
 		vsp1->bus_master = rcar_fcp_get_device(vsp1->fcp);
 	} else {
 		vsp1->bus_master = vsp1->dev;
-	}
-
-	if (soc_device_match(rzg2l_match)) {
-		vsp1->rstc = devm_reset_control_get(&pdev->dev, NULL);
-		if (IS_ERR(vsp1->rstc)) {
-			dev_err(&pdev->dev, "failed to get cpg reset\n");
-			return PTR_ERR(vsp1->rstc);
-		}
-
-		reset_control_deassert(vsp1->rstc);
 	}
 
 	/* Configure device parameters based on the version register. */
