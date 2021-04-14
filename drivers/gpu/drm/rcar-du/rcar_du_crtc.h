@@ -17,6 +17,7 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
+#include <linux/reset.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
@@ -50,6 +51,7 @@ struct rcar_du_crtc {
 
 	struct clk *clock;
 	struct clk *extclock;
+	struct reset_control *rstc;
 	unsigned int mmio_offset;
 	unsigned int index;
 	bool initialized;
