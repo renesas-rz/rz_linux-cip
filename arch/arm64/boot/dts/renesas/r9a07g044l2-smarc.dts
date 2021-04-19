@@ -646,6 +646,8 @@
 #define RZADMA_SSI0_RX	2
 #define RZADMA_SSI1_TX	3
 #define RZADMA_SSI1_RX	4
+#define RZADMA_RSPI1_TX	5
+#define RZADMA_RSPI1_RX	6
 
 /* DMA Configuration */
 &dma0  {
@@ -653,12 +655,16 @@
 	slave_id = <RZADMA_SSI0_TX
 		    RZADMA_SSI0_RX
 		    RZADMA_SSI1_TX
-		    RZADMA_SSI1_RX>;
+		    RZADMA_SSI1_RX
+		    RZADMA_RSPI1_TX
+		    RZADMA_RSPI1_RX>;
 	/* Address of data source/destination */
 	addr = <0x10049C18	/* SSIFTDR_0 */
 		0x10049C1C	/* SSIFRDR_0 */
 		0x1004A018	/* SSIFTDR_1 */
 		0x1004A01C	/* SSIFRDR_1 */
+		0x1004B004	/* SPDR_1 */
+		0x1004B004	/* SPDR_1 */
 		>;
 	/* Channel Configuration Register (CHCFG) for slave device */
 	/* .reqd .loen .hien .lvl .am .sds .dds .tm */
@@ -666,6 +672,8 @@
 		 0x0 0x0 0x1 0x0 0x2 0x1 0x1 0x0	/* SSI ch0 RX (req sig=SSIFRDR_0) */
 		 0x1 0x0 0x1 0x0 0x2 0x1 0x1 0x0	/* SSI ch1 TX (req sig=SSIFTDR_0) */
 		 0x0 0x0 0x1 0x0 0x2 0x1 0x1 0x0	/* SSI ch1 RX (req sig=SSIFRDR_0) */
+		 0x1 0x0 0x1 0x1 0x2 0x0 0x0 0x0	/* RSPI1 TX (SPDR_1) */
+		 0x0 0x0 0x1 0x1 0x2 0x0 0x0 0x0	/* RSPI1 RX (SPDR_1) */
 		 >;
 	/* DMARS for slave device */
 	/* .rid .mid */
@@ -673,6 +681,8 @@
 		 0x2 0x95	/* SSI ch0 RX */
 		 0x1 0x96	/* SSI ch1 TX */
 		 0x2 0x96	/* SSI ch1 RX */
+		 0x1 0xA6	/* RSPI ch1 TX */
+		 0x2 0xA6	/* RSPI ch1 RX */
 		 >;
 };
 
@@ -746,6 +756,9 @@
 	pinctrl-0 = <&spi1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+	dmas = <&dma0 RZADMA_RSPI1_TX>,
+	       <&dma0 RZADMA_RSPI1_RX>;
+	dma-names = "tx", "rx";
 };
 
 /* Delete our XIP QSPI partitions from the top of this file. You would not have these for non-XIP systems */
