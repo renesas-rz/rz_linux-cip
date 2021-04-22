@@ -12,6 +12,8 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
 
 #include "pinctrl-rzg2l.h"
 
@@ -591,6 +593,198 @@ static int rzg2l_pinctrl_add_functions(struct rzg2l_pinctrl *pctrl)
 	return 0;
 }
 
+static int rzg2l_gpio_irq_validate_id(struct rzg2l_pinctrl *pctrl, u32 port,
+				      u32 bit)
+{
+	const struct rzg2l_pin_info *pin_info = pctrl->psoc->pin_info;
+	int i;
+
+	for (i = 0; i <= pctrl->psoc->ngpioints; i++) {
+		if (port == pin_info->port && bit == pin_info->bit)
+			return pin_info->gpio_irq_id;
+
+		pin_info++;
+	}
+
+	return i;
+}
+
+static int rzg2l_gpio_irq_request_tint_slot(struct rzg2l_pinctrl *pctrl)
+{
+	int i;
+
+	for (i = 0; i <= pctrl->psoc->nirqs; i++) {
+		if (pctrl->tint[i] == 0)
+			break;
+	}
+
+	return i;
+}
+
+static int rzg2l_gpio_irq_check_tint_slot(struct rzg2l_pinctrl *pctrl,
+					  u32 gpio_id)
+{
+	int i;
+
+	for (i = 0; i <= pctrl->psoc->nirqs; i++) {
+		if (pctrl->tint[i] == (BIT(16) | gpio_id))
+			break;
+	}
+
+	return i;
+}
+
+static void rzg2l_gpio_irq_disable(struct irq_data *d)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
+	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
+	int hw_irq = irqd_to_hwirq(d);
+	u32 port = RZG2L_PIN_ID_TO_PORT(hw_irq);
+	u8 bit = RZG2L_PIN_ID_TO_PIN(hw_irq);
+	u32 gpioint;
+	u32 tint_slot;
+	unsigned long flags;
+	u64 reg64;
+	u32 reg32;
+
+	gpioint = rzg2l_gpio_irq_validate_id(pctrl, port, bit);
+	if (gpioint == pctrl->psoc->ngpioints)
+		return;
+
+	tint_slot = rzg2l_gpio_irq_check_tint_slot(pctrl, gpioint);
+	if (tint_slot ==  pctrl->psoc->nirqs)
+		return;
+
+
+	spin_lock_irqsave(&pctrl->lock, flags);
+
+	reg64 = readq(pctrl->base + ISEL(port));
+	reg64 &= ~BIT(bit * 8);
+	writeq(reg64, pctrl->base + ISEL(port));
+
+	reg32 = readl(pctrl->base_tint + TSSR(tint_slot / 4));
+	reg32 &= ~(GENMASK(7, 0) << (tint_slot % 4));
+	writel(reg32, pctrl->base_tint + TSSR(tint_slot / 4));
+
+	spin_unlock_irqrestore(&pctrl->lock, flags);
+
+	pctrl->tint[tint_slot] = 0;
+}
+
+static void rzg2l_gpio_irq_enable(struct irq_data *d)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
+	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
+	int hw_irq = irqd_to_hwirq(d);
+	u32 port = RZG2L_PIN_ID_TO_PORT(hw_irq);
+	u8 bit = RZG2L_PIN_ID_TO_PIN(hw_irq);
+	u32 gpioint;
+	u32 tint_slot;
+	unsigned long flags;
+	u64 reg64;
+	u32 reg32;
+
+	gpioint = rzg2l_gpio_irq_validate_id(pctrl, port, bit);
+	if (gpioint == pctrl->psoc->ngpioints)
+		return;
+
+	tint_slot = rzg2l_gpio_irq_check_tint_slot(pctrl, hw_irq);
+	if (tint_slot ==  pctrl->psoc->nirqs)
+		return;
+
+	spin_lock_irqsave(&pctrl->lock, flags);
+
+	reg64 = readq(pctrl->base + ISEL(port));
+	reg64 |= BIT(bit * 8);
+	writeq(reg64, pctrl->base + ISEL(port));
+
+	reg32 = readl(pctrl->base_tint + TSSR(tint_slot / 4));
+	reg32 |= (BIT(7) | gpioint) << (8 * (tint_slot % 4));
+	writel(reg32, pctrl->base_tint + TSSR(tint_slot / 4));
+
+	spin_unlock_irqrestore(&pctrl->lock, flags);
+}
+
+static int rzg2l_gpio_irq_set_type(struct irq_data *d, unsigned int type)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
+	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
+	int hw_irq = irqd_to_hwirq(d);
+	u32 port = RZG2L_PIN_ID_TO_PORT(hw_irq);
+	u8 bit = RZG2L_PIN_ID_TO_PIN(hw_irq);
+	u32 gpioint;
+	u32 tint_slot;
+	unsigned long flags;
+	u32 irq_type;
+	u32 reg32;
+	u8 reg8;
+
+	gpioint = rzg2l_gpio_irq_validate_id(pctrl, port, bit);
+	if (gpioint == pctrl->psoc->ngpioints)
+		return -EINVAL;
+
+
+	tint_slot = rzg2l_gpio_irq_request_tint_slot(pctrl);
+	if (tint_slot ==  pctrl->psoc->nirqs)
+		return -EINVAL;
+
+	switch (type & IRQ_TYPE_SENSE_MASK) {
+	/*
+	 * Currently we just support interrupt edge type.
+	 * About level type, we do not support because we can not clear
+	 * after triggering.
+	 */
+	case IRQ_TYPE_EDGE_RISING:
+		irq_type = RISING_EDGE;
+		break;
+	case IRQ_TYPE_EDGE_FALLING:
+		irq_type = FALLING_EDGE;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&pctrl->lock, flags);
+
+	/* Select GPIO mode in PMC Register before enabling interrupt mode */
+	reg8 = readb(pctrl->base + PMC(port));
+	reg8 &= ~BIT(bit);
+	writeb(reg8, pctrl->base + PMC(port));
+
+	pctrl->tint[tint_slot] = BIT(16) | hw_irq;
+
+	if (tint_slot > 15) {
+		reg32 = readl(pctrl->base_tint + TITSR1);
+		reg32 &= ~(IRQ_MASK << (tint_slot * 2));
+		reg32 |= irq_type << (tint_slot * 2);
+		writel(reg32, pctrl->base_tint + TITSR1);
+	} else {
+		reg32 = readl(pctrl->base_tint + TITSR0);
+		reg32 &= ~(IRQ_MASK << ((tint_slot - 16) * 2));
+		reg32 |= irq_type << ((tint_slot - 16) * 2);
+		writel(reg32, pctrl->base_tint + TITSR0);
+	}
+
+	spin_unlock_irqrestore(&pctrl->lock, flags);
+
+	return 0;
+}
+
+static irqreturn_t rzg2l_pinctrl_irq_handler(int irq, void *dev_id)
+{
+	struct rzg2l_pinctrl *pctrl = dev_id;
+	unsigned int offset = irq - pctrl->irq_start;
+	u32 reg32;
+
+	reg32 = readl(pctrl->base_tint + TSCR);
+	writel(reg32 & ~BIT(offset), pctrl->base_tint + TSCR);
+
+	generic_handle_irq(irq_find_mapping(pctrl->gpio_chip.irq.domain,
+					    pctrl->tint[offset] & ~BIT(16)));
+
+	return IRQ_HANDLED;
+}
+
 static int rzg2l_gpio_request(struct gpio_chip *chip, unsigned int offset)
 {
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
@@ -648,12 +842,14 @@ static int rzg2l_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 
 		reg16 = readw(pctrl->base + PM(port));
 		reg16 = (reg16 >> (bit * 2)) & PM_MASK;
-		if (reg16 == PM_OUTPUT || reg16 == PM_OUTPUT_INPUT)
+		if (reg16 == PM_OUTPUT)
 			return GPIOF_OUTPUT;
 		else if (reg16 == PM_INPUT)
 			return GPIOF_INPUT;
+		else if (reg16 == PM_OUTPUT_INPUT)
+			return GPIOF_BIDIRECTION;
 		else
-			return -EINVAL;
+			return GPIOF_HI_Z;
 	} else {
 		return -EINVAL;
 	}
@@ -738,10 +934,12 @@ static void rzg2l_gpio_free(struct gpio_chip *chip, unsigned int offset)
 static int rzg2l_pinctrl_add_gpiochip(struct rzg2l_pinctrl *pctrl)
 {
 	struct gpio_chip *chip = &pctrl->gpio_chip;
+	struct irq_chip *irq_chip = &pctrl->irq_chip;
 	struct device_node *np = pctrl->dev->of_node;
 	struct of_phandle_args args;
 	int ret;
 	unsigned int npins;
+	const char *name = dev_name(pctrl->dev);
 
 	ret = of_parse_phandle_with_fixed_args(np, "gpio-ranges", 3, 0, &args);
 	if (ret) {
@@ -751,7 +949,7 @@ static int rzg2l_pinctrl_add_gpiochip(struct rzg2l_pinctrl *pctrl)
 
 	npins = args.args[2];
 
-	chip->label = dev_name(pctrl->dev);
+	chip->label = name;
 	chip->parent = pctrl->dev;
 	chip->base = -1;
 	chip->ngpio = npins;
@@ -764,9 +962,22 @@ static int rzg2l_pinctrl_add_gpiochip(struct rzg2l_pinctrl *pctrl)
 	chip->free = rzg2l_gpio_free;
 	chip->owner = THIS_MODULE;
 
+	irq_chip->name = name;
+	irq_chip->irq_disable = rzg2l_gpio_irq_disable;
+	irq_chip->irq_enable = rzg2l_gpio_irq_enable;
+	irq_chip->irq_set_type = rzg2l_gpio_irq_set_type;
+	irq_chip->flags = IRQCHIP_SET_TYPE_MASKED;
+
 	ret = devm_gpiochip_add_data(pctrl->dev, chip, pctrl);
 	if (ret) {
 		dev_err(pctrl->dev, "failed to add GPIO controller\n");
+		return ret;
+	}
+
+	ret = gpiochip_irqchip_add(chip, irq_chip, 0, handle_level_irq,
+				   IRQ_TYPE_NONE);
+	if (ret) {
+		dev_err(pctrl->dev, "cannot add irqchip\n");
 		return ret;
 	}
 
@@ -775,9 +986,10 @@ static int rzg2l_pinctrl_add_gpiochip(struct rzg2l_pinctrl *pctrl)
 
 static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 {
-	struct resource *res;
+	struct resource *res, *irq;
 	struct rzg2l_pinctrl *pctrl;
 	const struct rzg2l_pin_soc *psoc;
+	int i;
 	int ret;
 
 	psoc = of_device_get_match_data(&pdev->dev);
@@ -799,6 +1011,16 @@ static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 	pctrl->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(pctrl->base))
 		return PTR_ERR(pctrl->base);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!res) {
+		dev_err(&pdev->dev, "missing IO resource\n");
+		return -ENXIO;
+	}
+
+	pctrl->base_tint = ioremap_nocache(res->start, resource_size(res));
+	if (IS_ERR(pctrl->base_tint))
+		return PTR_ERR(pctrl->base_tint);
 
 	spin_lock_init(&pctrl->lock);
 
@@ -848,9 +1070,42 @@ static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 		return ret;
 	};
 
+	for (i = 0; i < psoc->nirqs; i++) {
+		char *irqstr[psoc->nirqs];
+
+		irq = platform_get_resource(pdev, IORESOURCE_IRQ, i);
+		if (!irq) {
+			dev_err(pctrl->dev, "missing IRQ\n");
+			return -EINVAL;
+		};
+
+		if (i == 0)
+			pctrl->irq_start = irq->start;
+
+		irqstr[i] = kasprintf(GFP_KERNEL, "tint%d", i);
+
+		if (devm_request_irq(pctrl->dev, irq->start,
+				     rzg2l_pinctrl_irq_handler, IRQF_SHARED,
+				     irqstr[i], pctrl)) {
+			dev_err(pctrl->dev, "failed to request IRQ\n");
+			return -ENOENT;
+		}
+	}
+
 	platform_set_drvdata(pdev, pctrl);
 
 	dev_info(pctrl->dev, "%s support registered\n", DRV_NAME);
+	return 0;
+}
+
+static int rzg2l_pinctrl_remove(struct platform_device *pdev)
+{
+	struct rzg2l_pinctrl *pctrl = platform_get_drvdata(pdev);
+
+	gpiochip_remove(&pctrl->gpio_chip);
+
+	iounmap(pctrl->base_tint);
+
 	return 0;
 }
 
@@ -870,6 +1125,7 @@ static struct platform_driver rzg2l_pinctrl_driver = {
 		.of_match_table = of_match_ptr(rzg2l_pinctrl_of_table),
 	},
 	.probe = rzg2l_pinctrl_probe,
+	.remove = rzg2l_pinctrl_remove,
 };
 
 static int __init rzg2l_pinctrl_init(void)
