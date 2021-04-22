@@ -15,9 +15,12 @@ Required properties:
   - compatible: should be:
     - "renesas,r9a07g044l-pinctrl": for R9A07G044L SoC.
 
-  - reg
-    address base and length of the memory area where the pin controller
-    hardware is mapped to.
+  - reg: include 2 areas:
+    1st: address base and length of the memory area where the pin controller
+         hardware is mapped to.
+    2nd: address base and length of the memory area where the interrupt
+         controller hardware is mapped to.
+         Here is a part of IA55 module's area.
 
 Example:
 Pin controller node for R9A07G044L SoC.
@@ -25,7 +28,7 @@ Pin controller node for R9A07G044L SoC.
 pinctrl: pin-controller@11030000 {
 	compatible = "renesas,r9a07g044l-pinctrl";
 
-	reg = <0 0x11030000 0 0x10000>;
+	reg = <0 0x11030000 0 0x10000>, <0 0x110a0020 0 0x30>;
 };
 
 The PFC node also acts as a container for pin configuration nodes. Please refer
@@ -92,6 +95,7 @@ Required properties:
   pins, as defined by the GPIO bindings documentation. Refer to
   Documentation/devicetree/bindings/gpio/gpio.txt file for a more detailed
   description.
+- interrupts: Interrupt specifier for the controllers interrupt.
 
 The syntax of the gpio specifier used by client nodes should be the following
 with values derived from the SoC user manual.
@@ -99,9 +103,35 @@ with values derived from the SoC user manual.
    [pin number within the gpio controller]
    [flags]>
 
-  Example: A GPIO LED node that references a GPIO
+  Example: A GPIO LED node that references a GPIO P1_0
 	#include <dt-bindings/gpio/gpio.h>
+	#include <dt-bindings/pinctrl/pinctrl-rzg2l.h>
 	led1 {
 		compatible = "gpio-leds";
-		gpios = <&pinctrl 10 GPIO_ACTIVE_LOW>;
+		gpios = <&pinctrl RZG2L_GPIO(1, 0) GPIO_ACTIVE_LOW>;
+	};
+
+The GPIO controller also acts as an interrupt controller.
+Required properties:
+- interrupt-controller
+  Empty property that mark this node as an interrupt controller.
+- #interrupt-cells
+  It uses the default two cells specifier as described in
+  Documentation/devicetree/bindings/interrupt-controller/interrupts.txt.
+  Currently, GPIO interrupt can only support edge trigger condition:
+  + Rising.
+  + Falling.
+
+  Example: A GPIO pin (P1_1) is used as GPIO interrupt
+	#include <dt-bindings/interrupt-controller/arm-gic.h>
+	#include <dt-bindings/pinctrl/pinctrl-rzg2l.h>
+	&eth0 {
+		...
+
+		phy0: ethernet-phy@7 {
+			...
+			interrupt-parent = <&pinctrl>;
+			interrupts = <RZG2L_GPIO(1, 0) IRQ_TYPE_EDGE_FALLING>;
+			...
+		};
 	};
