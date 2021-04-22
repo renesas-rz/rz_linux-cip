@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/clk.h>
+#include <linux/reset.h>
 #include <linux/phy.h>
 
 #include "../core.h"
@@ -29,7 +30,7 @@
 #define PMC(n)	(0x0200 + 0x10 + (n))     /* Port Mode Control Register */
 #define PFC(n)	(0x0400 + 0x40 + (n) * 4) /* Port Function Control Register */
 #define PIN(n)	(0x0800 + 0x10 + (n))     /* Port Input Register */
-#define PFC(n)	(0x0400 + 0x40 + (n) * 4) /* Port Function Control Register */
+#define ISEL(n)	(0x2C00 + 0x80 + (n) * 8) /* IRQ Enable Control Register */
 #define PWPR	(0x3014)                  /* Port Write Protection Register */
 
 #define IOLH(n) (0x1000 + (n) * 8)	/* IOLH Switch Register */
@@ -81,6 +82,28 @@
 
 #define GPIOF_OUTPUT			0
 #define GPIOF_INPUT			1
+#define GPIOF_BIDIRECTION		2
+#define GPIOF_HI_Z			3
+
+/* Hardware Registers support GPIO interrupt in IA55 Module */
+#define TSCR	0x0		/* TINT Interrupt Status Control Register */
+#define TITSR0	0x4		/* TINT detection method selection register 0 */
+#define TITSR1	0x8		/* TINT detection method selection register 1 */
+#define TSSR(n)	(0x10 + (n) * 4) /* TINT source selection register */
+
+#define RISING_EDGE	0
+#define FALLING_EDGE	1
+#define HIGH_LEVEL	2
+#define LOW_LEVEL	3
+#define IRQ_MASK	0x3
+
+#define TINT_MAX	32
+
+struct rzg2l_pin_info {
+	u32 port;		/* Store port position of a pin */
+	u32 bit;		/* Store bit position of a pin */
+	u32 gpio_irq_id;	/* Store interrupt id for a pin */
+};
 
 struct rzg2l_pin_soc {
 	const struct pinctrl_pin_desc	*pins;
@@ -91,6 +114,10 @@ struct rzg2l_pin_soc {
 	unsigned int			nfuncs;
 
 	unsigned int			nports;
+
+	unsigned int			nirqs;
+	const struct rzg2l_pin_info	*pin_info;
+	unsigned int			ngpioints;
 };
 
 struct pin_data {
@@ -104,16 +131,26 @@ struct rzg2l_pinctrl {
 	struct pinctrl_desc		pctrl_desc;
 
 	void __iomem			*base;
+	void __iomem			*base_tint;
 	struct device			*dev;
 	struct clk			*clk;
 
 	struct gpio_chip		gpio_chip;
+	struct irq_chip			irq_chip;
 
 	const struct rzg2l_pin_soc	*psoc;
 
 	spinlock_t			lock;
 
 	unsigned int			nports;
+
+	unsigned int			irq_start;
+
+	/* This array will store GPIO IDs for TINT[0-32] with value:
+	 * - [15-0] bits: store GPIO IDs (ID = port * 8 + bit).
+	 * - [16] bit: store active status (1 for enabled, 0 for disabled).
+	 */
+	u32				tint[TINT_MAX];
 };
 
 #define RZ_G2L_PINCTRL_PIN_GPIO(port, configs)			\
