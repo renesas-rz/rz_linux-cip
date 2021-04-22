@@ -239,20 +239,6 @@
 };
 
 &pinctrl {
-	eth0_irq_pin {
-		gpio-hog;
-		gpios = <RZG2L_GPIO(1, 0) GPIO_ACTIVE_HIGH>;
-		input;
-		line-name = "eth0_irq_pin";
-	};
-
-	eth0_irq_pin {
-		gpio-hog;
-		gpios = <RZG2L_GPIO(1, 1) GPIO_ACTIVE_HIGH>;
-		input;
-		line-name = "eth1_irq_pin";
-	};
-
 	i2c3_pins: i2c3 {
 		groups = "i2c3_b";
 		function = "i2c3";
@@ -533,6 +519,9 @@
 		txd1-skew-psec = <0>;
 		txd2-skew-psec = <0>;
 		txd3-skew-psec = <0>;
+
+		interrupt-parent = <&pinctrl>;
+		interrupts = <RZG2L_GPIO(1, 0) IRQ_TYPE_EDGE_FALLING>;
 	};
 };
 
@@ -557,6 +546,9 @@
 		txd1-skew-psec = <0>;
 		txd2-skew-psec = <0>;
 		txd3-skew-psec = <0>;
+
+		interrupt-parent = <&pinctrl>;
+		interrupts = <RZG2L_GPIO(1, 1) IRQ_TYPE_EDGE_FALLING>;
 	};
 };
 
