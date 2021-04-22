@@ -1701,7 +1701,7 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	struct rcar_canfd_global *gpriv;
 	struct device_node *of_child;
 	unsigned long channels_mask = 0;
-	int err, ch_irq, g_irq;
+	int err, ch_irq, g_irq, rx_irq;
 	bool fdmode = true;			/* CAN FD only mode - default */
 	void *data;
 	int i = 0;
@@ -1758,8 +1758,16 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	} else {
 		g_irq = platform_get_irq(pdev, 0);
 		if (g_irq < 0) {
-			dev_err(&pdev->dev, "no Global IRQ resource\n");
+			dev_err(&pdev->dev, "no Global error IRQ resource\n");
 			err = g_irq;
+			goto fail_dev;
+		}
+
+		rx_irq = platform_get_irq(pdev, 7);
+
+		if (rx_irq < 0) {
+			dev_err(&pdev->dev, "no Receive FIFO IRQ resource\n");
+			err = rx_irq;
 			goto fail_dev;
 		}
 	}
@@ -1822,6 +1830,16 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev, "devm_request_irq(%d) failed, error %d\n",
 			g_irq, err);
+		goto fail_dev;
+	}
+
+	err = devm_request_irq(&pdev->dev, rx_irq,
+			rcar_canfd_global_interrupt, 0,
+			"canfd.gbl", gpriv);
+
+	if (err) {
+		dev_err(&pdev->dev, "devm_request_irq(%d) failed, error %d\n",
+			rx_irq, err);
 		goto fail_dev;
 	}
 
