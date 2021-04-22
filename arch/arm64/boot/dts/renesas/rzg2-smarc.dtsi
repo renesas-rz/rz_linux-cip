@@ -723,6 +723,9 @@
 		v3p3-supply = <&reg_3p3v>;
 		v1p2-supply = <&reg_1p8v>;
 
+		interrupt-parent = <&pinctrl>;
+		interrupts = <RZG2L_GPIO(2, 1) IRQ_TYPE_EDGE_FALLING>;
+
 		adi,dsi-lanes = <4>;
 		#sound-dai-cells = <0>;
 
