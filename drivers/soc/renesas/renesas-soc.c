@@ -65,6 +65,11 @@ static const struct renesas_family fam_rzg2l __initconst __maybe_unused = {
 	.reg    = 0x11020a04,		/* DEVID (Device ID Register) */
 };
 
+static const struct renesas_family fam_rzv2l __initconst __maybe_unused = {
+	.name   = "RZ/V2L",
+	.reg    = 0x11020a04,		/* DEVID (Device ID Register) */
+};
+
 static const struct renesas_family fam_shmobile __initconst __maybe_unused = {
 	.name	= "SH-Mobile",
 	.reg	= 0xe600101c,		/* CCCR (Common Chip Code Register) */
@@ -133,6 +138,11 @@ static const struct renesas_soc soc_rz_g2e __initconst __maybe_unused = {
 static const struct renesas_soc soc_rz_g2l __initconst __maybe_unused = {
 	.family = &fam_rzg2l,
 	.id     = 0x841c447,
+};
+
+static const struct renesas_soc soc_rz_v2l __initconst __maybe_unused = {
+	.family = &fam_rzv2l,
+	.id     = 0x8447447,
 };
 
 static const struct renesas_soc soc_rcar_m1a __initconst __maybe_unused = {
@@ -247,6 +257,9 @@ static const struct of_device_id renesas_socs[] __initconst = {
 #ifdef CONFIG_ARCH_R9A07G044L2
 	{ .compatible = "renesas,r9a07g044l2",     .data = &soc_rz_g2l },
 #endif
+#ifdef CONFIG_ARCH_R9A07G054L2
+	{ .compatible = "renesas,r9a07g054l2",     .data = &soc_rz_v2l },
+#endif
 #ifdef CONFIG_ARCH_R8A7778
 	{ .compatible = "renesas,r8a7778",	.data = &soc_rcar_m1a },
 #endif
@@ -354,8 +367,9 @@ static int __init renesas_soc_init(void)
 						   ((product >> 4) & 0x0f) + 1,
 						   product & 0xf);
 
-	/*FIXME: current RZG2L family do not support product revision*/
-	if (strcmp(soc_dev_attr->family, fam_rzg2l.name))
+	/* FIXME: current RZG2L/RZV2L family do not support product revision */
+	if (strcmp(soc_dev_attr->family, fam_rzg2l.name)
+	  || strcmp(soc_dev_attr->family, fam_rzv2l.name))
 		soc_dev_attr->revision = 0;
 
 	pr_info("Detected Renesas %s %s %s\n", soc_dev_attr->family,
