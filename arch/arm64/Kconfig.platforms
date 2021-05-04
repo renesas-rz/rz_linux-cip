@@ -214,6 +214,12 @@ config ARCH_R9A07G044L2
         help
           This enables support for the Renesas RZ/G2L dual A55 SoC.
 
+config ARCH_R9A07G054L2
+        bool "Renesas RZ/V2L dual A55 SoC Platform"
+        depends on ARCH_RENESAS
+        help
+          This enables support for the Renesas RZ/V2L dual A55 SoC.
+
 config ARCH_R8A7795
 	bool "Renesas R-Car H3 SoC Platform"
 	depends on ARCH_RENESAS
