@@ -91,7 +91,7 @@ union dmars_reg {
 	u32 v;
 	struct {
 		u32 rid:   2;	/* LSB */
-#ifdef CONFIG_ARCH_R9A07G044L2
+#if defined(CONFIG_ARCH_R9A07G044L2) || defined(CONFIG_ARCH_R9A07G054L2)
 		u32 mid:   8;
 		u32 _mbz0:22;
 #else
