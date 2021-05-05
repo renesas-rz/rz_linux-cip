@@ -46,7 +46,7 @@ config SND_SOC_RCAR
 
 config SND_SOC_RZG2L
 	bool "RZ/G2L series ASoC sound support"
-	depends on ARCH_R9A07G044L2
+	depends on ARCH_R9A07G044L2 || ARCH_R9A07G054L2
 
 config SND_SOC_RZG2L_SSI
 	tristate "Simple-audio-card driver using SSIF"
