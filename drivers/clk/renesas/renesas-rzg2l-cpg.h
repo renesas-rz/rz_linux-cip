@@ -238,4 +238,5 @@ struct cpg_mssr_info {
 };
 
 extern const struct cpg_mssr_info r9a07g044l_cpg_info;
+extern const struct cpg_mssr_info r9a07g054l_cpg_info;
 #endif

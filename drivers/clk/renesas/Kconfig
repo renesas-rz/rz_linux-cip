@@ -33,11 +33,15 @@ config CLK_RENESAS_RZG2L
 	bool "Renesas RZG2L SoC clock support" if COMPILE_TEST && !ARCH_RENESAS
 	default y if ARCH_RENESAS
 	select CLK_R9A07G044L if ARCH_R9A07G044L2
+	select CLK_R9A07G054L if ARCH_R9A07G054L2
 
 if CLK_RENESAS_RZG2L
 
 config CLK_R9A07G044L
 	bool "RZG2L clock support" if COMPILE_TEST
+
+config CLK_R9A07G054L
+	bool "RZV2L clock support" if COMPILE_TEST
 
 endif # CLK_RENESAS_RZG2L
 
