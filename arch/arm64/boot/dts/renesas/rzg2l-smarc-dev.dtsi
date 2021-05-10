@@ -50,9 +50,10 @@
 #define DISP_DSI_HDMI		1
 #define DISP_DSI_PANEL		0
 
-/* CAN and ADC have pin conflict. When Can is enabled, disable ADC
+/* CAN and ADC hardware Trigger have pin conflict.
+ * When Can is enabled, disable ADC_HWTRG_SUPPORT
  */
-#define ADC_SUPPORT		0
+#define ADC_HWTRG_SUPPORT		0
 #else
 /* Parallel display is supported as default if not support CAN.
  * Please choose one of two interfaces (HDMI or panel) based on your board
@@ -68,9 +69,10 @@
 #define DISP_DSI_HDMI		0
 #define DISP_DSI_PANEL		0
 
-/* CAN and ADC have pin conflict. When Can is disabled, enable ADC
+/* CAN and ADC hardware Trigger have pin conflict.
+ * When Can is disabled, enable ADC_HWTRG_SUPPORT
  */
-#define ADC_SUPPORT		1
+#define ADC_HWTRG_SUPPORT		1
 #endif
 
 /* Below macros are created to check which video interface is supporting
@@ -383,12 +385,10 @@
 	};
 #endif
 
-#if (ADC_SUPPORT)
 	adc_pins: adc {
 		groups = "adc_d";
 		function = "adc";
 	};
-#endif
 
 	i2c1_pins: i2c1 {
 		pins = "RIIC1_SDA", "RIIC1_SCL";
@@ -688,14 +688,14 @@
 };
 #endif
 
-#if (ADC_SUPPORT)
 &adc {
-	pinctrl-0 = <&adc_pins>;
-	pinctrl-names = "default";
+#if (ADC_HWTRG_SUPPORT)
 	//conflict pin with CAN0 pin
+	pinctrl-0 = <&adc_pins>;
+#endif
+	pinctrl-names = "default";
 	status = "okay";
 };
-#endif
 
 &i2c1 {
 	pinctrl-0 = <&i2c1_pins>;
