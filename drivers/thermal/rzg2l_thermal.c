@@ -45,6 +45,7 @@
 #define INT(x)	((x) * 1000000)
 #define MCELSIUS(temp)	((temp) * 1000)	/* mili Celsius */
 #define CAP_TIMES	8	/* Capture  times */
+#define RZG2L_THERMAL_GRAN	500 /* mili Celsius */
 
 typedef enum
 {
@@ -80,13 +81,15 @@ static inline void rzg2l_thermal_write(struct rzg2l_thermal_tsc *tsc,
 	iowrite32(data, tsc->base + reg);
 }
 
-static int rzg2l_thermal_round(int temp)
+static int rzg2l_thermal_round(int mCelsius)
 {
-		int result;
+	int result, round_offs;
 
-		result = temp / 10;
+	round_offs = mCelsius >= 0 ? RZG2L_THERMAL_GRAN / 2 :
+		-RZG2L_THERMAL_GRAN / 2;
+	result = (mCelsius + round_offs) / RZG2L_THERMAL_GRAN;
 
-		return result + TEMP_25;
+	return result * RZG2L_THERMAL_GRAN;
 }
 
 static int rzg2l_thermal_get_temp(void *devdata, int *temp)
