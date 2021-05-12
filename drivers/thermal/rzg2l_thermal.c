@@ -27,17 +27,17 @@
 #define OTPTSUTRIM1_REG	503	/* Dsensor at -40 Celsius */
 
 /* Register offsets */
-#define R_TSU_SM							0x00
-#define R_TSU_ST							0x04
-#define R_TSU_SCS							0x08
-#define R_TSU_SAD							0x0C
-#define R_TSU_SS							0x10
-#define R_OTPTSU_REG					0x14
+#define R_TSU_SM	0x00
+#define R_TSU_ST	0x04
+#define R_TSU_SCS	0x08
+#define R_TSU_SAD	0x0C
+#define R_TSU_SS	0x10
+#define R_OTPTSU_REG	0x14
 #define R_OTPTSUTRIM_REG(n)	(0x18 + (n * 0x4))
 
 /* Sensor Mode Register(TSU_SM) */
-#define EN_TS				BIT(0)
-#define ADC_EN_TS		BIT(1)
+#define EN_TS	BIT(0)
+#define ADC_EN_TS	BIT(1)
 
 /* TSU_ST bits */
 #define TSU_START	BIT(0)
@@ -135,8 +135,8 @@ static int rzg2l_thermal_set_trips(void *devdata, int low, int high)
 }
 
 static const struct thermal_zone_of_device_ops rzg2l_tz_of_ops = {
-				.get_temp		= rzg2l_thermal_get_temp,
-		.set_trips	= rzg2l_thermal_set_trips,
+	.get_temp = rzg2l_thermal_get_temp,
+	.set_trips = rzg2l_thermal_set_trips,
 };
 
 static void rzg2l_thermal_init(struct rzg2l_thermal_tsc *tsc)
@@ -147,14 +147,14 @@ static void rzg2l_thermal_init(struct rzg2l_thermal_tsc *tsc)
 	rzg2l_thermal_write(tsc, R_TSU_SM, 0x3);
 	rzg2l_thermal_write(tsc, R_TSU_ST, 0);
 
-		udelay(60);
+	udelay(60);
 
 	reg_val = rzg2l_thermal_read(tsc, R_TSU_ST);
 	reg_val |= TSU_START;
 	rzg2l_thermal_write(tsc, R_TSU_ST, reg_val);
 	rzg2l_thermal_write(tsc, R_TSU_SS, 0x1);
 
-		usleep_range(1000, 2000);
+	usleep_range(1000, 2000);
 
 }
 
@@ -199,7 +199,7 @@ static int rzg2l_thermal_probe(struct platform_device *pdev)
 	return PTR_ERR(priv->rstc);
 	}
 
-		reset_control_deassert(priv->rstc);
+	reset_control_deassert(priv->rstc);
 
 	priv->thermal_init = rzg2l_thermal_init;
 
@@ -263,13 +263,13 @@ error_unregister:
 static int __maybe_unused rzg2l_thermal_suspend(struct device *dev)
 {
 	struct rzg2l_thermal_priv *priv = dev_get_drvdata(dev);
-		struct rzg2l_thermal_tsc *tsc = priv->tsc;
-		u32 reg_val;
+	struct rzg2l_thermal_tsc *tsc = priv->tsc;
+	u32 reg_val;
 
-		reg_val = rzg2l_thermal_read(tsc, R_TSU_ST);
-		reg_val &= ~TSU_START;
-		rzg2l_thermal_write(tsc, R_TSU_ST, reg_val);
-		rzg2l_thermal_write(tsc, R_TSU_SM, 0);
+	reg_val = rzg2l_thermal_read(tsc, R_TSU_ST);
+	reg_val &= ~TSU_START;
+	rzg2l_thermal_write(tsc, R_TSU_ST, reg_val);
+	rzg2l_thermal_write(tsc, R_TSU_SM, 0);
 
 	return 0;
 }
