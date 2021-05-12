@@ -23,10 +23,8 @@
 #include "thermal_hwmon.h"
 
 #define CTEMP_MASK	0xFFF
-#define D_OTP_25						1545
-#define D_OTP_105						2827
-#define RESOLUTION					625
-#define D_OTP_SL						6
+#define OTPTSUTRIM0_REG	3148	/* Dsensor at 125 Celsius */
+#define OTPTSUTRIM1_REG	503	/* Dsensor at -40 Celsius */
 
 /* Register offsets */
 #define R_TSU_SM							0x00
@@ -35,10 +33,7 @@
 #define R_TSU_SAD							0x0C
 #define R_TSU_SS							0x10
 #define R_OTPTSU_REG					0x14
-#define R_OTPTSUTRIM0_REG			0x18
-#define R_OTPTSUTRIM1_REG			0x1C
-#define R_OTPTSUTRIM2_REG			0x20
-#define R_OTPTSUTRIM3_vEG			0x24
+#define R_OTPTSUTRIM_REG(n)	(0x18 + (n * 0x4))
 
 /* Sensor Mode Register(TSU_SM) */
 #define EN_TS				BIT(0)
@@ -47,8 +42,9 @@
 /* TSU_ST bits */
 #define TSU_START	BIT(0)
 
-#define MCELSIUS_X10				10000
-#define TEMP_25							25000
+#define INT(x)	((x) * 1000000)
+#define MCELSIUS(temp)	((temp) * 1000)	/* mili Celsius */
+#define CAP_TIMES	8	/* Capture  times */
 
 typedef enum
 {
@@ -96,43 +92,34 @@ static int rzg2l_thermal_round(int temp)
 static int rzg2l_thermal_get_temp(void *devdata, int *temp)
 {
 	struct rzg2l_thermal_tsc *tsc = devdata;
-	u32 sensor;
-		int val, result;
+	u32 TSCode[CAP_TIMES], result, D_sensor, TSCode_Ave;
+	int val, i;
 
-	/* Read register */
-
-	sensor = rzg2l_thermal_read(tsc, R_TSU_SAD);
-
-	switch (tsc->cal)
+	result = 0;
+	/*  AD conversion digital value capture CAP_TIMES */
+	for (i = 0; i < CAP_TIMES ; i++)
 	{
-	case THERMAL_1_POINT_CAL:
-		/* 1-Point Calibration */
+		TSCode[i] = rzg2l_thermal_read(tsc, R_TSU_SAD) & CTEMP_MASK;
+		result = result + TSCode[i];
 
-				result = ((sensor - D_OTP_25) * RESOLUTION);
-
-		if (sensor >= D_OTP_25)
-			val = result;
-		else
-			val = (result * ((65 * MCELSIUS_X10)/(57 + D_OTP_SL)))/MCELSIUS_X10;
-		break;
-	case THERMAL_2_POINT_CAL:
-		/* 2-Point Calibration */
-
-				result = ((sensor - D_OTP_25) *((80 * MCELSIUS_X10)/(D_OTP_105 - D_OTP_25))); 
-		if (sensor >= D_OTP_25)
-			val = result;
-		else
-			val = (result * ((65 * MCELSIUS_X10)/(57 + D_OTP_SL)))/MCELSIUS_X10;
-		break;
-
-	default:
-		break;
+		udelay(20);
 	}
 
-		*temp = rzg2l_thermal_round(val);
+	/* Calculate the average value */
+	TSCode_Ave = result/CAP_TIMES;
 
-	/* Make sure we are inside specifications */
-	if ((*temp	< -40000) || (*temp > 125000))
+	/* Curvature correction */
+	D_sensor = INT(TSCode_Ave) / (INT(1) + (TSCode_Ave * 13));
+
+	/* Temperature calculation */
+	val = ((D_sensor - OTPTSUTRIM1_REG) * (MCELSIUS(165) /
+			(OTPTSUTRIM0_REG - OTPTSUTRIM1_REG))) + MCELSIUS(-40);
+
+	/* Round value to device granularity setting */
+	*temp = rzg2l_thermal_round(val);
+
+	/* Guaranteed operating range is -40C to 125C. */
+	if ((*temp	< MCELSIUS(-40)) || (*temp > MCELSIUS(125)))
 		return -EIO;
 
 	return 0;
