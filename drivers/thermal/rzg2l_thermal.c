@@ -47,16 +47,9 @@
 #define CAP_TIMES	8	/* Capture  times */
 #define RZG2L_THERMAL_GRAN	500 /* mili Celsius */
 
-typedef enum
-{
-		THERMAL_1_POINT_CAL = 0,							 /* 1-Point calibration */
-		THERMAL_2_POINT_CAL = 1									 /* 2-Point calibration */
-} r_thermal_calibration_t;
-
 struct rzg2l_thermal_tsc {
 	void __iomem *base;
 	struct thermal_zone_device *zone;
-		r_thermal_calibration_t cal;
 	int low;
 	int high;
 	int tj_t;
@@ -217,8 +210,6 @@ static int rzg2l_thermal_probe(struct platform_device *pdev)
 
 	{
 		struct rzg2l_thermal_tsc *tsc;
-		struct device_node *np = dev->of_node;
-				u32 cal;
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (!res)
@@ -230,14 +221,12 @@ static int rzg2l_thermal_probe(struct platform_device *pdev)
 			goto error_unregister;
 		}
 
-				of_property_read_u32(np, "thermal-cal", &cal);
-
 		tsc->base = devm_ioremap_resource(dev, res);
 		if (IS_ERR(tsc->base)) {
 			ret = PTR_ERR(tsc->base);
 			goto error_unregister;
 		}
-				tsc->cal = cal;
+
 		priv->tsc = tsc;
 
 		priv->thermal_init(tsc);
