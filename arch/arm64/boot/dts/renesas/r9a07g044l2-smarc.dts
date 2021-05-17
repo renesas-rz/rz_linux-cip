@@ -188,6 +188,10 @@
 	clock-frequency = <11289600>;
 };
 
+&audio_clk2{
+	clock-frequency = <12288000>;
+};
+
 &adc {
 	pinctrl-0 = <&adc_pins>;
 	pinctrl-names = "default";
@@ -540,7 +544,7 @@
 	};
 
 	sound_clk_pins: sound_clk {
-		pins = "AUDIO_CLK1";
+		pins = "AUDIO_CLK1", "AUDIO_CLK2";
 		input-enable;
 	};
 
