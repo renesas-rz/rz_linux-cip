@@ -23,7 +23,7 @@
  *	aplay -D hw:1,0 xxx.wav
  */
 
-/* Select one funtion support SDHI1|GPT (1: enabled, 0 : disabled)
+/* Select one function support SDHI1|GPT (1: enabled, 0 : disabled)
  * SDHI1 and GPT have pin conflict. Only one can be enabled at once
  */
 #define SDHI1_SUPPORT		1
@@ -198,10 +198,9 @@
 		reg = <0 0x20000000 0 0x4000000>;   /* 64 MB*/
 		bank-width = <4>;
 		device-width = <1>;
-		
 		#address-cells = <1>;
 		#size-cells = <1>;
-		
+
 		partition@800000 {
 			label ="rootfs_xipcramfs";
 			reg = <0x0800000 0x1000000>; /* 16MB @ 0x20800000 */
@@ -367,7 +366,7 @@
 		groups = "eth0_link", "eth0_mdio", "eth0_mii";
 		function = "eth0";
 	};
-	
+
 	ether1_pins: eth1 {
 		groups = "eth1_link", "eth1_mdio", "eth1_mii";
 		function = "eth1";
@@ -531,7 +530,7 @@
 	phy-handle = <&phy1>;
 	phy-mode = "rgmii";
 	status = "okay";
-	
+
 	phy1: ethernet-phy@7 {
 		reg = <7>;
 		rxc-skew-psec = <2400>;
@@ -552,7 +551,9 @@
 	};
 };
 
-/* Delete our XIP QSPI partitions from the top of this file. You would not have these for non-XIP systems */
+/* Delete our XIP QSPI partitions from the top of this file.
+ * You would not have these for non-XIP systems
+ */
 / {
 	/delete-node/ qspi@20000000;
 };
@@ -584,12 +585,12 @@
 		>;
 	/* Channel Configuration Register (CHCFG) for slave device */
 	/* .reqd .loen .hien .lvl .am .sds .dds .tm */
-	chcfg = <0x1 0x0 0x1 0x0 0x2 0x1 0x1 0x0	/* SSI ch0 TX (req sig=SSIFTDR_0) */
-		 0x0 0x0 0x1 0x0 0x2 0x1 0x1 0x0	/* SSI ch0 RX (req sig=SSIFRDR_0) */
-		 0x1 0x0 0x1 0x0 0x2 0x1 0x1 0x0	/* SSI ch1 TX (req sig=SSIFTDR_0) */
-		 0x0 0x0 0x1 0x0 0x2 0x1 0x1 0x0	/* SSI ch1 RX (req sig=SSIFRDR_0) */
-		 0x1 0x0 0x1 0x1 0x2 0x0 0x0 0x0	/* RSPI1 TX (SPDR_1) */
-		 0x0 0x0 0x1 0x1 0x2 0x0 0x0 0x0	/* RSPI1 RX (SPDR_1) */
+	chcfg = <0x1 0x0 0x1 0x0 0x2 0x1 0x1 0x0 /* SSI0 TX (SSIFTDR_0) */
+		 0x0 0x0 0x1 0x0 0x2 0x1 0x1 0x0 /* SSI0 RX (SSIFRDR_0) */
+		 0x1 0x0 0x1 0x0 0x2 0x1 0x1 0x0 /* SSI1 TX (SSIFTDR_0) */
+		 0x0 0x0 0x1 0x0 0x2 0x1 0x1 0x0 /* SSI1 RX (SSIFRDR_0) */
+		 0x1 0x0 0x1 0x1 0x2 0x0 0x0 0x0 /* RSPI1 TX (SPDR_1) */
+		 0x0 0x0 0x1 0x1 0x2 0x0 0x0 0x0 /* RSPI1 RX (SPDR_1) */
 		 >;
 	/* DMARS for slave device */
 	/* .rid .mid */
