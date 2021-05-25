@@ -3208,6 +3208,10 @@ static const struct of_device_id of_sci_match[] = {
 		.compatible = "renesas,scif-r9a07g044l",
 		.data = SCI_OF_DATA(PORT_SCIF, SCIx_RZ_SCIFA_REGTYPE),
 	},
+	{
+		.compatible = "renesas,scif-r9a07g054l",
+		.data = SCI_OF_DATA(PORT_SCIF, SCIx_RZ_SCIFA_REGTYPE),
+	},
 	/* Family-specific types */
 	{
 		.compatible = "renesas,rcar-gen1-scif",
@@ -3286,6 +3290,10 @@ static struct plat_sci_port *sci_parse_dt(struct platform_device *pdev,
 static const struct soc_device_attribute soc_r9a07g044l[] = {
 	{
 		.soc_id = "r9a07g044l",
+		.data = (void *)1,
+	},
+	{
+		.soc_id = "r9a07g054l",
 		.data = (void *)1,
 	},
 	{ /* Sentinel */ }
@@ -3525,6 +3533,8 @@ static int __init hscif_early_console_setup(struct earlycon_device *device,
 OF_EARLYCON_DECLARE(sci, "renesas,sci", sci_early_console_setup);
 OF_EARLYCON_DECLARE(scif, "renesas,scif", scif_early_console_setup);
 OF_EARLYCON_DECLARE(scif, "renesas,scif-r9a07g044l",
+		    rzscifa_early_console_setup);
+OF_EARLYCON_DECLARE(scif, "renesas,scif-r9a07g054l",
 		    rzscifa_early_console_setup);
 OF_EARLYCON_DECLARE(scifa, "renesas,scifa", scifa_early_console_setup);
 OF_EARLYCON_DECLARE(scifb, "renesas,scifb", scifb_early_console_setup);
