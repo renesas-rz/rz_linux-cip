@@ -302,7 +302,7 @@
 		};
 
 		tsu: serial@10059400 {
-			compatible = "renesas,tsu-r9a07g044l";
+			compatible = "renesas,rzg2l-tsu";
 			reg = <0 0x10059400 0 0x400>;
 			clocks = <&cpg CPG_MOD R9A07G044L_CLK_TSU_PCLK>;
 			resets = <&cpg R9A07G044L_CLK_TSU_PCLK>;
@@ -498,7 +498,7 @@
 		};
 
 		spibsc: spi@10060000 {
-			compatible = "renesas,r9a07g044l-spibsc";
+			compatible = "renesas,rzg2l-spibsc";
 			reg = <0 0x10060000 0 0x78>, <0 0x20000000 0 0x10000000>;
 			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD R9A07G044L_CLK_SPI>;
@@ -558,7 +558,7 @@
 		};
 
 		gpt3: gpt@10048300 {
-			compatible = "renesas,gpt-r9a07g044l";
+			compatible = "renesas,rzg2l-gpt";
 			reg = <0 0x10048300 0 0xa4>;
 			#pwm-cells = <2>;
 			interrupts = <GIC_SPI 257 IRQ_TYPE_EDGE_RISING>,
@@ -584,7 +584,7 @@
 		};
 
 		gpt5: gpt@10048500 {
-			compatible = "renesas,gpt-r9a07g044l";
+			compatible = "renesas,rzg2l-gpt";
 			reg = <0 0x10048500 0 0xa4>;
 			#pwm-cells = <2>;
 			interrupts = <GIC_SPI 283 IRQ_TYPE_EDGE_RISING>,
@@ -659,7 +659,7 @@
 		};
 
 		dsi0: dsi@10860000 {
-			compatible = "renesas,r9a07g044l-mipi-dsi";
+			compatible = "renesas,rzg2l-mipi-dsi";
 			reg =	<0 0x10860000 0 0x10000>, /* LINK */
 				<0 0x10850000 0 0x10000>; /* DPHY */
 
