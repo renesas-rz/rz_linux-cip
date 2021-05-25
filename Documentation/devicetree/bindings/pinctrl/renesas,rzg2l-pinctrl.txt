@@ -1,6 +1,6 @@
-Renesas RZ/G2L combined Pin and GPIO controller
+Renesas RZ/G2L and RZ/V2L combined Pin and GPIO controller
 
-The Renesas SoCs of the RZ/G2L family feature a combined Pin and GPIO controller,
+The Renesas SoCs of the RZ/G2L and RZ/V2L family feature a combined Pin and GPIO controller,
 named "P" in the hardware reference manual.
 Pin multiplexing and GPIO configuration is performed on a per-pin basis
 writing configuration values to per-port register sets.
@@ -14,6 +14,7 @@ Pin controller node
 Required properties:
   - compatible: should be:
     - "renesas,r9a07g044l-pinctrl": for R9A07G044L SoC.
+    - "renesas,r9a07g054l-pinctrl": for R9A07G054L SoC.
 
   - reg: include 2 areas:
     1st: address base and length of the memory area where the pin controller
