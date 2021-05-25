@@ -164,7 +164,7 @@ static const struct rcar_du_device_info rcar_du_r8a774c0_info = {
 	.lvds_clk_mask =  BIT(1) | BIT(0),
 };
 
-static const struct rcar_du_device_info rcar_du_r9a04g077l_info = {
+static const struct rcar_du_device_info rcar_du_r9a04g044l_info = {
 	.gen = 3,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
 		  | RCAR_DU_FEATURE_RZG2L
@@ -415,7 +415,7 @@ static const struct of_device_id rcar_du_of_table[] = {
 	{ .compatible = "renesas,du-r8a774a1", .data = &rcar_du_r8a774a1_info },
 	{ .compatible = "renesas,du-r8a774b1", .data = &rcar_du_r8a774b1_info },
 	{ .compatible = "renesas,du-r8a774c0", .data = &rcar_du_r8a774c0_info },
-	{ .compatible = "renesas,du-r9a04g077l", .data = &rcar_du_r9a04g077l_info },
+	{ .compatible = "renesas,du-r9a04g044l", .data = &rcar_du_r9a04g044l_info },
 	{ .compatible = "renesas,du-r8a7779", .data = &rcar_du_r8a7779_info },
 	{ .compatible = "renesas,du-r8a7790", .data = &rcar_du_r8a7790_info },
 	{ .compatible = "renesas,du-r8a7791", .data = &rcar_du_r8a7791_info },
