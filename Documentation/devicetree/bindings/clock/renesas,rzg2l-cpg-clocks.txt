@@ -1,6 +1,6 @@
-* Renesas RZ/G2L Clock Pulse Generator (CPG)
+* Renesas RZ/G2L and RZ/V2L Clock Pulse Generator (CPG)
 
-The CPG generates core clocks for the RZ/G2L SoCs. It includes the PLL, variable
+The CPG generates core clocks for the RZ/G2L and RZ/V2L SoCs. It includes the PLL, variable
 CPU and GPU clocks, and several fixed ratio dividers.
 The CPG also provides a Clock Domain for SoC devices, in combination with the
 CPG Module Stop (MSTP) Clocks.
@@ -9,11 +9,12 @@ Required Properties:
 
   - compatible: Must be one of
     - "renesas,r9a07g044l-cpg" for the r9a07g044l CPG
+    - "renesas,r9a07g054l-cpg" for the r9a07g054l CPG
   - reg: Base address and length of the memory resource used by the CPG
   - clocks: References to possible external input clocks,
 	one entry for each entry in clock-names
   - clock-names: References to possible input clock names. Valid list as below:
-	"xinclk" (r9a07g044l)
+	"xinclk" (r9a07g044l, r9a07g054l)
   - #clock-cells: Must be 2
 
 Examples
