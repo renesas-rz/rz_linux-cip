@@ -290,7 +290,7 @@ static SIMPLE_DEV_PM_OPS(rzg2l_thermal_pm_ops, rzg2l_thermal_suspend,
 
 static const struct of_device_id rzg2l_thermal_dt_ids[] = {
 	{
-		.compatible = "renesas,tsu-r9a07g044l",
+		.compatible = "renesas,rzg2l-tsu",
 	},
 	{},
 };
