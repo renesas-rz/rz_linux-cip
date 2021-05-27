@@ -1081,7 +1081,7 @@ static int vc3_probe(struct i2c_client *client,
 			pll_parent_names[0] = vc3_div_names[4];
 			pll_parent_names[1] = vc3_div_names[3];
 			pll_parent_names[2] = "32k";
-			init.num_parents = 3;
+			init.num_parents = 2;
 			init.parent_names = pll_parent_names;
 			break;
 		case 4:
