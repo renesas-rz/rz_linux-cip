@@ -358,7 +358,7 @@ static int rzg2l_adc_remove(struct platform_device *pdev)
 
 static const struct of_device_id rzg2l_adc_match[] = {
 	{
-		.compatible = "renesas,adc-r9a07g044l",
+		.compatible = "renesas,rzg2l-adc",
 	},
 	{},
 };
