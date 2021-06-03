@@ -313,7 +313,7 @@
 		};
 
 		dma0: dma-controller@11800000 {
-			compatible = "renesas,rza-dma";
+			compatible = "renesas,r9a07g044l-dma";
 			reg =   <0 0x11820000 0 0x10000>,
 				<0 0x11830000 0 0x10000>;
 
