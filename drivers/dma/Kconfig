@@ -463,6 +463,15 @@ config RZA_DMA
 	help
 	  Enable support for the Renesas RZA DMA controllers.
 
+config RZG2L_DMA
+	tristate "Renesas RZ/G2L DMAC support"
+	select DMA_ENGINE
+	help
+	  Enable support for the Renesas RZG2L DMA controllers. It can be used
+	  in place of the CPU to perform high-speed transfers between external
+	  memory, on-chip memory, memory-mapped external devices and on-chip
+	  peripheral modules with 16 channels.
+
 config SIRF_DMA
 	tristate "CSR SiRFprimaII/SiRFmarco DMA support"
 	depends on ARCH_SIRF
