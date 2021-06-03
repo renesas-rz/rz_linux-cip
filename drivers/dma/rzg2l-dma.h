@@ -23,4 +23,6 @@ struct dmac_mod {
         const unsigned int dmars;
 };
 
+extern const struct rzg2l_dma_conf r9a07g044l_dma_config;
+
 #endif
