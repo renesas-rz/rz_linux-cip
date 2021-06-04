@@ -303,18 +303,20 @@ static int rspi_rz_set_config_register(struct rspi_data *rspi, int access_size)
 
 	/* Sets output mode, MOSI signal, and (optionally) loopback */
 	rspi_write8(rspi, rspi->sppcr, RSPI_SPPCR);
+	if (spi_controller_is_slave(rspi->master)) {
+		rspi_write8(rspi, ~SSLP_SSL0P, RSPI_SSLP);
+	} else {
+		clksrc = clk_get_rate(rspi->clk);
+		spbr = DIV_ROUND_UP(clksrc, 2 * rspi->max_speed_hz) - 1;
+		while (spbr > 255 && div < 3) {
+			div++;
+			spbr = DIV_ROUND_UP(spbr + 1, 2) - 1;
+		}
 
-	clksrc = clk_get_rate(rspi->clk);
-	spbr = DIV_ROUND_UP(clksrc, 2 * rspi->max_speed_hz) - 1;
-	while (spbr > 255 && div < 3) {
-		div++;
-		spbr = DIV_ROUND_UP(spbr + 1, 2) - 1;
+		/* Sets transfer bit rate */
+		rspi_write8(rspi, clamp(spbr, 0, 255), RSPI_SPBR);
+		rspi->spcmd |= div << 2;
 	}
-
-	/* Sets transfer bit rate */
-	rspi_write8(rspi, clamp(spbr, 0, 255), RSPI_SPBR);
-	rspi->spcmd |= div << 2;
-
 	/* Disable dummy transmission, set byte access */
 	rspi_write8(rspi, SPDCR_SPLBYTE, RSPI_SPDCR);
 	rspi->byte_access = 1;
@@ -330,7 +332,8 @@ static int rspi_rz_set_config_register(struct rspi_data *rspi, int access_size)
 	rspi_write16(rspi, rspi->spcmd, RSPI_SPCMD0);
 
 	/* Sets RSPI mode */
-	rspi_write8(rspi, SPCR_MSTR, RSPI_SPCR);
+	if (!spi_controller_is_slave(rspi->master))
+		rspi_write8(rspi, SPCR_MSTR, RSPI_SPCR);
 
 	return 0;
 }
@@ -885,7 +888,8 @@ static int rspi_setup(struct spi_device *spi)
 
 	rspi->max_speed_hz = spi->max_speed_hz;
 
-	rspi->spcmd = SPCMD_SSLKP;
+	if (!spi_controller_is_slave(rspi->master))
+		rspi->spcmd = SPCMD_SSLKP;
 	if (spi->mode & SPI_CPOL)
 		rspi->spcmd |= SPCMD_CPOL;
 	if (spi->mode & SPI_CPHA)
@@ -1185,24 +1189,34 @@ static const struct of_device_id rspi_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, rspi_of_match);
 
-static int rspi_parse_dt(struct device *dev, struct spi_master *master)
+static struct rspi_plat_data *rspi_parse_dt(struct device *dev)
 {
-	u32 num_cs;
+	struct rspi_plat_data *info;
+	struct device_node *np = dev->of_node;
+	u32 num_cs = 1;
 	int error;
 
-	/* Parse DT properties */
-	error = of_property_read_u32(dev->of_node, "num-cs", &num_cs);
-	if (error) {
-		dev_err(dev, "of_property_read_u32 num-cs failed %d\n", error);
-		return error;
-	}
+	info = devm_kzalloc(dev, sizeof(struct rspi_plat_data), GFP_KERNEL);
+	if (!info)
+		return NULL;
 
-	master->num_chipselect = num_cs;
-	return 0;
+	info->mode = of_property_read_bool(np, "spi-slave") ? RSPI_SPI_SLAVE
+							    : RSPI_SPI_MASTER;
+	/* Parse DT properties */
+	if (info->mode == RSPI_SPI_MASTER) {
+		error = of_property_read_u32(dev->of_node, "num-cs", &num_cs);
+		if (error) {
+			dev_err(dev, "of_property_read_u32 num-cs failed %d\n",
+				error);
+			return NULL;
+		}
+	}
+	info->num_chipselect = num_cs;
+	return info;
 }
 #else
 #define rspi_of_match	NULL
-static inline int rspi_parse_dt(struct device *dev, struct spi_master *master)
+static struct rspi_plat_data *rspi_parse_dt(struct device *dev)
 {
 	return -EINVAL;
 }
@@ -1225,26 +1239,23 @@ static int rspi_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct spi_master *master;
 	struct rspi_data *rspi;
+	struct rspi_plat_data *info;
 	int ret;
 	const struct rspi_plat_data *rspi_pd;
 	const struct spi_ops *ops;
 
-	master = spi_alloc_master(&pdev->dev, sizeof(struct rspi_data));
-	if (master == NULL)
-		return -ENOMEM;
-
 	ops = of_device_get_match_data(&pdev->dev);
 	if (ops) {
-		ret = rspi_parse_dt(&pdev->dev, master);
-		if (ret)
+		info = rspi_parse_dt(&pdev->dev);
+		if (!info)
 			goto error1;
 	} else {
 		ops = (struct spi_ops *)pdev->id_entry->driver_data;
 		rspi_pd = dev_get_platdata(&pdev->dev);
 		if (rspi_pd && rspi_pd->num_chipselect)
-			master->num_chipselect = rspi_pd->num_chipselect;
+			info->num_chipselect = rspi_pd->num_chipselect;
 		else
-			master->num_chipselect = 2; /* default */
+			info->num_chipselect = 2; /* default */
 	}
 
 	/* ops parameter check */
@@ -1254,6 +1265,15 @@ static int rspi_probe(struct platform_device *pdev)
 		goto error1;
 	}
 
+	if (info->mode == RSPI_SPI_MASTER)
+		master = spi_alloc_master(&pdev->dev, sizeof(struct rspi_data));
+	else
+		master = spi_alloc_slave(&pdev->dev, sizeof(struct rspi_data));
+
+	if (master == NULL)
+		return -ENOMEM;
+
+	master->num_chipselect = info->num_chipselect;
 	rspi = spi_master_get_devdata(master);
 	platform_set_drvdata(pdev, rspi);
 	rspi->ops = ops;
