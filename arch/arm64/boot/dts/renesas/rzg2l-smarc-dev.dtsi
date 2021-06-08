@@ -150,6 +150,7 @@
 		simple-audio-card,format = "i2s";
 		simple-audio-card,bitclock-master = <&cpu_dai>;
 		simple-audio-card,frame-master = <&cpu_dai>;
+		simple-audio-card,mclk-fs = <256>;
 
 		simple-audio-card,widgets = "Microphone", "Microphone Jack";
 		simple-audio-card,routing =
@@ -163,7 +164,14 @@
 
 		codec_dai: simple-audio-card,codec {
 			sound-dai = <&wm8978>;
+			clocks = <&versa3 3>;
 		};
+	};
+
+	x1_clk: x1-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
 	};
 
 #if (DISP_DSI_HDMI)
@@ -424,12 +432,29 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
+	versa3: versa3@68 {
+		compatible = "renesas,5p35023";
+		reg = <0x68>;
+		#clock-cells = <1>;
+		clocks = <&x1_clk>;
+		clock-names = "x1";
+		assigned-clocks = <&versa3 0>,
+				   <&versa3 1>,
+				   <&versa3 2>,
+				   <&versa3 3>,
+				   <&versa3 4>,
+				   <&versa3 5>;
+		assigned-clock-rates =	<12288000>, <25000000>,
+					<12000000>, <11289600>,
+					<11289600>, <24000000>;
+		clock-divider-read-only = <1>, <1>, <1>, <1>, <1>;
+		clock-flags = <2176>, <2176>, <2176>, <2052>, <2176>, <2048>;
+	};
+
 	wm8978: codec@1a {
 		compatible = "wlf,wm8978";
 		#sound-dai-cells = <0>;
 		reg = <0x1a>;
-		clocks = <&audio_mclock>;
-		clock-names = "mclk";
 	};
 };
 
