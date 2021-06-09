@@ -425,6 +425,10 @@
 	clock-frequency = <11289600>;
 };
 
+&audio_clk2{
+	clock-frequency = <12288000>;
+};
+
 &i2c3 {
 	pinctrl-0 = <&i2c3_pins>;
 	pinctrl-names = "default";
