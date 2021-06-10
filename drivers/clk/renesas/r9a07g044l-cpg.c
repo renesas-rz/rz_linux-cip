@@ -414,7 +414,7 @@ static struct mssr_mod_clk r9a07g044l_mod_clks[] = {
 				MSSR(43, BIT(0), BIT(0))),
 	DEF_MOD("spi-multi",	R9A07G044L_CLK_SPI,
 				R9A07G044L_CLK_SPI1,
-				MSSR(21, (BIT(0) | BIT(1)), BIT(0))),
+				MSSR(20, (BIT(0) | BIT(1)), BIT(0))),
 	DEF_MOD("mipi_dsi_v",	R9A07G044L_CLK_MIPI_DSI_V,
 				R9A07G044L_CLK_M3, 0),
 	DEF_MOD("mipi_dsi_pin", R9A07G044L_CLK_MIPI_DSI_PIN,
