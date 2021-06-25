@@ -315,6 +315,7 @@ static const struct rcar_csi2_format rcar_csi2_formats[] = {
 	{ .code = MEDIA_BUS_FMT_YUYV8_1X16,	.datatype = 0x1e, .bpp = 16 },
 	{ .code = MEDIA_BUS_FMT_UYVY8_2X8,	.datatype = 0x1e, .bpp = 16 },
 	{ .code = MEDIA_BUS_FMT_YUYV10_2X10,	.datatype = 0x1e, .bpp = 20 },
+	{ .code = MEDIA_BUS_FMT_SRGGB8_1X8,     .datatype = 0x2a, .bpp = 8 },
 };
 
 static const struct rcar_csi2_format *rcsi2_code_to_fmt(unsigned int code)
@@ -898,11 +899,11 @@ static int rcsi2_init_phtw_v3m_e3(struct rcar_csi2 *priv, unsigned int mbps)
 static int rcsi2_confirm_start_v3m_e3(struct rcar_csi2 *priv)
 {
 	static const struct phtw_value step1[] = {
-		{ .data = 0xed, .code = 0x34 },
-		{ .data = 0xed, .code = 0x44 },
-		{ .data = 0xed, .code = 0x54 },
-		{ .data = 0xed, .code = 0x84 },
-		{ .data = 0xed, .code = 0x94 },
+		{ .data = 0xee, .code = 0x34 },
+		{ .data = 0xee, .code = 0x44 },
+		{ .data = 0xee, .code = 0x54 },
+		{ .data = 0xee, .code = 0x84 },
+		{ .data = 0xee, .code = 0x94 },
 		{ /* sentinel */ },
 	};
 
@@ -975,8 +976,20 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a77990 = {
 
 static const struct of_device_id rcar_csi2_of_table[] = {
 	{
+		.compatible = "renesas,r8a774a1-csi2",
+		.data = &rcar_csi2_info_r8a7796,
+	},
+	{
+		.compatible = "renesas,r8a774b1-csi2",
+		.data = &rcar_csi2_info_r8a77965,
+	},
+	{
 		.compatible = "renesas,r8a774c0-csi2",
 		.data = &rcar_csi2_info_r8a77990,
+	},
+	{
+		.compatible = "renesas,r8a774e1-csi2",
+		.data = &rcar_csi2_info_r8a7795,
 	},
 	{
 		.compatible = "renesas,r8a7795-csi2",
