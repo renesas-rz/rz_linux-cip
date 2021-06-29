@@ -361,7 +361,7 @@ static struct mssr_mod_clk r9a07g044l_mod_clks[] = {
 				MSSR(13, BIT(1), BIT(1))),
 	DEF_MOD("ostm2",	R9A07G044L_CLK_OSTM2,
 				R9A07G044L_CLK_P0,
-				MSSR(13, BIT(2), BIT(3))),
+				MSSR(13, BIT(2), BIT(2))),
 	DEF_MOD("wdt0",		R9A07G044L_CLK_WDT0,
 				R9A07G044L_CLK_P0,
 				MSSR(18, (BIT(0) | BIT(1)), BIT(0))),
