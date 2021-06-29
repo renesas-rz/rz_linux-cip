@@ -788,6 +788,39 @@
 			status = "disabled";
 		};
 
+		ostm0: timer@12801000 {
+			compatible = "renesas,r9a07g044l-ostm";
+			reg = <0x0 0x12801000 0x0 0x1000>;
+			interrupts = <GIC_SPI 46 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD R9A07G044L_CLK_OSTM0>;
+			clock-names = "pclk";
+			power-domains = <&cpg>;
+			resets = <&cpg R9A07G044L_CLK_OSTM0>;
+			status = "disabled";
+		};
+
+		ostm1: timer@12801400 {
+			compatible = "renesas,r9a07g044l-ostm";
+			reg = <0x0 0x12801400 0x0 0x1000>;
+			interrupts = <GIC_SPI 47 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD R9A07G044L_CLK_OSTM1>;
+			clock-names = "pclk";
+			power-domains = <&cpg>;
+			resets = <&cpg R9A07G044L_CLK_OSTM1>;
+			status = "disabled";
+		};
+
+		ostm2: timer@12801800 {
+			compatible = "renesas,r9a07g044l-ostm";
+			reg = <0x0 0x12801800 0x0 0x1000>;
+			interrupts = <GIC_SPI 48 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD R9A07G044L_CLK_OSTM2>;
+			clock-names = "pclk";
+			power-domains = <&cpg>;
+			resets = <&cpg R9A07G044L_CLK_OSTM2>;
+			status = "disabled";
+		};
+
 		gpu: mali@11840000 {
 			compatible = "arm,mali-midgard";
 			reg = <0x0 0x11840000 0x0 0x10000>;
