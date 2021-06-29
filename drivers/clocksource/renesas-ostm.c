@@ -224,6 +224,14 @@ static int __init ostm_init(struct device_node *np,
 		goto err;
 	}
 
+	/* Release reset state. */
+	ostm->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	if (IS_ERR(ostm->rstc)) {
+		dev_err(&pdev->dev, "failed to get cpg reset\n");
+		return PTR_ERR(ostm->rstc);
+	}
+	reset_control_deassert(ostm->rstc);
+
 	ostm_clk = of_clk_get(np, 0);
 	if (IS_ERR(ostm_clk)) {
 		pr_err("ostm: Failed to get clock\n");
@@ -236,14 +244,6 @@ static int __init ostm_init(struct device_node *np,
 		pr_err("ostm: Failed to enable clock\n");
 		goto err;
 	}
-
-	/* Release reset state. */
-	ostm->rstc = devm_reset_control_get(&pdev->dev, NULL);
-	if (IS_ERR(ostm->rstc)) {
-		dev_err(&pdev->dev, "failed to get cpg reset\n");
-		return PTR_ERR(ostm->rstc);
-	}
-	reset_control_deassert(ostm->rstc);
 
 	rate = clk_get_rate(ostm_clk);
 	ostm->ticks_per_jiffy = (rate + HZ / 2) / HZ;
