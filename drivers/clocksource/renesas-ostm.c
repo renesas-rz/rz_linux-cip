@@ -22,6 +22,12 @@
 #include <linux/interrupt.h>
 #include <linux/sched_clock.h>
 #include <linux/slab.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/platform_device.h>
+#include <linux/clocksource.h>
+#include <linux/reset.h>
 
 /*
  * The OSTM contains independent channels.
@@ -37,6 +43,7 @@ struct ostm_device {
 	void __iomem *base;
 	unsigned long ticks_per_jiffy;
 	struct clock_event_device ced;
+	struct reset_control *rstc;
 };
 
 static void __iomem *system_clock;	/* For sched_clock() */
@@ -192,7 +199,8 @@ static int __init ostm_init_clkevt(struct ostm_device *ostm, int irq,
 	return 0;
 }
 
-static int __init ostm_init(struct device_node *np)
+static int __init ostm_init(struct device_node *np,
+		struct platform_device *pdev)
 {
 	struct ostm_device *ostm;
 	int ret = -EFAULT;
@@ -229,6 +237,14 @@ static int __init ostm_init(struct device_node *np)
 		goto err;
 	}
 
+	/* Release reset state. */
+	ostm->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	if (IS_ERR(ostm->rstc)) {
+		dev_err(&pdev->dev, "failed to get cpg reset\n");
+		return PTR_ERR(ostm->rstc);
+	}
+	reset_control_deassert(ostm->rstc);
+
 	rate = clk_get_rate(ostm_clk);
 	ostm->ticks_per_jiffy = (rate + HZ / 2) / HZ;
 
@@ -262,4 +278,38 @@ err:
 	return 0;
 }
 
-TIMER_OF_DECLARE(ostm, "renesas,ostm", ostm_init);
+static int ostm_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+
+	ostm_init(dev->of_node, pdev);
+	return 0;
+}
+
+static int ostm_remove(struct platform_device *pdev)
+{
+	return 0;
+}
+
+static const struct of_device_id ostm_of_table[] = {
+	{ .compatible = "renesas,r9a07g044l-ostm", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ostm_of_table);
+
+static struct platform_driver ostm_device_driver = {
+	.probe		= ostm_probe,
+	.remove		= ostm_remove,
+	.driver		= {
+		.name	= "rzg2l_ostm",
+		.of_match_table = of_match_ptr(ostm_of_table),
+	}
+};
+
+early_platform_init("earlytimer", &ostm_device_driver);
+module_platform_driver(ostm_device_driver);
+
+MODULE_DESCRIPTION("RZ/G2L OSTM driver");
+MODULE_AUTHOR("Renesas Electronics Corporation");
+MODULE_LICENSE("GPL v2");
+
