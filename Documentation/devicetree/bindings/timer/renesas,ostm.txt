@@ -10,6 +10,7 @@ Required Properties:
 
   - compatible: must be one or more of the following:
     - "renesas,r7s72100-ostm" for the r7s72100 OSTM
+    - "renesas,r9a07g044l-ostm" for the r9a07g044l OSTM
     - "renesas,ostm" for any OSTM
 		This is a fallback for the above renesas,*-ostm entries
 
