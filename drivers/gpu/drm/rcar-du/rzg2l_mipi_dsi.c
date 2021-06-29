@@ -281,7 +281,7 @@ static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *mipi_dsi)
 
 	clstptsetr = CLSTPTSETR_CLKKPT(clkkpt) | CLSTPTSETR_CLKBFHT(clkbfht) |
 		     CLSTPTSETR_CLKSTPT(clkstpt);
-	rzg2l_mipi_dsi_write(mipi_dsi->link_mmio, CLSTPTSETR, clkkpt);
+	rzg2l_mipi_dsi_write(mipi_dsi->link_mmio, CLSTPTSETR, clstptsetr);
 
 	lptrnstsetr = LPTRNSTSETR_GOLPBKT(golpbkt);
 	rzg2l_mipi_dsi_write(mipi_dsi->link_mmio, LPTRNSTSETR, lptrnstsetr);
