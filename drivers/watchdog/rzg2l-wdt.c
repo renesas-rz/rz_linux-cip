@@ -21,6 +21,7 @@
 #include <linux/watchdog.h>
 #include <linux/delay.h>
 #include <linux/reset.h>
+#include <asm/system_misc.h>
 
 #define WDT_DEFAULT_TIMEOUT 60U
 
@@ -28,8 +29,11 @@
 #define WDTSET      0x04
 #define WDTTIM      0x08
 #define WDTINT      0x0C
+#define PECR		0x10
+#define PEEN		0x14
 #define WDTCNT_WDTEN    BIT(0)
 #define WDTINT_INTDISP  BIT(0)
+#define PEEN_FORCE_RST	BIT(0)
 
 #define F2CYCLE_NSEC(f) (1000000000/f)
 #define WDT_CYCLE_MSEC(f, wdttime) ((1024 * 1024 * ((u64)wdttime + 1)) \
@@ -134,6 +138,23 @@ static int rzg2l_wdt_stop(struct watchdog_device *wdev)
 	return 0;
 }
 
+static int rzg2l_wdt_restart(struct watchdog_device *wdev,
+			     unsigned long action, void *data)
+{
+	struct rzg2l_wdt_priv *priv = watchdog_get_drvdata(wdev);
+
+	reset_control_deassert(priv->rstc);
+	pm_runtime_get_sync(wdev->parent);
+
+	/* Generate Reset (WDTRSTB) Signal */
+	rzg2l_wdt_write(priv, 0, PECR);
+
+	/* Force reset (WDTRSTB) */
+	rzg2l_wdt_write(priv, PEEN_FORCE_RST, PEEN);
+
+	return 0;
+}
+
 static const struct watchdog_info rzg2l_wdt_ident = {
 	.options = WDIOF_MAGICCLOSE | WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT |
 		WDIOF_CARDRESET,
@@ -153,6 +174,7 @@ static const struct watchdog_ops rzg2l_wdt_ops = {
 	.start = rzg2l_wdt_start,
 	.stop = rzg2l_wdt_stop,
 	.ping = rzg2l_wdt_ping,
+	.restart = rzg2l_wdt_restart,
 };
 
 static int rzg2l_wdt_probe(struct platform_device *pdev)
@@ -237,6 +259,15 @@ static int rzg2l_wdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 	watchdog_set_drvdata(&priv->wdev, priv);
+	/*
+	 * TODO:
+	 * Reboot code is specific controlled by PSCI for ARM64.
+	 * However, we do not support reboot code in TF-A currently.
+	 * Will update when TF-A support reboot API.
+	 */
+	arm_pm_restart = NULL;
+	watchdog_set_restart_priority(&priv->wdev, 0);
+
 	watchdog_stop_on_unregister(&priv->wdev);
 
 	ret = watchdog_init_timeout(&priv->wdev, 0, dev);
