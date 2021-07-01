@@ -34,6 +34,7 @@
 #define	SMWDR0	0x40
 #define SMWDR1	0x44
 #define	CMNSR	0x48
+#define DRDMCR	0x58
 #define SMDMCR	0x60
 #define SMDRENR	0x64
 
@@ -92,6 +93,11 @@
 #define	DROPR_OPD0(o)	(((u32)(o) & 0xff) << 0)
 
 /* DRENR (read mode) */
+#define DRENR_OCDB_4BIT	BIT(29)
+#define DRENR_ADB_4BIT	BIT(25)
+#define DRENR_OPDB_4BIT	BIT(21)
+#define DRENR_DRDB_4BIT	BIT(17)
+#define DRENR_DME	BIT(15)
 #define	DRENR_CDE	BIT(14)
 #define	DRENR_OCDE	BIT(12)
 #define	DRENR_OPDE(o)	(((u32)(o) & 0xf) << 4)
@@ -116,7 +122,11 @@
 #define	CMNSR_SSLF	BIT(1)
 #define	CMNSR_TEND	BIT(0)
 
-#define MAX_CMD_LEN 6
+#define MAX_CMD_LEN 10
+#define MAX_TX_DATA_LEN 3
+#define TX_CMD 0
+#define TX_ADDR 1
+#define TX_DUMMY 2
 
 /* HW Option Flags */
 #define HAS_SPBCR BIT(0)
@@ -283,10 +293,15 @@ static int spibsc_send_data(struct spibsc_priv *sbsc, const u8 *data,
  * is not an issue for SPI Flash devices.
  */
 static int spibsc_send_recv_data(struct spibsc_priv *sbsc, u8 *tx_data,
-				 int tx_len, u8 *rx_data, int rx_len)
+			    u8 *tx_data_len, u8 *tx_nbits, u8 *rx_data,
+						int rx_len, int rx_nbits)
 {
 	u32 drcmr, drenr, dropr;
 	u8 opde;
+	int tx_len;
+
+	tx_len = tx_data_len[TX_CMD] + tx_data_len[TX_ADDR] +
+					tx_data_len[TX_DUMMY];
 
 	dev_dbg(sbsc->dev, "%s (tx=%d, rx=%d)\n", __func__, tx_len, rx_len);
 
@@ -321,31 +336,39 @@ static int spibsc_send_recv_data(struct spibsc_priv *sbsc, u8 *tx_data,
 		drenr |= DRENR_CDE;
 	}
 
-	if (tx_len >= 2) {
-		/* Use 'Optional Command' register for the 2nd byte */
-		drcmr |= SMCMR_OCMD(tx_data[1]);
-		drenr |= DRENR_OCDE;
-	}
-
-	/* Use 'Option Data' for 3rd-6th bytes */
-	switch (tx_len) {
-	case 6:
-		dropr |= DROPR_OPD0(tx_data[5]);
+	/* Use 'Option Data' for 2rd-5th bytes */
+	switch (tx_len - tx_data_len[TX_DUMMY]) {
+	case 5:
+		dropr |= DROPR_OPD0(tx_data[4]);
 		opde |= (1 << 0);
 		/* fall through */
-	case 5:
-		dropr |= DROPR_OPD1(tx_data[4]);
+	case 4:
+		dropr |= DROPR_OPD1(tx_data[3]);
 		opde |= (1 << 1);
 		/* fall through */
-	case 4:
-		dropr |= DROPR_OPD2(tx_data[3]);
+	case 3:
+		dropr |= DROPR_OPD2(tx_data[2]);
 		opde |= (1 << 2);
 		/* fall through */
-	case 3:
-		dropr |= DROPR_OPD3(tx_data[2]);
+	case 2:
+		dropr |= DROPR_OPD3(tx_data[1]);
 		opde |= (1 << 3);
 		drenr |= DRENR_OPDE(opde);
 	}
+
+	if (tx_data_len[2] > 0) {
+		drenr |= DRENR_DME;
+
+		/* Calculate Dummy Cycles */
+		spibsc_write(sbsc, DRDMCR,
+			tx_data_len[TX_DUMMY]*8/tx_nbits[TX_DUMMY]-1);
+	}
+
+	if (rx_nbits == 4)
+		drenr |= DRENR_DRDB_4BIT;
+
+	if (tx_nbits[TX_ADDR] == 4)
+		drenr |= DRENR_OPDB_4BIT;
 
 	spibsc_write(sbsc, DRCMR, drcmr);
 	spibsc_write(sbsc, DROPR, dropr);
@@ -414,7 +437,9 @@ static int spibsc_transfer_one_message(struct spi_controller *master,
 	struct spi_transfer *t, *t_last;
 	u8 tx_data[MAX_CMD_LEN];
 	u8 tx_len;
-	int ret;
+	u8 tx_data_len[MAX_TX_DATA_LEN] = {0, 0, 0};	/* CMD, ADDR, DUMMY */
+	u8 tx_nbits[MAX_TX_DATA_LEN] = {0, 0, 0};	/* CMD, ADDR, DUUMY */
+	int ret, index;
 
 	t_last = list_last_entry(&msg->transfers, struct spi_transfer,
 				 transfer_list);
@@ -451,6 +476,7 @@ static int spibsc_transfer_one_message(struct spi_controller *master,
 	 * once
 	 */
 	tx_len = 0;
+	index  = 0;
 	list_for_each_entry(t, &msg->transfers, transfer_list) {
 		if (t->tx_buf) {
 			if ((tx_len + t->len) > sizeof(tx_data)) {
@@ -460,11 +486,14 @@ static int spibsc_transfer_one_message(struct spi_controller *master,
 			}
 			memcpy(tx_data + tx_len, t->tx_buf, t->len);
 			tx_len += t->len;
+			tx_data_len[index] = t->len;
+			tx_nbits[index++] = t->tx_nbits;
 		}
 
 		if (t->rx_buf)
-			ret = spibsc_send_recv_data(sbsc, tx_data, tx_len,
-						    t->rx_buf,  t->len);
+			ret = spibsc_send_recv_data(sbsc, tx_data, tx_data_len,
+							   tx_nbits, t->rx_buf,
+							  t->len, t->rx_nbits);
 
 		msg->actual_length += t->len;
 	}
@@ -556,7 +585,8 @@ static int spibsc_probe(struct platform_device *pdev)
 
 	master->bus_num = pdev->id;
 	master->num_chipselect	= 1;
-	master->mode_bits		= SPI_CPOL | SPI_CPHA;
+	master->mode_bits		= SPI_CPOL | SPI_CPHA |
+					  SPI_RX_QUAD | SPI_TX_QUAD;
 	master->bits_per_word_mask	= SPI_BPW_MASK(8);
 	master->setup			= spibsc_setup;
 	master->prepare_message		= spibsc_prepare_message;
