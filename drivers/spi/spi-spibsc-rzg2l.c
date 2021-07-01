@@ -175,7 +175,8 @@ static int spibsc_wait_trans_completion(struct spibsc_priv *sbsc)
  * used only with SPI Flash commands that do not require any reading back from
  * the SPI flash.
  */
-static int spibsc_send_data(struct spibsc_priv *sbsc, const u8 *data, int len)
+static int spibsc_send_data(struct spibsc_priv *sbsc, const u8 *data,
+					int len, bool low_data_order)
 {
 	u32 smcr, smenr, smwdr0;
 	int ret, unit, sslkp;
@@ -203,20 +204,29 @@ static int spibsc_send_data(struct spibsc_priv *sbsc, const u8 *data, int len)
 
 		/* set 4bytes data, bit stream */
 		smwdr0 = *data++;
-		if (unit >= 2)
-			smwdr0 |= (u32)(*data++ << 8);
-		if (unit >= 3)
-			smwdr0 |= (u32)(*data++ << 16);
-		if (unit >= 4)
-			smwdr0 |= (u32)(*data++ << 24);
+		if (low_data_order) {
+			if (unit >= 2)
+				smwdr0 |= (u32)(*data++ << 8);
+			if (unit >= 3)
+				smwdr0 |= (u32)(*data++ << 16);
+			if (unit >= 4)
+				smwdr0 |= (u32)(*data++ << 24);
+		} else {
+			if (unit >= 2)
+				smwdr0 = (u32)(*data++) | (smwdr0 << 8);
+			if (unit >= 3)
+				smwdr0 = (u32)(*data++) | (smwdr0 << 8);
+			if (unit >= 4)
+				smwdr0 = (u32)(*data++) | (smwdr0 << 8);
+		}
 
 		/* mask unwrite area */
 		if (unit == 3)
-			smwdr0 |= 0xFF000000;
+			smwdr0 &= ~0xFF000000;
 		else if (unit == 2)
-			smwdr0 |= 0xFFFF0000;
+			smwdr0 &= ~0xFFFF0000;
 		else if (unit == 1)
-			smwdr0 |= 0xFFFFFF00;
+			smwdr0 &= ~0xFFFFFF00;
 
 		/* write send data. */
 		if (unit == 2)
@@ -423,7 +433,8 @@ static int spibsc_transfer_one_message(struct spi_controller *master,
 			if (t == t_last)
 				sbsc->last_xfer = 1;
 
-			ret = spibsc_send_data(sbsc, t->tx_buf, t->len);
+			ret = spibsc_send_data(sbsc, t->tx_buf, t->len,
+						 sbsc->low_data_order);
 			if (ret)
 				break;
 
@@ -509,6 +520,9 @@ static int spibsc_probe(struct platform_device *pdev)
 	sbsc->dev	= &pdev->dev;
 
 	sbsc->rstc = devm_reset_control_get(&pdev->dev, NULL);
+
+	if (of_property_read_bool(pdev->dev.of_node, "spibsc,low_data_order"))
+		sbsc->low_data_order = true;
 
 	if (IS_ERR(sbsc->rstc))
 		dev_warn(&pdev->dev, "failed to get cpg reset\n");
