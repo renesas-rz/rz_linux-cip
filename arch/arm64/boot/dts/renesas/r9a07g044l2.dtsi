@@ -35,7 +35,7 @@
 		L3_CA55: cache-controller-0 {
 			compatible = "cache";
 			cache-unified;
-			cache-level = <3>;
+			cache-size = <0x40000>;
 		};
 	};
 
