@@ -6,6 +6,7 @@ Required properties:
 - compatible : Should be "renesas,<soctype>-dma".
 	Below is soctypes supported:
 	  - "renesas,r9a07g044l-dma" (RZ/G2L)
+	  - "renesas,r9a07g054l-dma" (RZ/V2L)
 - reg : First item should be contain DMA channel 0 base registers location and
   length.Second item should be DMA Extension Resource Selectors registers
   location and length
