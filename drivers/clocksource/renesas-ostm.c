@@ -293,6 +293,7 @@ static int ostm_remove(struct platform_device *pdev)
 
 static const struct of_device_id ostm_of_table[] = {
 	{ .compatible = "renesas,r9a07g044l-ostm", },
+	{ .compatible = "renesas,r9a07g054l-ostm", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ostm_of_table);
