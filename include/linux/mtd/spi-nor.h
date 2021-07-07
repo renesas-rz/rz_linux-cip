@@ -236,6 +236,7 @@ enum spi_nor_option_flags {
 	SNOR_F_READY_XSR_RDY	= BIT(4),
 	SNOR_F_USE_CLSR		= BIT(5),
 	SNOR_F_BROKEN_RESET	= BIT(6),
+	SNOR_F_4B_OPCODES	= BIT(7),
 };
 
 /**
@@ -417,6 +418,18 @@ static u64 __maybe_unused
 spi_nor_region_end(const struct spi_nor_erase_region *region)
 {
 	return (region->offset & ~SNOR_ERASE_FLAGS_MASK) + region->size;
+}
+
+static void __maybe_unused
+spi_nor_region_mark_end(struct spi_nor_erase_region *region)
+{
+	region->offset |= SNOR_LAST_REGION;
+}
+
+static void __maybe_unused
+spi_nor_region_mark_overlay(struct spi_nor_erase_region *region)
+{
+	region->offset |= SNOR_OVERLAID_REGION;
 }
 
 static bool __maybe_unused spi_nor_has_uniform_erase(const struct spi_nor *nor)
