@@ -113,6 +113,7 @@
 #define	SMCMR_OCMD(o)	(((u32)(o) & 0xff) << 0)
 
 /* SMENR (spi mode) */
+#define SMENR_SPIDB_4BIT	BIT(17)
 #define	SMENR_SPIDE(b)	(((u32)(b) & 0xf) << 0)
 #define	SPIDE_8BITS	(0x8)
 #define	SPIDE_16BITS	(0xc)
@@ -186,7 +187,7 @@ static int spibsc_wait_trans_completion(struct spibsc_priv *sbsc)
  * the SPI flash.
  */
 static int spibsc_send_data(struct spibsc_priv *sbsc, const u8 *data,
-					int len, bool low_data_order)
+				int len, int tx_nbits, bool low_data_order)
 {
 	u32 smcr, smenr, smwdr0;
 	int ret, unit, sslkp;
@@ -251,6 +252,9 @@ static int spibsc_send_data(struct spibsc_priv *sbsc, const u8 *data,
 			sslkp = 0;
 		else
 			sslkp = 1;
+
+		if (tx_nbits == 4)
+			smenr |= SMENR_SPIDB_4BIT;
 
 		/* set params */
 		spibsc_write(sbsc, SMCMR, 0);
@@ -464,7 +468,7 @@ static int spibsc_transfer_one_message(struct spi_controller *master,
 				sbsc->last_xfer = 1;
 
 			ret = spibsc_send_data(sbsc, t->tx_buf, t->len,
-						 sbsc->low_data_order);
+					t->tx_nbits, sbsc->low_data_order);
 			if (ret)
 				break;
 
