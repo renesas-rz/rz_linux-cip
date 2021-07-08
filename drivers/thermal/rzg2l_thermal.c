@@ -292,6 +292,9 @@ static const struct of_device_id rzg2l_thermal_dt_ids[] = {
 	{
 		.compatible = "renesas,tsu-r9a07g044l",
 	},
+	{
+		.compatible = "renesas,tsu-r9a07g054l",
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, rzg2l_thermal_dt_ids);
