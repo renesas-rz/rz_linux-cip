@@ -941,6 +941,7 @@ static int rzg2l_mipi_dsi_remove(struct platform_device *pdev)
 
 static const struct of_device_id rzg2l_mipi_dsi_of_table[] = {
 	{ .compatible = "renesas,r9a07g044l-mipi-dsi" },
+	{ .compatible = "renesas,r9a07g054l-mipi-dsi" },
 	{ },
 };
 
