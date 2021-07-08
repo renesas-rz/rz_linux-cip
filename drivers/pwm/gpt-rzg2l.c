@@ -950,6 +950,7 @@ static int rzg2l_gpt_remove(struct platform_device *pdev)
 
 static const struct of_device_id rzg2l_gpt_of_table[] = {
 	{ .compatible = "renesas,gpt-r9a07g044l", },
+	{ .compatible = "renesas,gpt-r9a07g054l", },
 	{ },
 };
 
