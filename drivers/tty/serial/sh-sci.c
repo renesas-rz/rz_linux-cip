@@ -3297,11 +3297,11 @@ static struct plat_sci_port *sci_parse_dt(struct platform_device *pdev,
 
 static const struct soc_device_attribute soc_r9a07g044l[] = {
 	{
-		.soc_id = "r9a07g044l",
+		.soc_id = "r9a07g044l2",
 		.data = (void *)1,
 	},
 	{
-		.soc_id = "r9a07g054l",
+		.soc_id = "r9a07g054l2",
 		.data = (void *)1,
 	},
 	{ /* Sentinel */ }
