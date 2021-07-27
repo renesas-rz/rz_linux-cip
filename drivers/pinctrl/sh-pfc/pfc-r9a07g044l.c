@@ -37,7 +37,6 @@ static struct pin_data SD0_CMD_data[] = {
 	{6, 1, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
 	      | PIN_CFG_INPUT_ENABLE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_SD0)},
 };
 
@@ -51,7 +50,6 @@ static struct pin_data SD0_DATA0_data[] = {
 	{7, 0, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
 	      | PIN_CFG_INPUT_ENABLE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_SD0)},
 };
 
@@ -59,7 +57,6 @@ static struct pin_data SD0_DATA1_data[] = {
 	{7, 1, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
 	      | PIN_CFG_INPUT_ENABLE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_SD0)},
 };
 
@@ -67,7 +64,6 @@ static struct pin_data SD0_DATA2_data[] = {
 	{7, 2, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
 	      | PIN_CFG_INPUT_ENABLE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_SD0)},
 };
 
@@ -75,7 +71,6 @@ static struct pin_data SD0_DATA3_data[] = {
 	{7, 3, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
 	      | PIN_CFG_INPUT_ENABLE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_SD0)},
 };
 
@@ -83,7 +78,6 @@ static struct pin_data SD0_DATA4_data[] = {
 	{7, 4, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
 	      | PIN_CFG_INPUT_ENABLE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_SD0)},
 };
 
@@ -91,7 +85,6 @@ static struct pin_data SD0_DATA5_data[] = {
 	{7, 5, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
 	      | PIN_CFG_INPUT_ENABLE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_SD0)},
 };
 
@@ -99,7 +92,6 @@ static struct pin_data SD0_DATA6_data[] = {
 	{7, 6, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
 	      | PIN_CFG_INPUT_ENABLE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_SD0)},
 };
 
@@ -107,7 +99,6 @@ static struct pin_data SD0_DATA7_data[] = {
 	{7, 7, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
 	      | PIN_CFG_INPUT_ENABLE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_SD0)},
 };
 
@@ -121,7 +112,6 @@ static struct pin_data SD1_CMD_data[] = {
 	{8, 1, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
 	      | PIN_CFG_INPUT_ENABLE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_SD1)},
 };
 
@@ -129,7 +119,6 @@ static struct pin_data SD1_DATA0_data[] = {
 	{9, 0, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
 	      | PIN_CFG_INPUT_ENABLE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_SD1)},
 };
 
@@ -137,7 +126,6 @@ static struct pin_data SD1_DATA1_data[] = {
 	{9, 1, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
 	      | PIN_CFG_INPUT_ENABLE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_SD1)},
 };
 
@@ -145,7 +133,6 @@ static struct pin_data SD1_DATA2_data[] = {
 	{9, 2, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
 	      | PIN_CFG_INPUT_ENABLE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_SD1)},
 };
 
@@ -153,7 +140,6 @@ static struct pin_data SD1_DATA3_data[] = {
 	{9, 3, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
 	      | PIN_CFG_INPUT_ENABLE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_SD1)},
 };
 
@@ -166,28 +152,24 @@ static struct pin_data QSPI0_SPCLK_data[] = {
 static struct pin_data QSPI0_IO0_data[] = {
 	{10, 1, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_QSPI)},
 };
 
 static struct pin_data QSPI0_IO1_data[] = {
 	{10, 2, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_QSPI)},
 };
 
 static struct pin_data QSPI0_IO2_data[] = {
 	{10, 3, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_QSPI)},
 };
 
 static struct pin_data QSPI0_IO3_data[] = {
 	{10, 4, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_QSPI)},
 };
 
@@ -206,35 +188,30 @@ static struct pin_data QSPI1_SPCLK_data[] = {
 static struct pin_data QSPI1_IO0_data[] = {
 	{11, 1, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_QSPI)},
 };
 
 static struct pin_data QSPI1_IO1_data[] = {
 	{11, 2, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_QSPI)},
 };
 
 static struct pin_data QSPI1_IO2_data[] = {
 	{11, 3, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_QSPI)},
 };
 
 static struct pin_data QSPI1_IO3_data[] = {
 	{11, 4, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_QSPI)},
 };
 
 static struct pin_data QSPI1_SSL_data[] = {
 	{11, 5, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_QSPI)},
 };
 
@@ -253,7 +230,6 @@ static struct pin_data QSPI_WP_N_data[] = {
 static struct pin_data QSPI_INT_N_data[] = {
 	{12, 2, (PIN_CFG_DRIVE_STRENGTH
 	      | PIN_CFG_SLEW_RATE
-	      | PIN_CFG_PULL_UP_DOWN
 	      | PIN_CFG_IO_VOLTAGE_QSPI)},
 };
 
@@ -284,65 +260,45 @@ static const struct {
 } r9a07g044l_pins = {
 	.pin_gpio = {
 		RZ_G2L_PINCTRL_PIN_GPIO(0,  (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(1,  (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(2,  (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(3,  (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(4,  (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(5,  (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(6,  (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(7,  (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(8,  (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(9,  (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(10, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(11, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(12, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(13, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(14, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(15, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(16, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(17, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(18, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(19, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(20, PIN_CFG_IO_VOLTAGE_ETH0),
 		RZ_G2L_PINCTRL_PIN_GPIO(21, PIN_CFG_IO_VOLTAGE_ETH0),
 		RZ_G2L_PINCTRL_PIN_GPIO(22, PIN_CFG_IO_VOLTAGE_ETH0),
@@ -362,38 +318,27 @@ static const struct {
 		RZ_G2L_PINCTRL_PIN_GPIO(36, PIN_CFG_IO_VOLTAGE_ETH1),
 		RZ_G2L_PINCTRL_PIN_GPIO(37, PIN_CFG_IO_VOLTAGE_ETH1),
 		RZ_G2L_PINCTRL_PIN_GPIO(38, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(39, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(40, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(41, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(42, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(43, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(44, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(45, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(46, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(47, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 		RZ_G2L_PINCTRL_PIN_GPIO(48, (PIN_CFG_DRIVE_STRENGTH
-					   | PIN_CFG_SLEW_RATE
-					   | PIN_CFG_PULL_UP_DOWN)),
+					   | PIN_CFG_SLEW_RATE)),
 	},
 	.pin_no_gpio = {
 		RZ_G2L_PINCTRL_PIN_NO_GPIO(
