@@ -101,10 +101,6 @@ static bool rzg2l_pinctrl_validate_pinconf(u32 configs,
 					   enum pin_config_param param)
 {
 	switch (param) {
-	case PIN_CONFIG_BIAS_DISABLE:
-	case PIN_CONFIG_BIAS_PULL_UP:
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-		return configs & PIN_CFG_PULL_UP_DOWN;
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		return configs & PIN_CFG_DRIVE_STRENGTH;
 	case PIN_CONFIG_SLEW_RATE:
@@ -152,24 +148,6 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 		return -ENOTSUPP;
 
 	switch (param) {
-	case PIN_CONFIG_BIAS_DISABLE:
-	case PIN_CONFIG_BIAS_PULL_UP:
-	case PIN_CONFIG_BIAS_PULL_DOWN: {
-		spin_lock_irqsave(&pctrl->lock, flags);
-
-		reg = readq(addr + PUPD(port)) & (PUPD_MASK << (bit * 8));
-		reg = reg >> (bit * 8);
-
-		spin_unlock_irqrestore(&pctrl->lock, flags);
-
-		if ((reg == 0 && param != PIN_CONFIG_BIAS_DISABLE) ||
-		    (reg == 0x1 && param != PIN_CONFIG_BIAS_PULL_UP) ||
-		    (reg == 0x2 && param != PIN_CONFIG_BIAS_PULL_DOWN))
-			return -EINVAL;
-
-		break;
-	}
-
 	case PIN_CONFIG_DRIVE_STRENGTH: {
 		spin_lock_irqsave(&pctrl->lock, flags);
 
@@ -294,28 +272,6 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 			return -ENOTSUPP;
 
 		switch (param) {
-		case PIN_CONFIG_BIAS_DISABLE:
-		case PIN_CONFIG_BIAS_PULL_UP:
-		case PIN_CONFIG_BIAS_PULL_DOWN: {
-			spin_lock_irqsave(&pctrl->lock, flags);
-
-			reg = readq(addr + PUPD(port));
-			mask = PUPD_MASK << (bit * 8);
-			reg = reg & ~mask;
-			if (param == PIN_CONFIG_BIAS_DISABLE)
-				writeq(reg | (0x0 << (bit * 8)),
-					addr + PUPD(port));
-			else if (param == PIN_CONFIG_BIAS_PULL_UP)
-				writeq(reg | (0x1 << (bit * 8)),
-					addr + PUPD(port));
-			else
-				writeq(reg | (0x2 << (bit * 8)),
-					addr + PUPD(port));
-
-			spin_unlock_irqrestore(&pctrl->lock, flags);
-			break;
-		}
-
 		case PIN_CONFIG_DRIVE_STRENGTH: {
 			unsigned int arg =
 					pinconf_to_config_argument(_configs[i]);

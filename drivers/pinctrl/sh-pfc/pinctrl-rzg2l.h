@@ -36,7 +36,6 @@
 #define IOLH(n) (0x1000 + (n) * 8)	/* IOLH Switch Register */
 #define SR(n)   (0x1400 + (n) * 8)	/* Slew Rate Switch Register */
 #define IEN(n)  (0x1800 + (n) * 8)	/* Input Enable Switch Register */
-#define PUPD(n) (0x1C00 + (n) * 8)	/* Pull up/Pull down Switch Register */
 #define SD_CH(n) (0x3000 + (n) * 4)	/* SD IO Voltage Control Register */
 #define QSPI	(0x3008)		/* QSPI IO Voltage Control Register */
 #define ETH_CH(n) (0x300C + (n) * 4)	/* Ether Voltage Control Register */
@@ -58,7 +57,6 @@
 
 #define PM_MASK			0x03
 #define PFC_MASK		0x07
-#define PUPD_MASK		0x03
 #define IOLH_MASK		0x03
 #define IEN_MASK		0x01
 #define SR_MASK			0x01
@@ -72,13 +70,12 @@
 #define PIN_CFG_DRIVE_STRENGTH		BIT(0)
 #define PIN_CFG_SLEW_RATE		BIT(1)
 #define PIN_CFG_INPUT_ENABLE		BIT(2)
-#define PIN_CFG_PULL_UP_DOWN		BIT(3)
-#define PIN_CFG_IO_VOLTAGE_SD0		BIT(4)
-#define PIN_CFG_IO_VOLTAGE_SD1		BIT(5)
-#define PIN_CFG_IO_VOLTAGE_QSPI		BIT(6)
-#define PIN_CFG_IO_VOLTAGE_ETH0		BIT(7)
-#define PIN_CFG_IO_VOLTAGE_ETH1		BIT(8)
-#define PIN_CFG_IO_VOLTAGE		GENMASK(8, 4)
+#define PIN_CFG_IO_VOLTAGE_SD0		BIT(3)
+#define PIN_CFG_IO_VOLTAGE_SD1		BIT(4)
+#define PIN_CFG_IO_VOLTAGE_QSPI		BIT(5)
+#define PIN_CFG_IO_VOLTAGE_ETH0		BIT(6)
+#define PIN_CFG_IO_VOLTAGE_ETH1		BIT(7)
+#define PIN_CFG_IO_VOLTAGE		GENMASK(7, 3)
 
 #define GPIOF_OUTPUT			0
 #define GPIOF_INPUT			1
