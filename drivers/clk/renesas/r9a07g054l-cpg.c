@@ -144,16 +144,30 @@ static const char *sel_eth[]	= {"prohibited", ".sel_pll6_2"};
 static const char *sel_shdi[]	= {"prohibited", ".clk533_c",
 				   ".clk800fix_cdiv2", ".clk533_cdiv2"};
 
-static const struct cpg_core_clk r9a07g054l_core_clks[] __initconst = {
+static const struct cpg_core_clk r9a07g054l_early_core_clks[] __initconst = {
 	/* External Clock Inputs */
 	DEF_INPUT("xinclk",	 CLK_XINCLK),
+
+	/* Internal Core Clocks */
+	DEF_FIXED(".pll2", CLK_PLL2, CLK_XINCLK, 133, 1),
+	DEF_FIXED(".pll2_1", CLK_PLL2_1, CLK_PLL2, 1, 2),
+	DEF_FIXED(".sel_pll2_1", CLK_SEL_PLL2_1, CLK_PLL2_1, 1, 1),
+	DEF_FIXED(".clk800fix_c", CLK800FIX_C, CLK_SEL_PLL2_1, 1, 2),
+	DEF_FIXED(".clk200fix_c", CLK200FIX_C, CLK800FIX_C, 1, 4),
+	DEF_FIXED(".clk100fix_c", CLK100FIX_C, CLK200FIX_C, 1, 2),
+
+	/* Core output clk*/
+	DEF_DIV("P0", R9A07G054L_CLK_P0, CLK100FIX_C,
+			DIVPL2A, dtable_3b, CLK_DIVIDER_HIWORD_MASK),
+};
+
+static const struct cpg_core_clk r9a07g054l_core_clks[] __initconst = {
 
 	/* Internal Core Clocks */
 	DEF_FIXED(".osc", R9A07G054L_OSCCLK, CLK_XINCLK, 1, 1),
 	DEF_FIXED(".osc_div1000", CLK_OSC_DIV1000, CLK_XINCLK, 1, 1000),
 	DEF_PLL(".pll1", CLK_PLL1, CLK_TYPE_SAM_PLL, CLK_XINCLK,
 		PLL146_CONF(0), PLL146_STBY(0), PLL146_MON(0)),
-	DEF_FIXED(".pll2", CLK_PLL2, CLK_XINCLK, 133, 1),
 	DEF_FIXED(".pll3", CLK_PLL3, CLK_XINCLK, 133, 1),
 	DEF_PLL(".pll4", CLK_PLL4, CLK_TYPE_SAM_PLL, CLK_XINCLK,
 		PLL146_CONF(1), PLL146_STBY(1), PLL146_MON(1)),
@@ -162,14 +176,9 @@ static const struct cpg_core_clk r9a07g054l_core_clks[] __initconst = {
 		PLL146_CONF(2), PLL146_STBY(2), PLL146_MON(2)),
 	DEF_FIXED(".sel_pll1", CLK_SEL_PLL1, CLK_PLL1, 1, 1),
 	DEF_FIXED(".clk600", CLK600, CLK_PLL1, 1, 2),
-	DEF_FIXED(".pll2_1", CLK_PLL2_1, CLK_PLL2, 1, 2),
-	DEF_FIXED(".sel_pll2_1", CLK_SEL_PLL2_1, CLK_PLL2_1, 1, 1),
-	DEF_FIXED(".clk800fix_c", CLK800FIX_C, CLK_SEL_PLL2_1, 1, 2),
 	DEF_FIXED(".clk800fix_cdiv2", CLK800FIX_CDIV2, CLK800FIX_C, 1, 2),
-	DEF_FIXED(".clk200fix_c", CLK200FIX_C, CLK800FIX_C, 1, 4),
 	DEF_DIV(".clk200_c", CLK200_C, CLK200FIX_C,
 			DIVPL2B, dtable_3b, CLK_DIVIDER_HIWORD_MASK),
-	DEF_FIXED(".clk100fix_c", CLK100FIX_C, CLK200FIX_C, 1, 2),
 	DEF_FIXED(".pll2_2", CLK_PLL2_2, CLK_PLL2, 1, 6),
 	DEF_FIXED(".sel_pll2_2", CLK_SEL_PLL2_2, CLK_PLL2_2, 1, 1),
 	DEF_DIV(".clk533_c", CLK533_C, CLK_SEL_PLL2_2,
@@ -245,13 +254,23 @@ static const struct cpg_core_clk r9a07g054l_core_clks[] __initconst = {
 			sel_eth, 2, CLK_MUX_HIWORD_MASK),
 	DEF_FIXED("TSU", R9A07G054L_CLK_TSU, CLK800FIX_C, 1, 10),
 	DEF_FIXED("ZT", R9A07G054L_CLK_ZT, CLK100FIX_CD, 1, 1),
-	DEF_DIV("P0", R9A07G054L_CLK_P0, CLK100FIX_C,
-			DIVPL2A, dtable_3b, CLK_DIVIDER_HIWORD_MASK),
 	DEF_DIV("P1", R9A07G054L_CLK_P1, CLK200FIX_CD,
 			DIVPL3B, dtable_3b, CLK_DIVIDER_HIWORD_MASK),
 	DEF_DIV("P2", R9A07G054L_CLK_P2, CLK100FIX_CD,
 			DIVPL3A, dtable_3b, CLK_DIVIDER_HIWORD_MASK),
 	DEF_FIXED("AT", R9A07G054L_CLK_AT, CLK800FIX_CD, 1, 2),
+};
+
+static struct mssr_mod_clk r9a07g054l_early_mod_clks[] = {
+	DEF_MOD("ostm0",	R9A07G054L_CLK_OSTM0,
+				R9A07G054L_CLK_P0,
+				MSSR(13, BIT(0), BIT(0))),
+	DEF_MOD("ostm1",	R9A07G054L_CLK_OSTM1,
+				R9A07G054L_CLK_P0,
+				MSSR(13, BIT(1), BIT(1))),
+	DEF_MOD("ostm2",	R9A07G054L_CLK_OSTM2,
+				R9A07G054L_CLK_P0,
+				MSSR(13, BIT(2), BIT(2))),
 };
 
 static struct mssr_mod_clk r9a07g054l_mod_clks[] = {
@@ -355,15 +374,6 @@ static struct mssr_mod_clk r9a07g054l_mod_clks[] = {
 	DEF_MOD("mhu",		R9A07G054L_CLK_MHU,
 				R9A07G054L_CLK_P1,
 				MSSR(8, BIT(0), BIT(0))),
-	DEF_MOD("ostm0",	R9A07G054L_CLK_OSTM0,
-				R9A07G054L_CLK_P0,
-				MSSR(13, BIT(0), BIT(0))),
-	DEF_MOD("ostm1",	R9A07G054L_CLK_OSTM1,
-				R9A07G054L_CLK_P0,
-				MSSR(13, BIT(1), BIT(1))),
-	DEF_MOD("ostm2",	R9A07G054L_CLK_OSTM2,
-				R9A07G054L_CLK_P0,
-				MSSR(13, BIT(2), BIT(2))),
 	DEF_MOD("wdt0",		R9A07G054L_CLK_WDT0,
 				R9A07G054L_CLK_P0,
 				MSSR(18, (BIT(0) | BIT(1)), BIT(0))),
@@ -433,6 +443,11 @@ static const unsigned int r9a07g054l_crit_mod_clks[] __initconst = {
 };
 
 const struct cpg_mssr_info r9a07g054l_cpg_info = {
+	/* Early clk */
+	.early_core_clks = r9a07g054l_early_core_clks,
+	.num_early_core_clks = ARRAY_SIZE(r9a07g054l_early_core_clks),
+	.early_mod_clks = r9a07g054l_early_mod_clks,
+	.num_early_mod_clks = ARRAY_SIZE(r9a07g054l_early_mod_clks),
 	/* Core clk */
 	.core_clks = r9a07g054l_core_clks,
 	.num_core_clks = ARRAY_SIZE(r9a07g054l_core_clks),
@@ -446,3 +461,11 @@ const struct cpg_mssr_info r9a07g054l_cpg_info = {
 	.num_mod_clks = ARRAY_SIZE(r9a07g054l_mod_clks),
 	.num_hw_mod_clks = R9A07G054L_CLK_CSI2 + 1,
 };
+
+static void __init r9a07g054l_cpg_early_init(struct device_node *np)
+{
+	rzg2l_cpg_early_init(np, &r9a07g054l_cpg_info);
+}
+
+CLK_OF_DECLARE_DRIVER(cpg_mstp_clks, "renesas,r9a07g054l-cpg",
+		      r9a07g054l_cpg_early_init);
