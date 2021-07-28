@@ -34,6 +34,17 @@
  */
 #define GPT4_SUPPORT		1
 
+/*
+ * Connector setting
+ *
+ * Select one function support ETH1|POEGD have pin conflict.
+ * Only one can be enabled at once.
+ * CN12: 1: ETH1; 0: POEGD
+ *
+ */
+
+#define CN12	1
+
 /* Enable/Disable CAN support (must choose 1) */
 #define CAN_SUPPORT		1
 //#define CAN_SUPPORT		0
@@ -108,7 +119,9 @@
 		can1 = &can;
 #endif
 		ethernet0 = &eth0;
+#if (CN12)
 		ethernet1 = &eth1;
+#endif
 	};
 
 	chosen {
@@ -410,11 +423,13 @@
 		groups = "eth0_link", "eth0_mdio", "eth0_rgmii";
 		function = "eth0";
 	};
-	
+
+#if (CN12)
 	ether1_pins: eth1 {
 		groups = "eth1_link", "eth1_mdio", "eth1_rgmii";
 		function = "eth1";
 	};
+#endif
 
 	spi1_pins: rspi1 {
 		groups = "rspi1_clk_b", "rspi1_data_b", "rspi1_ssl_b";
@@ -432,6 +447,13 @@
 	gpt4_pins: gpt4 {
 		groups = "gpt4_a_b", "gpt4_b_b";
 		function = "gpt4";
+	};
+#endif
+
+#if !(CN12)
+	poegd_pins: poegd {
+		groups = "gpt_ext_trg_d_b";
+		function = "gpt_ext_trg";
 	};
 #endif
 
@@ -601,6 +623,7 @@
 	};
 };
 
+#if (CN12)
 &eth1 {
 	pinctrl-0 = <&ether1_pins>;
 	pinctrl-names = "default";
@@ -627,6 +650,7 @@
 		interrupts = <RZG2L_GPIO(1, 1) IRQ_TYPE_EDGE_FALLING>;
 	};
 };
+#endif
 
 /* Delete our XIP QSPI partitions from the top of this file. You would not have these for non-XIP systems */
 / {
@@ -722,12 +746,23 @@
 	dma-names = "tx", "rx";
 };
 
+#if !(CN12)
+&poegd {
+	pinctrl-0 = <&poegd_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+#endif
+
 #if (GPT3_SUPPORT & !GPT4_SUPPORT)
 &gpt3 {
 	pinctrl-0 = <&gpt3_pins>;
 	pinctrl-names = "default";
 	channel = "channel_B";
 	//conflict pin with SD1 WP
+#if !(CN12)
+	poeg = <&poegd>;
+#endif
 	status = "okay";
 };
 #endif
@@ -737,6 +772,9 @@
 	pinctrl-0 = <&gpt4_pins>;
 	pinctrl-names = "default";
 	channel = "both_AB";
+#if !(CN12)
+	poeg = <&poegd>;
+#endif
 	status = "okay";
 };
 #endif
