@@ -23,11 +23,16 @@
  *	aplay -D hw:1,0 xxx.wav
  */
 
-/* Select one funtion support SDHI1|GPT (1: enabled, 0 : disabled)
+/* Select one function support SDHI1|GPT (1: enabled, 0 : disabled)
  * SDHI1 and GPT have pin conflict. Only one can be enabled at once
  */
 #define SDHI1_SUPPORT		1
-#define GPT_SUPPORT		0
+#define GPT3_SUPPORT		0
+
+/* Select one function support GPT3|GPT4 (1: enabled, 0 : disabled)
+ * GPT3 and GPT4 can not both enable. Only one can be enabled at once
+ */
+#define GPT4_SUPPORT		1
 
 /* Enable/Disable CAN support (must choose 1) */
 #define CAN_SUPPORT		1
@@ -416,10 +421,17 @@
 		function = "rspi1";
 	};
 
-#if (GPT_SUPPORT)
+#if (GPT3_SUPPORT & !GPT4_SUPPORT)
 	gpt3_pins: gpt3 {
 		groups = "gpt3_b_b";
 		function = "gpt3";
+	};
+#endif
+
+#if (GPT4_SUPPORT & !GPT3_SUPPORT)
+	gpt4_pins: gpt4 {
+		groups = "gpt4_a_b", "gpt4_b_b";
+		function = "gpt4";
 	};
 #endif
 
@@ -710,12 +722,21 @@
 	dma-names = "tx", "rx";
 };
 
-#if (GPT_SUPPORT)
+#if (GPT3_SUPPORT & !GPT4_SUPPORT)
 &gpt3 {
 	pinctrl-0 = <&gpt3_pins>;
 	pinctrl-names = "default";
-	channel="channel_B";
+	channel = "channel_B";
 	//conflict pin with SD1 WP
+	status = "okay";
+};
+#endif
+
+#if (GPT4_SUPPORT & !GPT3_SUPPORT)
+&gpt4 {
+	pinctrl-0 = <&gpt4_pins>;
+	pinctrl-names = "default";
+	channel = "both_AB";
 	status = "okay";
 };
 #endif
