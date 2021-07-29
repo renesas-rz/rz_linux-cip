@@ -220,185 +220,218 @@ struct cpg_param {
 	u32	pl5_fracin;
 	u32	pl5_postdiv1;
 	u32	pl5_postdiv2;
-	u32	pl5_scc_en;
-	u32	pl5_downspread;
 	u32	pl5_divval;
 	u32	pl5_spread;
 	u32	dsi_div_a;
 	u32	dsi_div_b;
 };
 
-#define	TABLE_MAX	11
+#define	TABLE_MAX	14
 #define reg_write(x, a)	iowrite32(a, x)
+#define	reg_read(x)	ioread32(x)
 #define CPG_LPCLK_DIV	0
 
 struct cpg_param resolution_param[TABLE_MAX] = {
 	{
 		/* VGA 25.175MHz	*/
 		/* frequency		*/	25175,
-		/* pl5_refdiv		*/	1,
-		/* pl5_intin		*/	16,
-		/* pl5_fracin		*/	13141593,
-		/* pl5_postdiv1		*/	1,
+		/* pl5_refdiv		*/	2,
+		/* pl5_intin		*/	125,
+		/* pl5_fracin		*/	14680064,
+		/* pl5_postdiv1		*/	5,
 		/* pl5_postdiv2		*/	1,
-		/* pl5_scc_en		*/	1,
-		/* pl5_downspread	*/	1,
-		/* pl5_divval		*/	6,
-		/* pl5_spread		*/	5,
-		/* dsi_div_a		*/	2,	// 1/4
-		/* dsi_div_b		*/	3,	// 1/4
+		/* pl5_divval		*/	0,
+		/* pl5_spread		*/	0x16,
+		/* dsi_div_a		*/	1,	// 1/2
+		/* dsi_div_b		*/	2,	// 1/3
 	},
 	{
 		/* VGA 25.200MHz	*/
 		/* frequency		*/	25200,
-		/* pl5_refdiv		*/	1,
-		/* pl5_intin		*/	16,
-		/* pl5_fracin		*/	13421773,
-		/* pl5_postdiv1		*/	1,
+		/* pl5_refdiv		*/	2,
+		/* pl5_intin		*/	75,
+		/* pl5_fracin		*/	10066329,
+		/* pl5_postdiv1		*/	3,
 		/* pl5_postdiv2		*/	1,
-		/* pl5_scc_en		*/	1,
-		/* pl5_downspread	*/	1,
-		/* pl5_divval		*/	6,
-		/* pl5_spread		*/	5,
-		/* dsi_div_a		*/	2,	// 1/4
-		/* dsi_div_b		*/	3,	// 1/4
+		/* pl5_divval		*/	0,
+		/* pl5_spread		*/	0x16,
+		/* dsi_div_a		*/	1,	// 1/2
+		/* dsi_div_b		*/	2,	// 1/3
 	},
 	{
-		/* 480p 27.000MHz	*/
+		/* 480p/576p 27.000MHz	*/
 		/* frequency		*/	27000,
-		/* pl5_refdiv		*/	1,
-		/* pl5_intin		*/	18,
+		/* pl5_refdiv		*/	2,
+		/* pl5_intin		*/	81,
 		/* pl5_fracin		*/	0,
-		/* pl5_postdiv1		*/	1,
+		/* pl5_postdiv1		*/	3,
 		/* pl5_postdiv2		*/	1,
-		/* pl5_scc_en		*/	1,
-		/* pl5_downspread	*/	1,
-		/* pl5_divval		*/	6,
-		/* pl5_spread		*/	5,
-		/* dsi_div_a		*/	2,	// 1/4
-		/* dsi_div_b		*/	3,	// 1/4
+		/* pl5_divval		*/	0,
+		/* pl5_spread		*/	0x16,
+		/* dsi_div_a		*/	1,	// 1/2
+		/* dsi_div_b		*/	2,	// 1/3
 	},
 	{
 		/* 480p 27.027MHz	*/
 		/* frequency		*/	27027,
-		/* pl5_refdiv		*/	1,
-		/* pl5_intin		*/	18,
-		/* pl5_fracin		*/	301990,
-		/* pl5_postdiv1		*/	1,
+		/* pl5_refdiv		*/	2,
+		/* pl5_intin		*/	81,
+		/* pl5_fracin		*/	1358954,
+		/* pl5_postdiv1		*/	3,
 		/* pl5_postdiv2		*/	1,
-		/* pl5_scc_en		*/	1,
-		/* pl5_downspread	*/	1,
-		/* pl5_divval		*/	6,
-		/* pl5_spread		*/	5,
-		/* dsi_div_a		*/	2,	// 1/4
-		/* dsi_div_b		*/	3,	// 1/4
+		/* pl5_divval		*/	0,
+		/* pl5_spread		*/	0x16,
+		/* dsi_div_a		*/	1,	// 1/2
+		/* dsi_div_b		*/	2,	// 1/3
 	},
 	{
 		/* WVGA 29.605MHz	*/
 		/* frequency		*/	29605,
-		/* pl5_refdiv		*/	1,
-		/* pl5_intin		*/	19,
-		/* pl5_fracin		*/	12359216,
-		/* pl5_postdiv1		*/	1,
+		/* pl5_refdiv		*/	2,
+		/* pl5_intin		*/	88,
+		/* pl5_fracin		*/	13673431,
+		/* pl5_postdiv1		*/	3,
 		/* pl5_postdiv2		*/	1,
-		/* pl5_scc_en		*/	1,
-		/* pl5_downspread	*/	1,
-		/* pl5_divval		*/	6,
-		/* pl5_spread		*/	5,
-		/* dsi_div_a		*/	2,	// 1/4
-		/* dsi_div_b		*/	3,	// 1/4
+		/* pl5_divval		*/	0,
+		/* pl5_spread		*/	0x16,
+		/* dsi_div_a		*/	1,	// 1/2
+		/* dsi_div_b		*/	2,	// 1/3
 	},
 	{
 		/* SVGA 40.00MHz	*/
 		/* frequency		*/	40000,
-		/* pl5_refdiv		*/	1,
-		/* pl5_intin		*/	43,
-		/* pl5_fracin		*/	11184810,
-		/* pl5_postdiv1		*/	1,
+		/* pl5_refdiv		*/	2,
+		/* pl5_intin		*/	80,
+		/* pl5_fracin		*/	0,
+		/* pl5_postdiv1		*/	2,
 		/* pl5_postdiv2		*/	1,
-		/* pl5_scc_en		*/	1,
-		/* pl5_downspread	*/	1,
-		/* pl5_divval		*/	6,
-		/* pl5_spread		*/	5,
-		/* dsi_div_a		*/	2,	// 1/4
-		/* dsi_div_b		*/	3,	// 1/4
+		/* pl5_divval		*/	0,
+		/* pl5_spread		*/	0x16,
+		/* dsi_div_a		*/	1,	// 1/2
+		/* dsi_div_b		*/	2,	// 1/3
 	},
 	{
 		/* XGA	65.00MHz	*/
 		/* frequency		*/	65000,
-		/* pl5_refdiv		*/	1,
-		/* pl5_intin		*/	43,
-		/* pl5_fracin		*/	5592405,
+		/* pl5_refdiv		*/	2,
+		/* pl5_intin		*/	130,
+		/* pl5_fracin		*/	0,
+		/* pl5_postdiv1		*/	2,
+		/* pl5_postdiv2		*/	1,
+		/* pl5_divval		*/	0,
+		/* pl5_spread		*/	0x16,
+		/* dsi_div_a		*/	1,	// 1/2
+		/* dsi_div_b		*/	2,	// 1/3
+	},
+	{
+		/* WXGA 1280x800 71.0MHz	*/
+		/* frequency		*/	71000,
+		/* pl5_refdiv		*/	2,
+		/* pl5_intin		*/	71,
+		/* pl5_fracin		*/	0,
 		/* pl5_postdiv1		*/	1,
 		/* pl5_postdiv2		*/	1,
-		/* pl5_scc_en		*/	1,
-		/* pl5_downspread	*/	1,
-		/* pl5_divval		*/	6,
-		/* pl5_spread		*/	5,
-		/* dsi_div_a		*/	2,	// 1/4
-		/* dsi_div_b		*/	3,	// 1/4
+		/* pl5_divval		*/	0,
+		/* pl5_spread		*/	0x16,
+		/* dsi_div_a		*/	1,	// 1/2
+		/* dsi_div_b		*/	2,	// 1/3
 	},
 	{
 		/* 720p 74.176MHz	*/
 		/* frequency		*/	74176,
-		/* pl5_refdiv		*/	1,
-		/* pl5_intin		*/	49,
-		/* pl5_fracin		*/	7560932,
+		/* pl5_refdiv		*/	2,
+		/* pl5_intin		*/	74,
+		/* pl5_fracin		*/	2952790,
 		/* pl5_postdiv1		*/	1,
 		/* pl5_postdiv2		*/	1,
-		/* pl5_scc_en		*/	1,
-		/* pl5_downspread	*/	1,
-		/* pl5_divval		*/	6,
-		/* pl5_spread		*/	5,
-		/* dsi_div_a		*/	2,	// 1/4
-		/* dsi_div_b		*/	3,	// 1/4
+		/* pl5_divval		*/	0,
+		/* pl5_spread		*/	0x16,
+		/* dsi_div_a		*/	1,	// 1/2
+		/* dsi_div_b		*/	2,	// 1/3
 	},
 	{
 		/* 720p 74.25MHz	*/
 		/* frequency		*/	74250,
-		/* pl5_refdiv		*/	1,
-		/* pl5_intin		*/	49,
+		/* pl5_refdiv		*/	2,
+		/* pl5_intin		*/	74,
+		/* pl5_fracin		*/	4194304,
+		/* pl5_postdiv1		*/	1,
+		/* pl5_postdiv2		*/	1,
+		/* pl5_divval		*/	0,
+		/* pl5_spread		*/	0x16,
+		/* dsi_div_a		*/	1,	// 1/2
+		/* dsi_div_b		*/	2,	// 1/3
+	},
+	{
+		/* FWXGA 1360x768 85.5MHz	*/
+		/* frequency		*/	85500,
+		/* pl5_refdiv		*/	2,
+		/* pl5_intin		*/	85,
 		/* pl5_fracin		*/	8388608,
 		/* pl5_postdiv1		*/	1,
 		/* pl5_postdiv2		*/	1,
-		/* pl5_scc_en		*/	1,
-		/* pl5_downspread	*/	1,
-		/* pl5_divval		*/	6,
-		/* pl5_spread		*/	5,
-		/* dsi_div_a		*/	2,	// 1/4
-		/* dsi_div_b		*/	3,	// 1/4
+		/* pl5_divval		*/	0,
+		/* pl5_spread		*/	0x16,
+		/* dsi_div_a		*/	1,	// 1/2
+		/* dsi_div_b		*/	2,	// 1/3
 	},
 	{
-		/* SXGA 108MHz		*/
+		/* WXGA+ 1440x900 88.75MHz		*/
+		/* frequency		*/	88750,
+		/* pl5_refdiv		*/	2,
+		/* pl5_intin		*/	88,
+		/* pl5_fracin		*/	12582912,
+		/* pl5_postdiv1		*/	1,
+		/* pl5_postdiv2		*/	1,
+		/* pl5_divval		*/	0,
+		/* pl5_spread		*/	0x16,
+		/* dsi_div_a		*/	1,	// 1/2
+		/* dsi_div_b		*/	2,	// 1/3
+	},
+	{
+		/* SXGA 108.0MHz	*/
 		/* frequency		*/	108000,
-		/* pl5_refdiv		*/	1,
-		/* pl5_intin		*/	54,
+		/* pl5_refdiv		*/	2,
+		/* pl5_intin		*/	108,
 		/* pl5_fracin		*/	0,
 		/* pl5_postdiv1		*/	1,
 		/* pl5_postdiv2		*/	1,
-		/* pl5_scc_en		*/	1,
-		/* pl5_downspread	*/	1,
-		/* pl5_divval		*/	6,
-		/* pl5_spread		*/	5,
-		/* dsi_div_a		*/	2,	// 1/4
+		/* pl5_divval		*/	0,
+		/* pl5_spread		*/	0x16,
+		/* dsi_div_a		*/	1,	// 1/2
 		/* dsi_div_b		*/	2,	// 1/3
 	},
 	{
 		/* 1080p 148.5MHz	*/
 		/* frequency		*/	148500,
-		/* pl5_refdiv		*/	1,
-		/* pl5_intin		*/	74,
-		/* pl5_fracin		*/	4194304,
+		/* pl5_refdiv		*/	2,
+		/* pl5_intin		*/	148,
+		/* pl5_fracin		*/	8388608,
 		/* pl5_postdiv1		*/	1,
 		/* pl5_postdiv2		*/	1,
-		/* pl5_scc_en		*/	1,
-		/* pl5_downspread	*/	1,
-		/* pl5_divval		*/	6,
-		/* pl5_spread		*/	5,
-		/* dsi_div_a		*/	2,	// 1/4
+		/* pl5_divval		*/	0,
+		/* pl5_spread		*/	0x16,
+		/* dsi_div_a		*/	1,	// 1/2
 		/* dsi_div_b		*/	2,	// 1/3
 	},
 };
+
+#define	CPG_SIPPL3_CLK5		(0x0134)
+#define	CPG_SIPLL5_STBY		(0x0140)
+#define	CPG_SIPLL5_CLK1		(0x0144)
+#define	CPG_SIPLL5_CLK3		(0x014C)
+#define	CPG_SIPLL5_CLK4		(0x0150)
+#define	CPG_SIPLL5_CLK5		(0x0154)
+#define	CPG_SIPLL5_MON		(0x015C)
+#define	CPG_PL2_DDIV		(0x0204)
+#define	CPG_CPG_CLKSTATUS	(0x0280)
+#define	CPG_PL5_SDIV		(0x0420)
+#define	CPG_OTHERFUNC1_REG	(0x0BE8)
+#define	CPG_CLKON_LCDC		(0x056c)
+#define	CPG_CLKMON_LCDC		(0x06EC)
+
+#define	PLL5_MON_PLL5_LOCK	(1 << 4)
+#define	DIVDSILPCLK_STS		(1 << 7)
 
 static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 {
@@ -407,6 +440,7 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 	unsigned long mode_clock = mode->clock * 1000;
 	u32 dsmr;
 	u32 escr;
+	u32 val, nowLcdcClkOn;
 
 	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_RZG2L)) {
 		u32 ditr0, ditr1, ditr2, ditr3, ditr4, ditr5, pbcr0;
@@ -440,13 +474,64 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 			index = TABLE_MAX - 1;
 		}
 
-		reg_write(cpg_base + 0x0204, 0x10000000 | (CPG_LPCLK_DIV<<12)); //CPG_PL2_DDIV: DIV_DSI_LPCLK
-		reg_write(cpg_base + 0x0420, 0x01010000 | (resolution_param[index].dsi_div_a<<0) | (resolution_param[index].dsi_div_b << 8)); //CPG_PL5_SDIV: DIV_DSI_A, DIV_DSI_B
-		reg_write(cpg_base + 0x0144, 0x01110000 | (resolution_param[index].pl5_postdiv1<<0) | (resolution_param[index].pl5_postdiv2<<4) | (resolution_param[index].pl5_refdiv<<8)); //CPG_PLL5_CLK1: POSTDIV1, POSTDIV2, REFDIV
-		reg_write(cpg_base + 0x014C, (resolution_param[index].pl5_divval<<0) | (resolution_param[index].pl5_fracin<<8)); //CPG_PLL5_CLK3: DIVVAL=6, FRACIN
-		reg_write(cpg_base + 0x0150, 0x000000ff | (resolution_param[index].pl5_intin<<16)); //CPG_PLL5_CLK4: INTIN
-		reg_write(cpg_base + 0x0154, (resolution_param[index].pl5_spread<<0)); //CPG_PLL5_CLK5: SPREAD
-		reg_write(cpg_base + 0x0140, 0x00150001 | (resolution_param[index].pl5_scc_en<<2) | (resolution_param[index].pl5_downspread<<4)); //CPG_PLL5_STBY: RESETB=1, SSC_EN, DOWNSPREAD
+		if (resolution_param[i].frequency > 74250)
+		{
+			reg_write(cpg_base + CPG_SIPPL3_CLK5, 0x02);
+		}
+		val = reg_read(cpg_base + CPG_CLKON_LCDC);
+		if (val != 0)
+		{
+			nowLcdcClkOn = 1;
+		}
+		else
+		{
+			nowLcdcClkOn = 0;
+		}
+		if (nowLcdcClkOn)
+		{
+			reg_write(cpg_base + CPG_CLKON_LCDC, 0x30000); //LCDC Clock Off
+			do
+			{
+				val = reg_read(cpg_base + CPG_CLKMON_LCDC);
+			} while(val != 0);
+		}
+
+		reg_write(cpg_base + CPG_SIPLL5_STBY, 0x10000); // RESETB = 0 Reset State
+		do
+		{
+			val = reg_read(cpg_base + CPG_SIPLL5_MON);
+		} while ((val & PLL5_MON_PLL5_LOCK) != 0);
+		reg_write(cpg_base + CPG_SIPLL5_CLK1, 0x01110000 | (resolution_param[index].pl5_postdiv1<<0) | (resolution_param[index].pl5_postdiv2<<4) | (resolution_param[index].pl5_refdiv<<8)); //POSTDIV1, POSTDIV2, REFDIV
+		reg_write(cpg_base + CPG_SIPLL5_CLK3, (resolution_param[index].pl5_divval<<0) | (resolution_param[index].pl5_fracin<<8)); //DIVVAL, FRACIN
+		reg_write(cpg_base + CPG_SIPLL5_CLK4, 0x000000ff | (resolution_param[index].pl5_intin<<16)); //INTIN
+		reg_write(cpg_base + CPG_SIPLL5_CLK5, (resolution_param[index].pl5_spread<<0)); //SPREAD
+
+		do
+		{
+			val = reg_read(cpg_base + CPG_CPG_CLKSTATUS);
+		} while ((val & DIVDSILPCLK_STS) != 0);
+		reg_write(cpg_base + CPG_PL2_DDIV, 0x10000000 | (CPG_LPCLK_DIV<<12)); //DIV_DSI_LPCLK
+		do
+		{
+			val = reg_read(cpg_base + CPG_CPG_CLKSTATUS);
+		} while ((val & DIVDSILPCLK_STS) != 0);
+	
+		reg_write(cpg_base + CPG_PL5_SDIV, 0x01010000 | (resolution_param[index].dsi_div_a<<0) | (resolution_param[index].dsi_div_b << 8)); //DIV_DSI_A, DIV_DSI_B
+		reg_write(cpg_base + CPG_OTHERFUNC1_REG, 0x10001); //SEL_PLL5_3 clock
+		reg_write(cpg_base + CPG_SIPLL5_STBY, 0x00050001);
+		do
+		{
+			val = reg_read(cpg_base + CPG_SIPLL5_MON);
+		} while ((val & PLL5_MON_PLL5_LOCK) == 0);
+
+		if (nowLcdcClkOn)
+		{
+			reg_write(cpg_base + CPG_CLKON_LCDC, 0x30003);// LCDC Clock On
+			do
+			{
+				val = reg_read(cpg_base + CPG_CLKMON_LCDC);
+			} while(val == 0);
+		}
 		iounmap(cpg_base);
 
 		ditr0 = (DU_DITR0_DEMD_HIGH

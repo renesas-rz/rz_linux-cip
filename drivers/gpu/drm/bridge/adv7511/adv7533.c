@@ -113,6 +113,11 @@ void adv7533_mode_set(struct adv7511 *adv, struct drm_display_mode *mode)
 	struct mipi_dsi_device *dsi = adv->dsi;
 	int lanes, ret;
 
+	if (adv->type == ADV7535)
+	{
+		return;
+	}
+
 	if (adv->num_dsi_lanes != 4)
 		return;
 
