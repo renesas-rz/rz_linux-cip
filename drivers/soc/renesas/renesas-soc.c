@@ -270,6 +270,9 @@ static const struct of_device_id renesas_socs[] __initconst = {
 #ifdef CONFIG_ARCH_R9A07G044L2
 	{ .compatible = "renesas,r9a07g044l2",     .data = &soc_rz_g2l },
 #endif
+#ifdef CONFIG_ARCH_R9A07G044C2
+	{ .compatible = "renesas,r9a07g044c2",     .data = &soc_rz_g2l },
+#endif
 #ifdef CONFIG_ARCH_R9A07G054L2
 	{ .compatible = "renesas,r9a07g054l2",     .data = &soc_rz_v2l },
 #endif
