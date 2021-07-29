@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the RZG2LC Dual A55 Evaluation board
+ *
+ * Copyright (C) 2021 Renesas Electronics Corp.
+ */
+
+/dts-v1/;
+#include "r9a07g044c2.dtsi"
+#include "rzg2lc-smarc.dtsi"
+
+/ {
+	model = "Evaluation board based on r9a07g044c2";
+	compatible = "renesas,r9a07g044c2-smarc",
+		     "renesas,r9a07g044c2",
+		     "renesas,r9a07g044c";
+
+	memory@47E00000 {
+		device_type = "memory";
+		/* first 126MB is reserved for secure area. */
+		reg = <0x0 0x47E00000 0x0 0x78200000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		reserved: linux,cma@58000000 {
+			compatible = "shared-dma-pool";
+			linux,cma-default;
+			reusable;
+			reg = <0x0 0x58000000 0x0 0x10000000>;
+		};
+	};
+};
+
