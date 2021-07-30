@@ -256,6 +256,40 @@
 			status = "disable";
 		};
 
+		scif3: serial@1004c400 {
+			compatible = "renesas,scif-r9a07g044l";
+			reg = <0 0x1004c400 0 0x400>;
+			interrupts =
+				<GIC_SPI 395 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 397 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 398 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 396 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 399 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 399 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A07G044L_CLK_SCIF3>;
+			clock-names = "fck";
+			resets = <&cpg R9A07G044L_CLK_SCIF3>;
+			power-domains = <&cpg>;
+			status = "disable";
+		};
+
+		scif4: serial@1004c800 {
+			compatible = "renesas,scif-r9a07g044l";
+			reg = <0 0x1004c800 0 0x400>;
+			interrupts =
+				<GIC_SPI 400 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 402 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 403 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 401 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 404 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 404 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A07G044L_CLK_SCIF4>;
+			clock-names = "fck";
+			resets = <&cpg R9A07G044L_CLK_SCIF4>;
+			power-domains = <&cpg>;
+			status = "disable";
+		};
+
 		sdhi0: sd@11c00000 {
 			compatible = "renesas,sdhi-r9a07g044l",
 				     "renesas,rcar-gen3-sdhi";
