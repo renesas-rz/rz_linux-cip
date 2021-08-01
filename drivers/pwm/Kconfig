@@ -353,7 +353,6 @@ config PWM_RCAR
 
 config GPT_RZG2L
 	tristate "RZ/G2L gpt support"
-	depends on ARCH_R9A07G044L2 || ARCH_R9A07G054L2
 	depends on HAS_IOMEM
 	help
 	  This driver exposes the General PWM Timer (GPT) controller found
