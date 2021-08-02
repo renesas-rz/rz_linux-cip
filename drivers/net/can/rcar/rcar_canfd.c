@@ -1980,6 +1980,8 @@ static const struct of_device_id rcar_canfd_of_table[] = {
 	{ .compatible = "renesas,rcar-gen3-canfd" },
 	{ .compatible = "renesas,r9a07g044l-canfd",
 			.data = (void *)R9A07G044L },
+	{ .compatible = "renesas,r9a07g044c-canfd",
+			.data = (void *)R9A07G044L },
 	{ .compatible = "renesas,r9a07g054l-canfd",
 			.data = (void *)R9A07G044L },
 	{ }
