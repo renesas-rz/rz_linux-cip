@@ -627,6 +627,7 @@ static int spibsc_remove(struct platform_device *pdev)
 static const struct of_device_id of_spibsc_match[] = {
 	{ .compatible = "renesas,r7s72100-spibsc", .data = (void *)HAS_SPBCR},
 	{ .compatible = "renesas,r9a07g044l-spibsc"},
+	{ .compatible = "renesas,r9a07g044c-spibsc"},
 	{ .compatible = "renesas,r9a07g054l-spibsc"},
 	{ /* sentinel */ }
 };
