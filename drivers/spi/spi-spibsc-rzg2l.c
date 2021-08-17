@@ -382,6 +382,11 @@ static int spibsc_send_recv_data(struct spibsc_priv *sbsc, u8 *tx_data,
 	/* Deactivate chip select */
 	spibsc_write(sbsc, DRCR, DRCR_SSLN);
 
+	/* Delay for the next transfer. This is the workaround to fix mount
+	 * issue in 4bit data transfer. */
+	if (sbsc->master->mode_bits & SPI_RX_QUAD)
+		udelay(500);
+
 	/* Print data (for debugging) */
 #if defined(DEBUG_PRINT_DATA)
 	print_hex_dump_debug("TX data: ", DUMP_PREFIX_NONE, 16, 1, tx_data,
