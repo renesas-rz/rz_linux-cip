@@ -405,12 +405,12 @@
 	};
 
 	canfd0_pins: canfd0 {
-		groups = "can0_data_a";
+		groups = "can0_tx_a", "can0_rx_a";
 		function = "can0";
 	};
 
 	canfd1_pins: canfd1 {
-		groups = "can1_data_a";
+		groups = "can1_tx_a", "can1_rx_a";
 		function = "can1";
 	};
 
