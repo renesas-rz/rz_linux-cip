@@ -697,6 +697,12 @@ static int i2c2_c_pins[] = {
 	RZ_G2L_PIN(42, 3), RZ_G2L_PIN(42, 4),
 };
 
+/* I2C channel 3 */
+static int i2c3_b_pins[] = {
+	/* SDA, SCL */
+	RZ_G2L_PIN(18, 0), RZ_G2L_PIN(18, 1),
+};
+
 /* SSI channel 0 */
 static int ssi0_ctrl_b_pins[] = {
 	/* BCK, RCK */
@@ -1103,6 +1109,7 @@ static struct group_desc r9a07g044c_groups[] = {
 	RZ_G2L_PINCTRL_PIN_GROUP(cam_field_b, 2),
 	RZ_G2L_PINCTRL_PIN_GROUP(i2c2_b, 4),
 	RZ_G2L_PINCTRL_PIN_GROUP(i2c2_c, 1),
+	RZ_G2L_PINCTRL_PIN_GROUP(i2c3_b, 3),
 	RZ_G2L_PINCTRL_PIN_GROUP(ssi0_data_b, 2),
 	RZ_G2L_PINCTRL_PIN_GROUP(ssi0_ctrl_b, 2),
 	RZ_G2L_PINCTRL_PIN_GROUP(ssi0_data_d, 1),
@@ -1276,6 +1283,10 @@ static const char *r9a07g044c_i2c2_groups[] = {
 	"i2c2_b", "i2c2_c",
 };
 
+static const char *r9a07g044c_i2c3_groups[] = {
+	"i2c3_b",
+};
+
 static const char *r9a07g044c_ssi0_groups[] = {
 	"ssi0_data_b", "ssi0_ctrl_b",
 	"ssi0_data_d", "ssi0_ctrl_d",
@@ -1393,6 +1404,8 @@ static const struct function_desc r9a07g044c_funcs[] = {
 		ARRAY_SIZE(r9a07g044c_usb1_groups)},
 	{"i2c2", r9a07g044c_i2c2_groups,
 		ARRAY_SIZE(r9a07g044c_i2c2_groups)},
+	{"i2c3", r9a07g044c_i2c3_groups,
+		ARRAY_SIZE(r9a07g044c_i2c3_groups)},
 	{"ssi0", r9a07g044c_ssi0_groups,
 		ARRAY_SIZE(r9a07g044c_ssi0_groups)},
 	{"ssi1", r9a07g044c_ssi1_groups,
