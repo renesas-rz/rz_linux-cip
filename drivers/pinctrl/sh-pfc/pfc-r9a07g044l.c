@@ -1558,24 +1558,44 @@ static int can_clk_a_pins[] = {
 	RZ_G2L_PIN(10, 0),
 };
 
-static int can0_data_a_pins[] = {
-	/* TX, RX */
-	RZ_G2L_PIN(10, 1), RZ_G2L_PIN(11, 0),
+static int can0_tx_a_pins[] = {
+	/* TX */
+	RZ_G2L_PIN(10, 1),
 };
 
-static int can0_datarate_en_a_pins[] = {
-	/* TX_DATARATE_EN, RX_DATARATE_EN */
-	RZ_G2L_PIN(11, 1), RZ_G2L_PIN(12, 0),
+static int can0_rx_a_pins[] = {
+	/* RX */
+	RZ_G2L_PIN(11, 0),
 };
 
-static int can1_data_a_pins[] = {
-	/* TX, RX */
-	RZ_G2L_PIN(12, 1), RZ_G2L_PIN(13, 0),
+static int can0_tx_datarate_en_a_pins[] = {
+	/* TX_DATARATE_EN */
+	RZ_G2L_PIN(11, 1),
 };
 
-static int can1_datarate_en_a_pins[] = {
-	/* TX_DATARATE_EN, RX_DATARATE_EN */
-	RZ_G2L_PIN(13, 1), RZ_G2L_PIN(13, 2),
+static int can0_rx_datarate_en_a_pins[] = {
+	/* RX_DATARATE_EN */
+	RZ_G2L_PIN(12, 0),
+};
+
+static int can1_tx_a_pins[] = {
+	/* TX */
+	RZ_G2L_PIN(12, 1),
+};
+
+static int can1_rx_a_pins[] = {
+	/* RX */
+	RZ_G2L_PIN(13, 0),
+};
+
+static int can1_tx_datarate_en_a_pins[] = {
+	/* TX_DATARATE_EN */
+	RZ_G2L_PIN(13, 1),
+};
+
+static int can1_rx_datarate_en_a_pins[] = {
+	/* RX_DATARATE_EN */
+	RZ_G2L_PIN(13, 2),
 };
 
 static int can_clk_b_pins[] = {
@@ -1583,24 +1603,44 @@ static int can_clk_b_pins[] = {
 	RZ_G2L_PIN(20, 0),
 };
 
-static int can0_data_b_pins[] = {
-	/* TX, RX */
-	RZ_G2L_PIN(20, 1), RZ_G2L_PIN(20, 2),
+static int can0_tx_b_pins[] = {
+	/* TX */
+	RZ_G2L_PIN(20, 1),
 };
 
-static int can0_datarate_en_b_pins[] = {
-	/* TX_DATARATE_EN, RX_DATARATE_EN */
-	RZ_G2L_PIN(21, 0), RZ_G2L_PIN(21, 1),
+static int can0_rx_b_pins[] = {
+	/* RX */
+	RZ_G2L_PIN(20, 2),
 };
 
-static int can1_data_b_pins[] = {
-	/* TX, RX */
-	RZ_G2L_PIN(22, 0), RZ_G2L_PIN(22, 1),
+static int can0_tx_datarate_en_b_pins[] = {
+	/* TX_DATARATE_EN */
+	RZ_G2L_PIN(21, 0),
 };
 
-static int can1_datarate_en_b_pins[] = {
-	/* TX_DATARATE_EN, RX_DATARATE_EN */
-	RZ_G2L_PIN(23, 0), RZ_G2L_PIN(23, 1),
+static int can0_rx_datarate_en_b_pins[] = {
+	/* RX_DATARATE_EN */
+	RZ_G2L_PIN(21, 1),
+};
+
+static int can1_tx_b_pins[] = {
+	/* TX */
+	RZ_G2L_PIN(22, 0),
+};
+
+static int can1_rx_b_pins[] = {
+	/* RX */
+	RZ_G2L_PIN(22, 1),
+};
+
+static int can1_tx_datarate_en_b_pins[] = {
+	/* TX_DATARATE_EN */
+	RZ_G2L_PIN(23, 0),
+};
+
+static int can1_rx_datarate_en_b_pins[] = {
+	/* RX_DATARATE_EN */
+	RZ_G2L_PIN(23, 1),
 };
 
 static int can_clk_c_pins[] = {
@@ -1608,24 +1648,44 @@ static int can_clk_c_pins[] = {
 	RZ_G2L_PIN(38, 0),
 };
 
-static int can0_data_c_pins[] = {
-	/* TX, RX */
-	RZ_G2L_PIN(38, 1), RZ_G2L_PIN(39, 0),
+static int can0_tx_c_pins[] = {
+	/* TX */
+	RZ_G2L_PIN(38, 1),
 };
 
-static int can0_datarate_en_c_pins[] = {
-	/* TX_DATARATE_EN, RX_DATARATE_EN */
-	RZ_G2L_PIN(39, 1), RZ_G2L_PIN(39, 2),
+static int can0_rx_c_pins[] = {
+	/* RX */
+	RZ_G2L_PIN(39, 0),
 };
 
-static int can1_data_c_pins[] = {
-	/* TX, RX */
-	RZ_G2L_PIN(40, 0), RZ_G2L_PIN(40, 1),
+static int can0_tx_datarate_en_c_pins[] = {
+	/* TX_DATARATE_EN */
+	RZ_G2L_PIN(39, 1),
 };
 
-static int can1_datarate_en_c_pins[] = {
-	/* TX_DATARATE_EN, RX_DATARATE_EN */
-	RZ_G2L_PIN(40, 2), RZ_G2L_PIN(41, 0),
+static int can0_rx_datarate_en_c_pins[] = {
+	/*  RX_DATARATE_EN */
+	RZ_G2L_PIN(39, 2),
+};
+
+static int can1_tx_c_pins[] = {
+	/* TX */
+	RZ_G2L_PIN(40, 0),
+};
+
+static int can1_rx_c_pins[] = {
+	/* RX */
+	RZ_G2L_PIN(40, 1),
+};
+
+static int can1_tx_datarate_en_c_pins[] = {
+	/* TX_DATARATE_EN */
+	RZ_G2L_PIN(40, 2),
+};
+
+static int can1_rx_datarate_en_c_pins[] = {
+	/* RX_DATARATE_EN */
+	RZ_G2L_PIN(41, 0),
 };
 
 static int can_clk_d_pins[] = {
@@ -1633,34 +1693,64 @@ static int can_clk_d_pins[] = {
 	RZ_G2L_PIN(42, 0),
 };
 
-static int can0_data_d_pins[] = {
-	/* TX, RX */
-	RZ_G2L_PIN(42, 1), RZ_G2L_PIN(42, 2),
+static int can0_tx_d_pins[] = {
+	/* TX */
+	RZ_G2L_PIN(42, 1),
 };
 
-static int can0_datarate_en_d_pins[] = {
-	/* TX_DATARATE_EN, RX_DATARATE_EN */
-	RZ_G2L_PIN(42, 3), RZ_G2L_PIN(42, 4),
+static int can0_rx_d_pins[] = {
+	/* RX */
+	RZ_G2L_PIN(42, 2),
 };
 
-static int can1_data_d_pins[] = {
-	/* TX, RX */
-	RZ_G2L_PIN(44, 0), RZ_G2L_PIN(44, 1),
+static int can0_tx_datarate_en_d_pins[] = {
+	/* TX_DATARATE_EN */
+	RZ_G2L_PIN(42, 3),
 };
 
-static int can1_datarate_en_d_pins[] = {
-	/* TX_DATARATE_EN, RX_DATARATE_EN */
-	RZ_G2L_PIN(44, 2), RZ_G2L_PIN(44, 3),
+static int can0_rx_datarate_en_d_pins[] = {
+	/* RX_DATARATE_EN */
+	RZ_G2L_PIN(42, 4),
 };
 
-static int can1_data_e_pins[] = {
-	/* TX, RX */
-	RZ_G2L_PIN(46, 0), RZ_G2L_PIN(46, 1),
+static int can1_tx_d_pins[] = {
+	/* TX */
+	RZ_G2L_PIN(44, 0),
 };
 
-static int can1_datarate_en_e_pins[] = {
-	/* TX_DATARATE_EN, RX_DATARATE_EN */
-	RZ_G2L_PIN(46, 2), RZ_G2L_PIN(46, 3),
+static int can1_rx_d_pins[] = {
+	/* RX */
+	RZ_G2L_PIN(44, 1),
+};
+
+static int can1_tx_datarate_en_d_pins[] = {
+	/* TX_DATARATE_EN */
+	RZ_G2L_PIN(44, 2),
+};
+
+static int can1_rx_datarate_en_d_pins[] = {
+	/* RX_DATARATE_EN */
+	RZ_G2L_PIN(44, 3),
+};
+
+static int can1_tx_e_pins[] = {
+	/* TX */
+	RZ_G2L_PIN(46, 0),
+};
+
+static int can1_rx_e_pins[] = {
+	/* RX */
+	RZ_G2L_PIN(46, 1),
+};
+
+static int can1_tx_datarate_en_e_pins[] = {
+	/* TX_DATARATE_EN */
+	RZ_G2L_PIN(46, 2),
+};
+
+static int can1_rx_datarate_en_e_pins[] = {
+	/* RX_DATARATE_EN */
+	RZ_G2L_PIN(46, 3),
 };
 
 /* POE */
@@ -2083,27 +2173,45 @@ static struct group_desc r9a07g044l_groups[] = {
 	RZ_G2L_PINCTRL_PIN_GROUP(rspi2_data_b, 2),
 	RZ_G2L_PINCTRL_PIN_GROUP(rspi2_ssl_b, 2),
 	RZ_G2L_PINCTRL_PIN_GROUP(can_clk_a, 2),
-	RZ_G2L_PINCTRL_PIN_GROUP(can0_data_a, 2),
-	RZ_G2L_PINCTRL_PIN_GROUP(can0_datarate_en_a, 2),
-	RZ_G2L_PINCTRL_PIN_GROUP(can1_data_a, 2),
-	RZ_G2L_PINCTRL_PIN_GROUP(can1_datarate_en_a, 2),
+	RZ_G2L_PINCTRL_PIN_GROUP(can0_tx_a, 2),
+	RZ_G2L_PINCTRL_PIN_GROUP(can0_rx_a, 2),
+	RZ_G2L_PINCTRL_PIN_GROUP(can0_tx_datarate_en_a, 2),
+	RZ_G2L_PINCTRL_PIN_GROUP(can0_rx_datarate_en_a, 2),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_tx_a, 2),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_rx_a, 2),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_tx_datarate_en_a, 2),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_rx_datarate_en_a, 2),
 	RZ_G2L_PINCTRL_PIN_GROUP(can_clk_b, 3),
-	RZ_G2L_PINCTRL_PIN_GROUP(can0_data_b, 3),
-	RZ_G2L_PINCTRL_PIN_GROUP(can0_datarate_en_b, 3),
-	RZ_G2L_PINCTRL_PIN_GROUP(can1_data_b, 3),
-	RZ_G2L_PINCTRL_PIN_GROUP(can1_datarate_en_b, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can0_tx_b, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can0_rx_b, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can0_tx_datarate_en_b, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can0_rx_datarate_en_b, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_tx_b, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_rx_b, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_tx_datarate_en_b, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_rx_datarate_en_b, 3),
 	RZ_G2L_PINCTRL_PIN_GROUP(can_clk_c, 3),
-	RZ_G2L_PINCTRL_PIN_GROUP(can0_data_c, 3),
-	RZ_G2L_PINCTRL_PIN_GROUP(can0_datarate_en_c, 3),
-	RZ_G2L_PINCTRL_PIN_GROUP(can1_data_c, 3),
-	RZ_G2L_PINCTRL_PIN_GROUP(can1_datarate_en_c, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can0_tx_c, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can0_rx_c, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can0_tx_datarate_en_c, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can0_rx_datarate_en_c, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_tx_c, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_rx_c, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_tx_datarate_en_c, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_rx_datarate_en_c, 3),
 	RZ_G2L_PINCTRL_PIN_GROUP(can_clk_d, 3),
-	RZ_G2L_PINCTRL_PIN_GROUP(can0_data_d, 3),
-	RZ_G2L_PINCTRL_PIN_GROUP(can0_datarate_en_d, 3),
-	RZ_G2L_PINCTRL_PIN_GROUP(can1_data_d, 3),
-	RZ_G2L_PINCTRL_PIN_GROUP(can1_datarate_en_d, 3),
-	RZ_G2L_PINCTRL_PIN_GROUP(can1_data_e, 3),
-	RZ_G2L_PINCTRL_PIN_GROUP(can1_datarate_en_e, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can0_tx_d, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can0_rx_d, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can0_tx_datarate_en_d, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can0_rx_datarate_en_d, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_tx_d, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_rx_d, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_tx_datarate_en_d, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_rx_datarate_en_d, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_tx_e, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_rx_e, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_tx_datarate_en_e, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(can1_rx_datarate_en_e, 3),
 	RZ_G2L_PINCTRL_PIN_GROUP(poe_a, 3),
 	RZ_G2L_PINCTRL_PIN_GROUP(poe_b, 3),
 	RZ_G2L_PINCTRL_PIN_GROUP(poe_c, 2),
@@ -2353,18 +2461,27 @@ static const char *r9a07g044l_can_clk_groups[] = {
 };
 
 static const char *r9a07g044l_can0_groups[] = {
-	"can0_data_a", "can0_datarate_en_a",
-	"can0_data_b", "can0_datarate_en_b",
-	"can0_data_c", "can0_datarate_en_c",
-	"can0_data_d", "can0_datarate_en_d",
+	"can0_tx_a", "can0_rx_a",
+	"can0_tx_datarate_en_a", "can0_rx_datarate_en_a",
+	"can0_tx_b", "can0_rx_b",
+	"can0_tx_datarate_en_b", "can0_rx_datarate_en_b",
+	"can0_tx_c", "can0_rx_c",
+	"can0_tx_datarate_en_c", "can0_rx_datarate_en_c",
+	"can0_tx_d", "can0_rx_d",
+	"can0_tx_datarate_en_d", "can0_rx_datarate_en_d",
 };
 
 static const char *r9a07g044l_can1_groups[] = {
-	"can1_data_a", "can1_datarate_en_a",
-	"can1_data_b", "can1_datarate_en_b",
-	"can1_data_c", "can1_datarate_en_c",
-	"can1_data_d", "can1_datarate_en_d",
-	"can1_data_e", "can1_datarate_en_e",
+	"can1_tx_a", "can1_rx_a",
+	"can1_tx_datarate_en_a", "can1_rx_datarate_en_a",
+	"can1_tx_b", "can1_rx_b",
+	"can1_tx_datarate_en_b", "can1_rx_datarate_en_b",
+	"can1_tx_c", "can1_rx_c",
+	"can1_tx_datarate_en_c", "can1_rx_datarate_en_c",
+	"can1_tx_d", "can1_rx_d",
+	"can1_tx_datarate_en_d", "can1_rx_datarate_en_d",
+	"can1_tx_e", "can1_rx_e",
+	"can1_tx_datarate_en_e", "can1_rx_datarate_en_e",
 };
 
 static const char *r9a07g044l_poe_groups[] = {
