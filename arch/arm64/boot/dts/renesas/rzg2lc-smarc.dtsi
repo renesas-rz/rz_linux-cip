@@ -35,10 +35,25 @@
 
 #define SW_SD0_DEV_SEL	1
 #define SW_SCIF_CAN	1
-/* when SW_SCIF_CAN is 0, RSPI1 is always chosen */
-#define SW_RSPI_CAN	1
+#if (SW_SCIF_CAN)
+/*
+ * Due to Hardware routing, SW_RSPI_CAN is always 0 when SW_SCIF_CAN is set to 1
+ */
+#define SW_RSPI_CAN	0
+#else
+/*
+ * Please choose one of two below setting when SW_SCIF_CAN is set to 0.
+ * Default value is 1.
+ */
+#define SW_RSPI_CAN     1
+//#define SW_RSPI_CAN     0
+#endif
+
 #define SW_I2S0_I2S1	1
 
+#if (SW_SCIF_CAN & SW_RSPI_CAN)
+#error "Can not set 1 to both SW_SCIF_CAN and SW_RSPI_CAN due to Hardware."
+#endif
 
 / {
 	aliases {
@@ -46,7 +61,9 @@
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		serial0 = &scif0;
+#if (!SW_SCIF_CAN)
 		serial1 = &scif1;
+#endif
 		ethernet0 = &eth0;
 	};
 
@@ -358,10 +375,23 @@
 		function = "scif0";
 	};
 
+#if (SW_SCIF_CAN)
+	canfd1_pins: canfd1 {
+		groups = "can1_tx_c", "can1_rx_c";
+		function = "can1";
+	};
+
+	spi1_pins: rspi1 {
+		groups = "rspi1_clk_b", "rspi1_data_b", "rspi1_ssl_b";
+		function = "rspi1";
+	};
+
+#else
 	scif1_pins: scif1 {
 		groups = "scif1_data", "scif1_ctrl" ;
 		function = "scif1";
 	};
+
 #if (SW_RSPI_CAN)
 	canfd1_en {
 		gpio-hog;
@@ -371,14 +401,15 @@
 	};
 
 	canfd1_pins: canfd1 {
-		groups = "can1_data_d";
+		groups = "can1_tx_d", "can1_rx_d";
 		function = "can1";
 	};
 #else
-	canfd1_pins: canfd1 {
-		groups = "can1_data_c";
-		function = "can1";
+	spi1_pins: rspi1 {
+		groups = "rspi1_clk_b", "rspi1_data_b", "rspi1_ssl_b";
+		function = "rspi1";
 	};
+#endif
 #endif
 
 	sd0_pwr_en {
@@ -497,11 +528,6 @@
 		groups = "usb1_d";
 		function = "usb1";
 	};
-
-	spi1_pins: rspi1 {
-		groups = "rspi1_clk_b", "rspi1_data_b", "rspi1_ssl_b";
-		function = "rspi1";
-	};
 };
 
 &scif0 {
@@ -510,7 +536,7 @@
 	status = "okay";
 };
 
-#if ((SW_SCIF_CAN) || (!SW_SCIF_CAN && SW_RSPI_CAN))
+#if ((SW_SCIF_CAN) || (SW_RSPI_CAN))
 &can {
 	pinctrl-0 = <&canfd1_pins>;
 	pinctrl-names = "default";
@@ -638,15 +664,6 @@
 &wdt1 {
 	status = "okay";
 	timeout-sec = <60>;
-};
-
-&rspi1 {
-	pinctrl-0 = <&spi1_pins>;
-	pinctrl-names = "default";
-	status = "okay";
-	dmas = <&dma0 0xa601>,
-	       <&dma0 0xa602>;
-	dma-names = "tx", "rx";
 };
 
 &spibsc {
