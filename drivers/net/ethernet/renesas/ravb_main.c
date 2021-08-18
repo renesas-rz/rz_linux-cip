@@ -1933,12 +1933,20 @@ static int ravb_mdio_release(struct ravb_private *priv)
 	return 0;
 }
 
+static const struct ravb_hw_info ravb_gen3_hw_info = {
+	.chip_id = RCAR_GEN3,
+};
+
+static const struct ravb_hw_info ravb_gen2_hw_info = {
+	.chip_id = RCAR_GEN2,
+};
+
 static const struct of_device_id ravb_match_table[] = {
-	{ .compatible = "renesas,etheravb-r8a7790", .data = (void *)RCAR_GEN2 },
-	{ .compatible = "renesas,etheravb-r8a7794", .data = (void *)RCAR_GEN2 },
-	{ .compatible = "renesas,etheravb-rcar-gen2", .data = (void *)RCAR_GEN2 },
-	{ .compatible = "renesas,etheravb-r8a7795", .data = (void *)RCAR_GEN3 },
-	{ .compatible = "renesas,etheravb-rcar-gen3", .data = (void *)RCAR_GEN3 },
+	{ .compatible = "renesas,etheravb-r8a7790", .data = &ravb_gen2_hw_info },
+	{ .compatible = "renesas,etheravb-r8a7794", .data = &ravb_gen2_hw_info },
+	{ .compatible = "renesas,etheravb-rcar-gen2", .data = &ravb_gen2_hw_info },
+	{ .compatible = "renesas,etheravb-r8a7795", .data = &ravb_gen3_hw_info },
+	{ .compatible = "renesas,etheravb-rcar-gen3", .data = &ravb_gen3_hw_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ravb_match_table);
@@ -2043,8 +2051,8 @@ static void ravb_set_delay_mode(struct net_device *ndev)
 static int ravb_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
+	const struct ravb_hw_info *info;
 	struct ravb_private *priv;
-	enum ravb_chip_id chip_id;
 	struct net_device *ndev;
 	int error, irq, q;
 	struct resource *res;
@@ -2077,9 +2085,9 @@ static int ravb_probe(struct platform_device *pdev)
 	/* The Ether-specific entries in the device structure. */
 	ndev->base_addr = res->start;
 
-	chip_id = (enum ravb_chip_id)of_device_get_match_data(&pdev->dev);
+	info = of_device_get_match_data(&pdev->dev);
 
-	if (chip_id == RCAR_GEN3)
+	if (info->chip_id == RCAR_GEN3)
 		irq = platform_get_irq_byname(pdev, "ch22");
 	else
 		irq = platform_get_irq(pdev, 0);
@@ -2092,6 +2100,7 @@ static int ravb_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	priv = netdev_priv(ndev);
+	priv->info = info;
 	priv->ndev = ndev;
 	priv->pdev = pdev;
 	priv->num_tx_ring[RAVB_BE] = BE_TX_RING_SIZE;
@@ -2115,7 +2124,7 @@ static int ravb_probe(struct platform_device *pdev)
 	priv->avb_link_active_low =
 		of_property_read_bool(np, "renesas,ether-link-active-low");
 
-	if (chip_id == RCAR_GEN3) {
+	if (info->chip_id == RCAR_GEN3) {
 		irq = platform_get_irq_byname(pdev, "ch24");
 		if (irq < 0) {
 			error = irq;
@@ -2140,7 +2149,7 @@ static int ravb_probe(struct platform_device *pdev)
 		}
 	}
 
-	priv->chip_id = chip_id;
+	priv->chip_id = info->chip_id;
 
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
@@ -2151,7 +2160,7 @@ static int ravb_probe(struct platform_device *pdev)
 	ndev->max_mtu = 2048 - (ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN);
 	ndev->min_mtu = ETH_MIN_MTU;
 
-	priv->num_tx_desc = chip_id == RCAR_GEN2 ?
+	priv->num_tx_desc = info->chip_id == RCAR_GEN2 ?
 		NUM_TX_DESC_GEN2 : NUM_TX_DESC_GEN3;
 
 	/* Set function */
@@ -2193,7 +2202,7 @@ static int ravb_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&priv->ts_skb_list);
 
 	/* Initialise PTP Clock driver */
-	if (chip_id != RCAR_GEN2)
+	if (info->chip_id != RCAR_GEN2)
 		ravb_ptp_init(ndev, pdev);
 
 	/* Debug message level */
@@ -2241,7 +2250,7 @@ out_dma_free:
 			  priv->desc_bat_dma);
 
 	/* Stop PTP Clock driver */
-	if (chip_id != RCAR_GEN2)
+	if (info->chip_id != RCAR_GEN2)
 		ravb_ptp_stop(ndev);
 out_release:
 	free_netdev(ndev);
