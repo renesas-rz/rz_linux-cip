@@ -412,14 +412,14 @@
 
 #if !(JP30 || JP2)
 	can0_pins: can0 {
-		groups = "can0_data_a";
+		groups = "can0_tx_c", "can0_rx_d";
 		function = "can0";
 	};
 #endif
 
 #if (JP31 == 0 & JP32 == 0 & JP33 == 0 & JP34 == 0)
 	can1_pins: can1 {
-		groups = "can1_data_d";
+		groups = "can1_tx_d", "can1_rx_d";
 		function = "can1";
 	};
 #endif
