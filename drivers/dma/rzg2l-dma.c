@@ -521,7 +521,8 @@ static void prepare_desc_for_memcpy(struct dmac_desc *d)
 #else
 	lmdesc->header = HEADER_LV;
 #endif
-
+	/* Make sure descriptor is updated before dma runs */
+	dma_wmb();
 	/* And set DMARS register */
 	set_dmars_register(rzg2ldma, channel->nr, dmars);
 
@@ -588,6 +589,9 @@ static void prepare_descs_for_slave_sg(struct dmac_desc *d)
 			lmdesc = channel->lmdesc.base;
 	}
 	channel->lmdesc.tail = lmdesc;
+
+	/* Make sure descriptor is updated before dma runs */
+	dma_wmb();
 
 	/* And set DMARS register */
 	dmars = channel->slave->dmars.v;
