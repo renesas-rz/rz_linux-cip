@@ -692,7 +692,7 @@ static int rzg2l_cpg_reset(struct reset_controller_dev *rcdev,
 	u32 reg, dis, we;
 
 	if(i < 0) {
-		dev_err(rcdev->dev, "Invalid reset index %u\n", id);
+		dev_err(rcdev->dev, "Invalid reset index %lu\n", id);
 		return -EINVAL;
 	}
 
@@ -723,7 +723,7 @@ static int rzg2l_cpg_assert(struct reset_controller_dev *rcdev,
 	u32 reg, value;
 
 	if(i < 0) {
-		dev_err(rcdev->dev, "Invalid reset index %u\n", id);
+		dev_err(rcdev->dev, "Invalid reset index %lu\n", id);
 		return -EINVAL;
 	}
 
@@ -745,7 +745,7 @@ static int rzg2l_cpg_deassert(struct reset_controller_dev *rcdev,
 	u32 reg, dis, value;
 
 	if(i < 0) {
-		dev_err(rcdev->dev, "Invalid reset index %u\n", id);
+		dev_err(rcdev->dev, "Invalid reset index %lu\n", id);
 		return -EINVAL;
 	}
 
@@ -768,7 +768,7 @@ static int rzg2l_cpg_status(struct reset_controller_dev *rcdev,
 	u32 reg, bitmask;
 
 	if(i < 0) {
-		dev_err(rcdev->dev, "Invalid reset index %u\n", id);
+		dev_err(rcdev->dev, "Invalid reset index %lu\n", id);
 		return -EINVAL;
 	}
 
