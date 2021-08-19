@@ -1016,6 +1016,7 @@ void __init rzg2l_cpg_early_init(struct device_node *np,
 				const struct cpg_mssr_info *info)
 {
 	int error;
+	u32 reg, dis, value;
 	int i;
 
 	error = rzg2l_cpg_common_init(NULL, np, info);
@@ -1026,10 +1027,16 @@ void __init rzg2l_cpg_early_init(struct device_node *np,
 		rzg2l_cpg_register_core_clk(&info->early_core_clks[i], info,
 						cpg_mssr_priv);
 
-	for (i = 0; i < info->num_early_mod_clks; i++)
+	for (i = 0; i < info->num_early_mod_clks; i++) {
 		rzg2l_cpg_register_mod_clk(&info->early_mod_clks[i], info,
 						cpg_mssr_priv);
-}	
+		/* release reset state for all early module clocks*/
+		reg = MSSR_OFF(info->early_mod_clks[i].bit) * 0x4;
+		dis = MSSR_RES(info->early_mod_clks[i].bit);
+		value = (dis << 16) | dis;
+		writel(value, cpg_mssr_priv->base + CLK_RST_R(reg));
+	}
+}
 
 static struct platform_driver rzg2l_cpg_driver = {
 	.driver		= {
