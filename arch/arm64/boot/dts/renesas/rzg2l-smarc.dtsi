@@ -165,6 +165,36 @@
 		#clock-cells = <0>;
 		clock-frequency = <24000000>;
 	};
+
+	clk_ext_camera: clk_ext_camera {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+	};
+
+	ov5645_vdddo_1v8: 1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_vdddo";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	ov5645_vdda_2v8: 2p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_vdda";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-always-on;
+	};
+
+	ov5645_vddd_1v5: 1p5v {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_vddd";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+		regulator-always-on;
+	};
 };
 
 &audio_clk1{
@@ -286,6 +316,27 @@
 
 	clock-frequency = <100000>;
 	status = "okay";
+
+	ov5645: camera@3c {
+		compatible = "ovti,ov5645";
+		reg = <0x3c>;
+		clock-names = "xclk";
+		clocks = <&clk_ext_camera>;
+		clock-frequency = <24000000>;
+		vdddo-supply = <&ov5645_vdddo_1v8>;
+		vdda-supply = <&ov5645_vdda_2v8>;
+		vddd-supply = <&ov5645_vddd_1v5>;
+		enable-gpios = <&pinctrl RZG2L_GPIO(2, 0) GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&pinctrl RZG2L_GPIO(40, 2) GPIO_ACTIVE_LOW>;
+
+		port {
+			ov5645_to_csi: endpoint {
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+				remote-endpoint = <&csi2_in>;
+			};
+		};
+	};
 };
 
 &i2c1 {
@@ -785,5 +836,23 @@ status = "okay";
 
 &ostm2 {
 	status = "okay";
+};
+
+&cru {
+	status = "okay";
+};
+
+&csi2 {
+	status = "okay";
+
+	ports {
+		port {
+			csi2_in: endpoint {
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+				remote-endpoint = <&ov5645_to_csi>;
+			};
+		};
+	};
 };
 
