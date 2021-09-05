@@ -241,21 +241,36 @@ static inline void rzg2l_mtu3_write(struct rzg2l_mtu3_channel *ch, int reg_nr,
 		iowrite16((u16)value, ch->base + offs);
 }
 
-static void rzg2l_mtu3_start_stop_ch(struct rzg2l_mtu3_channel *ch, int start)
+static void rzg2l_mtu3_start_stop_ch(struct rzg2l_mtu3_channel *ch, bool start)
 {
 	unsigned long flags, value;
+	u8 offs;
 
 	/* start stop register shared by multiple timer channels */
 	raw_spin_lock_irqsave(&ch->mtu->lock, flags);
-	value = rzg2l_mtu3_read(ch, TSTRA);
 
-	if (start)
-		value |= 1 << ch->index;
-	else
-		value &= ~(1 << ch->index);
+	if ((ch->index == 6) || (ch->index == 7)) {
+		value = rzg2l_mtu3_read(ch, TSTRB);
+		if (start)
+			value |= 1 << ch->index;
+		else
+			value &= ~(1 << ch->index);
+		rzg2l_mtu3_write(ch, TSTRB, value);
+	} else if (ch->index != 5) {
+		value = rzg2l_mtu3_read(ch, TSTRA);
+		if (ch->index == 8)
+			offs = 0x08;
+		else if (ch->index < 3)
+			offs = 1 << ch->index;
+		else
+			offs = 1 << (ch->index + 3);
+		if (start)
+			value |= offs;
+		else
+			value &= ~offs;
+		rzg2l_mtu3_write(ch, TSTRA, value);
+	}
 
-	rzg2l_mtu3_write(ch, TSTRA, value);
-	value = rzg2l_mtu3_read(ch, TSTRA);
 	raw_spin_unlock_irqrestore(&ch->mtu->lock, flags);
 }
 
@@ -277,7 +292,7 @@ static int rzg2l_mtu3_enable(struct rzg2l_mtu3_channel *ch)
 	}
 
 	/* make sure channel is disabled */
-	rzg2l_mtu3_start_stop_ch(ch, 0);
+	rzg2l_mtu3_start_stop_ch(ch, false);
 
 	rate = clk_get_rate(ch->mtu->clk) / 64;
 	periodic = (rate + HZ/2) / HZ;
@@ -299,14 +314,14 @@ static int rzg2l_mtu3_enable(struct rzg2l_mtu3_channel *ch)
 	}
 
 	/* enable channel */
-	rzg2l_mtu3_start_stop_ch(ch, 1);
+	rzg2l_mtu3_start_stop_ch(ch, true);
 	return 0;
 }
 
 static void rzg2l_mtu3_disable(struct rzg2l_mtu3_channel *ch)
 {
 	/* disable channel */
-	rzg2l_mtu3_start_stop_ch(ch, 0);
+	rzg2l_mtu3_start_stop_ch(ch, false);
 	/* stop clock */
 	clk_disable(ch->mtu->clk);
 	dev_pm_syscore_device(&ch->mtu->pdev->dev, false);
