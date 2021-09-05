@@ -29,8 +29,26 @@
 #include <linux/clocksource.h>
 #include <linux/of_device.h>
 #include <linux/reset.h>
+#include <linux/pwm.h>
 
 struct rzg2l_mtu3_device;
+
+enum mtu3_functions {
+	MTU3_CLOCKSOURCE,	/* Assign clocksource function */
+	MTU3_CLOCKEVENT,	/* Assign clockevent function */
+	MTU3_PWM_MODE_1,	/* Assign pwm mode 1 function */
+};
+
+enum mtu3_pins {
+	MTIOCA, MTIOCB, MTIOCC, MTIOCD,
+};
+
+struct mtu3_pwm_device {
+	u8 ch;
+	u8 output;
+};
+
+static const struct pwm_ops mtu3_pwm_ops;
 
 struct rzg2l_mtu3_channel {
 	struct rzg2l_mtu3_device *mtu;
@@ -44,6 +62,7 @@ struct rzg2l_mtu3_channel {
 	raw_spinlock_t lock;
 	unsigned long flags;
 	bool cs_enabled;
+	enum mtu3_functions function;
 };
 
 struct rzg2l_mtu3_device {
@@ -57,15 +76,18 @@ struct rzg2l_mtu3_device {
 	unsigned int num_channels;
 	bool has_clockevent;
 	bool has_clocksource;
+	struct pwm_chip pwm_chip;
+	struct mtu3_pwm_device *pwms;
+
 };
 
-/* MTU3 shared register */
-#define TSTRA	-1 /* Timer start register A */
-#define TSTRB	-2 /* Timer start register B */
-#define TOERA	-3 /* Timer output master enable register A */
-#define TOERB	-4 /* Timer output master enable register B */
+#define TSTR -1 /* shared register */
+#define TSTRA -1 /* shared register */
+#define TSTRB -2 /* shared register */
+#define TOERA -3 /* shared register */
+#define TOERB -4 /* shared register */
 
-/* 8-bit channel registers */
+/* 8 bit channel registers */
 #define TCR		0 /* Timer control register */
 #define TMDR1		1 /* Timer mode register 1 */
 #define TIORH		2 /* Timer I/O control register H */
@@ -75,12 +97,14 @@ struct rzg2l_mtu3_device {
 #define TSR		5 /* channel register */
 #define TCR2		6 /* channel register */
 
-/* 16-bit channel registers */
+/* 16 bit channel registers */
 #define TCNT		7 /* Timer counter */
 #define TGRA		8 /* Timer general register A */
 #define TGRB		9 /* Timer general register B */
 #define TGRC		10 /* Timer general register C */
 #define TGRD		11 /* Timer general register D */
+/* 32 bit channel registers */
+
 
 #define TCR_CCLR_NONE		(0 << 5)
 #define TCR_CCLR_TGRA		(1 << 5)
@@ -135,11 +159,12 @@ struct rzg2l_mtu3_device {
 #define TIOC_IOCH(n)		((n) << 4)
 #define TIOC_IOCL(n)		((n) << 0)
 #define TIOR_OC_RETAIN		(0 << 0)
-#define TIOR_OC_0_CLEAR		(1 << 0)
-#define TIOR_OC_0_SET		(2 << 0)
+#define TIOR_OC_0_L_COMP_MATCH		(1 << 0)
+#define TIOR_OC_0_H_COMP_MATCH		(2 << 0)
 #define TIOR_OC_0_TOGGLE	(3 << 0)
-#define TIOR_OC_1_CLEAR		(5 << 0)
-#define TIOR_OC_1_SET		(6 << 0)
+
+#define TIOR_OC_1_L_COMP_MATCH		(5 << 0)
+#define TIOR_OC_1_H_COMP_MATCH		(6 << 0)
 #define TIOR_OC_1_TOGGLE	(7 << 0)
 #define TIOR_IC_RISING		(8 << 0)
 #define TIOR_IC_FALLING		(9 << 0)
@@ -306,8 +331,8 @@ static int rzg2l_mtu3_enable(struct rzg2l_mtu3_channel *ch)
 		rzg2l_mtu3_write(ch, TIER, 0);
 	} else {
 		rzg2l_mtu3_write(ch, TCR, TCR_CCLR_TGRA | TCR_TPSC_P64);
-		rzg2l_mtu3_write(ch, TIOR, TIOC_IOCH(TIOR_OC_0_CLEAR) |
-			TIOC_IOCL(TIOR_OC_0_CLEAR));
+		rzg2l_mtu3_write(ch, TIOR, TIOC_IOCH(TIOR_OC_1_L_COMP_MATCH) |
+			TIOC_IOCL(TIOR_OC_1_L_COMP_MATCH));
 		rzg2l_mtu3_write(ch, TGRA, periodic);
 		rzg2l_mtu3_write(ch, TMDR1, TMDR_MD_NORMAL);
 		rzg2l_mtu3_write(ch, TIER, TIER_TGIEA);
@@ -592,6 +617,251 @@ static int rzg2l_mtu3_map_memory(struct rzg2l_mtu3_device *mtu)
 	return 0;
 }
 
+static void rzg2l_mtu3_pin_setup(struct rzg2l_mtu3_channel *ch,
+				 enum mtu3_pins pin,
+				 u8 state)
+{
+	u8 val;
+
+	switch (pin) {
+	case MTIOCA:
+		val = rzg2l_mtu3_read(ch, TIORH);
+		val &= 0xF0;
+		val |= state;
+		rzg2l_mtu3_write(ch, TIORH, val);
+		break;
+	case MTIOCB:
+		val = rzg2l_mtu3_read(ch, TIORH);
+		val &= 0x0F;
+		val |= (state << 4);
+		rzg2l_mtu3_write(ch, TIORH, val);
+		break;
+	case MTIOCC:
+		val = rzg2l_mtu3_read(ch, TIORL);
+		val &= 0xF0;
+		val |= state;
+		rzg2l_mtu3_write(ch, TIORL, val);
+		break;
+	case MTIOCD:
+		val = rzg2l_mtu3_read(ch, TIORL);
+		val &= 0x0F;
+		val |= (state << 4);
+		rzg2l_mtu3_write(ch, TIORL, val);
+		break;
+	}
+}
+
+/* MTU3 PWM APIs */
+static inline struct rzg2l_mtu3_device
+			*pwm_chip_to_mtu3_device(struct pwm_chip *chip)
+{
+	return container_of(chip, struct rzg2l_mtu3_device, pwm_chip);
+}
+
+static int rzg2l_mtu3_pwm_request(struct pwm_chip *chip,
+				  struct pwm_device *pwm)
+{
+	return pm_runtime_get_sync(chip->dev);
+}
+
+static void rzg2l_mtu3_pwm_free(struct pwm_chip *chip,
+				struct pwm_device *pwm)
+{
+	pm_runtime_put_sync(chip->dev);
+}
+
+static int rzg2l_mtu3_pwm_enable(struct pwm_chip *chip,
+				 struct pwm_device *pwm)
+{
+	struct rzg2l_mtu3_device *mtu3 = pwm_chip_to_mtu3_device(chip);
+	struct rzg2l_mtu3_channel *ch;
+	u8 output_pin, count;
+
+	ch = &mtu3->channels[mtu3->pwms[pwm->hwpwm].ch];
+	if ((ch->function == MTU3_PWM_MODE_1) &&
+	   (mtu3->pwms[pwm->hwpwm].output == 0)) {
+		output_pin = MTIOCA;
+		count = MTIOCB;
+	} else if ((ch->function == MTU3_PWM_MODE_1) &&
+		  (mtu3->pwms[pwm->hwpwm].output == 1)) {
+		output_pin = MTIOCC;
+		count = MTIOCD;
+	}
+	rzg2l_mtu3_write(ch, TMDR1, TMDR_MD_PWM_1);
+
+	/* Setting output waveform modes for MTU3 pins */
+	rzg2l_mtu3_pin_setup(ch, output_pin, TIOR_OC_1_TOGGLE);
+	if (pwm->state.polarity == PWM_POLARITY_INVERSED)
+		rzg2l_mtu3_pin_setup(ch, count, TIOR_OC_1_H_COMP_MATCH);
+	else
+		rzg2l_mtu3_pin_setup(ch, count, TIOR_OC_0_L_COMP_MATCH);
+
+	rzg2l_mtu3_start_stop_ch(ch, true);
+	return 0;
+}
+
+static void rzg2l_mtu3_pwm_disable(struct pwm_chip *chip,
+				   struct pwm_device *pwm)
+{
+	struct rzg2l_mtu3_device *mtu3 = pwm_chip_to_mtu3_device(chip);
+	struct rzg2l_mtu3_channel *ch;
+
+	ch = &mtu3->channels[mtu3->pwms[pwm->hwpwm].ch];
+	/* Return to normal mode and disable output pins of MTU3 channel */
+	rzg2l_mtu3_write(ch, TMDR1, TMDR_MD_NORMAL);
+
+	/* Disable output waveform of MTU3 pins */
+	if ((ch->function == MTU3_PWM_MODE_1) &&
+	   (mtu3->pwms[pwm->hwpwm].output == 0))
+		rzg2l_mtu3_pin_setup(ch, MTIOCA, TIOR_OC_RETAIN);
+	else if ((ch->function == MTU3_PWM_MODE_1) &&
+		(mtu3->pwms[pwm->hwpwm].output == 1))
+		rzg2l_mtu3_pin_setup(ch, MTIOCC, TIOR_OC_RETAIN);
+
+	rzg2l_mtu3_start_stop_ch(ch, false);
+}
+
+
+static int rzg2l_mtu3_pwm_config(struct pwm_chip *chip,
+				 struct pwm_device *pwm,
+				 int duty_ns, int period_ns)
+{
+	struct rzg2l_mtu3_device *mtu3 = pwm_chip_to_mtu3_device(chip);
+	struct rzg2l_mtu3_channel *ch;
+	static const unsigned int prescalers[] = { 1, 4, 16, 64 };
+	unsigned int prescaler;
+	u32 clk_rate;
+	u32 period;
+	u32 duty;
+
+	ch = &mtu3->channels[mtu3->pwms[pwm->hwpwm].ch];
+	clk_rate = clk_get_rate(mtu3->clk);
+
+	for (prescaler = 0; prescaler < ARRAY_SIZE(prescalers); ++prescaler) {
+		period = clk_rate / prescalers[prescaler]
+			/ (NSEC_PER_SEC / period_ns);
+		if (period <= 0xffff)
+			break;
+	}
+
+	if (prescaler == ARRAY_SIZE(prescalers) || period == 0) {
+		dev_err(&ch->mtu->pdev->dev, "clock rate mismatch\n");
+		return -ENOTSUPP;
+	}
+
+	if (duty_ns) {
+		duty = clk_rate / prescalers[prescaler]
+			/ (NSEC_PER_SEC / duty_ns);
+		if (duty > period)
+			return -EINVAL;
+	} else {
+		duty = 0;
+	}
+
+	dev_dbg(&mtu3->pdev->dev,
+		"rate %u, prescaler %u, period %u, duty %u\n",
+		clk_rate, prescalers[prescaler], period, duty);
+
+	if ((ch->function == MTU3_PWM_MODE_1) &&
+		(mtu3->pwms[pwm->hwpwm].output == 0)) {
+		rzg2l_mtu3_write(ch, TCR, TCR_CCLR_TGRA |
+				TCR_CKEG_RISING | prescaler);
+		rzg2l_mtu3_write(ch, TGRB, duty);
+		rzg2l_mtu3_write(ch, TGRA, period);
+	} else if ((ch->function == MTU3_PWM_MODE_1) &&
+			(mtu3->pwms[pwm->hwpwm].output == 1)) {
+		rzg2l_mtu3_write(ch, TCR, TCR_CCLR_TGRC |
+				TCR_CKEG_RISING | prescaler);
+		rzg2l_mtu3_write(ch, TGRD, duty);
+		rzg2l_mtu3_write(ch, TGRC, period);
+	}
+
+	return 0;
+}
+
+static int rzg2l_mtu3_register_pwm(struct rzg2l_mtu3_device *mtu,
+				   struct device_node *np)
+{
+	u32 tmp, ch_num, num_pwm, num_args;
+	int offset, ret, i, j;
+
+	if (!of_get_property(np, "pwm_mode1", &tmp))
+		return 1;
+
+	num_args = 2;
+	num_pwm = tmp/(sizeof(u32)*num_args);
+	mtu->pwms = kzalloc(sizeof(mtu->pwms), GFP_KERNEL);
+	mtu->pwm_chip.npwm = 0;
+
+	for (i = 0, j = 0; i < num_pwm; i++) {
+		offset =  i*num_args;
+		of_property_read_u32_index(np, "pwm_mode1", offset, &ch_num);
+
+		/*
+		 * pwm mode 1 supports for MTu3 channels[0:7].
+		 * Only Setting for channel which has not assigned
+		 * for pwm mode 1 function.
+		 */
+		if ((ch_num < 8) && (ch_num != 5) &&
+		(mtu->channels[ch_num].function != MTU3_PWM_MODE_1)) {
+			mtu->channels[ch_num].index = ch_num;
+		/*
+		 * In PWM MODE1, channel 1/2 of MTU3 can only output
+		 * 1 pwm signal at their MTIOCA pins
+		 * while others can use MTIOCC pins more.
+		 */
+			of_property_read_u32_index(np, "pwm_mode1",
+						offset + 1, &tmp);
+			if (tmp == 0 || (tmp == 1 &&
+			   !(mtu->channels[ch_num].index == 1
+			   || mtu->channels[ch_num].index == 2))) {
+				mtu->pwms[j].output = tmp;
+				mtu->channels[ch_num].function =
+					MTU3_PWM_MODE_1;
+				mtu->pwms[j].ch = ch_num;
+				rzg2l_mtu3_setup_channel(&mtu->channels[ch_num],
+							ch_num, mtu);
+				mtu->pwm_chip.npwm += 1;
+				dev_info(&mtu->pdev->dev,
+					"ch%u: used as pwm mode 1 with pin %s\n",
+					mtu->channels[ch_num].index,
+					mtu->pwms[j].output ?
+					"MTIOCC" : "MTIOCA");
+				j++;
+			}
+		}
+	}
+
+	/* No pwm device set */
+	if (j == 0)
+		return -EINVAL;
+
+	mtu->pwm_chip.dev = &mtu->pdev->dev;
+	mtu->pwm_chip.ops = &mtu3_pwm_ops;
+	mtu->pwm_chip.base = -1;
+	ret = pwmchip_add(&mtu->pwm_chip);
+
+	return ret;
+}
+
+static int rzg2l_mtu3_pwm_set_polarity(struct pwm_chip *chip,
+					struct pwm_device *pwm,
+					enum pwm_polarity polarity)
+{
+	pwm->state.polarity = polarity;
+	return 0;
+}
+
+static const struct pwm_ops mtu3_pwm_ops = {
+	.request        = rzg2l_mtu3_pwm_request,
+	.free		= rzg2l_mtu3_pwm_free,
+	.enable         = rzg2l_mtu3_pwm_enable,
+	.disable        = rzg2l_mtu3_pwm_disable,
+	.config         = rzg2l_mtu3_pwm_config,
+	.set_polarity	= rzg2l_mtu3_pwm_set_polarity,
+};
+
+/* Setting mtu3 */
 static int rzg2l_mtu3_setup(struct rzg2l_mtu3_device *mtu,
 			struct platform_device *pdev)
 {
