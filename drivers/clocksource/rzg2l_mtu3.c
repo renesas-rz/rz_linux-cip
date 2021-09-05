@@ -59,17 +59,28 @@ struct rzg2l_mtu3_device {
 	bool has_clocksource;
 };
 
-#define TSTR -1 /* shared register */
-#define TSTRA -2 /* shared register */
-#define TSTRB -3 /* shared register */
+/* MTU3 shared register */
+#define TSTRA	-1 /* Timer start register A */
+#define TSTRB	-2 /* Timer start register B */
+#define TOERA	-3 /* Timer output master enable register A */
+#define TOERB	-4 /* Timer output master enable register B */
 
-#define TCR  0 /* channel register */
-#define TMDR 1 /* channel register */
-#define TIOR 2 /* channel register */
-#define TIER 3 /* channel register */
-#define TSR  4 /* channel register */
-#define TCNT 5 /* channel register */
-#define TGR  6 /* channel register */
+/* 8-bit channel registers */
+#define TCR		0 /* Timer control register */
+#define TMDR1		1 /* Timer mode register 1 */
+#define TIORH		2 /* Timer I/O control register H */
+#define TIOR		2 /* Timer I/O control register */
+#define TIORL		3 /* Timer I/O control register L */
+#define TIER		4 /* channel register */
+#define TSR		5 /* channel register */
+#define TCR2		6 /* channel register */
+
+/* 16-bit channel registers */
+#define TCNT		7 /* Timer counter */
+#define TGRA		8 /* Timer general register A */
+#define TGRB		9 /* Timer general register B */
+#define TGRC		10 /* Timer general register C */
+#define TGRD		11 /* Timer general register D */
 
 #define TCR_CCLR_NONE		(0 << 5)
 #define TCR_CCLR_TGRA		(1 << 5)
@@ -160,14 +171,30 @@ struct rzg2l_mtu3_device {
 #define FLAG_SKIPEVENT (1 << 3)
 #define FLAG_IRQCONTEXT (1 << 4)
 
-static unsigned long mtu3_reg_offs[] = {
-	[TCR] = 0,
-	[TMDR] = 1,
-	[TIOR] = 2,
-	[TIER] = 4,
-	[TSR] = 5,
-	[TCNT] = 6,
-	[TGR] = 8,
+static unsigned long rzg2l_mtu_reg_offs[][12] = {
+	{[TCR] = 0x0, [TMDR1] = 0x1, [TIORH] = 0x2, [TIORL] = 0x3, [TIER] = 0x4,
+	 [TCNT] = 0x6, [TGRA] = 0x8, [TGRB] = 0xA, [TGRC] = 0xC, [TGRD] = 0xE,
+	 [TCR2] = 0x28 },
+	{[TCR] = 0x0, [TMDR1] = 0x1, [TIOR] = 0x2, [TIER] = 0x4, [TSR] = 0x5,
+	 [TCNT] = 0x6, [TGRA] = 0x8, [TGRB] = 0xA, [TCR2] = 0x14 },
+	{[TCR] = 0x0, [TMDR1] = 0x1, [TIOR] = 0x2, [TIER] = 0x4, [TSR] = 0x5,
+	 [TCNT] = 0x6, [TGRA] = 0x8, [TGRB] = 0xA, [TCR2] = 0xC },
+	{[TCR] = 0x0, [TMDR1] = 0x2, [TIORH] = 0x4, [TIORL] = 0x5, [TIER] = 0x8,
+	 [TCNT] = 0x10, [TGRA] = 0x18, [TGRB] = 0x1A, [TGRC] = 0x24,
+	 [TGRD] = 0x26, [TCR2] = 0x4C, [TSR] = 0x2C },
+	{[TCR] = 0x0, [TMDR1] = 0x2, [TIORH] = 0x5, [TIORL] = 0x6, [TIER] = 0x8,
+	 [TCNT] = 0x11, [TGRA] = 0x1B, [TGRB] = 0x1D, [TGRC] = 0x27,
+	 [TGRD] = 0x29, [TSR] = 0x2C, [TCR2] = 0x4C },
+	{},
+	{[TCR] = 0x0, [TMDR1] = 0x2, [TIORH] = 0x4, [TIORL] = 0x5, [TIER] = 0x8,
+	 [TCNT] = 0x10, [TGRA] = 0x18, [TGRB] = 0x1A, [TGRC] = 0x24,
+	 [TGRD] = 0x26, [TSR] = 0x2C, [TCR2] = 0x4C },
+	{[TCR] = 0x0, [TMDR1] = 0x2, [TIORH] = 0x5, [TIORL] = 0x6, [TIER] = 0x8,
+	 [TCNT] = 0x11, [TGRA] = 0x1B, [TGRB] = 0x1D, [TGRC] = 0x27,
+	 [TGRD] = 0x29, [TSR] = 0x2C, [TCR2] = 0x4C },
+	{[TCR] = 0x0, [TMDR1] = 0x1, [TIORH] = 0x2, [TIORL] = 0x3, [TIER] = 0x4,
+	 [TCNT] = 0x8, [TGRA] = 0xC, [TGRB] = 0x10, [TGRC] = 0x14,
+	 [TGRD] = 0x18, [TCR2] = 0x6 }
 };
 
 static inline unsigned long rzg2l_mtu3_read(struct rzg2l_mtu3_channel *ch,
@@ -175,40 +202,43 @@ static inline unsigned long rzg2l_mtu3_read(struct rzg2l_mtu3_channel *ch,
 {
 	unsigned long offs;
 
-	if (reg_nr == TSTR)
-		return ioread8(ch->mtu->mapbase + 0xAB4);
-	else if (reg_nr == TSTRA)
+	if (reg_nr == TSTRA)
 		return ioread8(ch->mtu->mapbase + 0x80);
 	else if (reg_nr == TSTRB)
 		return ioread8(ch->mtu->mapbase + 0x880);
-	offs = mtu3_reg_offs[reg_nr];
+	else if (reg_nr == TOERA)
+		return ioread8(ch->mtu->mapbase + 0xA);
+	else if (reg_nr == TOERB)
+		return ioread8(ch->mtu->mapbase + 0x80A);
 
-	if ((reg_nr == TCNT) || (reg_nr == TGR))
-		return ioread16(ch->base + offs);
-	else
+	offs = rzg2l_mtu_reg_offs[ch->index][reg_nr];
+
+	if ((reg_nr <= TCR2) && (reg_nr >= TCR))
 		return ioread8(ch->base + offs);
+	else if ((reg_nr >= TCNT) && (reg_nr <= TGRD))
+		return ioread16(ch->base + offs);
+	return 0;
 }
 
 static inline void rzg2l_mtu3_write(struct rzg2l_mtu3_channel *ch, int reg_nr,
-				unsigned long value)
+			unsigned long value)
 {
 	unsigned long offs;
 
-	if (reg_nr == TSTR)
-		return iowrite8(value, ch->mtu->mapbase + 0xAB4);
-
 	if (reg_nr == TSTRA)
-		return iowrite8(value, ch->mtu->mapbase + 0x80);
+		iowrite8((u8)value, ch->mtu->mapbase + 0x80);
+	else if (reg_nr == TSTRB)
+		iowrite8((u8)value, ch->mtu->mapbase + 0x880);
+	else if (reg_nr == TOERA)
+		iowrite8((u8)value, ch->mtu->mapbase + 0xA);
+	else if (reg_nr == TOERB)
+		iowrite8((u8)value, ch->mtu->mapbase + 0x80A);
 
-	if (reg_nr == TSTRB)
-		return iowrite8(value, ch->mtu->mapbase + 0x880);
-
-	offs = mtu3_reg_offs[reg_nr];
-
-	if ((reg_nr == TCNT) || (reg_nr == TGR))
-		iowrite16(value, ch->base + offs);
-	else
-		iowrite8(value, ch->base + offs);
+	offs = rzg2l_mtu_reg_offs[ch->index][reg_nr];
+	if ((reg_nr <= TCR2) && (reg_nr >= TCR))
+		iowrite8((u8)value, ch->base + offs);
+	else if ((reg_nr >= TCNT) && (reg_nr <= TGRD))
+		iowrite16((u16)value, ch->base + offs);
 }
 
 static void rzg2l_mtu3_start_stop_ch(struct rzg2l_mtu3_channel *ch, int start)
@@ -263,8 +293,8 @@ static int rzg2l_mtu3_enable(struct rzg2l_mtu3_channel *ch)
 		rzg2l_mtu3_write(ch, TCR, TCR_CCLR_TGRA | TCR_TPSC_P64);
 		rzg2l_mtu3_write(ch, TIOR, TIOC_IOCH(TIOR_OC_0_CLEAR) |
 			TIOC_IOCL(TIOR_OC_0_CLEAR));
-		rzg2l_mtu3_write(ch, TGR, periodic);
-		rzg2l_mtu3_write(ch, TMDR, TMDR_MD_NORMAL);
+		rzg2l_mtu3_write(ch, TGRA, periodic);
+		rzg2l_mtu3_write(ch, TMDR1, TMDR_MD_NORMAL);
 		rzg2l_mtu3_write(ch, TIER, TIER_TGIEA);
 	}
 
