@@ -28,6 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/clocksource.h>
 #include <linux/reset.h>
+#include <linux/irqflags.h>
 
 /*
  * The OSTM contains independent channels.
@@ -206,7 +207,7 @@ static int __init ostm_init(struct device_node *np,
 	int ret = -EFAULT;
 	struct clk *ostm_clk = NULL;
 	int irq;
-	unsigned long rate;
+	unsigned long rate, flags;
 
 	ostm = kzalloc(sizeof(*ostm), GFP_KERNEL);
 	if (!ostm)
@@ -256,8 +257,14 @@ static int __init ostm_init(struct device_node *np,
 		ret = ostm_init_clksrc(ostm, rate);
 
 		if (!ret) {
+			/* interrupts are now disabled */
+			local_irq_save(flags);
+
 			ostm_init_sched_clock(ostm, rate);
 			pr_info("ostm: used for clocksource\n");
+
+			/* interrupts are restored to their previous state */
+			local_irq_restore(flags);
 		}
 
 	} else {
