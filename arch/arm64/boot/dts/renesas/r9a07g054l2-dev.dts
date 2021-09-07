@@ -13,10 +13,10 @@
 	model = "Evaluation board based on r9a07g054l2";
 	compatible = "renesas,r9a07g054l2-dev", "renesas,r9a07g054l2";
 
-	memory@47E00000 {
+	memory@48000000 {
 		device_type = "memory";
-		/* first 126MB is reserved for secure area. */
-		reg = <0x0 0x47E00000 0x0 0xF8200000>;
+		/* first 128MB is reserved for secure area. */
+		reg = <0x0 0x48000000 0x0 0xF8000000>;
 	};
 
 	reserved-memory {
