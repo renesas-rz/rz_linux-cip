@@ -15,10 +15,10 @@
 		     "renesas,r9a07g044c",
 		     "renesas,r9a07g044c2";
 
-	memory@47E00000 {
+	memory@48000000 {
 		device_type = "memory";
-		/* first 126MB is reserved for secure area. */
-		reg = <0x0 0x47E00000 0x0 0x38200000>;
+		/* first 128MB is reserved for secure area. */
+		reg = <0x0 0x48000000 0x0 0x38000000>;
 	};
 
 	reserved-memory {
