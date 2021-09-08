@@ -326,10 +326,10 @@ static int rzg2l_mtu3_enable(struct rzg2l_mtu3_channel *ch)
 	 * "Periodic Counter Operation"
 	 * Clear on TGRA compare match, divide clock by 64.
 	 */
-	if (!(ch->index)%2) {
+	if (ch->function == MTU3_CLOCKSOURCE) {
 		rzg2l_mtu3_write(ch, TCR, TCR_TPSC_P64);
 		rzg2l_mtu3_write(ch, TIER, 0);
-	} else {
+	} else if (ch->function == MTU3_CLOCKEVENT) {
 		rzg2l_mtu3_write(ch, TCR, TCR_CCLR_TGRA | TCR_TPSC_P64);
 		rzg2l_mtu3_write(ch, TIOR, TIOC_IOCH(TIOR_OC_1_L_COMP_MATCH) |
 			TIOC_IOCL(TIOR_OC_1_L_COMP_MATCH));
@@ -552,16 +552,12 @@ static int rzg2l_mtu3_register_clocksource(struct rzg2l_mtu3_channel *ch,
 }
 
 static int rzg2l_mtu3_register(struct rzg2l_mtu3_channel *ch,
-			       const char *name, int clockevent)
+				const char *name)
 {
-	if (clockevent) {
-		ch->mtu->has_clockevent = true;
+	if (ch->function == MTU3_CLOCKEVENT)
 		rzg2l_mtu3_register_clockevent(ch, name);
-	} else {
-		ch->mtu->has_clocksource = true;
+	else if (ch->function == MTU3_CLOCKSOURCE)
 		rzg2l_mtu3_register_clocksource(ch, name);
-	}
-
 	return 0;
 }
 
@@ -597,7 +593,7 @@ static int rzg2l_mtu3_setup_channel(struct rzg2l_mtu3_channel *ch,
 	ch->base = mtu->mapbase + channel_offsets[index];
 	ch->index = index;
 
-	return rzg2l_mtu3_register(ch, dev_name(&mtu->pdev->dev), index%2);
+	return rzg2l_mtu3_register(ch, dev_name(&mtu->pdev->dev));
 }
 
 static int rzg2l_mtu3_map_memory(struct rzg2l_mtu3_device *mtu)
@@ -865,8 +861,9 @@ static const struct pwm_ops mtu3_pwm_ops = {
 static int rzg2l_mtu3_setup(struct rzg2l_mtu3_device *mtu,
 			struct platform_device *pdev)
 {
-	unsigned int i;
-	int ret;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+	int ret, i;
 
 	mtu->pdev = pdev;
 	raw_spin_lock_init(&mtu->lock);
@@ -892,9 +889,7 @@ static int rzg2l_mtu3_setup(struct rzg2l_mtu3_device *mtu,
 	ret = clk_enable(mtu->clk);
 	if (ret < 0)
 		goto err_clk_unprepare;
-
 	mtu->rate = clk_get_rate(mtu->clk)/64;
-	clk_disable(mtu->clk);
 
 	/* Map the memory resource. */
 	ret = rzg2l_mtu3_map_memory(mtu);
@@ -904,7 +899,9 @@ static int rzg2l_mtu3_setup(struct rzg2l_mtu3_device *mtu,
 	}
 
 	/* Allocate and setup the channels. */
-	mtu->num_channels = 2;
+	mtu->has_clockevent = false;
+	mtu->has_clocksource = false;
+	mtu->num_channels = 9;
 
 	mtu->channels = kcalloc(mtu->num_channels, sizeof(*mtu->channels),
 		GFP_KERNEL);
@@ -913,11 +910,36 @@ static int rzg2l_mtu3_setup(struct rzg2l_mtu3_device *mtu,
 		goto err_unmap;
 	}
 
-	for (i = 0; i < mtu->num_channels; ++i) {
-		ret = rzg2l_mtu3_setup_channel(&mtu->channels[i], i, mtu);
-		if (ret < 0)
-			goto err_unmap;
+	ret = rzg2l_mtu3_register_pwm(mtu, np);
+	if (ret < 0)
+		dev_err(&mtu->pdev->dev,
+			"failed to register PWM chip: %d\n", ret);
+	else if (!ret)
+		dev_info(&mtu->pdev->dev,
+			" used for pwm controller of mtu3\n");
+
+	for (i = 0; i < mtu->num_channels; i++) {
+		if (mtu->channels[i].function != MTU3_PWM_MODE_1) {
+			mtu->channels[i].index = i;
+			if (!(mtu->has_clocksource)) {
+				mtu->channels[i].function = MTU3_CLOCKSOURCE;
+				ret = rzg2l_mtu3_setup_channel(
+					&mtu->channels[i], i, mtu);
+				if (ret < 0)
+					goto err_unmap;
+				mtu->has_clocksource = true;
+			} else if (!(mtu->has_clockevent)) {
+				mtu->channels[i].function = MTU3_CLOCKEVENT;
+				ret = rzg2l_mtu3_setup_channel(
+					&mtu->channels[i], i, mtu);
+				if (ret < 0)
+					goto err_unmap;
+				mtu->has_clockevent = true;
+			}
+		}
 	}
+
+	clk_disable(mtu->clk);
 
 	platform_set_drvdata(pdev, mtu);
 
