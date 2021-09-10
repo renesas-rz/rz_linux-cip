@@ -671,7 +671,11 @@ static void qspi_receive_init(const struct rspi_data *rspi)
 static bool __rspi_can_dma(const struct rspi_data *rspi,
 			   const struct spi_transfer *xfer)
 {
-	return xfer->len > rspi->ops->fifo_size;
+	/*
+	 * Fixme: No interrupt raised after switching to dma mode
+	 * So always use DMA if DMA was enabled.
+	 */
+	return xfer->len > 0;
 }
 
 static bool rspi_can_dma(struct spi_master *master, struct spi_device *spi,
