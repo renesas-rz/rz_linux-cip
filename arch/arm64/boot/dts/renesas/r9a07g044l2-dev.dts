@@ -45,5 +45,9 @@
 	mmngrbuf {
 		compatible = "renesas,mmngrbuf";
 	};
+
+	vspm_if {
+			compatible = "renesas,vspm_if";
+	};
 };
 
