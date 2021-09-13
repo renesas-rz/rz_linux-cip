@@ -53,6 +53,8 @@
 #define TRIANGLE_WAVE_MODE1	(0x04<<16)
 #define TRIANGLE_WAVE_MODE2	(0x05<<16)
 #define TRIANGLE_WAVE_MODE3	(0x06<<16)
+#define GTCR_MODE_MASK		(0x7<<16)
+#define GTCR_PRESCALE_MASK	(0x7<<24)
 #define GTIOB_OUTPUT_HIGH_END_LOW_COMPARE	(0x119<<16)
 /* GTIOR.GTIOB = 11001 */
 /* GTIOR.OBE = 1 */
@@ -108,6 +110,16 @@ static void rzg2l_gpt_write(struct rzg2l_gpt_chip *pc, u32 data,
 				unsigned int offset)
 {
 	iowrite32(data, pc->mmio_base + offset);
+}
+
+static void rzg2l_gpt_write_mask(struct rzg2l_gpt_chip *pc, u32 data, u32 mask,
+				unsigned int offset)
+{
+	u32 tmp = 0;
+
+	tmp = ioread32(pc->mmio_base + offset);
+	tmp &= ~mask;
+	iowrite32(tmp|data, pc->mmio_base + offset);
 }
 
 static u32 rzg2l_gpt_read(struct rzg2l_gpt_chip *pc, unsigned int offset)
@@ -286,7 +298,8 @@ static int rzg2l_gpt_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	/* GPT setting saw-wave up-counting */
 	/* Set operation GPT mode and select count clock */
-	rzg2l_gpt_write(pc, SAW_WAVE|(prescale<<24), GTCR);
+	rzg2l_gpt_write_mask(pc, SAW_WAVE, GTCR_MODE_MASK, GTCR);
+	rzg2l_gpt_write_mask(pc, (prescale<<24), GTCR_PRESCALE_MASK, GTCR);
 	/* Set counting mode */
 	rzg2l_gpt_write(pc, UP_COUNTING, GTUDDTYC); //up-counting
 	/* Set period */
