@@ -14,3 +14,10 @@
 	model = "HopeRun HiHope RZ/G2M v3.0 with sub board connected with aistarvision-mipi-v2-adapter board";
 	compatible = "hoperun,hihope-rzg2m", "renesas,r8a774a3";
 };
+
+/*
+ * Remove csi40 node if want to use 2 cameras
+ */
+&csi40 {
+	status = "disabled";
+};
