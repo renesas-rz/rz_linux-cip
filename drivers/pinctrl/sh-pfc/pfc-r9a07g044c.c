@@ -387,6 +387,22 @@ static int irq1_a_pins[] = {
 	RZ_G2L_PIN(0, 1),
 };
 
+static int irq4_c_pins[] = {
+	RZ_G2L_PIN(43, 0),
+};
+
+static int irq5_c_pins[] = {
+	RZ_G2L_PIN(43, 1),
+};
+
+static int irq6_c_pins[] = {
+	RZ_G2L_PIN(43, 2),
+};
+
+static int irq7_d_pins[] = {
+	RZ_G2L_PIN(43, 3),
+};
+
 /* SCI0 */
 static int sci0_data_a_pins[] = {
 	/* RX, TX */
@@ -745,6 +761,17 @@ static int ssi1_data_c_pins[] = {
 	RZ_G2L_PIN(44, 2), RZ_G2L_PIN(44, 3),
 };
 
+/* SSI channel 2 */
+static int ssi2_ctrl_a_pins[] = {
+	/* BCK, RCK */
+	RZ_G2L_PIN(5, 0), RZ_G2L_PIN(5, 1),
+};
+
+static int ssi2_data_a_pins[] = {
+	/* DATA */
+	RZ_G2L_PIN(5, 2),
+};
+
 /* RSPI channel 0 */
 static int rspi0_clk_a_pins[] = {
 	/* CK */
@@ -1048,6 +1075,10 @@ static int eth0_mii_pins[] = {
 static struct group_desc r9a07g044c_groups[] = {
 	RZ_G2L_PINCTRL_PIN_GROUP(irq0_a, 1),
 	RZ_G2L_PINCTRL_PIN_GROUP(irq1_a, 1),
+	RZ_G2L_PINCTRL_PIN_GROUP(irq4_c, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(irq5_c, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(irq6_c, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(irq7_d, 4),
 	RZ_G2L_PINCTRL_PIN_GROUP(usb0_a, 1),
 	RZ_G2L_PINCTRL_PIN_GROUP(usb1_c, 5),
 	RZ_G2L_PINCTRL_PIN_GROUP(usb1_d, 1),
@@ -1118,6 +1149,8 @@ static struct group_desc r9a07g044c_groups[] = {
 	RZ_G2L_PINCTRL_PIN_GROUP(ssi1_ctrl_b, 2),
 	RZ_G2L_PINCTRL_PIN_GROUP(ssi1_data_c, 2),
 	RZ_G2L_PINCTRL_PIN_GROUP(ssi1_ctrl_c, 2),
+	RZ_G2L_PINCTRL_PIN_GROUP(ssi2_data_a, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(ssi2_ctrl_a, 4),
 	RZ_G2L_PINCTRL_PIN_GROUP(rspi0_clk_a, 2),
 	RZ_G2L_PINCTRL_PIN_GROUP(rspi0_data_a, 2),
 	RZ_G2L_PINCTRL_PIN_GROUP(rspi0_ssl_a, 2),
@@ -1177,6 +1210,8 @@ static struct group_desc r9a07g044c_groups[] = {
 
 static const char *r9a07g044c_irq_groups[] = {
 	"irq0_a", "irq1_a",
+	"irq4_c", "irq5_c", "irq6_c",
+	"irq7_d",
 };
 
 static const char *r9a07g044c_sci0_groups[] = {
@@ -1297,6 +1332,10 @@ static const char *r9a07g044c_ssi1_groups[] = {
 	"ssi1_data_c", "ssi1_ctrl_c",
 };
 
+static const char *r9a07g044c_ssi2_groups[] = {
+	"ssi2_data_a", "ssi2_ctrl_a",
+};
+
 static const char *r9a07g044c_rspi0_groups[] = {
 	"rspi0_clk_a", "rspi0_data_a", "rspi0_ssl_a",
 	"rspi0_clk_b", "rspi0_data_b", "rspi0_ssl_b",
@@ -1410,6 +1449,8 @@ static const struct function_desc r9a07g044c_funcs[] = {
 		ARRAY_SIZE(r9a07g044c_ssi0_groups)},
 	{"ssi1", r9a07g044c_ssi1_groups,
 		ARRAY_SIZE(r9a07g044c_ssi1_groups)},
+	{"ssi2", r9a07g044c_ssi2_groups,
+		ARRAY_SIZE(r9a07g044c_ssi2_groups)},
 	{"rspi0", r9a07g044c_rspi0_groups,
 		ARRAY_SIZE(r9a07g044c_rspi0_groups)},
 	{"rspi1", r9a07g044c_rspi1_groups,
