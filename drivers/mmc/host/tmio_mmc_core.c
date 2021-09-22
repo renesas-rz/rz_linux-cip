@@ -1056,6 +1056,8 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	switch (ios->power_mode) {
 	case MMC_POWER_OFF:
 		tmio_mmc_power_off(host);
+		if (host->pdata->flags & TMIO_MMC_MIN_RCAR2)
+			host->hw_reset(host);
 		host->set_clock(host, 0);
 		break;
 	case MMC_POWER_UP:
