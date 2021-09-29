@@ -16,6 +16,7 @@
 #define PLL146_MON_R(n)		(0x0C + (16 * n))
 #define PLL146_STBY_R(n)	(0x00 + (16 * n))
 /*offset(32->16):shift(15->8):mask(7->0)*/
+#define PLL1_DIV_R		(0x200)
 #define PLL2_DIV_R		(0x204)
 #define PLL3A_DIV_R		(0x208)
 #define PLL3B_DIV_R		(0x20c)
@@ -47,6 +48,7 @@
 #define SEL_G2		(PL6_SSEL_R << 20	| 12 << 12	| 1 << 8)
 #define SEL_SDHI0	(PL2SDHI_SEL_R << 20	| 0 << 12	| 2 << 8)
 #define SEL_SDHI1	(PL2SDHI_SEL_R << 20	| 4 << 12	| 2 << 8)
+#define DIVPL1		(PLL1_DIV_R << 20	| 0 << 12	| 2 << 8)
 #define DIVPL2A		(PLL2_DIV_R << 20	| 0 << 12	| 3 << 8)
 #define DIVPL2B		(PLL2_DIV_R << 20	| 4 << 12	| 3 << 8)
 #define DIVPL2C		(PLL2_DIV_R << 20	| 8 << 12	| 3 << 8)
