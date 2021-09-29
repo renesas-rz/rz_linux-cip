@@ -13,6 +13,7 @@ Required Properties:
     - "renesas,r9a07g044l-ostm" for the r9a07g044l OSTM
     - "renesas,r9a07g054l-ostm" for the r9a07g054l OSTM
     - "renesas,r9a07g043u-ostm" for the r9a07g043u OSTM
+    - "renesas,r9a07g044c-ostm" for the r9a07g044c OSTM
     - "renesas,ostm" for any OSTM
 		This is a fallback for the above renesas,*-ostm entries
 
