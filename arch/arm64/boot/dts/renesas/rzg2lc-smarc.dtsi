@@ -750,6 +750,14 @@
 	timeout-sec = <60>;
 };
 
+&ostm1 {
+	status = "okay";
+};
+
+&ostm2 {
+	status = "okay";
+};
+
 &spibsc {
 status = "okay";
 
