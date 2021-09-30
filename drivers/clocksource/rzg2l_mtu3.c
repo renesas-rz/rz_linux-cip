@@ -34,18 +34,18 @@
 struct rzg2l_mtu3_device;
 
 enum mtu3_functions {
+	MTU3_NORMAL,		/* Normal timer - not assign special functions*/
 	MTU3_CLOCKSOURCE,	/* Assign clocksource function */
 	MTU3_CLOCKEVENT,	/* Assign clockevent function */
 	MTU3_PWM_MODE_1,	/* Assign pwm mode 1 function */
-};
-
-enum mtu3_pins {
-	MTIOCA, MTIOCB, MTIOCC, MTIOCD,
+	MTU3_PWM_COMPLEMENTARY,	/* Assign complementary pwm */
 };
 
 struct mtu3_pwm_device {
-	u8 ch;
+	u8 ch1;
+	u8 ch2;
 	u8 output;
+	u32 deadtime_ns;
 };
 
 static const struct pwm_ops mtu3_pwm_ops;
@@ -628,40 +628,6 @@ static int rzg2l_mtu3_map_memory(struct rzg2l_mtu3_device *mtu)
 	return 0;
 }
 
-static void rzg2l_mtu3_pin_setup(struct rzg2l_mtu3_channel *ch,
-				 enum mtu3_pins pin,
-				 u8 state)
-{
-	u8 val;
-
-	switch (pin) {
-	case MTIOCA:
-		val = rzg2l_mtu3_ch_reg_read(ch, TIORH);
-		val &= 0xF0;
-		val |= state;
-		rzg2l_mtu3_ch_reg_write(ch, TIORH, val);
-		break;
-	case MTIOCB:
-		val = rzg2l_mtu3_ch_reg_read(ch, TIORH);
-		val &= 0x0F;
-		val |= (state << 4);
-		rzg2l_mtu3_ch_reg_write(ch, TIORH, val);
-		break;
-	case MTIOCC:
-		val = rzg2l_mtu3_ch_reg_read(ch, TIORL);
-		val &= 0xF0;
-		val |= state;
-		rzg2l_mtu3_ch_reg_write(ch, TIORL, val);
-		break;
-	case MTIOCD:
-		val = rzg2l_mtu3_ch_reg_read(ch, TIORL);
-		val &= 0x0F;
-		val |= (state << 4);
-		rzg2l_mtu3_ch_reg_write(ch, TIORL, val);
-		break;
-	}
-}
-
 /* MTU3 PWM APIs */
 static inline struct rzg2l_mtu3_device
 			*pwm_chip_to_mtu3_device(struct pwm_chip *chip)
@@ -681,33 +647,81 @@ static void rzg2l_mtu3_pwm_free(struct pwm_chip *chip,
 	pm_runtime_put_sync(chip->dev);
 }
 
+static int rzg2l_mtu3_pwm_output_setup(struct rzg2l_mtu3_channel *ch,
+				u8 output, enum pwm_polarity polarity)
+{
+	u8 output_mode, val;
+
+	if (ch->function == MTU3_PWM_MODE_1) {
+		if (polarity == PWM_POLARITY_INVERSED)
+			output_mode = TIOR_OC_1_L_COMP_MATCH;
+		else if (polarity == PWM_POLARITY_NORMAL)
+			output_mode = TIOR_OC_0_H_COMP_MATCH;
+
+		if (output == 0)
+			rzg2l_mtu3_ch_reg_write(ch, TIORH,
+			(TIOR_OC_1_TOGGLE << 4) | output_mode);
+		else if (output == 1)
+			rzg2l_mtu3_ch_reg_write(ch, TIORL,
+			(TIOR_OC_1_TOGGLE << 4) | output_mode);
+	} else if (ch->function == MTU3_PWM_COMPLEMENTARY) {
+		if (ch->index == 3) {
+			val = rzg2l_mtu3_shared_reg_read(ch->mtu, TOERA) |
+							0x09;
+			rzg2l_mtu3_shared_reg_write(ch->mtu, TOERA, val);
+		} else if (ch->index == 4 && output == 0) {
+			val = rzg2l_mtu3_shared_reg_read(ch->mtu, TOERA) |
+							(0x09 << 1);
+			rzg2l_mtu3_shared_reg_write(ch->mtu, TOERA, val);
+		} else if (ch->index == 4 && output == 1) {
+			val = rzg2l_mtu3_shared_reg_read(ch->mtu, TOERA) |
+							(0x09 << 2);
+			rzg2l_mtu3_shared_reg_write(ch->mtu, TOERA, val);
+		} else if (ch->index == 6) {
+			val = rzg2l_mtu3_shared_reg_read(ch->mtu, TOERB) |
+							0x09;
+			rzg2l_mtu3_shared_reg_write(ch->mtu, TOERB, val);
+		} else if (ch->index == 7 && output == 0) {
+			val = rzg2l_mtu3_shared_reg_read(ch->mtu, TOERB) |
+							(0x09 << 1);
+			rzg2l_mtu3_shared_reg_write(ch->mtu, TOERB, val);
+		} else if (ch->index == 7 && output == 1) {
+			val = rzg2l_mtu3_shared_reg_read(ch->mtu, TOERB) |
+							(0x09 << 2);
+			rzg2l_mtu3_shared_reg_write(ch->mtu, TOERB, val);
+		} else
+			return -EINVAL;
+	} else
+		return -ENODEV;
+	return 0;
+}
+
 static int rzg2l_mtu3_pwm_enable(struct pwm_chip *chip,
 				 struct pwm_device *pwm)
 {
 	struct rzg2l_mtu3_device *mtu3 = pwm_chip_to_mtu3_device(chip);
-	struct rzg2l_mtu3_channel *ch;
-	u8 output_pin, count;
+	struct rzg2l_mtu3_channel *ch1, *ch2;
+	unsigned int val;
 
-	ch = &mtu3->channels[mtu3->pwms[pwm->hwpwm].ch];
-	if ((ch->function == MTU3_PWM_MODE_1) &&
-	   (mtu3->pwms[pwm->hwpwm].output == 0)) {
-		output_pin = MTIOCA;
-		count = MTIOCB;
-	} else if ((ch->function == MTU3_PWM_MODE_1) &&
-		  (mtu3->pwms[pwm->hwpwm].output == 1)) {
-		output_pin = MTIOCC;
-		count = MTIOCD;
+	ch1 = &mtu3->channels[mtu3->pwms[pwm->hwpwm].ch1];
+	if (ch1->function == MTU3_PWM_MODE_1) {
+		rzg2l_mtu3_ch_reg_write(ch1, TMDR1, TMDR_MD_PWM_1);
+		rzg2l_mtu3_pwm_output_setup(ch1, mtu3->pwms[pwm->hwpwm].output,
+					pwm->state.polarity);
+		rzg2l_mtu3_start_stop_ch(ch1, true);
+	} else if (ch1->function == MTU3_PWM_COMPLEMENTARY) {
+		ch2 = &mtu3->channels[mtu3->pwms[pwm->hwpwm].ch2];
+		rzg2l_mtu3_ch_reg_write(ch1, TMDR1, TMDR_MD_PWM_COMP_BOTH);
+		rzg2l_mtu3_ch_reg_write(ch2, TMDR1, TMDR_MD_PWM_COMP_BOTH);
+		val = rzg2l_mtu3_shared_reg_read(mtu3, TDDRA);
+		rzg2l_mtu3_ch_reg_write(ch1, TCNT, val);
+		rzg2l_mtu3_ch_reg_write(ch2, TCNT, 0);
+		rzg2l_mtu3_pwm_output_setup(ch1, mtu3->pwms[pwm->hwpwm].output,
+					pwm->state.polarity);
+		rzg2l_mtu3_start_stop_ch(ch1, true);
+		rzg2l_mtu3_start_stop_ch(ch2, true);
 	}
-	rzg2l_mtu3_ch_reg_write(ch, TMDR1, TMDR_MD_PWM_1);
 
-	/* Setting output waveform modes for MTU3 pins */
-	rzg2l_mtu3_pin_setup(ch, output_pin, TIOR_OC_1_TOGGLE);
-	if (pwm->state.polarity == PWM_POLARITY_INVERSED)
-		rzg2l_mtu3_pin_setup(ch, count, TIOR_OC_1_H_COMP_MATCH);
-	else
-		rzg2l_mtu3_pin_setup(ch, count, TIOR_OC_0_L_COMP_MATCH);
-
-	rzg2l_mtu3_start_stop_ch(ch, true);
 	return 0;
 }
 
@@ -715,21 +729,61 @@ static void rzg2l_mtu3_pwm_disable(struct pwm_chip *chip,
 				   struct pwm_device *pwm)
 {
 	struct rzg2l_mtu3_device *mtu3 = pwm_chip_to_mtu3_device(chip);
-	struct rzg2l_mtu3_channel *ch;
+	struct rzg2l_mtu3_channel *ch1, *ch2;
+	u8 val;
 
-	ch = &mtu3->channels[mtu3->pwms[pwm->hwpwm].ch];
+	ch1 = &mtu3->channels[mtu3->pwms[pwm->hwpwm].ch1];
 	/* Return to normal mode and disable output pins of MTU3 channel */
-	rzg2l_mtu3_ch_reg_write(ch, TMDR1, TMDR_MD_NORMAL);
+	rzg2l_mtu3_ch_reg_write(ch1, TMDR1, TMDR_MD_NORMAL);
 
 	/* Disable output waveform of MTU3 pins */
-	if ((ch->function == MTU3_PWM_MODE_1) &&
-	   (mtu3->pwms[pwm->hwpwm].output == 0))
-		rzg2l_mtu3_pin_setup(ch, MTIOCA, TIOR_OC_RETAIN);
-	else if ((ch->function == MTU3_PWM_MODE_1) &&
-		(mtu3->pwms[pwm->hwpwm].output == 1))
-		rzg2l_mtu3_pin_setup(ch, MTIOCC, TIOR_OC_RETAIN);
+	if (ch1->function == MTU3_PWM_MODE_1) {
+		if (mtu3->pwms[pwm->hwpwm].output == 0)
+			rzg2l_mtu3_ch_reg_write(ch1, TIORH,
+			TIOR_OC_RETAIN);
+		else if (mtu3->pwms[pwm->hwpwm].output == 1)
+			rzg2l_mtu3_ch_reg_write(ch1, TIORL,
+			TIOR_OC_RETAIN);
 
-	rzg2l_mtu3_start_stop_ch(ch, false);
+		rzg2l_mtu3_start_stop_ch(ch1, false);
+	} else if (ch1->function == MTU3_PWM_COMPLEMENTARY) {
+		ch2 = &mtu3->channels[mtu3->pwms[pwm->hwpwm].ch2];
+		rzg2l_mtu3_ch_reg_write(ch2, TMDR1, TMDR_MD_NORMAL);
+
+		if (ch1->index == 3) {
+			val = rzg2l_mtu3_shared_reg_read(ch1->mtu, TOERA) &
+							0x06;
+			rzg2l_mtu3_shared_reg_write(ch1->mtu, TOERA, val);
+		} else if (ch1->index == 4 &&
+				mtu3->pwms[pwm->hwpwm].output == 0) {
+			val = rzg2l_mtu3_shared_reg_read(ch1->mtu, TOERA) &
+							(0x06 << 1);
+			rzg2l_mtu3_shared_reg_write(ch1->mtu, TOERA, val);
+		} else if (ch1->index == 4 &&
+				mtu3->pwms[pwm->hwpwm].output == 1) {
+			val = rzg2l_mtu3_shared_reg_read(ch1->mtu, TOERA) &
+							(0x06 << 2);
+			rzg2l_mtu3_shared_reg_write(ch1->mtu, TOERA, val);
+		} else if (ch1->index == 6) {
+			val = rzg2l_mtu3_shared_reg_read(ch1->mtu, TOERB) &
+							0x06;
+			rzg2l_mtu3_shared_reg_write(ch1->mtu, TOERB, val);
+		} else if (ch1->index == 7 &&
+				mtu3->pwms[pwm->hwpwm].output == 0) {
+			val = rzg2l_mtu3_shared_reg_read(ch1->mtu, TOERB) &
+							(0x06 << 1);
+			rzg2l_mtu3_shared_reg_write(ch1->mtu, TOERB, val);
+		} else if (ch1->index == 7 &&
+				mtu3->pwms[pwm->hwpwm].output == 1) {
+			val = rzg2l_mtu3_shared_reg_read(ch1->mtu, TOERB) &
+							(0x06 << 2);
+			rzg2l_mtu3_shared_reg_write(ch1->mtu, TOERB, val);
+		}
+
+		rzg2l_mtu3_start_stop_ch(ch1, false);
+		rzg2l_mtu3_start_stop_ch(ch2, false);
+	}
+
 }
 
 
@@ -738,53 +792,129 @@ static int rzg2l_mtu3_pwm_config(struct pwm_chip *chip,
 				 int duty_ns, int period_ns)
 {
 	struct rzg2l_mtu3_device *mtu3 = pwm_chip_to_mtu3_device(chip);
-	struct rzg2l_mtu3_channel *ch;
+	struct rzg2l_mtu3_channel *ch1, *ch2;
 	static const unsigned int prescalers[] = { 1, 4, 16, 64 };
 	unsigned int prescaler;
-	u32 clk_rate;
-	u32 period;
-	u32 duty;
+	u32 clk_rate, period, duty, deadtime;
 
-	ch = &mtu3->channels[mtu3->pwms[pwm->hwpwm].ch];
+	ch1 = &mtu3->channels[mtu3->pwms[pwm->hwpwm].ch1];
 	clk_rate = clk_get_rate(mtu3->clk);
 
-	for (prescaler = 0; prescaler < ARRAY_SIZE(prescalers); ++prescaler) {
-		period = clk_rate / prescalers[prescaler]
-			/ (NSEC_PER_SEC / period_ns);
-		if (period <= 0xffff)
-			break;
-	}
+	if (ch1->function == MTU3_PWM_MODE_1) {
 
-	if (prescaler == ARRAY_SIZE(prescalers) || period == 0) {
-		dev_err(&ch->mtu->pdev->dev, "clock rate mismatch\n");
-		return -ENOTSUPP;
-	}
+		for (prescaler = 0; prescaler < ARRAY_SIZE(prescalers);
+			++prescaler) {
+			period = clk_rate / prescalers[prescaler]
+				/ (NSEC_PER_SEC / period_ns);
+			if (period <= 0xffff)
+				break;
+		}
 
-	if (duty_ns) {
-		duty = clk_rate / prescalers[prescaler]
-			/ (NSEC_PER_SEC / duty_ns);
-		if (duty > period)
-			return -EINVAL;
-	} else {
-		duty = 0;
-	}
+		if (prescaler == ARRAY_SIZE(prescalers) || period == 0) {
+			dev_err(&ch1->mtu->pdev->dev, "clock rate mismatch\n");
+			return -ENOTSUPP;
+		}
 
-	dev_dbg(&mtu3->pdev->dev,
-		"rate %u, prescaler %u, period %u, duty %u\n",
-		clk_rate, prescalers[prescaler], period, duty);
+		if (duty_ns) {
+			duty = clk_rate / prescalers[prescaler]
+				/ (NSEC_PER_SEC / duty_ns);
+			if (duty > period)
+				return -EINVAL;
+		} else {
+			duty = 0;
+		}
 
-	if ((ch->function == MTU3_PWM_MODE_1) &&
-		(mtu3->pwms[pwm->hwpwm].output == 0)) {
-		rzg2l_mtu3_ch_reg_write(ch, TCR, TCR_CCLR_TGRA |
-				TCR_CKEG_RISING | prescaler);
-		rzg2l_mtu3_ch_reg_write(ch, TGRB, duty);
-		rzg2l_mtu3_ch_reg_write(ch, TGRA, period);
-	} else if ((ch->function == MTU3_PWM_MODE_1) &&
-			(mtu3->pwms[pwm->hwpwm].output == 1)) {
-		rzg2l_mtu3_ch_reg_write(ch, TCR, TCR_CCLR_TGRC |
-				TCR_CKEG_RISING | prescaler);
-		rzg2l_mtu3_ch_reg_write(ch, TGRD, duty);
-		rzg2l_mtu3_ch_reg_write(ch, TGRC, period);
+		if (mtu3->pwms[pwm->hwpwm].output == 0) {
+			rzg2l_mtu3_ch_reg_write(ch1, TCR,
+			TCR_CCLR_TGRA | TCR_CKEG_RISING | prescaler);
+			rzg2l_mtu3_ch_reg_write(ch1, TGRB, duty);
+			rzg2l_mtu3_ch_reg_write(ch1, TGRA, period);
+		} else if (mtu3->pwms[pwm->hwpwm].output == 1) {
+			rzg2l_mtu3_ch_reg_write(ch1, TCR,
+			TCR_CCLR_TGRC | TCR_CKEG_RISING | prescaler);
+			rzg2l_mtu3_ch_reg_write(ch1, TGRD, duty);
+			rzg2l_mtu3_ch_reg_write(ch1, TGRC, period);
+		}
+	} else if (ch1->function == MTU3_PWM_COMPLEMENTARY) {
+
+		for (prescaler = 0; prescaler < ARRAY_SIZE(prescalers);
+			++prescaler) {
+			period = clk_rate / prescalers[prescaler]
+				/ (NSEC_PER_SEC / (period_ns/2));
+			if (!!(mtu3->pwms[pwm->hwpwm].deadtime_ns))
+				deadtime = clk_rate / prescalers[prescaler]
+				/ (NSEC_PER_SEC
+				/ mtu3->pwms[pwm->hwpwm].deadtime_ns);
+			else {
+				deadtime = 1;
+				/* Suppress dead time */
+				if ((ch1->index == 3 || ch1->index == 4) &&
+				    rzg2l_mtu3_shared_reg_read(mtu3, TDERA))
+					rzg2l_mtu3_shared_reg_write(mtu3,
+								TDERA, 0);
+				else if ((ch1->index == 6 || ch1->index == 7) &&
+					rzg2l_mtu3_shared_reg_read(mtu3, TDERB))
+					rzg2l_mtu3_shared_reg_write(mtu3,
+								TDERB, 0);
+			}
+
+			if (period + deadtime <= 0xffff)
+				break;
+		}
+
+		if (prescaler == ARRAY_SIZE(prescalers) || period == 0) {
+			dev_err(&ch1->mtu->pdev->dev, "clock rate mismatch\n");
+			return -ENOTSUPP;
+		}
+
+		/* Make sure defined deadtime value will not go to 0 */
+		if (!!(mtu3->pwms[pwm->hwpwm].deadtime_ns) && (deadtime == 0)) {
+			dev_err(&ch1->mtu->pdev->dev, "period mismatch with deadtime\n");
+			return -ENOTSUPP;
+		}
+
+		if (duty_ns) {
+			duty = clk_rate / prescalers[prescaler]
+				/ (NSEC_PER_SEC / (duty_ns/2));
+			if (duty > period)
+				return -EINVAL;
+		} else {
+			duty = 0;
+		}
+
+		ch2 = &mtu3->channels[mtu3->pwms[pwm->hwpwm].ch2];
+		rzg2l_mtu3_ch_reg_write(ch1, TCR, TCR_CKEG_RISING | prescaler);
+		rzg2l_mtu3_ch_reg_write(ch2, TCR, TCR_CKEG_RISING | prescaler);
+
+		if (ch1->index == 3 || ch1->index == 4) {
+			rzg2l_mtu3_shared_reg_write(mtu3, TDDRA, deadtime);
+			rzg2l_mtu3_shared_reg_write(mtu3, TCDRA, period);
+		} else if (ch1->index == 6 || ch1->index == 7) {
+			rzg2l_mtu3_shared_reg_write(mtu3, TDDRB, deadtime);
+			rzg2l_mtu3_shared_reg_write(mtu3, TCDRB, period);
+		}
+
+		if (ch1->index == 4 || ch1->index == 7) {
+			if (mtu3->pwms[pwm->hwpwm].output == 0) {
+				rzg2l_mtu3_ch_reg_write(ch2, TGRB, duty);
+				rzg2l_mtu3_ch_reg_write(ch2, TGRA,
+							period + deadtime);
+			} else if (mtu3->pwms[pwm->hwpwm].output == 1) {
+				rzg2l_mtu3_ch_reg_write(ch2, TGRD, duty);
+				rzg2l_mtu3_ch_reg_write(ch2, TGRC,
+							period + deadtime);
+			}
+		} else {
+			if (mtu3->pwms[pwm->hwpwm].output == 0) {
+				rzg2l_mtu3_ch_reg_write(ch1, TGRB, duty);
+				rzg2l_mtu3_ch_reg_write(ch1, TGRA,
+							period + deadtime);
+			} else if (mtu3->pwms[pwm->hwpwm].output == 1) {
+				rzg2l_mtu3_ch_reg_write(ch1, TGRD, duty);
+				rzg2l_mtu3_ch_reg_write(ch1, TGRC,
+							period + deadtime);
+			}
+		}
 	}
 
 	return 0;
@@ -796,25 +926,31 @@ static int rzg2l_mtu3_register_pwm(struct rzg2l_mtu3_device *mtu,
 	u32 tmp, ch_num, num_pwm, num_args;
 	int offset, ret, i, j;
 
-	if (!of_get_property(np, "pwm_mode1", &tmp))
-		return 1;
-
+	/* Setting for pwm mode 1*/
+	j = 0;
+	ret = 0;
 	num_args = 2;
+
+	if (!of_get_property(np, "pwm_mode1", &tmp)) {
+		ret = 1;
+		goto pwm_complementary_setting;
+	}
+
 	num_pwm = tmp/(sizeof(u32)*num_args);
 	mtu->pwms = kzalloc(sizeof(mtu->pwms), GFP_KERNEL);
 	mtu->pwm_chip.npwm = 0;
 
-	for (i = 0, j = 0; i < num_pwm; i++) {
+	for (i = 0; i < num_pwm; i++) {
 		offset =  i*num_args;
 		of_property_read_u32_index(np, "pwm_mode1", offset, &ch_num);
 
 		/*
 		 * pwm mode 1 supports for MTu3 channels[0:7].
 		 * Only Setting for channel which has not assigned
-		 * for pwm mode 1 function.
+		 * for any special function.
 		 */
 		if ((ch_num < 8) && (ch_num != 5) &&
-		(mtu->channels[ch_num].function != MTU3_PWM_MODE_1)) {
+		(mtu->channels[ch_num].function == MTU3_NORMAL)) {
 			mtu->channels[ch_num].index = ch_num;
 		/*
 		 * In PWM MODE1, channel 1/2 of MTU3 can only output
@@ -829,21 +965,102 @@ static int rzg2l_mtu3_register_pwm(struct rzg2l_mtu3_device *mtu,
 				mtu->pwms[j].output = tmp;
 				mtu->channels[ch_num].function =
 					MTU3_PWM_MODE_1;
-				mtu->pwms[j].ch = ch_num;
+				mtu->pwms[j].ch1 = ch_num;
 				rzg2l_mtu3_setup_channel(&mtu->channels[ch_num],
 							ch_num, mtu);
 				mtu->pwm_chip.npwm += 1;
 				dev_info(&mtu->pdev->dev,
-					"ch%u: used as pwm mode 1 with pin %s\n",
-					mtu->channels[ch_num].index,
-					mtu->pwms[j].output ?
-					"MTIOCC" : "MTIOCA");
+					"ch%u: used for pwm mode 1 output at pin MTIOC%u%s\n",
+					mtu->channels[ch_num].index, ch_num,
+					mtu->pwms[j].output ? "C" : "A");
 				j++;
 			}
 		}
 	}
 
-	/* No pwm device set */
+	/* Setting for complementary pwm mode 1 */
+pwm_complementary_setting:
+	if (!of_get_property(np, "pwm_complementary", &tmp)) {
+		if (ret)
+			return ret;
+		goto add_pwm_chip;
+	}
+
+	num_args = 3;
+	num_pwm = tmp/(sizeof(u32)*num_args);
+	if (ret == 1) {
+		mtu->pwms = kzalloc(sizeof(mtu->pwms), GFP_KERNEL);
+		mtu->pwm_chip.npwm = 0;
+	}
+
+	for (i = 0; i < num_pwm; i++) {
+		offset =  i*num_args;
+		of_property_read_u32_index(np, "pwm_complementary",
+					   offset, &ch_num);
+
+		/*
+		 * pwm mode complementary mode supports in pair of mtu3 channels
+		 * channel 3 with channel 4 and channel 6 with channel 7
+		 * Only do setting if both 2 channels in pair have been not
+		 * assigned for any special functions.
+		 */
+
+		if ((ch_num == 3 || ch_num == 6) &&
+		    (mtu->channels[ch_num].function == MTU3_NORMAL &&
+		    mtu->channels[ch_num + 1].function == MTU3_NORMAL)) {
+			of_property_read_u32_index(np, "pwm_complementary",
+				offset + 1, &tmp);
+			if (tmp == 1) {
+				mtu->pwms[j].ch1 = ch_num;
+				mtu->pwms[j].ch2 = ch_num + 1;
+				mtu->channels[ch_num].function =
+					MTU3_PWM_COMPLEMENTARY;
+				mtu->channels[ch_num + 1].function =
+					MTU3_PWM_COMPLEMENTARY;
+				mtu->pwms[j].output = tmp;
+			} else
+				ch_num = 0;
+		} else if ((ch_num == 4 || ch_num == 7) &&
+		    (mtu->channels[ch_num].function == MTU3_NORMAL &&
+		    mtu->channels[ch_num - 1].function == MTU3_NORMAL)) {
+			of_property_read_u32_index(np, "pwm_complementary",
+				offset + 1, &tmp);
+			if (tmp == 0 || tmp == 1) {
+				mtu->pwms[j].ch1 = ch_num;
+				mtu->pwms[j].ch2 = ch_num - 1;
+				mtu->channels[ch_num].function =
+					MTU3_PWM_COMPLEMENTARY;
+				mtu->channels[ch_num - 1].function =
+					MTU3_PWM_COMPLEMENTARY;
+				mtu->pwms[j].output = tmp;
+			} else
+				ch_num = 0;
+		} else
+			ch_num = 0;
+		if (!!ch_num) {
+			of_property_read_u32_index(np, "pwm_complementary",
+					offset + 2, &tmp);
+			mtu->pwms[j].deadtime_ns = tmp;
+			rzg2l_mtu3_setup_channel(
+				&mtu->channels[mtu->pwms[j].ch1],
+				mtu->pwms[j].ch1, mtu);
+			rzg2l_mtu3_setup_channel(
+				&mtu->channels[mtu->pwms[j].ch2],
+				mtu->pwms[j].ch2, mtu);
+			mtu->pwm_chip.npwm += 1;
+			dev_info(&mtu->pdev->dev, "ch%u and ch%u: used for\t"
+				 "complementary pwm output at pins "
+				 "MTIOC%u%s with deadtime = %uns\n",
+				 mtu->pwms[j].ch1, mtu->pwms[j].ch2, ch_num,
+				 mtu->pwms[j].output ? "B and D" :
+				 "A and C",
+				 mtu->pwms[j].deadtime_ns);
+			j++;
+		}
+	}
+
+add_pwm_chip:
+	/* No pwm device set successfully */
 	if (j == 0)
 		return -EINVAL;
 
