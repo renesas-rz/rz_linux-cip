@@ -81,11 +81,23 @@ struct rzg2l_mtu3_device {
 
 };
 
-#define TSTR -1 /* shared register */
-#define TSTRA -1 /* shared register */
-#define TSTRB -2 /* shared register */
-#define TOERA -3 /* shared register */
-#define TOERB -4 /* shared register */
+/* shared register offsets */
+#define TSTRA		0x080 /* Timer start register A */
+#define TSTRB		0x880 /* shared register */
+#define TOERA		0x00A /* Timer output master enable register A */
+#define TOERB		0x80A /* Timer output master enable register B */
+#define TDDRA		0x016 /* Timer dead time data register A */
+#define TDDRB		0x816 /* Timer dead time data register B */
+#define TCDRA		0x014 /* Timer cycle data register A */
+#define TCDRB		0x814 /* Timer cycle data register B */
+#define TCBRA		0x022 /* Timer cycle buffer register A */
+#define TCBRB		0x822 /* Timer cycle buffer register B */
+#define TDERA		0x034 /* Timer dead time enable A */
+#define TDERB		0x834 /* Timer dead time enable B */
+#define TOCR1A		0x00E /* Timer output control register 1A */
+#define TOCR1B		0x80E /* Timer output control register 1B */
+#define TOCR2A		0x00F /* Timer output control register 2A */
+#define TOCR2B		0x80F /* Timer output control register 2B */
 
 /* 8 bit channel registers */
 #define TCR		0 /* Timer control register */
@@ -103,9 +115,8 @@ struct rzg2l_mtu3_device {
 #define TGRB		9 /* Timer general register B */
 #define TGRC		10 /* Timer general register C */
 #define TGRD		11 /* Timer general register D */
-/* 32 bit channel registers */
 
-
+/* Macros for setting registers */
 #define TCR_CCLR_NONE		(0 << 5)
 #define TCR_CCLR_TGRA		(1 << 5)
 #define TCR_CCLR_TGRB		(2 << 5)
@@ -222,22 +233,12 @@ static unsigned long rzg2l_mtu_reg_offs[][12] = {
 	 [TGRD] = 0x18, [TCR2] = 0x6 }
 };
 
-static inline unsigned long rzg2l_mtu3_read(struct rzg2l_mtu3_channel *ch,
-					    int reg_nr)
+static inline unsigned long rzg2l_mtu3_ch_reg_read(
+		struct rzg2l_mtu3_channel *ch, int reg_nr)
 {
 	unsigned long offs;
 
-	if (reg_nr == TSTRA)
-		return ioread8(ch->mtu->mapbase + 0x80);
-	else if (reg_nr == TSTRB)
-		return ioread8(ch->mtu->mapbase + 0x880);
-	else if (reg_nr == TOERA)
-		return ioread8(ch->mtu->mapbase + 0xA);
-	else if (reg_nr == TOERB)
-		return ioread8(ch->mtu->mapbase + 0x80A);
-
 	offs = rzg2l_mtu_reg_offs[ch->index][reg_nr];
-
 	if ((reg_nr <= TCR2) && (reg_nr >= TCR))
 		return ioread8(ch->base + offs);
 	else if ((reg_nr >= TCNT) && (reg_nr <= TGRD))
@@ -245,25 +246,38 @@ static inline unsigned long rzg2l_mtu3_read(struct rzg2l_mtu3_channel *ch,
 	return 0;
 }
 
-static inline void rzg2l_mtu3_write(struct rzg2l_mtu3_channel *ch, int reg_nr,
-			unsigned long value)
+static inline unsigned long rzg2l_mtu3_shared_reg_read(
+			struct rzg2l_mtu3_device *mtu, int reg_nr)
+{
+	if (reg_nr == TDDRA || reg_nr == TDDRB ||
+	    reg_nr == TCDRA || reg_nr == TCDRB ||
+	    reg_nr == TCBRA || reg_nr == TCBRB)
+		return ioread16(mtu->mapbase + reg_nr);
+	else
+		return ioread8(mtu->mapbase + reg_nr);
+}
+
+static inline void rzg2l_mtu3_ch_reg_write(struct rzg2l_mtu3_channel *ch,
+			int reg_nr, unsigned long value)
 {
 	unsigned long offs;
-
-	if (reg_nr == TSTRA)
-		iowrite8((u8)value, ch->mtu->mapbase + 0x80);
-	else if (reg_nr == TSTRB)
-		iowrite8((u8)value, ch->mtu->mapbase + 0x880);
-	else if (reg_nr == TOERA)
-		iowrite8((u8)value, ch->mtu->mapbase + 0xA);
-	else if (reg_nr == TOERB)
-		iowrite8((u8)value, ch->mtu->mapbase + 0x80A);
 
 	offs = rzg2l_mtu_reg_offs[ch->index][reg_nr];
 	if ((reg_nr <= TCR2) && (reg_nr >= TCR))
 		iowrite8((u8)value, ch->base + offs);
 	else if ((reg_nr >= TCNT) && (reg_nr <= TGRD))
 		iowrite16((u16)value, ch->base + offs);
+}
+
+static inline void rzg2l_mtu3_shared_reg_write(struct rzg2l_mtu3_device *mtu,
+					int reg_nr, unsigned long value)
+{
+	if (reg_nr == TDDRA || reg_nr == TDDRB ||
+	    reg_nr == TCDRA || reg_nr == TCDRB ||
+	    reg_nr == TCBRA || reg_nr == TCBRB)
+		iowrite16((u16)value, mtu->mapbase + reg_nr);
+	else
+		iowrite8((u8)value, mtu->mapbase + reg_nr);
 }
 
 static void rzg2l_mtu3_start_stop_ch(struct rzg2l_mtu3_channel *ch, bool start)
@@ -275,14 +289,14 @@ static void rzg2l_mtu3_start_stop_ch(struct rzg2l_mtu3_channel *ch, bool start)
 	raw_spin_lock_irqsave(&ch->mtu->lock, flags);
 
 	if ((ch->index == 6) || (ch->index == 7)) {
-		value = rzg2l_mtu3_read(ch, TSTRB);
+		value = rzg2l_mtu3_shared_reg_read(ch->mtu, TSTRB);
 		if (start)
 			value |= 1 << ch->index;
 		else
 			value &= ~(1 << ch->index);
-		rzg2l_mtu3_write(ch, TSTRB, value);
+		rzg2l_mtu3_shared_reg_write(ch->mtu, TSTRB, value);
 	} else if (ch->index != 5) {
-		value = rzg2l_mtu3_read(ch, TSTRA);
+		value = rzg2l_mtu3_shared_reg_read(ch->mtu, TSTRA);
 		if (ch->index == 8)
 			offs = 0x08;
 		else if (ch->index < 3)
@@ -293,7 +307,7 @@ static void rzg2l_mtu3_start_stop_ch(struct rzg2l_mtu3_channel *ch, bool start)
 			value |= offs;
 		else
 			value &= ~offs;
-		rzg2l_mtu3_write(ch, TSTRA, value);
+		rzg2l_mtu3_shared_reg_write(ch->mtu, TSTRA, value);
 	}
 
 	raw_spin_unlock_irqrestore(&ch->mtu->lock, flags);
@@ -327,15 +341,16 @@ static int rzg2l_mtu3_enable(struct rzg2l_mtu3_channel *ch)
 	 * Clear on TGRA compare match, divide clock by 64.
 	 */
 	if (ch->function == MTU3_CLOCKSOURCE) {
-		rzg2l_mtu3_write(ch, TCR, TCR_TPSC_P64);
-		rzg2l_mtu3_write(ch, TIER, 0);
+		rzg2l_mtu3_ch_reg_write(ch, TCR, TCR_TPSC_P64);
+		rzg2l_mtu3_ch_reg_write(ch, TIER, 0);
 	} else if (ch->function == MTU3_CLOCKEVENT) {
-		rzg2l_mtu3_write(ch, TCR, TCR_CCLR_TGRA | TCR_TPSC_P64);
-		rzg2l_mtu3_write(ch, TIOR, TIOC_IOCH(TIOR_OC_1_L_COMP_MATCH) |
+		rzg2l_mtu3_ch_reg_write(ch, TCR, TCR_CCLR_TGRA | TCR_TPSC_P64);
+		rzg2l_mtu3_ch_reg_write(ch, TIOR,
+			TIOC_IOCH(TIOR_OC_1_L_COMP_MATCH) |
 			TIOC_IOCL(TIOR_OC_1_L_COMP_MATCH));
-		rzg2l_mtu3_write(ch, TGRA, periodic);
-		rzg2l_mtu3_write(ch, TMDR1, TMDR_MD_NORMAL);
-		rzg2l_mtu3_write(ch, TIER, TIER_TGIEA);
+		rzg2l_mtu3_ch_reg_write(ch, TGRA, periodic);
+		rzg2l_mtu3_ch_reg_write(ch, TMDR1, TMDR_MD_NORMAL);
+		rzg2l_mtu3_ch_reg_write(ch, TIER, TIER_TGIEA);
 	}
 
 	/* enable channel */
@@ -450,7 +465,7 @@ static u32 rzg2l_mtu3_get_counter(struct rzg2l_mtu3_channel *ch)
 {
 	u32 v2;
 
-	v2 = rzg2l_mtu3_read(ch, TCNT);
+	v2 = rzg2l_mtu3_ch_reg_read(ch, TCNT);
 
 	return v2;
 }
@@ -621,28 +636,28 @@ static void rzg2l_mtu3_pin_setup(struct rzg2l_mtu3_channel *ch,
 
 	switch (pin) {
 	case MTIOCA:
-		val = rzg2l_mtu3_read(ch, TIORH);
+		val = rzg2l_mtu3_ch_reg_read(ch, TIORH);
 		val &= 0xF0;
 		val |= state;
-		rzg2l_mtu3_write(ch, TIORH, val);
+		rzg2l_mtu3_ch_reg_write(ch, TIORH, val);
 		break;
 	case MTIOCB:
-		val = rzg2l_mtu3_read(ch, TIORH);
+		val = rzg2l_mtu3_ch_reg_read(ch, TIORH);
 		val &= 0x0F;
 		val |= (state << 4);
-		rzg2l_mtu3_write(ch, TIORH, val);
+		rzg2l_mtu3_ch_reg_write(ch, TIORH, val);
 		break;
 	case MTIOCC:
-		val = rzg2l_mtu3_read(ch, TIORL);
+		val = rzg2l_mtu3_ch_reg_read(ch, TIORL);
 		val &= 0xF0;
 		val |= state;
-		rzg2l_mtu3_write(ch, TIORL, val);
+		rzg2l_mtu3_ch_reg_write(ch, TIORL, val);
 		break;
 	case MTIOCD:
-		val = rzg2l_mtu3_read(ch, TIORL);
+		val = rzg2l_mtu3_ch_reg_read(ch, TIORL);
 		val &= 0x0F;
 		val |= (state << 4);
-		rzg2l_mtu3_write(ch, TIORL, val);
+		rzg2l_mtu3_ch_reg_write(ch, TIORL, val);
 		break;
 	}
 }
@@ -683,7 +698,7 @@ static int rzg2l_mtu3_pwm_enable(struct pwm_chip *chip,
 		output_pin = MTIOCC;
 		count = MTIOCD;
 	}
-	rzg2l_mtu3_write(ch, TMDR1, TMDR_MD_PWM_1);
+	rzg2l_mtu3_ch_reg_write(ch, TMDR1, TMDR_MD_PWM_1);
 
 	/* Setting output waveform modes for MTU3 pins */
 	rzg2l_mtu3_pin_setup(ch, output_pin, TIOR_OC_1_TOGGLE);
@@ -704,7 +719,7 @@ static void rzg2l_mtu3_pwm_disable(struct pwm_chip *chip,
 
 	ch = &mtu3->channels[mtu3->pwms[pwm->hwpwm].ch];
 	/* Return to normal mode and disable output pins of MTU3 channel */
-	rzg2l_mtu3_write(ch, TMDR1, TMDR_MD_NORMAL);
+	rzg2l_mtu3_ch_reg_write(ch, TMDR1, TMDR_MD_NORMAL);
 
 	/* Disable output waveform of MTU3 pins */
 	if ((ch->function == MTU3_PWM_MODE_1) &&
@@ -760,16 +775,16 @@ static int rzg2l_mtu3_pwm_config(struct pwm_chip *chip,
 
 	if ((ch->function == MTU3_PWM_MODE_1) &&
 		(mtu3->pwms[pwm->hwpwm].output == 0)) {
-		rzg2l_mtu3_write(ch, TCR, TCR_CCLR_TGRA |
+		rzg2l_mtu3_ch_reg_write(ch, TCR, TCR_CCLR_TGRA |
 				TCR_CKEG_RISING | prescaler);
-		rzg2l_mtu3_write(ch, TGRB, duty);
-		rzg2l_mtu3_write(ch, TGRA, period);
+		rzg2l_mtu3_ch_reg_write(ch, TGRB, duty);
+		rzg2l_mtu3_ch_reg_write(ch, TGRA, period);
 	} else if ((ch->function == MTU3_PWM_MODE_1) &&
 			(mtu3->pwms[pwm->hwpwm].output == 1)) {
-		rzg2l_mtu3_write(ch, TCR, TCR_CCLR_TGRC |
+		rzg2l_mtu3_ch_reg_write(ch, TCR, TCR_CCLR_TGRC |
 				TCR_CKEG_RISING | prescaler);
-		rzg2l_mtu3_write(ch, TGRD, duty);
-		rzg2l_mtu3_write(ch, TGRC, period);
+		rzg2l_mtu3_ch_reg_write(ch, TGRD, duty);
+		rzg2l_mtu3_ch_reg_write(ch, TGRC, period);
 	}
 
 	return 0;
