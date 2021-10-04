@@ -106,6 +106,7 @@ extern struct task_struct *rt_mutex_next_owner(struct rt_mutex *lock);
 extern void rt_mutex_init_proxy_locked(struct rt_mutex *lock,
 				       struct task_struct *proxy_owner);
 extern void rt_mutex_proxy_unlock(struct rt_mutex *lock);
+extern void rt_mutex_init_waiter(struct rt_mutex_waiter *waiter, bool savestate);
 extern int rt_mutex_start_proxy_lock(struct rt_mutex *lock,
 				     struct rt_mutex_waiter *waiter,
 				     struct task_struct *task);
@@ -114,7 +115,6 @@ extern int rt_mutex_wait_proxy_lock(struct rt_mutex *lock,
 			       struct rt_mutex_waiter *waiter);
 extern bool rt_mutex_cleanup_proxy_lock(struct rt_mutex *lock,
 				 struct rt_mutex_waiter *waiter);
-extern int rt_mutex_timed_futex_lock(struct rt_mutex *l, struct hrtimer_sleeper *to);
 extern int rt_mutex_futex_trylock(struct rt_mutex *l);
 extern int __rt_mutex_futex_trylock(struct rt_mutex *l);
 
@@ -130,15 +130,5 @@ extern void rt_mutex_adjust_prio(struct task_struct *task);
 #else
 # include "rtmutex.h"
 #endif
-
-static inline void
-rt_mutex_init_waiter(struct rt_mutex_waiter *waiter, bool savestate)
-{
-	debug_rt_mutex_init_waiter(waiter);
-	waiter->task = NULL;
-	waiter->savestate = savestate;
-	RB_CLEAR_NODE(&waiter->pi_tree_entry);
-	RB_CLEAR_NODE(&waiter->tree_entry);
-}
 
 #endif
