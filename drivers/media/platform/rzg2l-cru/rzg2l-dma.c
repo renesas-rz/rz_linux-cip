@@ -1020,6 +1020,15 @@ static irqreturn_t rzg2l_cru_irq(int irq, void *data)
 	slot = amnmbs & AMnMBS_MBSTS;
 
 	/*
+	 * AMnMBS.MBSTS indicates the destination of Memory Bank (MB).
+	 * Recalculate to get the current transfer complete MB.
+	 */
+	if (slot == 0)
+		slot = HW_BUFFER_NUM - 1;
+	else
+		slot--;
+
+	/*
 	 * To hand buffers back in a known order to userspace start
 	 * to capture first from slot 0.
 	 */
