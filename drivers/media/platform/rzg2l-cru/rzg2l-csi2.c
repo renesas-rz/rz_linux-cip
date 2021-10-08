@@ -104,36 +104,35 @@ struct timings global_timings[2] = {
 
 struct rzg2l_csi2_format {
 	u32 code;
-	unsigned int datatype;
 	unsigned int bpp;
 };
 
 static const struct rzg2l_csi2_format rzg2l_csi2_formats[] = {
-	{ .code = MEDIA_BUS_FMT_RGB888_1X24,	.datatype = 0x24, .bpp = 24 },
-	{ .code = MEDIA_BUS_FMT_UYVY8_1X16,	.datatype = 0x1e, .bpp = 16 },
-	{ .code = MEDIA_BUS_FMT_YUYV8_1X16,	.datatype = 0x1e, .bpp = 16 },
-	{ .code = MEDIA_BUS_FMT_UYVY8_2X8,	.datatype = 0x1e, .bpp = 16 },
-	{ .code = MEDIA_BUS_FMT_YUYV10_2X10,	.datatype = 0x1e, .bpp = 20 },
-	{ .code = MEDIA_BUS_FMT_SRGGB8_1X8,	.datatype = 0x2a, .bpp = 8 },
-	{ .code = MEDIA_BUS_FMT_SGRBG8_1X8,	.datatype = 0x2a, .bpp = 8 },
-	{ .code = MEDIA_BUS_FMT_SGBRG8_1X8,	.datatype = 0x2a, .bpp = 8 },
-	{ .code = MEDIA_BUS_FMT_SBGGR8_1X8,	.datatype = 0x2a, .bpp = 8 },
-	{ .code = MEDIA_BUS_FMT_SRGGB10_1X10,	.datatype = 0x2a, .bpp = 10 },
-	{ .code = MEDIA_BUS_FMT_SGRBG10_1X10,	.datatype = 0x2a, .bpp = 10 },
-	{ .code = MEDIA_BUS_FMT_SGBRG10_1X10,	.datatype = 0x2a, .bpp = 10 },
-	{ .code = MEDIA_BUS_FMT_SBGGR10_1X10,	.datatype = 0x2a, .bpp = 10 },
-	{ .code = MEDIA_BUS_FMT_SRGGB12_1X12,	.datatype = 0x2a, .bpp = 12 },
-	{ .code = MEDIA_BUS_FMT_SGRBG12_1X12,	.datatype = 0x2a, .bpp = 12 },
-	{ .code = MEDIA_BUS_FMT_SGBRG12_1X12,	.datatype = 0x2a, .bpp = 12 },
-	{ .code = MEDIA_BUS_FMT_SBGGR12_1X12,	.datatype = 0x2a, .bpp = 12 },
-	{ .code = MEDIA_BUS_FMT_SRGGB14_1X14,	.datatype = 0x2a, .bpp = 14 },
-	{ .code = MEDIA_BUS_FMT_SGRBG14_1X14,	.datatype = 0x2a, .bpp = 14 },
-	{ .code = MEDIA_BUS_FMT_SGBRG14_1X14,	.datatype = 0x2a, .bpp = 14 },
-	{ .code = MEDIA_BUS_FMT_SBGGR14_1X14,	.datatype = 0x2a, .bpp = 14 },
-	{ .code = MEDIA_BUS_FMT_SRGGB16_1X16,	.datatype = 0x2a, .bpp = 16 },
-	{ .code = MEDIA_BUS_FMT_SGRBG16_1X16,	.datatype = 0x2a, .bpp = 16 },
-	{ .code = MEDIA_BUS_FMT_SGBRG16_1X16,	.datatype = 0x2a, .bpp = 16 },
-	{ .code = MEDIA_BUS_FMT_SBGGR16_1X16,	.datatype = 0x2a, .bpp = 16 },
+	{ .code = MEDIA_BUS_FMT_RGB888_1X24,	.bpp = 24 },
+	{ .code = MEDIA_BUS_FMT_UYVY8_1X16,	.bpp = 16 },
+	{ .code = MEDIA_BUS_FMT_YUYV8_1X16,	.bpp = 16 },
+	{ .code = MEDIA_BUS_FMT_UYVY8_2X8,	.bpp = 16 },
+	{ .code = MEDIA_BUS_FMT_YUYV10_2X10,	.bpp = 20 },
+	{ .code = MEDIA_BUS_FMT_SRGGB8_1X8,	.bpp = 8 },
+	{ .code = MEDIA_BUS_FMT_SGRBG8_1X8,	.bpp = 8 },
+	{ .code = MEDIA_BUS_FMT_SGBRG8_1X8,	.bpp = 8 },
+	{ .code = MEDIA_BUS_FMT_SBGGR8_1X8,	.bpp = 8 },
+	{ .code = MEDIA_BUS_FMT_SRGGB10_1X10,	.bpp = 10 },
+	{ .code = MEDIA_BUS_FMT_SGRBG10_1X10,	.bpp = 10 },
+	{ .code = MEDIA_BUS_FMT_SGBRG10_1X10,	.bpp = 10 },
+	{ .code = MEDIA_BUS_FMT_SBGGR10_1X10,	.bpp = 10 },
+	{ .code = MEDIA_BUS_FMT_SRGGB12_1X12,	.bpp = 12 },
+	{ .code = MEDIA_BUS_FMT_SGRBG12_1X12,	.bpp = 12 },
+	{ .code = MEDIA_BUS_FMT_SGBRG12_1X12,	.bpp = 12 },
+	{ .code = MEDIA_BUS_FMT_SBGGR12_1X12,	.bpp = 12 },
+	{ .code = MEDIA_BUS_FMT_SRGGB14_1X14,	.bpp = 14 },
+	{ .code = MEDIA_BUS_FMT_SGRBG14_1X14,	.bpp = 14 },
+	{ .code = MEDIA_BUS_FMT_SGBRG14_1X14,	.bpp = 14 },
+	{ .code = MEDIA_BUS_FMT_SBGGR14_1X14,	.bpp = 14 },
+	{ .code = MEDIA_BUS_FMT_SRGGB16_1X16,	.bpp = 16 },
+	{ .code = MEDIA_BUS_FMT_SGRBG16_1X16,	.bpp = 16 },
+	{ .code = MEDIA_BUS_FMT_SGBRG16_1X16,	.bpp = 16 },
+	{ .code = MEDIA_BUS_FMT_SBGGR16_1X16,	.bpp = 16 },
 };
 
 static const struct rzg2l_csi2_format *rzg2l_csi2_code_to_fmt(unsigned int code)
