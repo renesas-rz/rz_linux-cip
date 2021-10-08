@@ -339,7 +339,7 @@ static int rzg2l_cru_mc_validate_format(struct rzg2l_cru_dev *cru,
 		case MEDIA_BUS_FMT_UYVY8_2X8:
 		case MEDIA_BUS_FMT_UYVY10_2X10:
 		case MEDIA_BUS_FMT_RGB444_1X12:
-		case MEDIA_BUS_FMT_RGB565_1X16:
+		case MEDIA_BUS_FMT_RGB565_2X8_LE:
 		case MEDIA_BUS_FMT_RGB666_1X18:
 		case MEDIA_BUS_FMT_RGB888_1X24:
 		case MEDIA_BUS_FMT_SRGGB8_1X8:
@@ -475,7 +475,7 @@ static void rzg2l_cru_csi2_setup(struct rzg2l_cru_dev *cru)
 		icnmc = ICnMC_INF_RGB444;
 		cru->input_is_yuv = false;
 		break;
-	case MEDIA_BUS_FMT_RGB565_1X16:
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
 		icnmc = ICnMC_INF_RGB565;
 		cru->input_is_yuv = false;
 		break;
