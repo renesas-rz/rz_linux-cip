@@ -108,6 +108,7 @@ struct rzg2l_csi2_format {
 };
 
 static const struct rzg2l_csi2_format rzg2l_csi2_formats[] = {
+	{ .code = MEDIA_BUS_FMT_RGB565_2X8_LE,	.bpp = 16 },
 	{ .code = MEDIA_BUS_FMT_RGB888_1X24,	.bpp = 24 },
 	{ .code = MEDIA_BUS_FMT_UYVY8_1X16,	.bpp = 16 },
 	{ .code = MEDIA_BUS_FMT_YUYV8_1X16,	.bpp = 16 },
