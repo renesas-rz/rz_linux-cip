@@ -28,7 +28,7 @@
 
 static const struct rzg2l_cru_video_format rzg2l_cru_formats[] = {
 	{
-		.fourcc			= V4L2_PIX_FMT_NV16,
+		.fourcc			= V4L2_PIX_FMT_NV12,
 		.bpp			= 1,
 	},
 	{
@@ -167,7 +167,7 @@ static u32 rzg2l_cru_format_bytesperline(struct v4l2_pix_format *pix)
 
 static u32 rzg2l_cru_format_sizeimage(struct v4l2_pix_format *pix)
 {
-	if (pix->pixelformat == V4L2_PIX_FMT_NV16)
+	if (pix->pixelformat == V4L2_PIX_FMT_NV12)
 		return pix->bytesperline * pix->height * 2;
 
 	return pix->bytesperline * pix->height;

@@ -168,7 +168,7 @@
 #define ICnDMR_RGBMODE_ARGB32		(3 << 0)
 #define ICnDMR_YCMODE_YUYV		(0 << 4)
 #define ICnDMR_YCMODE_UYVY		(1 << 4)
-#define ICnDMR_YCMODE_NV16		(2 << 4)
+#define ICnDMR_YCMODE_NV12		(2 << 4)
 #define ICnDMR_YCMODE_GREY		(3 << 4)
 
 /* CRU Test Image Generation Control 1 Register */
@@ -681,8 +681,8 @@ static int rzg2l_cru_initialize_image_conv(struct rzg2l_cru_dev *cru)
 		icndmr = ICnDMR_YCMODE_GREY;
 		cru->output_is_yuv = true;
 		break;
-	case V4L2_PIX_FMT_NV16:
-		icndmr = ICnDMR_YCMODE_NV16;
+	case V4L2_PIX_FMT_NV12:
+		icndmr = ICnDMR_YCMODE_NV12;
 		cru->output_is_yuv = true;
 		rzg2l_cru_write(cru, AMnUVAOFL,
 			ALIGN(cru->format.width * cru->format.height, 0x200));
@@ -869,7 +869,7 @@ static void rzg2l_cru_stop_streaming(struct vb2_queue *vq)
 	for (retries = 5; retries > 0; retries--) {
 		amnfifopntr = rzg2l_cru_read(cru, AMnFIFOPNTR);
 
-		if (cru->format.pixelformat == V4L2_PIX_FMT_NV16) {
+		if (cru->format.pixelformat == V4L2_PIX_FMT_NV12) {
 			amnfifopntr_w =
 				(amnfifopntr & AMnFIFOPNTR_FIFOWPNTR) >> 1;
 			amnfifopntr_r_uv =
