@@ -227,7 +227,7 @@ static void return_all_buffers(struct rzg2l_cru_dev *cru,
 	struct rzg2l_cru_buffer *buf, *node;
 	int i;
 
-	for (i = 0; i < HW_BUFFER_NUM; i++) {
+	for (i = 0; i < cru->num_buf; i++) {
 		if (cru->queue_buf[i]) {
 			vb2_buffer_done(&cru->queue_buf[i]->vb2_buf,
 					state);
@@ -449,9 +449,9 @@ static void rzg2l_cru_initialize_axi(struct rzg2l_cru_dev *cru)
 	/* Set image data memory banks.
 	 * Currently, we will use maximum address.
 	 */
-	rzg2l_cru_write(cru, AMnMBVALID, AMnMBVALID_MBVALID(HW_BUFFER_NUM - 1));
+	rzg2l_cru_write(cru, AMnMBVALID, AMnMBVALID_MBVALID(cru->num_buf - 1));
 
-	for (slot = 0; slot < HW_BUFFER_NUM; slot++)
+	for (slot = 0; slot < cru->num_buf; slot++)
 		rzg2l_cru_fill_hw_slot(cru, slot);
 }
 
@@ -1024,7 +1024,7 @@ static irqreturn_t rzg2l_cru_irq(int irq, void *data)
 	 * Recalculate to get the current transfer complete MB.
 	 */
 	if (slot == 0)
-		slot = HW_BUFFER_NUM - 1;
+		slot = cru->num_buf - 1;
 	else
 		slot--;
 
@@ -1090,7 +1090,7 @@ int rzg2l_cru_dma_register(struct rzg2l_cru_dev *cru, int irq)
 
 	cru->state = STOPPED;
 
-	for (i = 0; i < HW_BUFFER_NUM; i++)
+	for (i = 0; i < HW_BUFFER_MAX; i++)
 		cru->queue_buf[i] = NULL;
 
 	/* buffer queue */
