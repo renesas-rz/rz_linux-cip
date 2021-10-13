@@ -19,7 +19,8 @@
 #include <linux/clk.h>
 
 /* Number of HW buffers */
-#define HW_BUFFER_NUM	8
+#define HW_BUFFER_MAX		8
+#define HW_BUFFER_DEFAULT	4
 
 /* Address alignment mask for HW buffers */
 #define HW_BUFFER_MASK	0x1ff
@@ -128,6 +129,7 @@ struct rzg2l_cru_dev {
 	struct video_device vdev;
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
+	u8 num_buf;
 	struct v4l2_async_notifier notifier;
 
 	struct rzg2l_cru_parallel_entity *parallel;
@@ -141,7 +143,7 @@ struct rzg2l_cru_dev {
 	dma_addr_t scratch_phys;
 
 	spinlock_t qlock;
-	struct vb2_v4l2_buffer *queue_buf[HW_BUFFER_NUM];
+	struct vb2_v4l2_buffer *queue_buf[HW_BUFFER_MAX];
 	struct list_head buf_list;
 	unsigned int sequence;
 	enum rzg2l_cru_dma_state state;

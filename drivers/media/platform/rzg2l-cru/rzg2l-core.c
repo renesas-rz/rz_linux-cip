@@ -455,11 +455,39 @@ static int rzg2l_cru_mc_init(struct rzg2l_cru_dev *cru)
 	return ret;
 }
 
+static int rzg2l_cru_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct rzg2l_cru_dev *cru = container_of(ctrl->handler,
+						 struct rzg2l_cru_dev,
+						 ctrl_handler);
+	int ret;
+
+	switch (ctrl->id) {
+	case V4L2_CID_MIN_BUFFERS_FOR_CAPTURE:
+		if ((cru->state == STOPPED) || (cru->state == STOPPING))
+			cru->num_buf = ctrl->val;
+		else
+			ret = -EBUSY;
+
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static const struct v4l2_ctrl_ops rzg2l_cru_ctrl_ops = {
+	.s_ctrl = rzg2l_cru_s_ctrl,
+};
+
 static int rzg2l_cru_probe(struct platform_device *pdev)
 {
 	struct rzg2l_cru_dev *cru;
 	struct resource *mem;
 	int irq, ret;
+	struct v4l2_ctrl *ctrl;
 
 	cru = devm_kzalloc(&pdev->dev, sizeof(*cru), GFP_KERNEL);
 	if (!cru)
@@ -500,11 +528,34 @@ static int rzg2l_cru_probe(struct platform_device *pdev)
 	if (ret)
 		goto error_dma_unregister;
 
+	/* Add the control about minimum amount of buffers */
+	v4l2_ctrl_handler_init(&cru->ctrl_handler, 1);
+	ctrl = v4l2_ctrl_new_std(&cru->ctrl_handler, &rzg2l_cru_ctrl_ops,
+			  V4L2_CID_MIN_BUFFERS_FOR_CAPTURE,
+			  1, HW_BUFFER_MAX, 1, HW_BUFFER_DEFAULT);
+
+	ctrl->flags &= ~V4L2_CTRL_FLAG_READ_ONLY;
+
+	v4l2_ctrl_handler_setup(&cru->ctrl_handler);
+
+	cru->v4l2_dev.ctrl_handler = &cru->ctrl_handler;
+
+	if (cru->ctrl_handler.error) {
+		dev_err(&pdev->dev, "%s: control initialization error %d\n",
+				    __func__, cru->ctrl_handler.error);
+		ret = cru->ctrl_handler.error;
+		goto free_ctrl;
+	}
+
+	cru->num_buf = HW_BUFFER_DEFAULT;
+
 	pm_suspend_ignore_children(&pdev->dev, true);
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
 
+free_ctrl:
+	v4l2_ctrl_handler_free(&cru->ctrl_handler);
 error_dma_unregister:
 	rzg2l_cru_dma_unregister(cru);
 
@@ -530,6 +581,8 @@ static int rzg2l_cru_remove(struct platform_device *pdev)
 	struct rzg2l_cru_dev *cru = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
+
+	v4l2_ctrl_handler_free(&cru->ctrl_handler);
 
 	rzg2l_cru_v4l2_unregister(cru);
 
