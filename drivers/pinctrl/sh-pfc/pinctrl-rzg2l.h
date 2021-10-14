@@ -211,6 +211,8 @@ struct rzg2l_pinctrl {
 
 extern const struct rzg2l_pin_soc r9a07g044l_pinctrl_data;
 extern const struct rzg2l_pin_soc r9a07g044c_pinctrl_data;
+extern const struct rzg2l_pin_soc r9a07g043u11_pinctrl_data;
+extern const struct rzg2l_pin_soc r9a07g043u12_pinctrl_data;
 
 int rzg2l_pinctrl_eth_mode_set(struct device *dev,
 			       phy_interface_t interface,
