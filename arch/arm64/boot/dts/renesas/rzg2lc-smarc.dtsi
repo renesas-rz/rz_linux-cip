@@ -116,6 +116,12 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
+#if (SW_I2S0_I2S1)
+	sound_card {
+		compatible = "audio-graph-card";
+		dais = <&ssi0>;
+	};
+#else
 	snd_rzg2l: sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
@@ -138,11 +144,7 @@
 			clocks = <&versa3 3>;
 		};
 	};
-
-	sound_card {
-		compatible = "audio-graph-card";
-		dais = <&ssi0>;
-	};
+#endif
 
 	vccq_sdhi0: regulator-vccq-sdhi0 {
 		compatible = "regulator-gpio";
