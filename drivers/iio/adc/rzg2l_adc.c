@@ -256,19 +256,8 @@ static int rzg2l_adc_read_raw(struct iio_dev *indio_dev,
 	}
 }
 
-static int rzg2l_adc_read_label(struct iio_dev *iio_dev,
-				const struct iio_chan_spec *chan,
-				char *label)
-{
-	if (chan->channel >= RZG2L_ADC_MAX_CHANNELS)
-		return -EINVAL;
-
-	return sysfs_emit(label, "%s\n", rzg2l_adc_channel_name[chan->channel]);
-}
-
 static const struct iio_info rzg2l_adc_iio_info = {
 	.read_raw = rzg2l_adc_read_raw,
-	.read_label = rzg2l_adc_read_label,
 };
 
 static irqreturn_t rzg2l_adc_isr(int irq, void *dev_id)
