@@ -34,7 +34,7 @@
  */
 
 #define SW_SD0_DEV_SEL	1
-#define SW_SCIF_CAN	1
+#define SW_SCIF_CAN	0
 #if (SW_SCIF_CAN)
 /*
  * Due to Hardware routing, SW_RSPI_CAN is always 0 when SW_SCIF_CAN is set to 1
@@ -49,7 +49,7 @@
 //#define SW_RSPI_CAN     0
 #endif
 
-#define SW_I2S0_I2S1	1
+#define SW_I2S0_I2S1	0
 
 #if (SW_SCIF_CAN & SW_RSPI_CAN)
 #error "Can not set 1 to both SW_SCIF_CAN and SW_RSPI_CAN due to Hardware."
