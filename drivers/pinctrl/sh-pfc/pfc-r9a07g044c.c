@@ -622,9 +622,9 @@ static int gpt7_b_c_pins[] = {
 
 /* USB channel 0 */
 static int usb0_a_pins[] = {
-	/* VBUS, OVC, OTG_ID, OTG_EXICEN */
+	/* VBUS, OVC, OTG_ID*/
 	RZ_G2L_PIN(4, 0), RZ_G2L_PIN(5, 0),
-	RZ_G2L_PIN(5, 1), RZ_G2L_PIN(5, 2),
+	RZ_G2L_PIN(5, 1),
 };
 
 /* USB channel 1 */
