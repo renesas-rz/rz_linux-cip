@@ -74,6 +74,15 @@
 #define OV5645_SDE_SAT_V		0x5584
 #define OV5645_REG_DEBUG_MODE		0x4814
 
+/*
+ * FIXME: remove this when a subdev API becomes available
+ * to set the MIPI CSI-2 virtual channel.
+ */
+static unsigned int virtual_channel;
+module_param(virtual_channel, int, 0644);
+MODULE_PARM_DESC(virtual_channel,
+		"MIPI CSI-2 virtual channel (0..3), default 0");
+
 struct reg_value {
 	u16 reg;
 	u8 val;
@@ -118,8 +127,6 @@ struct ov5645 {
 
 	struct gpio_desc *enable_gpio;
 	struct gpio_desc *rst_gpio;
-
-	u8 virtual_channel;
 };
 
 static inline struct ov5645 *to_ov5645(struct v4l2_subdev *sd)
@@ -1043,7 +1050,7 @@ static int ov5645_get_selection(struct v4l2_subdev *sd,
 
 static int ov5645_set_virtual_channel(struct ov5645 *ov5645)
 {
-	u8 temp, channel = ov5645->virtual_channel;
+	u8 temp, channel = virtual_channel;
 	int ret;
 
 	if (channel > 3)
@@ -1137,7 +1144,6 @@ static int ov5645_probe(struct i2c_client *client,
 	struct ov5645 *ov5645;
 	u8 chip_id_high, chip_id_low;
 	u32 xclk_freq;
-	u8 virtual_channel;
 	int ret;
 
 	ov5645 = devm_kzalloc(dev, sizeof(struct ov5645), GFP_KERNEL);
@@ -1247,12 +1253,6 @@ static int ov5645_probe(struct i2c_client *client,
 		dev_err(dev, "cannot get reset gpio\n");
 		return PTR_ERR(ov5645->rst_gpio);
 	}
-
-	if (!of_property_read_u8(dev->of_node, "virtual-channel",
-							&virtual_channel))
-		ov5645->virtual_channel = virtual_channel;
-	else
-		ov5645->virtual_channel = 0;
 
 	mutex_init(&ov5645->power_lock);
 
