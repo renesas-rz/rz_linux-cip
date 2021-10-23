@@ -34,10 +34,13 @@ static enum drm_mode_status rcar_du_encoder_mode_valid(
 	struct rcar_du_encoder *renc = to_rcar_encoder(crtc);
 
 	if (of_machine_is_compatible("renesas,r8a774c0") &&
-	    renc->output == RCAR_DU_OUTPUT_DPAD0 && mode->clock > 75000)
+	    renc->output == RCAR_DU_OUTPUT_DPAD0 && mode->clock > 75000) {
 		return MODE_BAD;
-	else
+	} else if (of_machine_is_compatible("renesas,r9a07g043u") && mode->clock > 83500) {
+		return MODE_BAD;
+	} else {
 		return MODE_OK;
+	}
 }
 
 static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
