@@ -423,6 +423,11 @@
 		function = "i2c2";
 	};
 
+	gpt4_pins: gpt4 {
+		groups = "gpt4_a_b", "gpt4_b_b";
+		function = "gpt4";
+	};
+
 	scif0_pins: scif0 {
 		groups = "scif0_data";
 		function = "scif0";
@@ -581,6 +586,13 @@
 		groups = "usb1_d";
 		function = "usb1";
 	};
+};
+
+&gpt4 {
+	pinctrl-0 = <&gpt4_pins>;
+	pinctrl-names = "default";
+	channel = "channel_A";
+	status = "okay";
 };
 
 &scif0 {
