@@ -402,12 +402,12 @@
 #endif
 
 	ether0_pins: eth0 {
-		groups = "eth0_link", "eth0_mdio", "eth0_mii";
+		groups = "eth0_link", "eth0_mdio", "eth0_rgmii";
 		function = "eth0";
 	};
 	
 	ether1_pins: eth1 {
-		groups = "eth1_link", "eth1_mdio", "eth1_mii";
+		groups = "eth1_link", "eth1_mdio", "eth1_rgmii";
 		function = "eth1";
 	};
 
