@@ -1915,6 +1915,21 @@ static int eth0_mii_pins[] = {
 	RZ_G2L_PIN(27, 0),	/* ETH0_RX_ERR */
 };
 
+static int eth0_rgmii_pins[] = {
+	RZ_G2L_PIN(20, 0),	/* ETH0_TXC_TX_CLK */
+	RZ_G2L_PIN(20, 1),	/* ETH0_TX_CTL_TX_EN */
+	RZ_G2L_PIN(20, 2),	/* ETH0_TXD0 */
+	RZ_G2L_PIN(21, 0),	/* ETH0_TXD1 */
+	RZ_G2L_PIN(21, 1),	/* ETH0_TXD2 */
+	RZ_G2L_PIN(22, 0),	/* ETH0_TXD3 */
+	RZ_G2L_PIN(24, 0),	/* ETH0_RXC_RX_CLK */
+	RZ_G2L_PIN(24, 1),	/* ETH0_RX_CTL_RX_DV */
+	RZ_G2L_PIN(25, 0),	/* ETH0_RXD0 */
+	RZ_G2L_PIN(25, 1),	/* ETH0_RXD1 */
+	RZ_G2L_PIN(26, 0),	/* ETH0_RXD2 */
+	RZ_G2L_PIN(26, 1),	/* ETH0_RXD3 */
+};
+
 /* Ethernet channel 1 */
 static int eth1_link_pins[] = {
 	/* ETH1_LINKSTA */
@@ -1943,6 +1958,21 @@ static int eth1_mii_pins[] = {
 	RZ_G2L_PIN(35, 1),	/* ETH1_RXD2 */
 	RZ_G2L_PIN(36, 0),	/* ETH1_RXD3 */
 	RZ_G2L_PIN(36, 1),	/* ETH1_RX_ERR */
+};
+
+static int eth1_rgmii_pins[] = {
+	RZ_G2L_PIN(29, 0),	/* ETH1_TXC_TX_CLK */
+	RZ_G2L_PIN(29, 1),	/* ETH1_TX_CTL_TX_EN */
+	RZ_G2L_PIN(30, 0),	/* ETH1_TXD0 */
+	RZ_G2L_PIN(30, 1),	/* ETH1_TXD1 */
+	RZ_G2L_PIN(31, 0),	/* ETH1_TXD2 */
+	RZ_G2L_PIN(31, 1),	/* ETH1_TXD3 */
+	RZ_G2L_PIN(33, 1),	/* ETH1_RXC_RX_CLK */
+	RZ_G2L_PIN(34, 0),	/* ETH1_RX_CTL_RX_DV */
+	RZ_G2L_PIN(34, 1),	/* ETH1_RXD0 */
+	RZ_G2L_PIN(35, 0),	/* ETH1_RXD1 */
+	RZ_G2L_PIN(35, 1),	/* ETH1_RXD2 */
+	RZ_G2L_PIN(36, 0),	/* ETH1_RXD3 */
 };
 
 static struct group_desc r9a07g044l_groups[] = {
@@ -2240,9 +2270,11 @@ static struct group_desc r9a07g044l_groups[] = {
 	RZ_G2L_PINCTRL_PIN_GROUP(eth0_link, 1),
 	RZ_G2L_PINCTRL_PIN_GROUP(eth0_mdio, 1),
 	RZ_G2L_PINCTRL_PIN_GROUP(eth0_mii, 1),
+	RZ_G2L_PINCTRL_PIN_GROUP(eth0_rgmii, 1),
 	RZ_G2L_PINCTRL_PIN_GROUP(eth1_link, 1),
 	RZ_G2L_PINCTRL_PIN_GROUP(eth1_mdio, 1),
 	RZ_G2L_PINCTRL_PIN_GROUP(eth1_mii, 1),
+	RZ_G2L_PINCTRL_PIN_GROUP(eth1_rgmii, 1),
 };
 
 static const char *r9a07g044l_irq_groups[] = {
@@ -2506,11 +2538,11 @@ static const char *r9a07g044l_mtclk_groups[] = {
 };
 
 static const char *r9a07g044l_eth0_groups[] = {
-	"eth0_link", "eth0_mdio", "eth0_mii",
+	"eth0_link", "eth0_mdio", "eth0_mii", "eth0_rgmii",
 };
 
 static const char *r9a07g044l_eth1_groups[] = {
-	"eth1_link", "eth1_mdio", "eth1_mii",
+	"eth1_link", "eth1_mdio", "eth1_mii", "eth1_rgmii",
 };
 
 static const struct function_desc r9a07g044l_funcs[] = {
