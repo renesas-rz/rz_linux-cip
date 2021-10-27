@@ -1072,6 +1072,21 @@ static int eth0_mii_pins[] = {
 	RZ_G2L_PIN(27, 0),	/* ETH0_RX_ERR */
 };
 
+static int eth0_rgmii_pins[] = {
+	RZ_G2L_PIN(20, 0),	/* ETH0_TXC_TX_CLK */
+	RZ_G2L_PIN(20, 1),	/* ETH0_TX_CTL_TX_EN */
+	RZ_G2L_PIN(20, 2),	/* ETH0_TXD0 */
+	RZ_G2L_PIN(21, 0),	/* ETH0_TXD1 */
+	RZ_G2L_PIN(21, 1),	/* ETH0_TXD2 */
+	RZ_G2L_PIN(22, 0),	/* ETH0_TXD3 */
+	RZ_G2L_PIN(24, 0),	/* ETH0_RXC_RX_CLK */
+	RZ_G2L_PIN(24, 1),	/* ETH0_RX_CTL_RX_DV */
+	RZ_G2L_PIN(25, 0),	/* ETH0_RXD0 */
+	RZ_G2L_PIN(25, 1),	/* ETH0_RXD1 */
+	RZ_G2L_PIN(26, 0),	/* ETH0_RXD2 */
+	RZ_G2L_PIN(26, 1),	/* ETH0_RXD3 */
+};
+
 static struct group_desc r9a07g044c_groups[] = {
 	RZ_G2L_PINCTRL_PIN_GROUP(irq0_a, 1),
 	RZ_G2L_PINCTRL_PIN_GROUP(irq1_a, 1),
@@ -1206,6 +1221,7 @@ static struct group_desc r9a07g044c_groups[] = {
 	RZ_G2L_PINCTRL_PIN_GROUP(eth0_link, 1),
 	RZ_G2L_PINCTRL_PIN_GROUP(eth0_mdio, 1),
 	RZ_G2L_PINCTRL_PIN_GROUP(eth0_mii, 1),
+	RZ_G2L_PINCTRL_PIN_GROUP(eth0_rgmii, 1),
 };
 
 static const char *r9a07g044c_irq_groups[] = {
@@ -1389,7 +1405,7 @@ static const char *r9a07g044c_mtclk_groups[] = {
 };
 
 static const char *r9a07g044c_eth0_groups[] = {
-	"eth0_link", "eth0_mdio", "eth0_mii",
+	"eth0_link", "eth0_mdio", "eth0_mii", "eth0_rgmii",
 };
 
 static const struct function_desc r9a07g044c_funcs[] = {
