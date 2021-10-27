@@ -455,7 +455,7 @@
 #endif
 
 	ether0_pins: eth0 {
-		groups = "eth0_link", "eth0_mdio", "eth0_mii";
+		groups = "eth0_link", "eth0_mdio", "eth0_rgmii";
 		function = "eth0";
 	};
 
