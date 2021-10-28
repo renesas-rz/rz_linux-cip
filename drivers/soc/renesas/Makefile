@@ -37,3 +37,6 @@ obj-$(CONFIG_RST_RCAR)		+= rcar-rst.o
 obj-$(CONFIG_SYSC_RCAR)		+= rcar-sysc.o
 obj-$(CONFIG_SYSC_RCAR_GEN4)	+= rcar-gen4-sysc.o
 obj-$(CONFIG_SYSC_RMOBILE)	+= rmobile-sysc.o
+
+# EMS for R-Car Gen3
+obj-$(CONFIG_RCAR_THERMAL_EMS)	+= rcar_ems_ctrl.o
