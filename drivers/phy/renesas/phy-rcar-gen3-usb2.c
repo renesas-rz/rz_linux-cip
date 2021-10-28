@@ -536,7 +536,7 @@ static irqreturn_t rcar_gen3_phy_usb2_irq(int irq, void *_ch)
 
 static const struct soc_device_attribute soc_no_adp_ctrl[] = {
 	{
-		.soc_id = "r9a07g044l",
+		.soc_id = "r9a07g044l2",
 		.data = (void *)USB2_NO_ADP_CTRL,
 	},
 	{
