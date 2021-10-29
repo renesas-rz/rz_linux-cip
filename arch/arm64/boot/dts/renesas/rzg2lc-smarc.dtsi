@@ -40,6 +40,9 @@
  * Due to Hardware routing, SW_RSPI_CAN is always 0 when SW_SCIF_CAN is set to 1
  */
 #define SW_RSPI_CAN	0
+
+#define SCIF1_GPT3	1 /* Enable GPT3 when SCIF1 disabled */
+
 #else
 /*
  * Please choose one of two below setting when SW_SCIF_CAN is set to 0.
@@ -47,6 +50,15 @@
  */
 #define SW_RSPI_CAN     1
 //#define SW_RSPI_CAN     0
+
+/*
+ * SCIF1 and GPT3 have pin conflict, only enable one
+ * SCIF1_GPT3 (0: SCIF1; 1: GPT3)
+ * Default SCIF1_GPT3 value is 0.
+ */
+
+#define SCIF1_GPT3	0
+
 #endif
 
 #define SW_I2S0_I2S1	0
@@ -61,7 +73,7 @@
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		serial0 = &scif0;
-#if (!SW_SCIF_CAN)
+#if ((!SW_SCIF_CAN) && (!SCIF1_GPT3))
 		serial1 = &scif1;
 #endif
 		ethernet0 = &eth0;
@@ -423,6 +435,13 @@
 		function = "i2c2";
 	};
 
+#if (SCIF1_GPT3)
+	gpt3_pins: gpt3 {
+		groups = "gpt3_b_d";
+		function = "gpt3";
+	};
+#endif
+
 	scif0_pins: scif0 {
 		groups = "scif0_data";
 		function = "scif0";
@@ -440,10 +459,13 @@
 	};
 
 #else
+
+#if (!SCIF1_GPT3)
 	scif1_pins: scif1 {
 		groups = "scif1_data", "scif1_ctrl" ;
 		function = "scif1";
 	};
+#endif
 
 #if (SW_RSPI_CAN)
 	canfd1_en {
@@ -583,6 +605,15 @@
 	};
 };
 
+#if (SCIF1_GPT3)
+&gpt3 {
+	pinctrl-0 = <&gpt3_pins>;
+	pinctrl-names = "default";
+	channel = "channel_B";
+	status = "okay";
+};
+#endif
+
 &scif0 {
 	pinctrl-0 = <&scif0_pins>;
 	pinctrl-names = "default";
@@ -601,7 +632,7 @@
 };
 #endif
 
-#if (!SW_SCIF_CAN)
+#if ((!SW_SCIF_CAN) && (!SCIF1_GPT3))
 &scif1 {
 	pinctrl-0 = <&scif1_pins>;
 	pinctrl-names = "default";
