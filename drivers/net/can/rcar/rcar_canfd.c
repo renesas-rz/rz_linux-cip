@@ -1704,7 +1704,6 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	int err, ch_irq, g_irq, rx_irq;
 	bool fdmode = true;			/* CAN FD only mode - default */
 	void *data;
-	int i = 0;
 	bool isrzg2l = false;
 
 	data = (void *)of_device_get_match_data(&pdev->dev);
@@ -1887,24 +1886,40 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 		goto fail_mode;
 	}
 
-	i = 1;
 	for_each_set_bit(ch, &gpriv->channels_mask, RCANFD_NUM_CHANNELS) {
 		err = rcar_canfd_channel_probe(gpriv, ch, fcan_freq);
 		if (err)
 			goto fail_channel;
 
 		if (isrzg2l) {
-			gpriv->ch[ch]->err_irq = platform_get_irq(pdev, i++);
-			if (gpriv->ch[ch]->err_irq < 0) {
-				dev_err(&pdev->dev, "no CH Err IRQ resource\n");
-				err = gpriv->ch[ch]->err_irq;
-				goto fail_channel;
+			if (ch == 0) {
+				gpriv->ch[ch]->err_irq = platform_get_irq(pdev, 1);
+				if (gpriv->ch[ch]->err_irq < 0) {
+					dev_err(&pdev->dev, "no CH Err IRQ resource\n");
+					err = gpriv->ch[ch]->err_irq;
+					goto fail_channel;
+				}
+				gpriv->ch[ch]->tx_irq = platform_get_irq(pdev, 2);
+				if (gpriv->ch[ch]->tx_irq < 0) {
+					dev_err(&pdev->dev, "no Tx IRQ resource\n");
+					err = gpriv->ch[ch]->tx_irq;
+					goto fail_channel;
+				}
 			}
-			gpriv->ch[ch]->tx_irq = platform_get_irq(pdev, i++);
-			if (gpriv->ch[ch]->tx_irq < 0) {
-				dev_err(&pdev->dev, "no Tx IRQ resource\n");
-				err = gpriv->ch[ch]->tx_irq;
-				goto fail_channel;
+
+			if (ch == 1) {
+				gpriv->ch[ch]->err_irq = platform_get_irq(pdev, 3);
+				if (gpriv->ch[ch]->err_irq < 0) {
+					dev_err(&pdev->dev, "no CH Err IRQ resource\n");
+					err = gpriv->ch[ch]->err_irq;
+					goto fail_channel;
+				}
+				gpriv->ch[ch]->tx_irq = platform_get_irq(pdev, 4);
+				if (gpriv->ch[ch]->tx_irq < 0) {
+					dev_err(&pdev->dev, "no Tx IRQ resource\n");
+					err = gpriv->ch[ch]->tx_irq;
+					goto fail_channel;
+				}
 			}
 
 			err = devm_request_irq(&pdev->dev,
