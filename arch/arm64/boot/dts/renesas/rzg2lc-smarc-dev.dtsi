@@ -85,7 +85,7 @@
 		serial1 = &scif1;
 #endif
 
-#if !(JP30 || JP2)
+#if (JP30 == 0 && JP2 == 1)
 		can0 = &can;
 #endif
 
@@ -440,7 +440,7 @@
 	};
 #endif
 
-#if !(JP30 || JP2)
+#if (JP30 == 0 && JP2 == 1)
 	can0_pins: can0 {
 		groups = "can0_tx_c", "can0_rx_d";
 		function = "can0";
@@ -601,18 +601,19 @@
 
 #if (JP31 == 0 & JP32 == 0 & JP33 == 0 & JP34 == 0)
 &can {
-
-#if !(JP30 || JP2)
-	pinctrl-0 = <&can0_pins>;
-#endif
 	pinctrl-0 = <&can1_pins>;
-	pinctrl-names = "default";
+	pinctrl-names = "default","default";
 	status = "okay";
+
+#if (JP30 == 0 && JP2 == 1)
+	pinctrl-1 = <&can0_pins>;
 
 	channel0 {
 		renesas,channel = <0>;
 		status = "okay";
 	};
+#endif
+
 	channel1 {
 		renesas,channel = <1>;
 		status = "okay";
