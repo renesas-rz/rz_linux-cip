@@ -518,6 +518,13 @@ config RZG2L_TIMER_MTU3
 		Timer Pulse Unit 3 (MTU3) hardware available on SoCs from Renesas.
 		This hardware comes with 16 bit-timer registers.
 
+config RENESAS_POE3
+	bool "Renesas POE3 driver"
+	depends on RZG2L_TIMER_MTU3
+	help
+	  This enables build of port output enable 3 (POE3) for placing
+	  output pins of MTU3 in high-impedance state.
+
 config RENESAS_OSTM
 	bool "Renesas OSTM timer driver" if COMPILE_TEST
 	select CLKSRC_MMIO
