@@ -511,7 +511,7 @@ config SH_TIMER_MTU2
 
 config RZG2L_TIMER_MTU3
 	bool "Renesas MTU3 timer driver" if COMPILE_TEST
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && OF
 	default SYS_SUPPORTS_RZG2L_MTU3
 	help
 		This enables build of a clockevent driver for the Multi-Function
