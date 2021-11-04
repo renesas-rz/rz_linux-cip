@@ -40,6 +40,13 @@ enum rzg2l_cru_dma_state {
 	STOPPING,
 };
 
+enum rzg2l_cru_fmt_types {
+	YUV = 0,
+	RGB,
+	BAYER_RAW,
+	USER_DEFINED,
+};
+
 /**
  * struct rzg2l_cru_video_format - Data format stored in memory
  * @fourcc:	Pixelformat
@@ -150,8 +157,8 @@ struct rzg2l_cru_dev {
 
 	bool is_csi;
 
-	bool input_is_yuv;
-	bool output_is_yuv;
+	enum rzg2l_cru_fmt_types input_fmt;
+	enum rzg2l_cru_fmt_types output_fmt;
 
 	u32 mbus_code;
 	struct v4l2_pix_format format;

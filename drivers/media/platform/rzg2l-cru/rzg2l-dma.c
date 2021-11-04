@@ -465,65 +465,65 @@ static void rzg2l_cru_csi2_setup(struct rzg2l_cru_dev *cru)
 	switch (cru->mbus_code) {
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 		icnmc = ICnMC_INF_YUV8_422;
-		cru->input_is_yuv = true;
+		cru->input_fmt = YUV;
 		break;
 	case MEDIA_BUS_FMT_UYVY10_2X10:
 		icnmc = ICnMC_INF_YUV10_422;
-		cru->input_is_yuv = true;
+		cru->input_fmt = YUV;
 		break;
 	case MEDIA_BUS_FMT_RGB444_1X12:
 		icnmc = ICnMC_INF_RGB444;
-		cru->input_is_yuv = false;
+		cru->input_fmt = RGB;
 		break;
 	case MEDIA_BUS_FMT_RGB565_2X8_LE:
 		icnmc = ICnMC_INF_RGB565;
-		cru->input_is_yuv = false;
+		cru->input_fmt = RGB;
 		break;
 	case MEDIA_BUS_FMT_RGB666_1X18:
 		icnmc = ICnMC_INF_RGB666;
-		cru->input_is_yuv = false;
+		cru->input_fmt = RGB;
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X24:
 		icnmc = ICnMC_INF_RGB888;
-		cru->input_is_yuv = false;
+		cru->input_fmt = RGB;
 		break;
 	case MEDIA_BUS_FMT_SRGGB8_1X8:
 	case MEDIA_BUS_FMT_SGRBG8_1X8:
 	case MEDIA_BUS_FMT_SGBRG8_1X8:
 	case MEDIA_BUS_FMT_SBGGR8_1X8:
 		icnmc = ICnMC_INF_RAW8;
-		cru->input_is_yuv = false;
+		cru->input_fmt = BAYER_RAW;
 		break;
 	case MEDIA_BUS_FMT_SRGGB10_1X10:
 	case MEDIA_BUS_FMT_SGRBG10_1X10:
 	case MEDIA_BUS_FMT_SGBRG10_1X10:
 	case MEDIA_BUS_FMT_SBGGR10_1X10:
 		icnmc = ICnMC_INF_RAW10;
-		cru->input_is_yuv = false;
+		cru->input_fmt = BAYER_RAW;
 		break;
 	case MEDIA_BUS_FMT_SRGGB12_1X12:
 	case MEDIA_BUS_FMT_SGRBG12_1X12:
 	case MEDIA_BUS_FMT_SGBRG12_1X12:
 	case MEDIA_BUS_FMT_SBGGR12_1X12:
 		icnmc = ICnMC_INF_RAW12;
-		cru->input_is_yuv = false;
+		cru->input_fmt = BAYER_RAW;
 		break;
 	case MEDIA_BUS_FMT_SRGGB14_1X14:
 	case MEDIA_BUS_FMT_SGRBG14_1X14:
 	case MEDIA_BUS_FMT_SGBRG14_1X14:
 	case MEDIA_BUS_FMT_SBGGR14_1X14:
 		icnmc = ICnMC_INF_RAW14;
-		cru->input_is_yuv = false;
+		cru->input_fmt = BAYER_RAW;
 		break;
 	case MEDIA_BUS_FMT_SRGGB16_1X16:
 	case MEDIA_BUS_FMT_SGRBG16_1X16:
 	case MEDIA_BUS_FMT_SGBRG16_1X16:
 	case MEDIA_BUS_FMT_SBGGR16_1X16:
 		icnmc = ICnMC_INF_RAW16;
-		cru->input_is_yuv = false;
+		cru->input_fmt = BAYER_RAW;
 		break;
 	default:
-		cru->input_is_yuv = false;
+		cru->input_fmt = USER_DEFINED;
 		icnmc = ICnMC_INF_USER;
 		break;
 	}
@@ -569,7 +569,7 @@ static void rzg2l_cru_parallel_setup(struct rzg2l_cru_dev *cru)
 			icnpifc |= ICnPIFC_PINF_UYVY8_BT656;
 		else
 			icnpifc |= ICnPIFC_PINF_UYVY8;
-		cru->input_is_yuv = true;
+		cru->input_fmt = YUV;
 		break;
 	case MEDIA_BUS_FMT_UYVY10_2X10:
 		/* BT.656 10bit YCbCr422 or BT.601 10bit YCbCr422 */
@@ -577,42 +577,42 @@ static void rzg2l_cru_parallel_setup(struct rzg2l_cru_dev *cru)
 			icnpifc |= ICnPIFC_PINF_UYVY10_BT656;
 		else
 			icnpifc |= ICnPIFC_PINF_UYVY10;
-		cru->input_is_yuv = true;
+		cru->input_fmt = YUV;
 		break;
 	case MEDIA_BUS_FMT_YUYV8_1X16:
 		icnpifc |= ICnPIFC_PINF_YUYV16;
-		cru->input_is_yuv = true;
+		cru->input_fmt = YUV;
 		break;
 	case MEDIA_BUS_FMT_YVYU8_1X16:
 		icnpifc |= ICnPIFC_PINF_YVYU16;
-		cru->input_is_yuv = true;
+		cru->input_fmt = YUV;
 		break;
 	case MEDIA_BUS_FMT_VYUY8_2X8:
 		icnpifc |= ICnPIFC_PINF_VYUY8;
-		cru->input_is_yuv = true;
+		cru->input_fmt = YUV;
 		break;
 	case MEDIA_BUS_FMT_YUYV8_2X8:
 		icnpifc |= ICnPIFC_PINF_YUYV8;
-		cru->input_is_yuv = true;
+		cru->input_fmt = YUV;
 		break;
 	case MEDIA_BUS_FMT_YVYU8_2X8:
 		icnpifc |= ICnPIFC_PINF_YVYU8;
-		cru->input_is_yuv = true;
+		cru->input_fmt = YUV;
 		break;
 	case MEDIA_BUS_FMT_VYUY10_2X10:
 		icnpifc |= ICnPIFC_PINF_VYUY10;
-		cru->input_is_yuv = true;
+		cru->input_fmt = YUV;
 		break;
 	case MEDIA_BUS_FMT_YUYV10_2X10:
 		icnpifc |= ICnPIFC_PINF_YUYV10;
-		cru->input_is_yuv = true;
+		cru->input_fmt = YUV;
 		break;
 	case MEDIA_BUS_FMT_YVYU10_2X10:
 		icnpifc |= ICnPIFC_PINF_YVYU10;
-		cru->input_is_yuv = true;
+		cru->input_fmt = YUV;
 		break;
 	default:
-		cru->input_is_yuv = false;
+		cru->input_fmt = USER_DEFINED;
 		icnpifc |= ICnPIFC_PINF_RAW16;
 		break;
 	}
@@ -659,7 +659,7 @@ static int rzg2l_cru_initialize_image_conv(struct rzg2l_cru_dev *cru)
 		rzg2l_cru_write(cru, ICnTISIZE2,
 				ICnTISIZE2_TIN(cru->format.height));
 
-		cru->input_is_yuv = true;
+		cru->input_fmt = YUV;
 	} else {
 		if (cru->is_csi)
 			rzg2l_cru_csi2_setup(cru);
@@ -671,37 +671,37 @@ static int rzg2l_cru_initialize_image_conv(struct rzg2l_cru_dev *cru)
 	switch (cru->format.pixelformat) {
 	case V4L2_PIX_FMT_YUYV:
 		icndmr = ICnDMR_YCMODE_YUYV;
-		cru->output_is_yuv = true;
+		cru->output_fmt = YUV;
 		break;
 	case V4L2_PIX_FMT_UYVY:
 		icndmr = ICnDMR_YCMODE_UYVY;
-		cru->output_is_yuv = true;
+		cru->output_fmt = YUV;
 		break;
 	case V4L2_PIX_FMT_GREY:
 		icndmr = ICnDMR_YCMODE_GREY;
-		cru->output_is_yuv = true;
+		cru->output_fmt = YUV;
 		break;
 	case V4L2_PIX_FMT_NV16:
 		icndmr = ICnDMR_YCMODE_NV16;
-		cru->output_is_yuv = true;
+		cru->output_fmt = YUV;
 		rzg2l_cru_write(cru, AMnUVAOFL,
 			ALIGN(cru->format.width * cru->format.height, 0x200));
 		break;
 	case V4L2_PIX_FMT_BGR24:
 		icndmr = ICnDMR_RGBMODE_RGB24;
-		cru->output_is_yuv = false;
+		cru->output_fmt = RGB;
 		break;
 	case V4L2_PIX_FMT_XBGR32:
 		icndmr = ICnDMR_RGBMODE_XRGB32;
-		cru->output_is_yuv = false;
+		cru->output_fmt = RGB;
 		break;
 	case V4L2_PIX_FMT_ABGR32:
 		icndmr = ICnDMR_RGBMODE_ABGR32;
-		cru->output_is_yuv = false;
+		cru->output_fmt = RGB;
 		break;
 	case V4L2_PIX_FMT_ARGB32:
 		icndmr = ICnDMR_RGBMODE_ARGB32;
-		cru->output_is_yuv = false;
+		cru->output_fmt = RGB;
 		break;
 	case V4L2_PIX_FMT_SGBRG8:
 	case V4L2_PIX_FMT_SGRBG8:
@@ -724,7 +724,7 @@ static int rzg2l_cru_initialize_image_conv(struct rzg2l_cru_dev *cru)
 	case V4L2_PIX_FMT_SRGGB16:
 	case V4L2_PIX_FMT_SBGGR16:
 		icndmr = 0;
-		cru->output_is_yuv = false;
+		cru->output_fmt = BAYER_RAW;
 		break;
 	default:
 		cru_err(cru, "Invalid pixelformat (0x%x)\n",
@@ -732,13 +732,22 @@ static int rzg2l_cru_initialize_image_conv(struct rzg2l_cru_dev *cru)
 		return -EINVAL;
 	}
 
-	/* If input and output use same colorspace, do bypass mode */
-	if (cru->output_is_yuv == cru->input_is_yuv)
+	/*
+	 * CRU can perform colorspace conversion: YUV <=> RGB.
+	 * If other formats, do bypass mode.
+	 */
+	if (cru->output_fmt == cru->input_fmt)
 		rzg2l_cru_write(cru, ICnMC,
 				rzg2l_cru_read(cru, ICnMC) | ICnMC_CSCTHR);
-	else
+	else if (((cru->output_fmt == YUV) && (cru->input_fmt == RGB)) ||
+		 ((cru->output_fmt == RGB) && (cru->input_fmt == YUV)))
 		rzg2l_cru_write(cru, ICnMC,
 				rzg2l_cru_read(cru, ICnMC) & (~ICnMC_CSCTHR));
+	else {
+		cru_err(cru, "Not support color space conversion for (0x%x)\n",
+			cru->format.pixelformat);
+		return -ENOEXEC;
+	}
 
 	/* Set output data format */
 	rzg2l_cru_write(cru, ICnDMR, icndmr);
