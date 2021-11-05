@@ -622,9 +622,18 @@ static int gpt7_b_c_pins[] = {
 
 /* USB channel 0 */
 static int usb0_a_pins[] = {
-	/* VBUS, OVC, OTG_ID*/
+	/* VBUS, OVC */
 	RZ_G2L_PIN(4, 0), RZ_G2L_PIN(5, 0),
+};
+
+static int usb0_otg_id_a_pins[] = {
+	/* OTG_ID */
 	RZ_G2L_PIN(5, 1),
+};
+
+static int usb0_otg_exicen_a_pins[] = {
+	/* OTG_EXICEN */
+	RZ_G2L_PIN(5, 2),
 };
 
 /* USB channel 1 */
@@ -1095,6 +1104,8 @@ static struct group_desc r9a07g044c_groups[] = {
 	RZ_G2L_PINCTRL_PIN_GROUP(irq6_c, 4),
 	RZ_G2L_PINCTRL_PIN_GROUP(irq7_d, 4),
 	RZ_G2L_PINCTRL_PIN_GROUP(usb0_a, 1),
+	RZ_G2L_PINCTRL_PIN_GROUP(usb0_otg_id_a, 1),
+	RZ_G2L_PINCTRL_PIN_GROUP(usb0_otg_exicen_a, 1),
 	RZ_G2L_PINCTRL_PIN_GROUP(usb1_c, 5),
 	RZ_G2L_PINCTRL_PIN_GROUP(usb1_d, 1),
 	RZ_G2L_PINCTRL_PIN_GROUP(sci0_data_a, 2),
@@ -1323,7 +1334,7 @@ static const char *r9a07g044c_mtu8_groups[] = {
 };
 
 static const char *r9a07g044c_usb0_groups[] = {
-	"usb0_a",
+	"usb0_a", "usb0_otg_id_a", "usb0_otg_exicen_a"
 };
 
 static const char *r9a07g044c_usb1_groups[] = {
