@@ -450,6 +450,7 @@ static int spibsc_transfer_one_message(struct spi_controller *master,
 	u8 tx_data_len[MAX_TX_DATA_LEN] = {0, 0, 0};	/* CMD, ADDR, DUMMY */
 	u8 tx_nbits[MAX_TX_DATA_LEN] = {0, 0, 0};	/* CMD, ADDR, DUUMY */
 	int ret, index;
+	unsigned long timeout = jiffies + HZ;
 
 	t_last = list_last_entry(&msg->transfers, struct spi_transfer,
 				 transfer_list);
@@ -501,18 +502,19 @@ static int spibsc_transfer_one_message(struct spi_controller *master,
 		}
 
 		if (t->rx_buf) {
-			ret = spibsc_send_recv_data(sbsc, tx_data, tx_data_len,
-							   tx_nbits, t->rx_buf,
-							  t->len, t->rx_nbits);
-
-			/* Re-read flash ID when the manufacturer
-			identification is 0x00 or 0xff */
-			if ( tx_data[TX_CMD] == SPINOR_OP_RDID &&
-						( *(u8 *)(t->rx_buf) == 0x00 ||
-						  *(u8 *)(t->rx_buf) == 0xff ))
+			while (time_before(jiffies, timeout)) {
 				ret = spibsc_send_recv_data(sbsc, tx_data,
 						tx_data_len, tx_nbits, t->rx_buf,
 						t->len, t->rx_nbits);
+
+				/* Re-read flash ID when the manufacturer
+				 * identification is 0x00 or 0xff
+				 */
+				if (tx_data[TX_CMD] != SPINOR_OP_RDID ||
+						(*(u8 *)(t->rx_buf) != 0x00 &&
+						 *(u8 *)(t->rx_buf) != 0xff))
+					break;
+			}
 		}
 
 		msg->actual_length += t->len;
