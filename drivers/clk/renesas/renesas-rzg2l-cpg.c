@@ -526,6 +526,7 @@ fail:
 struct mstp_clock {
 	struct clk_hw hw;
 	u32 bit;
+	u32 mstop;
 	struct cpg_mssr_priv *priv;
 };
 
@@ -540,6 +541,7 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	unsigned long flags;
 	unsigned int i;
 	u32 value;
+	u32 mstop_val;
 
 	if (clock->bit == 0) {
 		dev_dbg(dev, "%pC does not support ON/OFF\n",  hw->clk);
@@ -551,11 +553,20 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 			enable ? "ON" : "OFF");
 	spin_lock_irqsave(&priv->rmw_lock, flags);
 
-	if (enable)
+	if (enable) {
 		value = (MSSR_ON(clock->bit) << 16) | MSSR_ON(clock->bit);
-	else
+		mstop_val = MSTOP_BIT(clock->mstop) << 16;
+		writel(value, priv->base + CLK_ON_R(reg));
+		if (clock->mstop)
+			writel(mstop_val, priv->base + MSTOP_OFF(clock->mstop));
+	} else {
 		value = MSSR_ON(clock->bit) << 16;
-	writel(value, priv->base + CLK_ON_R(reg));
+		mstop_val = MSTOP_BIT(clock->mstop) << 16
+			  | MSTOP_BIT(clock->mstop);
+		if (clock->mstop)
+			writel(mstop_val, priv->base + MSTOP_OFF(clock->mstop));
+		writel(value, priv->base + CLK_ON_R(reg));
+	}
 
 	spin_unlock_irqrestore(&priv->rmw_lock, flags);
 
@@ -660,6 +671,7 @@ static void __init rzg2l_cpg_register_mod_clk(const struct mssr_mod_clk *mod,
 	init.num_parents = 1;
 
 	clock->bit = mod->bit;
+	clock->mstop = mod->mstop;
 	clock->priv = priv;
 	clock->hw.init = &init;
 

@@ -89,6 +89,10 @@
 #define MSSR_ON(val)		((val >> 8) & 0xff)
 #define MSSR_RES(val)		(val & 0xff)
 
+#define MSTOP(off, bit)	((off & 0xffff) << 16 | bit)
+
+#define MSTOP_OFF(val)		((val >> 16) & 0xffff)
+#define MSTOP_BIT(val)		(val & 0xffff)
 /*
  * Definitions of CPG Core Clocks
  *
@@ -174,11 +178,12 @@ struct mssr_mod_clk {
 	unsigned int id;
 	unsigned int parent;
 	unsigned int bit;
+	unsigned int mstop;
 };
 
-#define DEF_MOD(_name, _id, _parent, _bit)	\
+#define DEF_MOD(_name, _id, _parent, _bit, _mstop)	\
 	{ .name = _name, .id = CLK_MODE_BASE + _id, .parent = _parent,\
-	.bit = _bit }
+	.bit = _bit, .mstop = _mstop }
 
 struct device_node;
 
