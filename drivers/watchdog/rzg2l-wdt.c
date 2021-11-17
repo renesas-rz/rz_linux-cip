@@ -258,6 +258,7 @@ static int rzg2l_wdt_probe(struct platform_device *pdev)
 	watchdog_set_restart_priority(&priv->wdev, 0);
 
 	watchdog_stop_on_unregister(&priv->wdev);
+	pm_runtime_enable(dev);
 
 	ret = watchdog_init_timeout(&priv->wdev, 0, dev);
 	if (ret)
