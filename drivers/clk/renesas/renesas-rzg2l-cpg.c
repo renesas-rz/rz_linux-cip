@@ -612,7 +612,7 @@ static int rzg2l_mod_clock_is_enabled(struct clk_hw *hw)
 
 	value = readl(priv->base + CLK_MON_R(MSSR_OFF(clock->bit) * 4));
 
-	return !(value & (MSSR_ON(clock->bit)));
+	return value & (MSSR_ON(clock->bit));
 }
 
 static const struct clk_ops rzg2l_mod_clock_ops = {
