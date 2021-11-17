@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_dma.h>
+#include <linux/pm_runtime.h>
 
 #include <asm/irq.h>
 
@@ -1087,6 +1088,13 @@ static int rzg2ldma_probe(struct platform_device *pdev)
 				sizeof(struct dmac_channel) * channel_num,
 				GFP_KERNEL);
 
+	pm_runtime_enable(&pdev->dev);
+	ret = pm_runtime_get_sync(&pdev->dev);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "pm_runtime_get_sync failed\n");
+		goto err_pm_disable;
+	}
+
 	/* Initialize channel parameters */
 	for (i = 0; i < channel_num; i++) {
 		struct dmac_channel *channel = &rzg2ldma->channel[i];
@@ -1207,6 +1215,9 @@ static int rzg2ldma_probe(struct platform_device *pdev)
 	}
 	return 0;
 err:
+	pm_runtime_put(&pdev->dev);
+err_pm_disable:
+	pm_runtime_disable(&pdev->dev);
 	return ret;
 }
 
@@ -1227,6 +1238,8 @@ static int __exit rzg2ldma_remove(struct platform_device *pdev)
 				channel->lmdesc.base,
 				channel->lmdesc.base_dma);
 	}
+	pm_runtime_put(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
