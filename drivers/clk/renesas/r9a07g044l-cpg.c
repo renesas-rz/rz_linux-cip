@@ -446,6 +446,10 @@ static struct mssr_mod_clk r9a07g044l_mod_clks[] = {
 
 static const unsigned int r9a07g044l_crit_mod_clks[] __initconst = {
 	CLK_MODE_BASE + R9A07G044L_CLK_GIC600,
+	CLK_MODE_BASE + R9A07G044L_CLK_IA55,
+	CLK_MODE_BASE + R9A07G044L_CLK_DMAC,
+	CLK_MODE_BASE + R9A07G044L_CLK_SYSC,
+	CLK_MODE_BASE + R9A07G044L_CLK_SYC,
 };
 
 const struct cpg_mssr_info r9a07g044l_cpg_info = {
