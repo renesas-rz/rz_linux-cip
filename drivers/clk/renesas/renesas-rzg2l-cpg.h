@@ -33,6 +33,18 @@
 #define CLK_MON_R(reg)		(0x680 + reg)
 #define CLK_RST_R(reg)		(0x800 + reg)
 #define CLK_MRST_R(reg)		(0x980 + reg)
+#define ACPU_MSTOP		(0xB60)
+#define MCPU1_MSTOP		(0xB64)
+#define MCPU2_MSTOP		(0xB68)
+#define PERI_COM_MSTOP		(0xB6C)
+#define PERI_CPU_MSTOP		(0xB70)
+#define PERI_DDR_MSTOP		(0xB74)
+#define PERI_VIDEO_MSTOP	(0xB78)
+#define REG0_MSTOP		(0xB7C)
+#define REG1_MSTOP		(0xB80)
+#define TZCDDR_MSTOP		(0xB84)
+#define MHU_MSTOP		(0xB88)
+#define PERI_STP_MSTOP		(0xB8C)
 
 /*12bits register offset, 8bits shifter, 4bits width, 8bits reserved*/
 #define SEL_PLL3_1	(PL3_SSEL_R << 20	| 0 << 12	| 1 << 8)
