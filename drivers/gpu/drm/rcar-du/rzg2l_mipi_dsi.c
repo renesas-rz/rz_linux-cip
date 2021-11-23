@@ -607,12 +607,105 @@ static const struct drm_connector_funcs rzg2l_mipi_dsi_conn_funcs = {
 /* -----------------------------------------------------------------------------
  * Bridge
  */
+static int rzg2l_mipi_dsi_parse_dt(struct rzg2l_mipi_dsi *mipi_dsi)
+{
+	struct device_node *local_output = NULL;
+	struct device_node *remote_input = NULL;
+	struct device_node *remote = NULL;
+	struct device_node *node;
+	struct property *prop;
+	bool is_bridge = false;
+	int ret = 0;
+	int len, num_lanes;
+
+	local_output = of_graph_get_endpoint_by_regs(mipi_dsi->dev->of_node,
+						     1, 0);
+	if (!local_output) {
+		dev_dbg(mipi_dsi->dev, "unconnected port@1\n");
+		ret = -ENODEV;
+		goto done;
+	}
+
+	/*
+	 * Locate the connected entity and
+	 * infer its type from the number of endpoints.
+	 */
+	remote = of_graph_get_remote_port_parent(local_output);
+	if (!remote) {
+		dev_dbg(mipi_dsi->dev, "unconnected endpoint %pOF\n",
+		local_output);
+		ret = -ENODEV;
+		goto done;
+	}
+
+	if (!of_device_is_available(remote)) {
+		dev_dbg(mipi_dsi->dev, "connected entity %pOF is disabled\n",
+		remote);
+		ret = -ENODEV;
+		goto done;
+	}
+
+	remote_input = of_graph_get_remote_endpoint(local_output);
+
+	for_each_endpoint_of_node(remote, node) {
+		if (node != remote_input) {
+			/*
+			 * The endpoint which is not input node must be bridge
+			 */
+			is_bridge = true;
+			of_node_put(node);
+			break;
+		}
+	}
+
+	if (is_bridge) {
+		mipi_dsi->next_bridge = of_drm_find_bridge(remote);
+		if (!mipi_dsi->next_bridge) {
+			ret = -EPROBE_DEFER;
+			goto done;
+		}
+	} else {
+		mipi_dsi->panel = of_drm_find_panel(remote);
+		if (IS_ERR(mipi_dsi->panel)) {
+			ret = PTR_ERR(mipi_dsi->panel);
+			goto done;
+		}
+	}
+
+	prop = of_find_property(local_output, "data-lanes", &len);
+	if (!prop) {
+		mipi_dsi->num_data_lanes = 4;
+		dev_dbg(mipi_dsi->dev, "Using default data lanes\n");
+		goto done;
+	}
+
+	num_lanes = len / sizeof(u32);
+	if (num_lanes < 1 || num_lanes > 4) {
+		dev_err(mipi_dsi->dev, "data lanes definition is not correct\n");
+		ret = -EINVAL;
+		goto done;
+	}
+
+	mipi_dsi->num_data_lanes = num_lanes;
+
+done:
+	of_node_put(local_output);
+	of_node_put(remote_input);
+	of_node_put(remote);
+
+	return ret;
+}
+
 static int rzg2l_mipi_dsi_attach(struct drm_bridge *bridge)
 {
 	struct rzg2l_mipi_dsi *mipi_dsi = bridge_to_rzg2l_mipi_dsi(bridge);
 	struct drm_connector *connector = &mipi_dsi->connector;
 	struct drm_encoder *encoder = bridge->encoder;
 	int ret;
+
+	ret = rzg2l_mipi_dsi_parse_dt(mipi_dsi);
+	if (ret < 0)
+		return ret;
 
 	if (mipi_dsi->next_bridge)
 		return drm_bridge_attach(bridge->encoder,
@@ -769,95 +862,6 @@ static const struct mipi_dsi_host_ops rzg2l_mipi_dsi_host_ops = {
 /* -----------------------------------------------------------------------------
  * Probe & Remove
  */
-static int rzg2l_mipi_dsi_parse_dt(struct rzg2l_mipi_dsi *mipi_dsi)
-{
-	struct device_node *local_output = NULL;
-	struct device_node *remote_input = NULL;
-	struct device_node *remote = NULL;
-	struct device_node *node;
-	struct property *prop;
-	bool is_bridge = false;
-	int ret = 0;
-	int len, num_lanes;
-
-	local_output = of_graph_get_endpoint_by_regs(mipi_dsi->dev->of_node,
-						     1, 0);
-	if (!local_output) {
-		dev_dbg(mipi_dsi->dev, "unconnected port@1\n");
-		ret = -ENODEV;
-		goto done;
-	}
-
-	/*
-	 * Locate the connected entity and
-	 * infer its type from the number of endpoints.
-	 */
-	remote = of_graph_get_remote_port_parent(local_output);
-	if (!remote) {
-		dev_dbg(mipi_dsi->dev, "unconnected endpoint %pOF\n",
-		local_output);
-		ret = -ENODEV;
-		goto done;
-	}
-
-	if (!of_device_is_available(remote)) {
-		dev_dbg(mipi_dsi->dev, "connected entity %pOF is disabled\n",
-		remote);
-		ret = -ENODEV;
-		goto done;
-	}
-
-	remote_input = of_graph_get_remote_endpoint(local_output);
-
-	for_each_endpoint_of_node(remote, node) {
-		if (node != remote_input) {
-			/*
-			 * The endpoint which is not input node must be bridge
-			 */
-			is_bridge = true;
-			of_node_put(node);
-			break;
-		}
-	}
-
-	if (is_bridge) {
-		mipi_dsi->next_bridge = of_drm_find_bridge(remote);
-		if (!mipi_dsi->next_bridge) {
-			ret = -EPROBE_DEFER;
-			goto done;
-		}
-	} else {
-		mipi_dsi->panel = of_drm_find_panel(remote);
-		if (IS_ERR(mipi_dsi->panel)) {
-			ret = PTR_ERR(mipi_dsi->panel);
-			goto done;
-		}
-	}
-
-	prop = of_find_property(local_output, "data-lanes", &len);
-	if (!prop) {
-		mipi_dsi->num_data_lanes = 4;
-		dev_dbg(mipi_dsi->dev, "Using default data lanes\n");
-		goto done;
-	}
-
-	num_lanes = len / sizeof(u32);
-	if (num_lanes < 1 || num_lanes > 4) {
-		dev_err(mipi_dsi->dev, "data lanes definition is not correct\n");
-		ret = -EINVAL;
-		goto done;
-	}
-
-	mipi_dsi->num_data_lanes = num_lanes;
-
-done:
-	of_node_put(local_output);
-	of_node_put(remote_input);
-	of_node_put(remote);
-
-	return ret;
-}
-
 static struct clk *rzg2l_mipi_dsi_get_clk(struct rzg2l_mipi_dsi *mipi_dsi,
 					  const char *name)
 {
@@ -885,10 +889,6 @@ static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mipi_dsi);
 	mipi_dsi->dev = dev;
-
-	ret = rzg2l_mipi_dsi_parse_dt(mipi_dsi);
-	if (ret < 0)
-		return ret;
 
 	/* Init bridge */
 	mipi_dsi->bridge.driver_private = mipi_dsi;
