@@ -12,9 +12,11 @@
 #define CPG_PL1_DDIV		(0x200)
 #define CPG_PL2_DDIV		(0x204)
 #define CPG_PL3A_DDIV		(0x208)
+#define CPG_PL6_DDIV		(0x210)
 #define CPG_PL2SDHI_DSEL	(0x218)
 #define CPG_CLKSTATUS		(0x280)
 #define CPG_PL3_SSEL		(0x408)
+#define CPG_PL6_SSEL		(0x414)
 #define CPG_PL6_ETH_SSEL	(0x418)
 #define CPG_PL5_SDIV		(0x420)
 #define CPG_OTHERFUNC1_REG	(0xBE8)
@@ -40,6 +42,7 @@
 #define DIVPL3C		DDIV_PACK(CPG_PL3A_DDIV, 8, 3)
 #define DIVDSIA		DDIV_PACK(CPG_PL5_SDIV, 0, 2)
 #define DIVDSIB		DDIV_PACK(CPG_PL5_SDIV, 8, 4)
+#define DIVGPU		DDIV_PACK(CPG_PL6_DDIV, 0, 2)
 
 #define SEL_PLL_PACK(offset, bitpos, size) \
 		(((offset) << 20) | ((bitpos) << 12) | ((size) << 8))
@@ -47,6 +50,7 @@
 #define SEL_PLL3_3	SEL_PLL_PACK(CPG_PL3_SSEL, 8, 1)
 #define SEL_PLL5_4	SEL_PLL_PACK(CPG_OTHERFUNC1_REG, 0, 1)
 #define SEL_PLL6_2	SEL_PLL_PACK(CPG_PL6_ETH_SSEL, 0, 1)
+#define SEL_GPU2	SEL_PLL_PACK(CPG_PL6_SSEL, 12, 1)
 
 #define SEL_SDHI0	DDIV_PACK(CPG_PL2SDHI_DSEL, 0, 2)
 #define SEL_SDHI1	DDIV_PACK(CPG_PL2SDHI_DSEL, 4, 2)
