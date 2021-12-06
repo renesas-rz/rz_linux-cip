@@ -363,6 +363,9 @@ static const struct of_device_id rzg2l_adc_match[] = {
 	{
 		.compatible = "renesas,adc-r9a07g054l",
 	},
+	{
+		.compatible = "renesas,adc-r9a07g043u",
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, rzg2l_adc_match);
