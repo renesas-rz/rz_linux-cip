@@ -374,7 +374,7 @@
 	};
 
 	usb0_pins: usb0 {
-		groups = "usb0_a", "usb0_a_otg_id";
+		groups = "usb0_a", "usb0_otg_id_a";
 		function = "usb0";
 	};
 

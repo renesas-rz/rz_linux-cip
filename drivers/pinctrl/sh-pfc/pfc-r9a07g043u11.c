@@ -722,12 +722,22 @@ static int usb0_a_pins[] = {
 	RZ_G2L_PIN(5, 0), RZ_G2L_PIN(5, 2),
 };
 
-static int usb0_a_otg_id_pins[] = {
+static int usb0_vbusen_a_pins[] = {
+	/* VBUS */
+	RZ_G2L_PIN(5, 0),
+};
+
+static int usb0_ovrcur_a_pins[] = {
+	/* OVC */
+	RZ_G2L_PIN(5, 2),
+};
+
+static int usb0_otg_id_a_pins[] = {
 	/* OTG_ID */
 	RZ_G2L_PIN(5, 3), 
 };
 
-static int usb0_a_otg_exicen_pins[] = {
+static int usb0_otg_exicen_a_pins[] = {
 	/* OTG_EXICEN */
 	RZ_G2L_PIN(5, 4),
 };
@@ -738,9 +748,29 @@ static int usb1_a_pins[] = {
 	RZ_G2L_PIN(10, 3), RZ_G2L_PIN(10, 4),
 };
 
+static int usb1_vbusen_a_pins[] = {
+	/* VBUS */
+	RZ_G2L_PIN(10, 3),
+};
+
+static int usb1_ovrcur_a_pins[] = {
+	/* OVC */
+	RZ_G2L_PIN(10, 4),
+};
+
 static int usb1_b_pins[] = {
 	/* VBUS, OVC */
 	RZ_G2L_PIN(18, 4), RZ_G2L_PIN(18, 5),
+};
+
+static int usb1_vbusen_b_pins[] = {
+	/* VBUS */
+	RZ_G2L_PIN(18, 4),
+};
+
+static int usb1_ovrcur_b_pins[] = {
+	/* OVC */
+	RZ_G2L_PIN(18, 5),
 };
 
 static int usb1_c_pins[] = {
@@ -748,9 +778,29 @@ static int usb1_c_pins[] = {
 	RZ_G2L_PIN(13, 0), RZ_G2L_PIN(13, 1),
 };
 
+static int usb1_vbusen_c_pins[] = {
+	/* VBUS */
+	RZ_G2L_PIN(13, 0),
+};
+
+static int usb1_ovrcur_c_pins[] = {
+	/* OVC */
+	RZ_G2L_PIN(13, 1),
+};
+
 static int usb1_d_pins[] = {
 	/* VBUS, OVC */
 	RZ_G2L_PIN(6, 0), RZ_G2L_PIN(6, 1),
+};
+
+static int usb1_vbusen_d_pins[] = {
+	/* VBUS */
+	RZ_G2L_PIN(6, 0),
+};
+
+static int usb1_ovrcur_d_pins[] = {
+	/* OVC */
+	RZ_G2L_PIN(6, 1),
 };
 
 static int usb1_e_pins[] = {
@@ -758,9 +808,29 @@ static int usb1_e_pins[] = {
 	RZ_G2L_PIN(5, 3), RZ_G2L_PIN(5, 4),
 };
 
+static int usb1_vbusen_e_pins[] = {
+	/* VBUS */
+	RZ_G2L_PIN(5, 3),
+};
+
+static int usb1_ovrcur_e_pins[] = {
+	/* OVC */
+	RZ_G2L_PIN(5, 4),
+};
+
 static int usb1_f_pins[] = {
 	/* VBUS, OVC */
 	RZ_G2L_PIN(4, 0), RZ_G2L_PIN(4, 1),
+};
+
+static int usb1_vbusen_f_pins[] = {
+	/* VBUS */
+	RZ_G2L_PIN(4, 0),
+};
+
+static int usb1_ovrcur_f_pins[] = {
+	/* OVC */
+	RZ_G2L_PIN(4, 1),
 };
 
 /* MTU channel 0 */
@@ -1558,14 +1628,28 @@ static struct group_desc r9a07g043u11_groups[] = {
 	RZ_G2L_PINCTRL_PIN_GROUP(irq7_a, 1),
 	RZ_G2L_PINCTRL_PIN_GROUP(irq7_d, 4),
 	RZ_G2L_PINCTRL_PIN_GROUP(usb0_a, 1),
-	RZ_G2L_PINCTRL_PIN_GROUP(usb0_a_otg_exicen, 1),
-	RZ_G2L_PINCTRL_PIN_GROUP(usb0_a_otg_id, 1),
+	RZ_G2L_PINCTRL_PIN_GROUP(usb0_vbusen_a, 1),
+	RZ_G2L_PINCTRL_PIN_GROUP(usb0_ovrcur_a, 1),
+	RZ_G2L_PINCTRL_PIN_GROUP(usb0_otg_exicen_a, 1),
+	RZ_G2L_PINCTRL_PIN_GROUP(usb0_otg_id_a, 1),
 	RZ_G2L_PINCTRL_PIN_GROUP(usb1_a, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(usb1_vbusen_a, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(usb1_ovrcur_a, 4),
 	RZ_G2L_PINCTRL_PIN_GROUP(usb1_b, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(usb1_vbusen_b, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(usb1_ovrcur_b, 4),
 	RZ_G2L_PINCTRL_PIN_GROUP(usb1_c, 5),
+	RZ_G2L_PINCTRL_PIN_GROUP(usb1_vbusen_c, 5),
+	RZ_G2L_PINCTRL_PIN_GROUP(usb1_ovrcur_c, 5),
 	RZ_G2L_PINCTRL_PIN_GROUP(usb1_d, 1),
+	RZ_G2L_PINCTRL_PIN_GROUP(usb1_vbusen_d, 1),
+	RZ_G2L_PINCTRL_PIN_GROUP(usb1_ovrcur_d, 1),
 	RZ_G2L_PINCTRL_PIN_GROUP(usb1_e, 5),
+	RZ_G2L_PINCTRL_PIN_GROUP(usb1_vbusen_e, 5),
+	RZ_G2L_PINCTRL_PIN_GROUP(usb1_ovrcur_e, 5),
 	RZ_G2L_PINCTRL_PIN_GROUP(usb1_f, 5),
+	RZ_G2L_PINCTRL_PIN_GROUP(usb1_vbusen_f, 5),
+	RZ_G2L_PINCTRL_PIN_GROUP(usb1_ovrcur_f, 5),
 	RZ_G2L_PINCTRL_PIN_GROUP(sci0_data_a, 2),
 	RZ_G2L_PINCTRL_PIN_GROUP(sci0_data_b, 5),
 	RZ_G2L_PINCTRL_PIN_GROUP(sci0_clk_b,  5),
@@ -1851,11 +1935,16 @@ static const char *r9a07g043u11_mtu8_groups[] = {
 };
 
 static const char *r9a07g043u11_usb0_groups[] = {
-	"usb0_a", "usb0_a_otg_exicen", "usb0_a_otg_id",
+	"usb0_a", "usb0_vbusen_a", "usb0_ovrcur_a", "usb0_otg_exicen_a", "usb0_otg_id_a",
 };
 
 static const char *r9a07g043u11_usb1_groups[] = {
-	"usb1_a", "usb1_b", "usb1_c", "usb1_d", "usb1_e", "usb1_f",
+	"usb1_a", "usb1_vbusen_a", "usb1_ovrcur_a",
+	"usb1_b", "usb1_vbusen_b", "usb1_ovrcur_b",
+	"usb1_c", "usb1_vbusen_c", "usb1_ovrcur_c",
+	"usb1_d", "usb1_vbusen_d", "usb1_ovrcur_d",
+	"usb1_e", "usb1_vbusen_e", "usb1_ovrcur_e",
+	"usb1_f", "usb1_vbusen_f", "usb1_ovrcur_f",
 };
 
 static const char *r9a07g043u11_disp_groups[] = {
