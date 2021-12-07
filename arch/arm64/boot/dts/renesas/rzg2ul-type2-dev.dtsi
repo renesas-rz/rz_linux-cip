@@ -737,6 +737,14 @@
 	};
 };
 
+&ostm1 {
+        status = "okay";
+};
+
+&ostm2 {
+        status = "okay";
+};
+
 &cru {
 	status = "okay";
 };
