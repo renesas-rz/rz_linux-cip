@@ -532,7 +532,7 @@ static int rzg2l_cru_probe(struct platform_device *pdev)
 	v4l2_ctrl_handler_init(&cru->ctrl_handler, 1);
 	ctrl = v4l2_ctrl_new_std(&cru->ctrl_handler, &rzg2l_cru_ctrl_ops,
 			  V4L2_CID_MIN_BUFFERS_FOR_CAPTURE,
-			  1, HW_BUFFER_MAX, 1, HW_BUFFER_DEFAULT);
+			  2, HW_BUFFER_MAX, 1, HW_BUFFER_DEFAULT);
 
 	ctrl->flags &= ~V4L2_CTRL_FLAG_READ_ONLY;
 

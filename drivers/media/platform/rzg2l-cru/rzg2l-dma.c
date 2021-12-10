@@ -71,6 +71,9 @@
 #define AMnMBS				0x14C
 #define AMnMBS_MBSTS			0x7
 
+/* AXI Master FIFO Setting Register for CRU Image Data */
+#define AMnFIFO				0x160
+
 /* AXI Master FIFO Pointer Register for CRU Image Data */
 #define AMnFIFOPNTR			0x168
 #define AMnFIFOPNTR_FIFOWPNTR		GENMASK(7, 0)
@@ -205,6 +208,7 @@ struct rzg2l_cru_buffer {
 };
 
 static int sensor_stop_try;
+static int prev_slot;
 
 #define to_buf_list(vb2_buffer) (&container_of(vb2_buffer, \
 						struct rzg2l_cru_buffer, \
@@ -970,6 +974,9 @@ static int rzg2l_cru_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	cru->state = STARTING;
 
+	/* Initialize value of previous memory bank slot before streaming */
+	prev_slot = -1;
+
 	cru_dbg(cru, "Starting to capture\n");
 
 out:
@@ -1049,6 +1056,21 @@ static irqreturn_t rzg2l_cru_irq(int irq, void *data)
 
 		cru_dbg(cru, "Capture start synced!\n");
 		cru->state = RUNNING;
+	}
+
+	if (slot != prev_slot) {
+		/* Update value of previous memory bank slot */
+		prev_slot = slot;
+	} else {
+		/*
+		 * AXI-Bus congestion maybe occurred.
+		 * Set auto recovery mode to clear all FIFOs
+		 * and resume transmission.
+		 */
+		rzg2l_cru_write(cru, AMnFIFO, 0);
+
+		cru_dbg(cru, "Dropping frame %u\n", cru->sequence);
+		goto done;
 	}
 
 	/* Capture frame */
