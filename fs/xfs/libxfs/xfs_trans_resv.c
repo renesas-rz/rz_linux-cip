@@ -15,12 +15,10 @@
 #include "xfs_da_btree.h"
 #include "xfs_inode.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_ialloc.h"
 #include "xfs_quota.h"
 #include "xfs_trans.h"
 #include "xfs_qm.h"
 #include "xfs_trans_space.h"
-#include "xfs_trace.h"
 
 #define _ALLOC	true
 #define _FREE	false
@@ -136,9 +134,10 @@ STATIC uint
 xfs_calc_inobt_res(
 	struct xfs_mount	*mp)
 {
-	return xfs_calc_buf_res(mp->m_in_maxlevels, XFS_FSB_TO_B(mp, 1)) +
-		xfs_calc_buf_res(xfs_allocfree_log_count(mp, 1),
-				 XFS_FSB_TO_B(mp, 1));
+	return xfs_calc_buf_res(M_IGEO(mp)->inobt_maxlevels,
+			XFS_FSB_TO_B(mp, 1)) +
+				xfs_calc_buf_res(xfs_allocfree_log_count(mp, 1),
+			XFS_FSB_TO_B(mp, 1));
 }
 
 /*
@@ -167,7 +166,7 @@ xfs_calc_finobt_res(
  * includes:
  *
  * the allocation btrees: 2 trees * (max depth - 1) * block size
- * the inode chunk: m_ialloc_blks * N
+ * the inode chunk: m_ino_geo.ialloc_blks * N
  *
  * The size N of the inode chunk reservation depends on whether it is for
  * allocation or free and which type of create transaction is in use. An inode
@@ -188,12 +187,12 @@ xfs_calc_inode_chunk_res(
 			       XFS_FSB_TO_B(mp, 1));
 	if (alloc) {
 		/* icreate tx uses ordered buffers */
-		if (xfs_sb_version_hascrc(&mp->m_sb))
+		if (xfs_sb_version_has_v3inode(&mp->m_sb))
 			return res;
 		size = XFS_FSB_TO_B(mp, 1);
 	}
 
-	res += xfs_calc_buf_res(mp->m_ialloc_blks, size);
+	res += xfs_calc_buf_res(M_IGEO(mp)->ialloc_blks, size);
 	return res;
 }
 
@@ -203,7 +202,7 @@ xfs_calc_inode_chunk_res(
  * blocks as needed to mark inuse MAXEXTLEN blocks' worth of realtime extents,
  * as well as the realtime summary block.
  */
-unsigned int
+static unsigned int
 xfs_rtalloc_log_count(
 	struct xfs_mount	*mp,
 	unsigned int		num_ops)
@@ -365,7 +364,7 @@ xfs_calc_iunlink_remove_reservation(
 	struct xfs_mount        *mp)
 {
 	return xfs_calc_buf_res(1, mp->m_sb.sb_sectsize) +
-	       2 * max_t(uint, XFS_FSB_TO_B(mp, 1), mp->m_inode_cluster_size);
+	       2 * M_IGEO(mp)->inode_cluster_size;
 }
 
 /*
@@ -403,7 +402,7 @@ STATIC uint
 xfs_calc_iunlink_add_reservation(xfs_mount_t *mp)
 {
 	return xfs_calc_buf_res(1, mp->m_sb.sb_sectsize) +
-		max_t(uint, XFS_FSB_TO_B(mp, 1), mp->m_inode_cluster_size);
+			M_IGEO(mp)->inode_cluster_size;
 }
 
 /*
@@ -777,7 +776,7 @@ xfs_calc_clear_agi_bucket_reservation(
 
 /*
  * Adjusting quota limits.
- *    the xfs_disk_dquot_t: sizeof(struct xfs_disk_dquot)
+ *    the disk quota buffer: sizeof(struct xfs_disk_dquot)
  */
 STATIC uint
 xfs_calc_qm_setqlim_reservation(void)
@@ -801,7 +800,7 @@ xfs_calc_qm_dqalloc_reservation(
 
 /*
  * Turning off quotas.
- *    the xfs_qoff_logitem_t: sizeof(struct xfs_qoff_logitem) * 2
+ *    the quota off logitems: sizeof(struct xfs_qoff_logitem) * 2
  *    the superblock for the quota flags: sector size
  */
 STATIC uint
@@ -814,7 +813,7 @@ xfs_calc_qm_quotaoff_reservation(
 
 /*
  * End of turning off quotas.
- *    the xfs_qoff_logitem_t: sizeof(struct xfs_qoff_logitem) * 2
+ *    the quota off logitems: sizeof(struct xfs_qoff_logitem) * 2
  */
 STATIC uint
 xfs_calc_qm_quotaoff_end_reservation(void)
@@ -934,9 +933,13 @@ xfs_trans_resv_calc(
 	resp->tr_sb.tr_logres = xfs_calc_sb_reservation(mp);
 	resp->tr_sb.tr_logcount = XFS_DEFAULT_LOG_COUNT;
 
+	/* growdata requires permanent res; it can free space to the last AG */
+	resp->tr_growdata.tr_logres = xfs_calc_growdata_reservation(mp);
+	resp->tr_growdata.tr_logcount = XFS_DEFAULT_PERM_LOG_COUNT;
+	resp->tr_growdata.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
+
 	/* The following transaction are logged in logical format */
 	resp->tr_ichange.tr_logres = xfs_calc_ichange_reservation(mp);
-	resp->tr_growdata.tr_logres = xfs_calc_growdata_reservation(mp);
 	resp->tr_fsyncts.tr_logres = xfs_calc_swrite_reservation(mp);
 	resp->tr_writeid.tr_logres = xfs_calc_writeid_reservation(mp);
 	resp->tr_attrsetrt.tr_logres = xfs_calc_attrsetrt_reservation(mp);

@@ -1,13 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  *
  *  Copyright (C) 2017 Zihao Yu
  */
@@ -18,7 +10,7 @@
 #include <linux/moduleloader.h>
 #include <linux/vmalloc.h>
 #include <linux/sizes.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/sections.h>
 
 static int apply_r_riscv_32_rela(struct module *me, u32 *location, Elf_Addr v)
@@ -145,7 +137,7 @@ static int apply_r_riscv_hi20_rela(struct module *me, u32 *location,
 {
 	s32 hi20;
 
-	if (IS_ENABLED(CMODEL_MEDLOW)) {
+	if (IS_ENABLED(CONFIG_CMODEL_MEDLOW)) {
 		pr_err(
 		  "%s: target %016llx can not be addressed by the 32-bit offset from PC = %p\n",
 		  me->name, (long long)v, location);
@@ -271,10 +263,24 @@ static int apply_r_riscv_add32_rela(struct module *me, u32 *location,
 	return 0;
 }
 
+static int apply_r_riscv_add64_rela(struct module *me, u32 *location,
+				    Elf_Addr v)
+{
+	*(u64 *)location += (u64)v;
+	return 0;
+}
+
 static int apply_r_riscv_sub32_rela(struct module *me, u32 *location,
 				    Elf_Addr v)
 {
 	*(u32 *)location -= (u32)v;
+	return 0;
+}
+
+static int apply_r_riscv_sub64_rela(struct module *me, u32 *location,
+				    Elf_Addr v)
+{
+	*(u64 *)location -= (u64)v;
 	return 0;
 }
 
@@ -298,7 +304,9 @@ static int (*reloc_handlers_rela[]) (struct module *me, u32 *location,
 	[R_RISCV_RELAX]			= apply_r_riscv_relax_rela,
 	[R_RISCV_ALIGN]			= apply_r_riscv_align_rela,
 	[R_RISCV_ADD32]			= apply_r_riscv_add32_rela,
+	[R_RISCV_ADD64]			= apply_r_riscv_add64_rela,
 	[R_RISCV_SUB32]			= apply_r_riscv_sub32_rela,
+	[R_RISCV_SUB64]			= apply_r_riscv_sub64_rela,
 };
 
 int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
@@ -327,8 +335,8 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 			/* Ignore unresolved weak symbol */
 			if (ELF_ST_BIND(sym->st_info) == STB_WEAK)
 				continue;
-			pr_warning("%s: Unknown symbol %s\n",
-				   me->name, strtab + sym->st_name);
+			pr_warn("%s: Unknown symbol %s\n",
+				me->name, strtab + sym->st_name);
 			return -ENOENT;
 		}
 

@@ -29,7 +29,7 @@ int main(void)
 
 	if (unshare(CLONE_NEWPID) == -1) {
 		if (errno == ENOSYS || errno == EPERM)
-			return 2;
+			return 4;
 		return 1;
 	}
 

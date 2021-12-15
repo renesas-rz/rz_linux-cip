@@ -9,7 +9,7 @@
 
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
-#include <crypto/des.h>
+#include <crypto/internal/des.h>
 #include <crypto/skcipher.h>
 #include <crypto/xts.h>
 #include <crypto/internal/skcipher.h>
@@ -237,8 +237,8 @@ static int sec_alg_skcipher_setkey(struct crypto_skcipher *tfm,
 		memset(ctx->key, 0, SEC_MAX_CIPHER_KEY);
 	} else {
 		/* new key */
-		ctx->key = dma_zalloc_coherent(dev, SEC_MAX_CIPHER_KEY,
-					       &ctx->pkey, GFP_KERNEL);
+		ctx->key = dma_alloc_coherent(dev, SEC_MAX_CIPHER_KEY,
+					      &ctx->pkey, GFP_KERNEL);
 		if (!ctx->key) {
 			mutex_unlock(&ctx->lock);
 			return -ENOMEM;
@@ -343,38 +343,30 @@ static int sec_alg_skcipher_setkey_aes_xts(struct crypto_skcipher *tfm,
 static int sec_alg_skcipher_setkey_des_ecb(struct crypto_skcipher *tfm,
 					   const u8 *key, unsigned int keylen)
 {
-	if (keylen != DES_KEY_SIZE)
-		return -EINVAL;
-
-	return sec_alg_skcipher_setkey(tfm, key, keylen, SEC_C_DES_ECB_64);
+	return verify_skcipher_des_key(tfm, key) ?:
+	       sec_alg_skcipher_setkey(tfm, key, keylen, SEC_C_DES_ECB_64);
 }
 
 static int sec_alg_skcipher_setkey_des_cbc(struct crypto_skcipher *tfm,
 					   const u8 *key, unsigned int keylen)
 {
-	if (keylen != DES_KEY_SIZE)
-		return -EINVAL;
-
-	return sec_alg_skcipher_setkey(tfm, key, keylen, SEC_C_DES_CBC_64);
+	return verify_skcipher_des_key(tfm, key) ?:
+	       sec_alg_skcipher_setkey(tfm, key, keylen, SEC_C_DES_CBC_64);
 }
 
 static int sec_alg_skcipher_setkey_3des_ecb(struct crypto_skcipher *tfm,
 					    const u8 *key, unsigned int keylen)
 {
-	if (keylen != DES_KEY_SIZE * 3)
-		return -EINVAL;
-
-	return sec_alg_skcipher_setkey(tfm, key, keylen,
+	return verify_skcipher_des3_key(tfm, key) ?:
+	       sec_alg_skcipher_setkey(tfm, key, keylen,
 				       SEC_C_3DES_ECB_192_3KEY);
 }
 
 static int sec_alg_skcipher_setkey_3des_cbc(struct crypto_skcipher *tfm,
 					    const u8 *key, unsigned int keylen)
 {
-	if (keylen != DES3_EDE_KEY_SIZE)
-		return -EINVAL;
-
-	return sec_alg_skcipher_setkey(tfm, key, keylen,
+	return verify_skcipher_des3_key(tfm, key) ?:
+	       sec_alg_skcipher_setkey(tfm, key, keylen,
 				       SEC_C_3DES_CBC_192_3KEY);
 }
 
@@ -942,7 +934,8 @@ static struct skcipher_alg sec_algs[] = {
 			.cra_name = "ecb(aes)",
 			.cra_driver_name = "hisi_sec_aes_ecb",
 			.cra_priority = 4001,
-			.cra_flags = CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct sec_alg_tfm_ctx),
 			.cra_alignmask = 0,
@@ -961,7 +954,8 @@ static struct skcipher_alg sec_algs[] = {
 			.cra_name = "cbc(aes)",
 			.cra_driver_name = "hisi_sec_aes_cbc",
 			.cra_priority = 4001,
-			.cra_flags = CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct sec_alg_tfm_ctx),
 			.cra_alignmask = 0,
@@ -980,7 +974,8 @@ static struct skcipher_alg sec_algs[] = {
 			.cra_name = "ctr(aes)",
 			.cra_driver_name = "hisi_sec_aes_ctr",
 			.cra_priority = 4001,
-			.cra_flags = CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct sec_alg_tfm_ctx),
 			.cra_alignmask = 0,
@@ -999,7 +994,8 @@ static struct skcipher_alg sec_algs[] = {
 			.cra_name = "xts(aes)",
 			.cra_driver_name = "hisi_sec_aes_xts",
 			.cra_priority = 4001,
-			.cra_flags = CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct sec_alg_tfm_ctx),
 			.cra_alignmask = 0,
@@ -1019,7 +1015,8 @@ static struct skcipher_alg sec_algs[] = {
 			.cra_name = "ecb(des)",
 			.cra_driver_name = "hisi_sec_des_ecb",
 			.cra_priority = 4001,
-			.cra_flags = CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = DES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct sec_alg_tfm_ctx),
 			.cra_alignmask = 0,
@@ -1038,7 +1035,8 @@ static struct skcipher_alg sec_algs[] = {
 			.cra_name = "cbc(des)",
 			.cra_driver_name = "hisi_sec_des_cbc",
 			.cra_priority = 4001,
-			.cra_flags = CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = DES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct sec_alg_tfm_ctx),
 			.cra_alignmask = 0,
@@ -1057,7 +1055,8 @@ static struct skcipher_alg sec_algs[] = {
 			.cra_name = "cbc(des3_ede)",
 			.cra_driver_name = "hisi_sec_3des_cbc",
 			.cra_priority = 4001,
-			.cra_flags = CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct sec_alg_tfm_ctx),
 			.cra_alignmask = 0,
@@ -1076,7 +1075,8 @@ static struct skcipher_alg sec_algs[] = {
 			.cra_name = "ecb(des3_ede)",
 			.cra_driver_name = "hisi_sec_3des_ecb",
 			.cra_priority = 4001,
-			.cra_flags = CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct sec_alg_tfm_ctx),
 			.cra_alignmask = 0,

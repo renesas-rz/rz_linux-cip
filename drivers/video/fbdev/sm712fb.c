@@ -1369,7 +1369,7 @@ static int smtc_set_par(struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops smtcfb_ops = {
+static const struct fb_ops smtcfb_ops = {
 	.owner        = THIS_MODULE,
 	.fb_check_var = smtc_check_var,
 	.fb_set_par   = smtc_set_par,
@@ -1540,7 +1540,6 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 
 	info = framebuffer_alloc(sizeof(*sfb), &pdev->dev);
 	if (!info) {
-		dev_err(&pdev->dev, "framebuffer_alloc failed\n");
 		err = -ENOMEM;
 		goto failed_free;
 	}
@@ -1605,6 +1604,14 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 		sfb->fb->fix.mmio_start = mmio_base;
 		sfb->fb->fix.mmio_len = 0x00200000;
 		sfb->dp_regs = ioremap(mmio_base, 0x00200000 + smem_size);
+		if (!sfb->dp_regs) {
+			dev_err(&pdev->dev,
+				"%s: unable to map memory mapped IO!\n",
+				sfb->fb->fix.id);
+			err = -ENOMEM;
+			goto failed_fb;
+		}
+
 		sfb->lfb = sfb->dp_regs + 0x00200000;
 		sfb->mmio = (smtc_regbaseaddress =
 		    sfb->dp_regs + 0x000c0000);
@@ -1617,7 +1624,7 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 	default:
 		dev_err(&pdev->dev,
 			"No valid Silicon Motion display chip was detected!\n");
-
+		err = -ENODEV;
 		goto failed_fb;
 	}
 
@@ -1697,10 +1704,8 @@ static void smtcfb_pci_remove(struct pci_dev *pdev)
 
 static int __maybe_unused smtcfb_pci_suspend(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct smtcfb_info *sfb;
+	struct smtcfb_info *sfb = dev_get_drvdata(device);
 
-	sfb = pci_get_drvdata(pdev);
 
 	/* set the hw in sleep mode use external clock and self memory refresh
 	 * so that we can turn off internal PLLs later on
@@ -1720,10 +1725,8 @@ static int __maybe_unused smtcfb_pci_suspend(struct device *device)
 
 static int __maybe_unused smtcfb_pci_resume(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct smtcfb_info *sfb;
+	struct smtcfb_info *sfb = dev_get_drvdata(device);
 
-	sfb = pci_get_drvdata(pdev);
 
 	/* reinit hardware */
 	sm7xx_init_hw();

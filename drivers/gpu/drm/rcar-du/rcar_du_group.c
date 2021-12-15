@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * rcar_du_group.c  --  R-Car Display Unit Channels Pair
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 /*
@@ -139,6 +135,7 @@ static void rcar_du_group_setup_didsr(struct rcar_du_group *rgrp)
 static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 {
 	struct rcar_du_device *rcdu = rgrp->dev;
+	u32 defr7 = DEFR7_CODE;
 
 	/* Enable extended features */
 	rcar_du_group_write(rgrp, DEFR, DEFR_CODE | DEFR_DEFE);
@@ -150,6 +147,15 @@ static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 	rcar_du_group_write(rgrp, DEFR5, DEFR5_CODE | DEFR5_DEFE5);
 
 	rcar_du_group_setup_pins(rgrp);
+
+	/*
+	 * TODO: Handle routing of the DU output to CMM dynamically, as we
+	 * should bypass CMM completely when no color management feature is
+	 * used.
+	 */
+	defr7 |= (rgrp->cmms_mask & BIT(1) ? DEFR7_CMME1 : 0) |
+		 (rgrp->cmms_mask & BIT(0) ? DEFR7_CMME0 : 0);
+	rcar_du_group_write(rgrp, DEFR7, defr7);
 
 	if (rcdu->info->gen >= 2) {
 		rcar_du_group_setup_defr8(rgrp);
@@ -206,10 +212,25 @@ void rcar_du_group_put(struct rcar_du_group *rgrp)
 
 static void __rcar_du_group_start_stop(struct rcar_du_group *rgrp, bool start)
 {
-	struct rcar_du_crtc *rcrtc = &rgrp->dev->crtcs[rgrp->index * 2];
+	struct rcar_du_device *rcdu = rgrp->dev;
 
-	rcar_du_crtc_dsysr_clr_set(rcrtc, DSYSR_DRES | DSYSR_DEN,
-				   start ? DSYSR_DEN : DSYSR_DRES);
+	/*
+	 * Group start/stop is controlled by the DRES and DEN bits of DSYSR0
+	 * for the first group and DSYSR2 for the second group. On most DU
+	 * instances, this maps to the first CRTC of the group, and we can just
+	 * use rcar_du_crtc_dsysr_clr_set() to access the correct DSYSR. On
+	 * M3-N, however, DU2 doesn't exist, but DSYSR2 does. We thus need to
+	 * access the register directly using group read/write.
+	 */
+	if (rcdu->info->channels_mask & BIT(rgrp->index * 2)) {
+		struct rcar_du_crtc *rcrtc = &rgrp->dev->crtcs[rgrp->index * 2];
+
+		rcar_du_crtc_dsysr_clr_set(rcrtc, DSYSR_DRES | DSYSR_DEN,
+					   start ? DSYSR_DEN : DSYSR_DRES);
+	} else {
+		rcar_du_group_write(rgrp, DSYSR,
+				    start ? DSYSR_DEN : DSYSR_DRES);
+	}
 }
 
 void rcar_du_group_start_stop(struct rcar_du_group *rgrp, bool start)

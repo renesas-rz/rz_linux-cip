@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics hts221 sensor driver
  *
  * Copyright 2016 STMicroelectronics Inc.
  *
  * Lorenzo Bianconi <lorenzo.bianconi@st.com>
- *
- * Licensed under the GPL-2.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -73,12 +72,11 @@ static irqreturn_t hts221_trigger_handler_thread(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
-int hts221_allocate_trigger(struct hts221_hw *hw)
+int hts221_allocate_trigger(struct iio_dev *iio_dev)
 {
-	struct iio_dev *iio_dev = iio_priv_to_dev(hw);
+	struct hts221_hw *hw = iio_priv(iio_dev);
+	struct st_sensors_platform_data *pdata = dev_get_platdata(hw->dev);
 	bool irq_active_low = false, open_drain = false;
-	struct device_node *np = hw->dev->of_node;
-	struct st_sensors_platform_data *pdata;
 	unsigned long irq_type;
 	int err;
 
@@ -107,8 +105,7 @@ int hts221_allocate_trigger(struct hts221_hw *hw)
 	if (err < 0)
 		return err;
 
-	pdata = (struct st_sensors_platform_data *)hw->dev->platform_data;
-	if ((np && of_property_read_bool(np, "drive-open-drain")) ||
+	if (device_property_read_bool(hw->dev, "drive-open-drain") ||
 	    (pdata && pdata->open_drain)) {
 		irq_type |= IRQF_SHARED;
 		open_drain = true;
@@ -156,8 +153,6 @@ static int hts221_buffer_postdisable(struct iio_dev *iio_dev)
 
 static const struct iio_buffer_setup_ops hts221_buffer_ops = {
 	.preenable = hts221_buffer_preenable,
-	.postenable = iio_triggered_buffer_postenable,
-	.predisable = iio_triggered_buffer_predisable,
 	.postdisable = hts221_buffer_postdisable,
 };
 
@@ -194,9 +189,10 @@ out:
 	return IRQ_HANDLED;
 }
 
-int hts221_allocate_buffers(struct hts221_hw *hw)
+int hts221_allocate_buffers(struct iio_dev *iio_dev)
 {
-	return devm_iio_triggered_buffer_setup(hw->dev, iio_priv_to_dev(hw),
+	struct hts221_hw *hw = iio_priv(iio_dev);
+	return devm_iio_triggered_buffer_setup(hw->dev, iio_dev,
 					NULL, hts221_buffer_handler_thread,
 					&hts221_buffer_ops);
 }

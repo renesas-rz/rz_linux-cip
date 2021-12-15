@@ -138,7 +138,8 @@ static inline bool page_range_in_range(struct ashmem_range *range,
 		page_range_subsumes_range(range, start, end);
 }
 
-static inline bool range_before_page(struct ashmem_range *range, size_t page)
+static inline bool range_before_page(struct ashmem_range *range,
+				     size_t page)
 {
 	return range->pgend < page;
 }
@@ -201,7 +202,7 @@ static void range_alloc(struct ashmem_area *asma,
 }
 
 /**
- * range_del() - Deletes and dealloctes an ashmem_range structure
+ * range_del() - Deletes and deallocates an ashmem_range structure
  * @range:	 The associated ashmem_range that has previously been allocated
  */
 static void range_del(struct ashmem_range *range)
@@ -566,24 +567,24 @@ static int set_name(struct ashmem_area *asma, void __user *name)
 
 	/*
 	 * Holding the ashmem_mutex while doing a copy_from_user might cause
-	 * an data abort which would try to access mmap_sem. If another
+	 * an data abort which would try to access mmap_lock. If another
 	 * thread has invoked ashmem_mmap then it will be holding the
 	 * semaphore and will be waiting for ashmem_mutex, there by leading to
-	 * deadlock. We'll release the mutex  and take the name to a local
+	 * deadlock. We'll release the mutex and take the name to a local
 	 * variable that does not need protection and later copy the local
 	 * variable to the structure member with lock held.
 	 */
 	len = strncpy_from_user(local_name, name, ASHMEM_NAME_LEN);
 	if (len < 0)
 		return len;
-	if (len == ASHMEM_NAME_LEN)
-		local_name[ASHMEM_NAME_LEN - 1] = '\0';
+
 	mutex_lock(&ashmem_mutex);
 	/* cannot change an existing mapping's name */
 	if (asma->file)
 		ret = -EINVAL;
 	else
-		strcpy(asma->name + ASHMEM_NAME_PREFIX_LEN, local_name);
+		strscpy(asma->name + ASHMEM_NAME_PREFIX_LEN, local_name,
+			ASHMEM_NAME_LEN);
 
 	mutex_unlock(&ashmem_mutex);
 	return ret;
@@ -597,7 +598,7 @@ static int get_name(struct ashmem_area *asma, void __user *name)
 	 * Have a local variable to which we'll copy the content
 	 * from asma with the lock held. Later we can copy this to the user
 	 * space safely without holding any locks. So even if we proceed to
-	 * wait for mmap_sem, it won't lead to deadlock.
+	 * wait for mmap_lock, it won't lead to deadlock.
 	 */
 	char local_name[ASHMEM_NAME_LEN];
 

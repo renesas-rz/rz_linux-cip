@@ -113,9 +113,9 @@ static int __init text_mode(char *str)
 {
 	vgacon_text_mode_force = true;
 
-	pr_warning("You have booted with nomodeset. This means your GPU drivers are DISABLED\n");
-	pr_warning("Any video related functionality will be severely degraded, and you may not even be able to suspend the system properly\n");
-	pr_warning("Unless you actually understand what nomodeset does, you should reboot without enabling it\n");
+	pr_warn("You have booted with nomodeset. This means your GPU drivers are DISABLED\n");
+	pr_warn("Any video related functionality will be severely degraded, and you may not even be able to suspend the system properly\n");
+	pr_warn("Unless you actually understand what nomodeset does, you should reboot without enabling it\n");
 
 	return 1;
 }
@@ -384,7 +384,7 @@ static void vgacon_init(struct vc_data *c, int init)
 		vc_resize(c, vga_video_num_columns, vga_video_num_lines);
 
 	c->vc_scan_lines = vga_scan_lines;
-	c->vc_font.height = vga_video_font_height;
+	c->vc_font.height = c->vc_cell_height = vga_video_font_height;
 	c->vc_complement_mask = 0x7700;
 	if (vga_512_chars)
 		c->vc_hi_font_mask = 0x0800;
@@ -417,8 +417,10 @@ static void vgacon_deinit(struct vc_data *c)
 	con_set_default_unimap(c);
 }
 
-static u8 vgacon_build_attr(struct vc_data *c, u8 color, u8 intensity,
-			    u8 blink, u8 underline, u8 reverse, u8 italic)
+static u8 vgacon_build_attr(struct vc_data *c, u8 color,
+			    enum vc_intensity intensity,
+			    bool blink, bool underline, bool reverse,
+			    bool italic)
 {
 	u8 attr = color;
 
@@ -427,7 +429,7 @@ static u8 vgacon_build_attr(struct vc_data *c, u8 color, u8 intensity,
 			attr = (attr & 0xF0) | c->vc_itcolor;
 		else if (underline)
 			attr = (attr & 0xf0) | c->vc_ulcolor;
-		else if (intensity == 0)
+		else if (intensity == VCI_HALF_BRIGHT)
 			attr = (attr & 0xf0) | c->vc_halfcolor;
 	}
 	if (reverse)
@@ -436,14 +438,14 @@ static u8 vgacon_build_attr(struct vc_data *c, u8 color, u8 intensity,
 				       0x77);
 	if (blink)
 		attr ^= 0x80;
-	if (intensity == 2)
+	if (intensity == VCI_BOLD)
 		attr ^= 0x08;
 	if (!vga_can_do_color) {
 		if (italic)
 			attr = (attr & 0xF8) | 0x02;
 		else if (underline)
 			attr = (attr & 0xf8) | 0x01;
-		else if (intensity == 0)
+		else if (intensity == VCI_HALF_BRIGHT)
 			attr = (attr & 0xf0) | 0x08;
 	}
 	return attr;
@@ -506,54 +508,54 @@ static void vgacon_cursor(struct vc_data *c, int mode)
 	case CM_ERASE:
 		write_vga(14, (c->vc_pos - vga_vram_base) / 2);
 	        if (vga_video_type >= VIDEO_TYPE_VGAC)
-			vgacon_set_cursor_size(c->vc_x, 31, 30);
+			vgacon_set_cursor_size(c->state.x, 31, 30);
 		else
-			vgacon_set_cursor_size(c->vc_x, 31, 31);
+			vgacon_set_cursor_size(c->state.x, 31, 31);
 		break;
 
 	case CM_MOVE:
 	case CM_DRAW:
 		write_vga(14, (c->vc_pos - vga_vram_base) / 2);
-		switch (c->vc_cursor_type & 0x0f) {
+		switch (CUR_SIZE(c->vc_cursor_type)) {
 		case CUR_UNDERLINE:
-			vgacon_set_cursor_size(c->vc_x,
-					       c->vc_font.height -
-					       (c->vc_font.height <
+			vgacon_set_cursor_size(c->state.x,
+					       c->vc_cell_height -
+					       (c->vc_cell_height <
 						10 ? 2 : 3),
-					       c->vc_font.height -
-					       (c->vc_font.height <
+					       c->vc_cell_height -
+					       (c->vc_cell_height <
 						10 ? 1 : 2));
 			break;
 		case CUR_TWO_THIRDS:
-			vgacon_set_cursor_size(c->vc_x,
-					       c->vc_font.height / 3,
-					       c->vc_font.height -
-					       (c->vc_font.height <
+			vgacon_set_cursor_size(c->state.x,
+					       c->vc_cell_height / 3,
+					       c->vc_cell_height -
+					       (c->vc_cell_height <
 						10 ? 1 : 2));
 			break;
 		case CUR_LOWER_THIRD:
-			vgacon_set_cursor_size(c->vc_x,
-					       (c->vc_font.height * 2) / 3,
-					       c->vc_font.height -
-					       (c->vc_font.height <
+			vgacon_set_cursor_size(c->state.x,
+					       (c->vc_cell_height * 2) / 3,
+					       c->vc_cell_height -
+					       (c->vc_cell_height <
 						10 ? 1 : 2));
 			break;
 		case CUR_LOWER_HALF:
-			vgacon_set_cursor_size(c->vc_x,
-					       c->vc_font.height / 2,
-					       c->vc_font.height -
-					       (c->vc_font.height <
+			vgacon_set_cursor_size(c->state.x,
+					       c->vc_cell_height / 2,
+					       c->vc_cell_height -
+					       (c->vc_cell_height <
 						10 ? 1 : 2));
 			break;
 		case CUR_NONE:
 			if (vga_video_type >= VIDEO_TYPE_VGAC)
-				vgacon_set_cursor_size(c->vc_x, 31, 30);
+				vgacon_set_cursor_size(c->state.x, 31, 30);
 			else
-				vgacon_set_cursor_size(c->vc_x, 31, 31);
+				vgacon_set_cursor_size(c->state.x, 31, 31);
 			break;
 		default:
-			vgacon_set_cursor_size(c->vc_x, 1,
-					       c->vc_font.height);
+			vgacon_set_cursor_size(c->state.x, 1,
+					       c->vc_cell_height);
 			break;
 		}
 		break;
@@ -564,13 +566,13 @@ static int vgacon_doresize(struct vc_data *c,
 		unsigned int width, unsigned int height)
 {
 	unsigned long flags;
-	unsigned int scanlines = height * c->vc_font.height;
+	unsigned int scanlines = height * c->vc_cell_height;
 	u8 scanlines_lo = 0, r7 = 0, vsync_end = 0, mode, max_scan;
 
 	raw_spin_lock_irqsave(&vga_lock, flags);
 
 	vgacon_xres = width * VGA_FONTWIDTH;
-	vgacon_yres = height * c->vc_font.height;
+	vgacon_yres = height * c->vc_cell_height;
 	if (vga_video_type >= VIDEO_TYPE_VGAC) {
 		outb_p(VGA_CRTC_MAX_SCAN, vga_video_port_reg);
 		max_scan = inb_p(vga_video_port_val);
@@ -625,9 +627,9 @@ static int vgacon_doresize(struct vc_data *c,
 static int vgacon_switch(struct vc_data *c)
 {
 	int x = c->vc_cols * VGA_FONTWIDTH;
-	int y = c->vc_rows * c->vc_font.height;
+	int y = c->vc_rows * c->vc_cell_height;
 	int rows = screen_info.orig_video_lines * vga_default_font_height/
-		c->vc_font.height;
+		c->vc_cell_height;
 	/*
 	 * We need to save screen size here as it's the only way
 	 * we can spot the screen has been resized and we need to
@@ -1058,7 +1060,7 @@ static int vgacon_adjust_height(struct vc_data *vc, unsigned fontheight)
 				cursor_size_lastto = 0;
 				c->vc_sw->con_cursor(c, CM_DRAW);
 			}
-			c->vc_font.height = fontheight;
+			c->vc_font.height = c->vc_cell_height = fontheight;
 			vc_resize(c, 0, rows);	/* Adjust console size */
 		}
 	}
@@ -1106,12 +1108,20 @@ static int vgacon_resize(struct vc_data *c, unsigned int width,
 	if ((width << 1) * height > vga_vram_size)
 		return -EINVAL;
 
+	if (user) {
+		/*
+		 * Ho ho!  Someone (svgatextmode, eh?) may have reprogrammed
+		 * the video mode!  Set the new defaults then and go away.
+		 */
+		screen_info.orig_video_cols = width;
+		screen_info.orig_video_lines = height;
+		vga_default_font_height = c->vc_cell_height;
+		return 0;
+	}
 	if (width % 2 || width > screen_info.orig_video_cols ||
 	    height > (screen_info.orig_video_lines * vga_default_font_height)/
-	    c->vc_font.height)
-		/* let svgatextmode tinker with video timings and
-		   return success */
-		return (user) ? 0 : -EINVAL;
+	    c->vc_cell_height)
+		return -EINVAL;
 
 	if (con_is_visible(c) && !vga_is_gfx) /* who knows */
 		vgacon_doresize(c, width, height);
@@ -1139,8 +1149,8 @@ static void vgacon_save_screen(struct vc_data *c)
 		 * console initialization routines.
 		 */
 		vga_bootup_console = 1;
-		c->vc_x = screen_info.orig_x;
-		c->vc_y = screen_info.orig_y;
+		c->state.x = screen_info.orig_x;
+		c->state.y = screen_info.orig_y;
 	}
 
 	/* We can't copy in more than the size of the video buffer,

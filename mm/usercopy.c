@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This implements the various checks for CONFIG_HARDENED_USERCOPY*,
  * which are designed to protect kernel memory from needless exposure
@@ -6,11 +7,6 @@
  *
  * Copyright (C) 2001-2016 PaX Team, Bradley Spengler, Open Source
  * Security Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -47,7 +43,7 @@ static noinline int check_stack_object(const void *obj, unsigned long len)
 
 	/*
 	 * Reject: object partially overlaps the stack (passing the
-	 * the check above means at least one end is within the stack,
+	 * check above means at least one end is within the stack,
 	 * so if this check fails, the other end is outside the stack).
 	 */
 	if (obj < stack || stackend < obj + len)

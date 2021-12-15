@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Real Time Clock interface for StrongARM SA1x00 and XScale PXA2xx
  *
@@ -14,11 +15,6 @@
  *
  * Converted to the RTC subsystem and Driver Model
  *   by Richard Purdie <rpurdie@rpsys.net>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/platform_device.h>
@@ -115,20 +111,17 @@ static int sa1100_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct sa1100_rtc *info = dev_get_drvdata(dev);
 
-	rtc_time_to_tm(readl_relaxed(info->rcnr), tm);
+	rtc_time64_to_tm(readl_relaxed(info->rcnr), tm);
 	return 0;
 }
 
 static int sa1100_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct sa1100_rtc *info = dev_get_drvdata(dev);
-	unsigned long time;
-	int ret;
 
-	ret = rtc_tm_to_time(tm, &time);
-	if (ret == 0)
-		writel_relaxed(time, info->rcnr);
-	return ret;
+	writel_relaxed(rtc_tm_to_time64(tm), info->rcnr);
+
+	return 0;
 }
 
 static int sa1100_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
@@ -145,24 +138,18 @@ static int sa1100_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 static int sa1100_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct sa1100_rtc *info = dev_get_drvdata(dev);
-	unsigned long time;
-	int ret;
 
 	spin_lock_irq(&info->lock);
-	ret = rtc_tm_to_time(&alrm->time, &time);
-	if (ret != 0)
-		goto out;
 	writel_relaxed(readl_relaxed(info->rtsr) &
 		(RTSR_HZE | RTSR_ALE | RTSR_AL), info->rtsr);
-	writel_relaxed(time, info->rtar);
+	writel_relaxed(rtc_tm_to_time64(&alrm->time), info->rtar);
 	if (alrm->enabled)
 		writel_relaxed(readl_relaxed(info->rtsr) | RTSR_ALE, info->rtsr);
 	else
 		writel_relaxed(readl_relaxed(info->rtsr) & ~RTSR_ALE, info->rtsr);
-out:
 	spin_unlock_irq(&info->lock);
 
-	return ret;
+	return 0;
 }
 
 static int sa1100_rtc_proc(struct device *dev, struct seq_file *seq)
@@ -216,6 +203,7 @@ int sa1100_rtc_init(struct platform_device *pdev, struct sa1100_rtc *info)
 
 	info->rtc->ops = &sa1100_rtc_ops;
 	info->rtc->max_user_freq = RTC_FREQ;
+	info->rtc->range_max = U32_MAX;
 
 	ret = rtc_register_device(info->rtc);
 	if (ret) {
@@ -254,7 +242,6 @@ EXPORT_SYMBOL_GPL(sa1100_rtc_init);
 static int sa1100_rtc_probe(struct platform_device *pdev)
 {
 	struct sa1100_rtc *info;
-	struct resource *iores;
 	void __iomem *base;
 	int irq_1hz, irq_alarm;
 	int ret;
@@ -287,8 +274,7 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, iores);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

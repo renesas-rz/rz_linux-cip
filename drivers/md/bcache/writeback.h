@@ -5,18 +5,42 @@
 #define CUTOFF_WRITEBACK	40
 #define CUTOFF_WRITEBACK_SYNC	70
 
+#define CUTOFF_WRITEBACK_MAX		70
+#define CUTOFF_WRITEBACK_SYNC_MAX	90
+
 #define MAX_WRITEBACKS_IN_PASS  5
 #define MAX_WRITESIZE_IN_PASS   5000	/* *512b */
 
 #define WRITEBACK_RATE_UPDATE_SECS_MAX		60
 #define WRITEBACK_RATE_UPDATE_SECS_DEFAULT	5
 
+#define BCH_AUTO_GC_DIRTY_THRESHOLD	50
+
+#define BCH_DIRTY_INIT_THRD_MAX	64
 /*
  * 14 (16384ths) is chosen here as something that each backing device
  * should be a reasonable fraction of the share, and not to blow up
  * until individual backing devices are a petabyte.
  */
 #define WRITEBACK_SHARE_SHIFT   14
+
+struct bch_dirty_init_state;
+struct dirty_init_thrd_info {
+	struct bch_dirty_init_state	*state;
+	struct task_struct		*thread;
+};
+
+struct bch_dirty_init_state {
+	struct cache_set		*c;
+	struct bcache_device		*d;
+	int				total_threads;
+	int				key_idx;
+	spinlock_t			idx_lock;
+	atomic_t			started;
+	atomic_t			enough;
+	wait_queue_head_t		wait;
+	struct dirty_init_thrd_info	infos[BCH_DIRTY_INIT_THRD_MAX];
+};
 
 static inline uint64_t bcache_dev_sectors_dirty(struct bcache_device *d)
 {
@@ -68,6 +92,9 @@ static inline bool bcache_dev_stripe_dirty(struct cached_dev *dc,
 	}
 }
 
+extern unsigned int bch_cutoff_writeback;
+extern unsigned int bch_cutoff_writeback_sync;
+
 static inline bool should_writeback(struct cached_dev *dc, struct bio *bio,
 				    unsigned int cache_mode, bool would_skip)
 {
@@ -75,7 +102,7 @@ static inline bool should_writeback(struct cached_dev *dc, struct bio *bio,
 
 	if (cache_mode != CACHE_MODE_WRITEBACK ||
 	    test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) ||
-	    in_use > CUTOFF_WRITEBACK_SYNC)
+	    in_use > bch_cutoff_writeback_sync)
 		return false;
 
 	if (bio_op(bio) == REQ_OP_DISCARD)
@@ -91,7 +118,7 @@ static inline bool should_writeback(struct cached_dev *dc, struct bio *bio,
 
 	return (op_is_sync(bio->bi_opf) ||
 		bio->bi_opf & (REQ_META|REQ_PRIO) ||
-		in_use <= CUTOFF_WRITEBACK);
+		in_use <= bch_cutoff_writeback);
 }
 
 static inline void bch_writeback_queue(struct cached_dev *dc)

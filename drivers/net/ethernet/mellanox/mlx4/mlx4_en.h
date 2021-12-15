@@ -72,7 +72,7 @@
 #define MLX4_EN_PAGE_SIZE	(1 << MLX4_EN_PAGE_SHIFT)
 #define DEF_RX_RINGS		16
 #define MAX_RX_RINGS		128
-#define MIN_RX_RINGS		4
+#define MIN_RX_RINGS		1
 #define LOG_TXBB_SIZE		6
 #define TXBB_SIZE		BIT(LOG_TXBB_SIZE)
 #define HEADROOM		(2048 / TXBB_SIZE + 1)
@@ -608,8 +608,6 @@ struct mlx4_en_priv {
 	struct work_struct linkstate_task;
 	struct delayed_work stats_task;
 	struct delayed_work service_task;
-	struct work_struct vxlan_add_task;
-	struct work_struct vxlan_del_task;
 	struct mlx4_en_perf_stats pstats;
 	struct mlx4_en_pkt_stats pkstats;
 	struct mlx4_en_counter_stats pf_stats;
@@ -708,8 +706,7 @@ void mlx4_en_arm_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq);
 
 void mlx4_en_tx_irq(struct mlx4_cq *mcq);
 u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb,
-			 struct net_device *sb_dev,
-			 select_queue_fallback_t fallback);
+			 struct net_device *sb_dev);
 netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev);
 netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 			       struct mlx4_en_rx_alloc *frame,
@@ -748,8 +745,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev,
 			  int budget);
 int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget);
 int mlx4_en_poll_tx_cq(struct napi_struct *napi, int budget);
-bool mlx4_en_process_tx_cq(struct net_device *dev,
-			   struct mlx4_en_cq *cq, int napi_budget);
+int mlx4_en_process_tx_cq(struct net_device *dev,
+			  struct mlx4_en_cq *cq, int napi_budget);
 u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 			 struct mlx4_en_tx_ring *ring,
 			 int index, u64 timestamp,
@@ -798,6 +795,7 @@ void mlx4_en_ptp_overflow_check(struct mlx4_en_dev *mdev);
 #define DEV_FEATURE_CHANGED(dev, new_features, feature) \
 	((dev->features & feature) ^ (new_features & feature))
 
+int mlx4_en_moderation_update(struct mlx4_en_priv *priv);
 int mlx4_en_reset_config(struct net_device *dev,
 			 struct hwtstamp_config ts_config,
 			 netdev_features_t new_features);

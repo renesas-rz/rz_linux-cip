@@ -1,13 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/component.h>
 #include <linux/export.h>
 #include <linux/list.h>
 #include <linux/of_graph.h>
-#include <drm/drmP.h>
+
 #include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
 #include <drm/drm_encoder.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_of.h>
+#include <drm/drm_panel.h>
 
 /**
  * DOC: overview
@@ -217,9 +219,11 @@ int drm_of_encoder_active_endpoint(struct device_node *node,
 }
 EXPORT_SYMBOL_GPL(drm_of_encoder_active_endpoint);
 
-/*
+/**
  * drm_of_find_panel_or_bridge - return connected panel or bridge device
  * @np: device tree node containing encoder output ports
+ * @port: port in the device tree node
+ * @endpoint: endpoint in the device tree node
  * @panel: pointer to hold returned drm_panel
  * @bridge: pointer to hold returned drm_bridge
  *
@@ -242,14 +246,18 @@ int drm_of_find_panel_or_bridge(const struct device_node *np,
 	if (panel)
 		*panel = NULL;
 
+	/*
+	 * of_graph_get_remote_node() produces a noisy error message if port
+	 * node isn't found and the absence of the port is a legit case here,
+	 * so at first we silently check whether graph presents in the
+	 * device-tree node.
+	 */
+	if (!of_graph_is_present(np))
+		return -ENODEV;
+
 	remote = of_graph_get_remote_node(np, port, endpoint);
 	if (!remote)
 		return -ENODEV;
-
-	if (!of_device_is_available(remote)) {
-		of_node_put(remote);
-		return -ENODEV;
-	}
 
 	if (panel) {
 		*panel = of_drm_find_panel(remote);
@@ -307,7 +315,7 @@ static int drm_of_lvds_get_remote_pixels_type(
 
 		remote_port = of_graph_get_remote_port(endpoint);
 		if (!remote_port) {
-			of_node_put(remote_port);
+			of_node_put(endpoint);
 			return -EPIPE;
 		}
 
@@ -323,8 +331,10 @@ static int drm_of_lvds_get_remote_pixels_type(
 		 * configurations by passing the endpoints explicitly to
 		 * drm_of_lvds_get_dual_link_pixel_order().
 		 */
-		if (!current_pt || pixels_type != current_pt)
+		if (!current_pt || pixels_type != current_pt) {
+			of_node_put(endpoint);
 			return -EINVAL;
+		}
 	}
 
 	return pixels_type;

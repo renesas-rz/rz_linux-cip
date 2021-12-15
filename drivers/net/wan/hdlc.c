@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic HDLC support routines for Linux
  *
  * Copyright (C) 1999 - 2008 Krzysztof Halasa <khc@pm.waw.pl>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  *
  * Currently supported:
  *	* raw IP-in-HDLC
@@ -240,7 +237,8 @@ static void hdlc_setup_dev(struct net_device *dev)
 	dev->min_mtu		 = 68;
 	dev->max_mtu		 = HDLC_MAX_MTU;
 	dev->type		 = ARPHRD_RAWHDLC;
-	dev->hard_header_len	 = 16;
+	dev->hard_header_len	 = 0;
+	dev->needed_headroom	 = 0;
 	dev->addr_len		 = 0;
 	dev->header_ops		 = &hdlc_null_ops;
 }

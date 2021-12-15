@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ALPS touchpad PS/2 mouse driver
  *
@@ -9,10 +10,6 @@
  *
  * ALPS detection, tap switching and status querying info is taken from
  * tpconfig utility (by C. Scott Ananian and Bruce Kall).
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/slab.h>
@@ -1932,7 +1929,7 @@ static int alps_monitor_mode(struct psmouse *psmouse, bool enable)
 static int alps_absolute_mode_v6(struct psmouse *psmouse)
 {
 	u16 reg_val = 0x181;
-	int ret = -1;
+	int ret;
 
 	/* enter monitor mode, to write the register */
 	if (alps_monitor_mode(psmouse, true))

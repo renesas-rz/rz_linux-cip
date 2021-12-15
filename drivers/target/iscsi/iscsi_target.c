@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * This file contains main functions related to the iSCSI Target Core Driver.
  *
@@ -5,15 +6,6 @@
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  ******************************************************************************/
 
 #include <crypto/hash.h>
@@ -308,15 +300,14 @@ bool iscsit_check_np_match(
 	return false;
 }
 
-/*
- * Called with mutex np_lock held
- */
 static struct iscsi_np *iscsit_get_np(
 	struct sockaddr_storage *sockaddr,
 	int network_transport)
 {
 	struct iscsi_np *np;
 	bool match;
+
+	lockdep_assert_held(&np_lock);
 
 	list_for_each_entry(np, &g_np_list, np_list) {
 		spin_lock_bh(&np->np_thread_lock);
@@ -573,7 +564,8 @@ iscsit_xmit_nondatain_pdu(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	return 0;
 }
 
-static int iscsit_map_iovec(struct iscsi_cmd *, struct kvec *, u32, u32);
+static int iscsit_map_iovec(struct iscsi_cmd *cmd, struct kvec *iov, int nvec,
+			    u32 data_offset, u32 data_length);
 static void iscsit_unmap_iovec(struct iscsi_cmd *);
 static u32 iscsit_do_crypto_hash_sg(struct ahash_request *, struct iscsi_cmd *,
 				    u32, u32, u32, u8 *);
@@ -604,7 +596,8 @@ iscsit_xmit_datain_pdu(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 			 *header_digest);
 	}
 
-	iov_ret = iscsit_map_iovec(cmd, &cmd->iov_data[1],
+	iov_ret = iscsit_map_iovec(cmd, &cmd->iov_data[iov_count],
+				   cmd->orig_iov_data_count - (iov_count + 2),
 				   datain->offset, datain->length);
 	if (iov_ret < 0)
 		return -1;
@@ -713,7 +706,7 @@ static int __init iscsi_target_init_module(void)
 			sizeof(struct iscsi_queue_req),
 			__alignof__(struct iscsi_queue_req), 0, NULL);
 	if (!lio_qr_cache) {
-		pr_err("nable to kmem_cache_create() for"
+		pr_err("Unable to kmem_cache_create() for"
 				" lio_qr_cache\n");
 		goto bitmap_out;
 	}
@@ -886,13 +879,10 @@ EXPORT_SYMBOL(iscsit_reject_cmd);
  * Map some portion of the allocated scatterlist to an iovec, suitable for
  * kernel sockets to copy data in/out.
  */
-static int iscsit_map_iovec(
-	struct iscsi_cmd *cmd,
-	struct kvec *iov,
-	u32 data_offset,
-	u32 data_length)
+static int iscsit_map_iovec(struct iscsi_cmd *cmd, struct kvec *iov, int nvec,
+			    u32 data_offset, u32 data_length)
 {
-	u32 i = 0;
+	u32 i = 0, orig_data_length = data_length;
 	struct scatterlist *sg;
 	unsigned int page_off;
 
@@ -901,9 +891,12 @@ static int iscsit_map_iovec(
 	 */
 	u32 ent = data_offset / PAGE_SIZE;
 
+	if (!data_length)
+		return 0;
+
 	if (ent >= cmd->se_cmd.t_data_nents) {
 		pr_err("Initial page entry out-of-bounds\n");
-		return -1;
+		goto overflow;
 	}
 
 	sg = &cmd->se_cmd.t_data_sg[ent];
@@ -913,7 +906,12 @@ static int iscsit_map_iovec(
 	cmd->first_data_sg_off = page_off;
 
 	while (data_length) {
-		u32 cur_len = min_t(u32, data_length, sg->length - page_off);
+		u32 cur_len;
+
+		if (WARN_ON_ONCE(!sg || i >= nvec))
+			goto overflow;
+
+		cur_len = min_t(u32, data_length, sg->length - page_off);
 
 		iov[i].iov_base = kmap(sg_page(sg)) + sg->offset + page_off;
 		iov[i].iov_len = cur_len;
@@ -927,6 +925,16 @@ static int iscsit_map_iovec(
 	cmd->kmapped_nents = i;
 
 	return i;
+
+overflow:
+	pr_err("offset %d + length %d overflow; %d/%d; sg-list:\n",
+	       data_offset, orig_data_length, i, nvec);
+	for_each_sg(cmd->se_cmd.t_data_sg, sg,
+		    cmd->se_cmd.t_data_nents, i) {
+		pr_err("[%d] off %d len %d\n",
+		       i, sg->offset, sg->length);
+	}
+	return -1;
 }
 
 static void iscsit_unmap_iovec(struct iscsi_cmd *cmd)
@@ -1149,7 +1157,7 @@ int iscsit_setup_scsi_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	transport_init_se_cmd(&cmd->se_cmd, &iscsi_ops,
 			conn->sess->se_sess, be32_to_cpu(hdr->data_length),
 			cmd->data_direction, sam_task_attr,
-			cmd->sense_buffer + 2);
+			cmd->sense_buffer + 2, scsilun_to_int(&hdr->lun));
 
 	pr_debug("Got SCSI Command, ITT: 0x%08x, CmdSN: 0x%08x,"
 		" ExpXferLen: %u, Length: %u, CID: %hu\n", hdr->itt,
@@ -1158,22 +1166,24 @@ int iscsit_setup_scsi_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 
 	target_get_sess_cmd(&cmd->se_cmd, true);
 
-	cmd->sense_reason = transport_lookup_cmd_lun(&cmd->se_cmd,
-						     scsilun_to_int(&hdr->lun));
-	if (cmd->sense_reason)
-		goto attach_cmd;
-
-	/* only used for printks or comparing with ->ref_task_tag */
 	cmd->se_cmd.tag = (__force u32)cmd->init_task_tag;
-	cmd->sense_reason = target_setup_cmd_from_cdb(&cmd->se_cmd, hdr->cdb);
+	cmd->sense_reason = target_cmd_init_cdb(&cmd->se_cmd, hdr->cdb);
 	if (cmd->sense_reason) {
 		if (cmd->sense_reason == TCM_OUT_OF_RESOURCES) {
 			return iscsit_add_reject_cmd(cmd,
-					ISCSI_REASON_BOOKMARK_NO_RESOURCES, buf);
+				ISCSI_REASON_BOOKMARK_NO_RESOURCES, buf);
 		}
 
 		goto attach_cmd;
 	}
+
+	cmd->sense_reason = transport_lookup_cmd_lun(&cmd->se_cmd);
+	if (cmd->sense_reason)
+		goto attach_cmd;
+
+	cmd->sense_reason = target_cmd_parse_cdb(&cmd->se_cmd);
+	if (cmd->sense_reason)
+		goto attach_cmd;
 
 	if (iscsit_build_pdu_and_seq_lists(cmd, payload_length) < 0) {
 		return iscsit_add_reject_cmd(cmd,
@@ -1194,7 +1204,7 @@ attach_cmd:
 }
 EXPORT_SYMBOL(iscsit_setup_scsi_cmd);
 
-void iscsit_set_unsoliticed_dataout(struct iscsi_cmd *cmd)
+void iscsit_set_unsolicited_dataout(struct iscsi_cmd *cmd)
 {
 	iscsit_set_dataout_sequence_values(cmd);
 
@@ -1202,7 +1212,7 @@ void iscsit_set_unsoliticed_dataout(struct iscsi_cmd *cmd)
 	iscsit_start_dataout_timer(cmd, cmd->conn);
 	spin_unlock_bh(&cmd->dataout_timeout_lock);
 }
-EXPORT_SYMBOL(iscsit_set_unsoliticed_dataout);
+EXPORT_SYMBOL(iscsit_set_unsolicited_dataout);
 
 int iscsit_process_scsi_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 			    struct iscsi_scsi_req *hdr)
@@ -1236,7 +1246,7 @@ int iscsit_process_scsi_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	 */
 	if (!cmd->immediate_data) {
 		if (!cmd->sense_reason && cmd->unsolicited_data)
-			iscsit_set_unsoliticed_dataout(cmd);
+			iscsit_set_unsolicited_dataout(cmd);
 		if (!cmd->sense_reason)
 			return 0;
 
@@ -1268,27 +1278,27 @@ iscsit_get_immediate_data(struct iscsi_cmd *cmd, struct iscsi_scsi_req *hdr,
 			  bool dump_payload)
 {
 	int cmdsn_ret = 0, immed_ret = IMMEDIATE_DATA_NORMAL_OPERATION;
+	int rc;
+
 	/*
 	 * Special case for Unsupported SAM WRITE Opcodes and ImmediateData=Yes.
 	 */
-	if (dump_payload)
-		goto after_immediate_data;
-	/*
-	 * Check for underflow case where both EDTL and immediate data payload
-	 * exceeds what is presented by CDB's TRANSFER LENGTH, and what has
-	 * already been set in target_cmd_size_check() as se_cmd->data_length.
-	 *
-	 * For this special case, fail the command and dump the immediate data
-	 * payload.
-	 */
-	if (cmd->first_burst_len > cmd->se_cmd.data_length) {
-		cmd->sense_reason = TCM_INVALID_CDB_FIELD;
-		goto after_immediate_data;
+	if (dump_payload) {
+		u32 length = min(cmd->se_cmd.data_length - cmd->write_data_done,
+				 cmd->first_burst_len);
+
+		pr_debug("Dumping min(%d - %d, %d) = %d bytes of immediate data\n",
+			 cmd->se_cmd.data_length, cmd->write_data_done,
+			 cmd->first_burst_len, length);
+		rc = iscsit_dump_data_payload(cmd->conn, length, 1);
+		pr_debug("Finished dumping immediate data\n");
+		if (rc < 0)
+			immed_ret = IMMEDIATE_DATA_CANNOT_RECOVER;
+	} else {
+		immed_ret = iscsit_handle_immediate_data(cmd, hdr,
+							 cmd->first_burst_len);
 	}
 
-	immed_ret = iscsit_handle_immediate_data(cmd, hdr,
-					cmd->first_burst_len);
-after_immediate_data:
 	if (immed_ret == IMMEDIATE_DATA_NORMAL_OPERATION) {
 		/*
 		 * A PDU/CmdSN carrying Immediate Data passed
@@ -1301,14 +1311,11 @@ after_immediate_data:
 			return -1;
 
 		if (cmd->sense_reason || cmdsn_ret == CMDSN_LOWER_THAN_EXP) {
-			int rc;
-
-			rc = iscsit_dump_data_payload(cmd->conn,
-						      cmd->first_burst_len, 1);
 			target_put_sess_cmd(&cmd->se_cmd);
-			return rc;
+
+			return 0;
 		} else if (cmd->unsolicited_data)
-			iscsit_set_unsoliticed_dataout(cmd);
+			iscsit_set_unsolicited_dataout(cmd);
 
 	} else if (immed_ret == IMMEDIATE_DATA_ERL1_CRC_FAILURE) {
 		/*
@@ -1505,8 +1512,6 @@ __iscsit_check_dataout_hdr(struct iscsi_conn *conn, void *buf,
 			if (hdr->flags & ISCSI_FLAG_CMD_FINAL)
 				iscsit_stop_dataout_timer(cmd);
 
-			transport_check_aborted_status(se_cmd,
-					(hdr->flags & ISCSI_FLAG_CMD_FINAL));
 			return iscsit_dump_data_payload(conn, payload_length, 1);
 		}
 	} else {
@@ -1521,12 +1526,9 @@ __iscsit_check_dataout_hdr(struct iscsi_conn *conn, void *buf,
 		 * TASK_ABORTED status.
 		 */
 		if (se_cmd->transport_state & CMD_T_ABORTED) {
-			if (hdr->flags & ISCSI_FLAG_CMD_FINAL)
-				if (--cmd->outstanding_r2ts < 1) {
-					iscsit_stop_dataout_timer(cmd);
-					transport_check_aborted_status(
-							se_cmd, 1);
-				}
+			if (hdr->flags & ISCSI_FLAG_CMD_FINAL &&
+			    --cmd->outstanding_r2ts < 1)
+				iscsit_stop_dataout_timer(cmd);
 
 			return iscsit_dump_data_payload(conn, payload_length, 1);
 		}
@@ -1586,14 +1588,16 @@ iscsit_get_dataout(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 {
 	struct kvec *iov;
 	u32 checksum, iov_count = 0, padding = 0, rx_got = 0, rx_size = 0;
-	u32 payload_length = ntoh24(hdr->dlength);
+	u32 payload_length;
 	int iov_ret, data_crc_failed = 0;
 
+	payload_length = min_t(u32, cmd->se_cmd.data_length,
+			       ntoh24(hdr->dlength));
 	rx_size += payload_length;
 	iov = &cmd->iov_data[0];
 
-	iov_ret = iscsit_map_iovec(cmd, iov, be32_to_cpu(hdr->offset),
-				   payload_length);
+	iov_ret = iscsit_map_iovec(cmd, iov, cmd->orig_iov_data_count - 2,
+				   be32_to_cpu(hdr->offset), payload_length);
 	if (iov_ret < 0)
 		return -1;
 
@@ -1613,6 +1617,7 @@ iscsit_get_dataout(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 		rx_size += ISCSI_CRC_LEN;
 	}
 
+	WARN_ON_ONCE(iov_count > cmd->orig_iov_data_count);
 	rx_got = rx_data(conn, &cmd->iov_data[0], iov_count, rx_size);
 
 	iscsit_unmap_iovec(cmd);
@@ -1878,6 +1883,7 @@ static int iscsit_handle_nop_out(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 			rx_size += ISCSI_CRC_LEN;
 		}
 
+		WARN_ON_ONCE(niov > ARRAY_SIZE(cmd->iov_misc));
 		rx_got = rx_data(conn, &cmd->iov_misc[0], niov, rx_size);
 		if (rx_got != rx_size) {
 			ret = -1;
@@ -2008,7 +2014,8 @@ iscsit_handle_task_mgt_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 
 	transport_init_se_cmd(&cmd->se_cmd, &iscsi_ops,
 			      conn->sess->se_sess, 0, DMA_NONE,
-			      TCM_SIMPLE_TAG, cmd->sense_buffer + 2);
+			      TCM_SIMPLE_TAG, cmd->sense_buffer + 2,
+			      scsilun_to_int(&hdr->lun));
 
 	target_get_sess_cmd(&cmd->se_cmd, true);
 
@@ -2046,8 +2053,7 @@ iscsit_handle_task_mgt_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	 * Locate the struct se_lun for all TMRs not related to ERL=2 TASK_REASSIGN
 	 */
 	if (function != ISCSI_TM_FUNC_TASK_REASSIGN) {
-		ret = transport_lookup_tmr_lun(&cmd->se_cmd,
-					       scsilun_to_int(&hdr->lun));
+		ret = transport_lookup_tmr_lun(&cmd->se_cmd);
 		if (ret < 0) {
 			se_tmr->response = ISCSI_TMF_RSP_NO_LUN;
 			goto attach;
@@ -2197,24 +2203,22 @@ iscsit_process_text_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 		}
 		goto empty_sendtargets;
 	}
-	if (strncmp("SendTargets", text_in, 11) != 0) {
+	if (strncmp("SendTargets=", text_in, 12) != 0) {
 		pr_err("Received Text Data that is not"
 			" SendTargets, cannot continue.\n");
 		goto reject;
 	}
+	/* '=' confirmed in strncmp */
 	text_ptr = strchr(text_in, '=');
-	if (!text_ptr) {
-		pr_err("No \"=\" separator found in Text Data,"
-			"  cannot continue.\n");
-		goto reject;
-	}
-	if (!strncmp("=All", text_ptr, 4)) {
+	BUG_ON(!text_ptr);
+	if (!strncmp("=All", text_ptr, 5)) {
 		cmd->cmd_flags |= ICF_SENDTARGETS_ALL;
 	} else if (!strncmp("=iqn.", text_ptr, 5) ||
 		   !strncmp("=eui.", text_ptr, 5)) {
 		cmd->cmd_flags |= ICF_SENDTARGETS_SINGLE;
 	} else {
-		pr_err("Unable to locate valid SendTargets=%s value\n", text_ptr);
+		pr_err("Unable to locate valid SendTargets%s value\n",
+		       text_ptr);
 		goto reject;
 	}
 
@@ -2258,42 +2262,40 @@ iscsit_handle_text_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	rx_size = payload_length;
 	if (payload_length) {
 		u32 checksum = 0, data_crc = 0;
-		u32 padding = 0, pad_bytes = 0;
+		u32 padding = 0;
 		int niov = 0, rx_got;
-		struct kvec iov[3];
+		struct kvec iov[2];
 
-		text_in = kzalloc(payload_length, GFP_KERNEL);
+		rx_size = ALIGN(payload_length, 4);
+		text_in = kzalloc(rx_size, GFP_KERNEL);
 		if (!text_in)
 			goto reject;
 
 		cmd->text_in_ptr = text_in;
 
-		memset(iov, 0, 3 * sizeof(struct kvec));
+		memset(iov, 0, sizeof(iov));
 		iov[niov].iov_base	= text_in;
-		iov[niov++].iov_len	= payload_length;
+		iov[niov++].iov_len	= rx_size;
 
-		padding = ((-payload_length) & 3);
-		if (padding != 0) {
-			iov[niov].iov_base = &pad_bytes;
-			iov[niov++].iov_len  = padding;
-			rx_size += padding;
+		padding = rx_size - payload_length;
+		if (padding)
 			pr_debug("Receiving %u additional bytes"
 					" for padding.\n", padding);
-		}
 		if (conn->conn_ops->DataDigest) {
 			iov[niov].iov_base	= &checksum;
 			iov[niov++].iov_len	= ISCSI_CRC_LEN;
 			rx_size += ISCSI_CRC_LEN;
 		}
 
+		WARN_ON_ONCE(niov > ARRAY_SIZE(iov));
 		rx_got = rx_data(conn, &iov[0], niov, rx_size);
 		if (rx_got != rx_size)
 			goto reject;
 
 		if (conn->conn_ops->DataDigest) {
-			iscsit_do_crypto_hash_buf(conn->conn_rx_hash, text_in,
-						  payload_length, padding,
-						  &pad_bytes, &data_crc);
+			iscsit_do_crypto_hash_buf(conn->conn_rx_hash,
+						  text_in, rx_size, 0, NULL,
+						  &data_crc);
 
 			if (checksum != data_crc) {
 				pr_err("Text data CRC32C DataDigest"
@@ -2596,14 +2598,34 @@ static int iscsit_handle_immediate_data(
 	u32 checksum, iov_count = 0, padding = 0;
 	struct iscsi_conn *conn = cmd->conn;
 	struct kvec *iov;
+	void *overflow_buf = NULL;
 
-	iov_ret = iscsit_map_iovec(cmd, cmd->iov_data, cmd->write_data_done, length);
+	BUG_ON(cmd->write_data_done > cmd->se_cmd.data_length);
+	rx_size = min(cmd->se_cmd.data_length - cmd->write_data_done, length);
+	iov_ret = iscsit_map_iovec(cmd, cmd->iov_data,
+				   cmd->orig_iov_data_count - 2,
+				   cmd->write_data_done, rx_size);
 	if (iov_ret < 0)
 		return IMMEDIATE_DATA_CANNOT_RECOVER;
 
-	rx_size = length;
 	iov_count = iov_ret;
 	iov = &cmd->iov_data[0];
+	if (rx_size < length) {
+		/*
+		 * Special case: length of immediate data exceeds the data
+		 * buffer size derived from the CDB.
+		 */
+		overflow_buf = kmalloc(length - rx_size, GFP_KERNEL);
+		if (!overflow_buf) {
+			iscsit_unmap_iovec(cmd);
+			return IMMEDIATE_DATA_CANNOT_RECOVER;
+		}
+		cmd->overflow_buf = overflow_buf;
+		iov[iov_count].iov_base = overflow_buf;
+		iov[iov_count].iov_len = length - rx_size;
+		iov_count++;
+		rx_size = length;
+	}
 
 	padding = ((-length) & 3);
 	if (padding != 0) {
@@ -2618,6 +2640,7 @@ static int iscsit_handle_immediate_data(
 		rx_size += ISCSI_CRC_LEN;
 	}
 
+	WARN_ON_ONCE(iov_count > cmd->orig_iov_data_count);
 	rx_got = rx_data(conn, &cmd->iov_data[0], iov_count, rx_size);
 
 	iscsit_unmap_iovec(cmd);
@@ -2672,9 +2695,6 @@ static int iscsit_handle_immediate_data(
 	return IMMEDIATE_DATA_NORMAL_OPERATION;
 }
 
-/*
- *	Called with sess->conn_lock held.
- */
 /* #warning iscsi_build_conn_drop_async_message() only sends out on connections
 	with active network interface */
 static void iscsit_build_conn_drop_async_message(struct iscsi_conn *conn)
@@ -2682,6 +2702,8 @@ static void iscsit_build_conn_drop_async_message(struct iscsi_conn *conn)
 	struct iscsi_cmd *cmd;
 	struct iscsi_conn *conn_p;
 	bool found = false;
+
+	lockdep_assert_held(&conn->sess->conn_lock);
 
 	/*
 	 * Only send a Asynchronous Message on connections whos network
@@ -3143,6 +3165,12 @@ int iscsit_build_r2ts_for_cmd(
 				else
 					xfer_len = conn->sess->sess_ops->MaxBurstLength;
 			}
+
+			if ((s32)xfer_len < 0) {
+				cmd->cmd_flags |= ICF_SENT_LAST_R2T;
+				break;
+			}
+
 			cmd->r2t_offset += xfer_len;
 
 			if (cmd->r2t_offset == cmd->se_cmd.data_length)
@@ -3723,7 +3751,7 @@ check_rsp_state:
 	case ISTATE_SEND_LOGOUTRSP:
 		if (!iscsit_logout_post_handler(cmd, conn))
 			return -ECONNRESET;
-		/* fall through */
+		fallthrough;
 	case ISTATE_SEND_STATUS:
 	case ISTATE_SEND_ASYNCMSG:
 	case ISTATE_SEND_NOPIN:
@@ -4371,8 +4399,7 @@ int iscsit_close_session(struct iscsi_session *sess)
 	 * restart the timer and exit.
 	 */
 	if (!in_interrupt()) {
-		if (iscsit_check_session_usage_count(sess) == 1)
-			iscsit_stop_session(sess, 1, 1);
+		iscsit_check_session_usage_count(sess);
 	} else {
 		if (iscsit_check_session_usage_count(sess) == 2) {
 			atomic_set(&sess->session_logout, 0);
@@ -4384,7 +4411,7 @@ int iscsit_close_session(struct iscsi_session *sess)
 	transport_deregister_session(sess->se_sess);
 
 	if (sess->sess_ops->ErrorRecoveryLevel == 2)
-		iscsit_free_connection_recovery_entires(sess);
+		iscsit_free_connection_recovery_entries(sess);
 
 	iscsit_free_all_ooo_cmdsns(sess);
 
@@ -4510,7 +4537,6 @@ int iscsit_logout_post_handler(
 			iscsit_logout_post_handler_closesession(conn);
 			break;
 		}
-		ret = 0;
 		break;
 	case ISCSI_LOGOUT_REASON_CLOSE_CONNECTION:
 		if (conn->cid == cmd->logout_cid) {
@@ -4521,7 +4547,6 @@ int iscsit_logout_post_handler(
 				iscsit_logout_post_handler_samecid(conn);
 				break;
 			}
-			ret = 0;
 		} else {
 			switch (cmd->logout_response) {
 			case ISCSI_LOGOUT_SUCCESS:

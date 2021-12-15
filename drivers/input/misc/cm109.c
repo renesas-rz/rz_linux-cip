@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the VoIP USB phones with CM109 chipsets.
  *
  * Copyright (C) 2007 - 2008 Alfred E. Heggestad <aeh@db.org>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation, version 2.
  */
 
 /*
@@ -669,12 +666,8 @@ static const struct usb_device_id cm109_usb_table[] = {
 static void cm109_usb_cleanup(struct cm109_dev *dev)
 {
 	kfree(dev->ctl_req);
-	if (dev->ctl_data)
-		usb_free_coherent(dev->udev, USB_PKT_LEN,
-				  dev->ctl_data, dev->ctl_dma);
-	if (dev->irq_data)
-		usb_free_coherent(dev->udev, USB_PKT_LEN,
-				  dev->irq_data, dev->irq_dma);
+	usb_free_coherent(dev->udev, USB_PKT_LEN, dev->ctl_data, dev->ctl_dma);
+	usb_free_coherent(dev->udev, USB_PKT_LEN, dev->irq_data, dev->irq_dma);
 
 	usb_free_urb(dev->urb_irq);	/* parameter validation in core/urb */
 	usb_free_urb(dev->urb_ctl);	/* parameter validation in core/urb */

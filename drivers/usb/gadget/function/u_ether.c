@@ -322,7 +322,7 @@ quiesce:
 	/* data overrun */
 	case -EOVERFLOW:
 		dev->net->stats.rx_over_errors++;
-		/* FALLTHROUGH */
+		fallthrough;
 
 	default:
 		dev->net->stats.rx_errors++;
@@ -445,7 +445,7 @@ static void tx_complete(struct usb_ep *ep, struct usb_request *req)
 	default:
 		dev->net->stats.tx_errors++;
 		VDBG(dev, "tx err %d\n", req->status);
-		/* FALLTHROUGH */
+		fallthrough;
 	case -ECONNRESET:		/* unlink */
 	case -ESHUTDOWN:		/* disconnect etc */
 		dev_kfree_skb_any(skb);
@@ -491,8 +491,9 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 	}
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	if (skb && !in) {
-		dev_kfree_skb_any(skb);
+	if (!in) {
+		if (skb)
+			dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
@@ -731,7 +732,7 @@ static struct device_type gadget_type = {
 	.name	= "gadget",
 };
 
-/**
+/*
  * gether_setup_name - initialize one ethernet-over-usb link
  * @g: gadget to associated with these links
  * @ethaddr: NULL, or a buffer in which the ethernet address of the
@@ -882,7 +883,7 @@ int gether_register_netdev(struct net_device *net)
 	sa.sa_family = net->type;
 	memcpy(sa.sa_data, dev->dev_mac, ETH_ALEN);
 	rtnl_lock();
-	status = dev_set_mac_address(net, &sa);
+	status = dev_set_mac_address(net, &sa, NULL);
 	rtnl_unlock();
 	if (status)
 		pr_warn("cannot set self ethernet address: %d\n", status);
@@ -1007,13 +1008,13 @@ int gether_get_ifname(struct net_device *net, char *name, int len)
 	int ret;
 
 	rtnl_lock();
-	ret = snprintf(name, len, "%s\n", netdev_name(net));
+	ret = scnprintf(name, len, "%s\n", netdev_name(net));
 	rtnl_unlock();
-	return ret < len ? ret : len;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(gether_get_ifname);
 
-/**
+/*
  * gether_cleanup - remove Ethernet-over-USB device
  * Context: may sleep
  *

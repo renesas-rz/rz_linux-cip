@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __KVM_TYPES_H__
 #define __KVM_TYPES_H__
@@ -34,6 +20,8 @@ enum kvm_mr_change;
 
 #include <linux/types.h>
 
+#include <asm/kvm_types.h>
+
 /*
  * Address types:
  *
@@ -48,6 +36,8 @@ enum kvm_mr_change;
 typedef unsigned long  gva_t;
 typedef u64            gpa_t;
 typedef u64            gfn_t;
+
+#define GPA_INVALID	(~(gpa_t)0)
 
 typedef unsigned long  hva_t;
 typedef u64            hpa_t;
@@ -69,5 +59,22 @@ struct gfn_to_pfn_cache {
 	kvm_pfn_t pfn;
 	bool dirty;
 };
+
+#ifdef KVM_ARCH_NR_OBJS_PER_MEMORY_CACHE
+/*
+ * Memory caches are used to preallocate memory ahead of various MMU flows,
+ * e.g. page fault handlers.  Gracefully handling allocation failures deep in
+ * MMU flows is problematic, as is triggering reclaim, I/O, etc... while
+ * holding MMU locks.  Note, these caches act more like prefetch buffers than
+ * classical caches, i.e. objects are not returned to the cache on being freed.
+ */
+struct kvm_mmu_memory_cache {
+	int nobjs;
+	gfp_t gfp_zero;
+	struct kmem_cache *kmem_cache;
+	void *objects[KVM_ARCH_NR_OBJS_PER_MEMORY_CACHE];
+};
+#endif
+
 
 #endif /* __KVM_TYPES_H__ */

@@ -40,7 +40,7 @@
  *
  * Would result in the log looking like this:
  *
- * c,a,flush,fuad,b,<other writes>,<next flush>
+ * c,a,b,flush,fuad,<other writes>,<next flush>
  *
  * This is meant to help expose problems where file systems do not properly wait
  * on data being written before invoking a FLUSH.  FUA bypasses cache so once it
@@ -127,7 +127,7 @@ struct pending_block {
 	char *data;
 	u32 datalen;
 	struct list_head list;
-	struct bio_vec vecs[0];
+	struct bio_vec vecs[];
 };
 
 struct per_bio_data {
@@ -699,7 +699,7 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 	if (discard_bio)
 		alloc_size = sizeof(struct pending_block);
 	else
-		alloc_size = sizeof(struct pending_block) + sizeof(struct bio_vec) * bio_segments(bio);
+		alloc_size = struct_size(block, vecs, bio_segments(bio));
 
 	block = kzalloc(alloc_size, GFP_NOIO);
 	if (!block) {
@@ -994,10 +994,26 @@ static size_t log_writes_dax_copy_to_iter(struct dm_target *ti,
 	return dax_copy_to_iter(lc->dev->dax_dev, pgoff, addr, bytes, i);
 }
 
+static int log_writes_dax_zero_page_range(struct dm_target *ti, pgoff_t pgoff,
+					  size_t nr_pages)
+{
+	int ret;
+	struct log_writes_c *lc = ti->private;
+	sector_t sector = pgoff * PAGE_SECTORS;
+
+	ret = bdev_dax_pgoff(lc->dev->bdev, sector, nr_pages << PAGE_SHIFT,
+			     &pgoff);
+	if (ret)
+		return ret;
+	return dax_zero_page_range(lc->dev->dax_dev, pgoff,
+				   nr_pages << PAGE_SHIFT);
+}
+
 #else
 #define log_writes_dax_direct_access NULL
 #define log_writes_dax_copy_from_iter NULL
 #define log_writes_dax_copy_to_iter NULL
+#define log_writes_dax_zero_page_range NULL
 #endif
 
 static struct target_type log_writes_target = {
@@ -1016,6 +1032,7 @@ static struct target_type log_writes_target = {
 	.direct_access = log_writes_dax_direct_access,
 	.dax_copy_from_iter = log_writes_dax_copy_from_iter,
 	.dax_copy_to_iter = log_writes_dax_copy_to_iter,
+	.dax_zero_page_range = log_writes_dax_zero_page_range,
 };
 
 static int __init dm_log_writes_init(void)

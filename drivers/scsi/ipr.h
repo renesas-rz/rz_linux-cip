@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * ipr.h -- driver for IBM Power Linux RAID adapters
  *
  * Written By: Brian King <brking@us.ibm.com>, IBM Corporation
  *
  * Copyright (C) 2003, 2004 IBM Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Alan Cox <alan@lxorguk.ukuu.org.uk> - Removed several careless u32/dma_addr_t errors
  *				that broke 64bit platforms.
@@ -464,12 +451,12 @@ struct ipr_config_table_hdr64 {
 
 struct ipr_config_table {
 	struct ipr_config_table_hdr hdr;
-	struct ipr_config_table_entry dev[0];
+	struct ipr_config_table_entry dev[];
 }__attribute__((packed, aligned (4)));
 
 struct ipr_config_table64 {
 	struct ipr_config_table_hdr64 hdr64;
-	struct ipr_config_table_entry64 dev[0];
+	struct ipr_config_table_entry64 dev[];
 }__attribute__((packed, aligned (8)));
 
 struct ipr_config_table_entry_wrapper {
@@ -805,7 +792,7 @@ struct ipr_mode_page28 {
 	struct ipr_mode_page_hdr hdr;
 	u8 num_entries;
 	u8 entry_length;
-	struct ipr_dev_bus_entry bus[0];
+	struct ipr_dev_bus_entry bus[];
 }__attribute__((packed));
 
 struct ipr_mode_page24 {
@@ -1697,7 +1684,7 @@ struct ipr_dump_entry_header {
 struct ipr_dump_location_entry {
 	struct ipr_dump_entry_header hdr;
 	u8 location[20];
-}__attribute__((packed));
+}__attribute__((packed, aligned (4)));
 
 struct ipr_dump_trace_entry {
 	struct ipr_dump_entry_header hdr;
@@ -1721,7 +1708,7 @@ struct ipr_driver_dump {
 	struct ipr_dump_location_entry location_entry;
 	struct ipr_dump_ioa_type_entry ioa_type_entry;
 	struct ipr_dump_trace_entry trace_entry;
-}__attribute__((packed));
+}__attribute__((packed, aligned (4)));
 
 struct ipr_ioa_dump {
 	struct ipr_dump_entry_header hdr;

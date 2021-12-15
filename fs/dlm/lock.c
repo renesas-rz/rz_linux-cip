@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
 *******************************************************************************
 **
 **  Copyright (C) 2005-2010 Red Hat, Inc.  All rights reserved.
 **
-**  This copyrighted material is made available to anyone wishing to use,
-**  modify, copy, or redistribute it subject to the terms and conditions
-**  of the GNU General Public License v.2.
 **
 *******************************************************************************
 ******************************************************************************/
@@ -5819,7 +5817,7 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 		break;
 	case -EAGAIN:
 		error = 0;
-		/* fall through */
+		fallthrough;
 	default:
 		__put_lkb(ls, lkb);
 		goto out;

@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012 Linutronix GmbH
  * Copyright (c) 2014 sigma star gmbh
  * Author: Richard Weinberger <richard@nod.at>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
- * the GNU General Public License for more details.
- *
  */
 
 #include <linux/crc32.h>
@@ -1224,6 +1215,17 @@ static int ubi_write_fastmap(struct ubi_device *ubi,
 		fec->pnum = cpu_to_be32(wl_e->pnum);
 		set_seen(ubi, wl_e->pnum, seen_pebs);
 		fec->ec = cpu_to_be32(wl_e->ec);
+
+		free_peb_count++;
+		fm_pos += sizeof(*fec);
+		ubi_assert(fm_pos <= ubi->fm_size);
+	}
+	if (ubi->fm_next_anchor) {
+		fec = (struct ubi_fm_ec *)(fm_raw + fm_pos);
+
+		fec->pnum = cpu_to_be32(ubi->fm_next_anchor->pnum);
+		set_seen(ubi, ubi->fm_next_anchor->pnum, seen_pebs);
+		fec->ec = cpu_to_be32(ubi->fm_next_anchor->ec);
 
 		free_peb_count++;
 		fm_pos += sizeof(*fec);

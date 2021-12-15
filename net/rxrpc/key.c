@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* RxRPC key management
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * RxRPC keys should have a description of describing their purpose:
  *	"afs@CAMBRIDGE.REDHAT.COM>
@@ -43,6 +39,7 @@ static long rxrpc_read(const struct key *, char *, size_t);
  */
 struct key_type key_type_rxrpc = {
 	.name		= "rxrpc",
+	.flags		= KEY_TYPE_NET_DOMAIN,
 	.preparse	= rxrpc_preparse,
 	.free_preparse	= rxrpc_free_preparse,
 	.instantiate	= generic_key_instantiate,
@@ -58,6 +55,7 @@ EXPORT_SYMBOL(key_type_rxrpc);
  */
 struct key_type key_type_rxrpc_s = {
 	.name		= "rxrpc_s",
+	.flags		= KEY_TYPE_NET_DOMAIN,
 	.vet_description = rxrpc_vet_description_s,
 	.preparse	= rxrpc_preparse_s,
 	.free_preparse	= rxrpc_free_preparse_s,
@@ -898,7 +896,7 @@ static void rxrpc_describe(const struct key *key, struct seq_file *m)
 /*
  * grab the security key for a socket
  */
-int rxrpc_request_key(struct rxrpc_sock *rx, char __user *optval, int optlen)
+int rxrpc_request_key(struct rxrpc_sock *rx, sockptr_t optval, int optlen)
 {
 	struct key *key;
 	char *description;
@@ -908,11 +906,11 @@ int rxrpc_request_key(struct rxrpc_sock *rx, char __user *optval, int optlen)
 	if (optlen <= 0 || optlen > PAGE_SIZE - 1 || rx->securities)
 		return -EINVAL;
 
-	description = memdup_user_nul(optval, optlen);
+	description = memdup_sockptr_nul(optval, optlen);
 	if (IS_ERR(description))
 		return PTR_ERR(description);
 
-	key = request_key(&key_type_rxrpc, description, NULL);
+	key = request_key_net(&key_type_rxrpc, description, sock_net(&rx->sk), NULL);
 	if (IS_ERR(key)) {
 		kfree(description);
 		_leave(" = %ld", PTR_ERR(key));
@@ -928,8 +926,7 @@ int rxrpc_request_key(struct rxrpc_sock *rx, char __user *optval, int optlen)
 /*
  * grab the security keyring for a server socket
  */
-int rxrpc_server_keyring(struct rxrpc_sock *rx, char __user *optval,
-			 int optlen)
+int rxrpc_server_keyring(struct rxrpc_sock *rx, sockptr_t optval, int optlen)
 {
 	struct key *key;
 	char *description;
@@ -939,7 +936,7 @@ int rxrpc_server_keyring(struct rxrpc_sock *rx, char __user *optval,
 	if (optlen <= 0 || optlen > PAGE_SIZE - 1)
 		return -EINVAL;
 
-	description = memdup_user_nul(optval, optlen);
+	description = memdup_sockptr_nul(optval, optlen);
 	if (IS_ERR(description))
 		return PTR_ERR(description);
 
@@ -1112,7 +1109,7 @@ static long rxrpc_read(const struct key *key,
 		default: /* we have a ticket we can't encode */
 			pr_err("Unsupported key token type (%u)\n",
 			       token->security_index);
-			continue;
+			return -ENOPKG;
 		}
 
 		_debug("token[%u]: toksize=%u", ntoks, toksize);
@@ -1227,7 +1224,9 @@ static long rxrpc_read(const struct key *key,
 			break;
 
 		default:
-			break;
+			pr_err("Unsupported key token type (%u)\n",
+			       token->security_index);
+			return -ENOPKG;
 		}
 
 		ASSERTCMP((unsigned long)xdr - (unsigned long)oldxdr, ==,

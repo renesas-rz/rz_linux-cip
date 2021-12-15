@@ -130,8 +130,7 @@ static irqreturn_t hva_hw_its_irq_thread(int irq, void *arg)
 	ctx_id = (hva->sts_reg & 0xFF00) >> 8;
 	if (ctx_id >= HVA_MAX_INSTANCES) {
 		dev_err(dev, "%s     %s: bad context identifier: %d\n",
-			ctx->name, __func__, ctx_id);
-		ctx->hw_err = true;
+			HVA_PREFIX, __func__, ctx_id);
 		goto out;
 	}
 
@@ -342,10 +341,8 @@ int hva_hw_probe(struct platform_device *pdev, struct hva_dev *hva)
 
 	/* get status interruption resource */
 	ret  = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(dev, "%s     failed to get status IRQ\n", HVA_PREFIX);
+	if (ret < 0)
 		goto err_clk;
-	}
 	hva->irq_its = ret;
 
 	ret = devm_request_threaded_irq(dev, hva->irq_its, hva_hw_its_interrupt,
@@ -361,10 +358,8 @@ int hva_hw_probe(struct platform_device *pdev, struct hva_dev *hva)
 
 	/* get error interruption resource */
 	ret = platform_get_irq(pdev, 1);
-	if (ret < 0) {
-		dev_err(dev, "%s     failed to get error IRQ\n", HVA_PREFIX);
+	if (ret < 0)
 		goto err_clk;
-	}
 	hva->irq_err = ret;
 
 	ret = devm_request_threaded_irq(dev, hva->irq_err, hva_hw_err_interrupt,

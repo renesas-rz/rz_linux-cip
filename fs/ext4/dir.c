@@ -26,12 +26,16 @@
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
 #include <linux/iversion.h>
+#include <linux/unicode.h>
 #include "ext4.h"
 #include "xattr.h"
 
 static int ext4_dx_readdir(struct file *, struct dir_context *);
 
 /**
+ * is_dx_dir() - check if a directory is using htree indexing
+ * @inode: directory inode
+ *
  * Check if the given dir-inode refers to an htree-indexed directory
  * (or a directory which could potentially get converted to use htree
  * indexing).
@@ -68,6 +72,7 @@ int __ext4_check_dir_entry(const char *function, unsigned int line,
 	const char *error_msg = NULL;
 	const int rlen = ext4_rec_len_from_disk(de->rec_len,
 						dir->i_sb->s_blocksize);
+	const int next_offset = ((char *) de - buf) + rlen;
 
 	if (unlikely(rlen < EXT4_DIR_REC_LEN(1)))
 		error_msg = "rec_len is smaller than minimal";
@@ -75,13 +80,11 @@ int __ext4_check_dir_entry(const char *function, unsigned int line,
 		error_msg = "rec_len % 4 != 0";
 	else if (unlikely(rlen < EXT4_DIR_REC_LEN(de->name_len)))
 		error_msg = "rec_len is too small for name_len";
-	else if (unlikely(((char *) de - buf) + rlen > size))
+	else if (unlikely(next_offset > size))
 		error_msg = "directory entry overrun";
-	else if (unlikely(((char *) de - buf) + rlen >
-			  size - EXT4_DIR_REC_LEN(1) &&
-			  ((char *) de - buf) + rlen != size)) {
+	else if (unlikely(next_offset > size - EXT4_DIR_REC_LEN(1) &&
+			  next_offset != size))
 		error_msg = "directory entry too close to block end";
-	}
 	else if (unlikely(le32_to_cpu(de->inode) >
 			le32_to_cpu(EXT4_SB(dir->i_sb)->s_es->s_inodes_count)))
 		error_msg = "inode out of bounds";
@@ -115,9 +118,9 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 	struct buffer_head *bh = NULL;
 	struct fscrypt_str fstr = FSTR_INIT(NULL, 0);
 
-	if (ext4_encrypted_inode(inode)) {
+	if (IS_ENCRYPTED(inode)) {
 		err = fscrypt_get_encryption_info(inode);
-		if (err && err != -ENOKEY)
+		if (err)
 			return err;
 	}
 
@@ -144,8 +147,8 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 			return err;
 	}
 
-	if (ext4_encrypted_inode(inode)) {
-		err = fscrypt_fname_alloc_buffer(inode, EXT4_NAME_LEN, &fstr);
+	if (IS_ENCRYPTED(inode)) {
+		err = fscrypt_fname_alloc_buffer(EXT4_NAME_LEN, &fstr);
 		if (err < 0)
 			return err;
 	}
@@ -197,8 +200,7 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 
 		/* Check the checksum */
 		if (!buffer_verified(bh) &&
-		    !ext4_dirent_csum_verify(inode,
-				(struct ext4_dir_entry *)bh->b_data)) {
+		    !ext4_dirblock_csum_verify(inode, bh)) {
 			EXT4_ERROR_FILE(file, 0, "directory fails checksum "
 					"at offset %llu",
 					(unsigned long long)ctx->pos);
@@ -251,7 +253,7 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 			offset += ext4_rec_len_from_disk(de->rec_len,
 					sb->s_blocksize);
 			if (le32_to_cpu(de->inode)) {
-				if (!ext4_encrypted_inode(inode)) {
+				if (!IS_ENCRYPTED(inode)) {
 					if (!dir_emit(ctx, de->name,
 					    de->name_len,
 					    le32_to_cpu(de->inode),
@@ -289,9 +291,7 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 done:
 	err = 0;
 errout:
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
 	fscrypt_fname_free_buffer(&fstr);
-#endif
 	brelse(bh);
 	return err;
 }
@@ -392,7 +392,7 @@ struct fname {
 	__u32		inode;
 	__u8		name_len;
 	__u8		file_type;
-	char		name[0];
+	char		name[];
 };
 
 /*
@@ -464,7 +464,6 @@ int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 	new_fn->name_len = ent_name->len;
 	new_fn->file_type = dirent->file_type;
 	memcpy(new_fn->name, ent_name->name, ent_name->len);
-	new_fn->name[ent_name->len] = 0;
 
 	while (*p) {
 		parent = *p;
@@ -535,7 +534,7 @@ static int ext4_dx_readdir(struct file *file, struct dir_context *ctx)
 	struct dir_private_info *info = file->private_data;
 	struct inode *inode = file_inode(file);
 	struct fname *fname;
-	int	ret;
+	int ret = 0;
 
 	if (!info) {
 		info = ext4_htree_create_dir_info(file, ctx->pos);
@@ -583,7 +582,7 @@ static int ext4_dx_readdir(struct file *file, struct dir_context *ctx)
 						   info->curr_minor_hash,
 						   &info->next_hash);
 			if (ret < 0)
-				return ret;
+				goto finished;
 			if (ret == 0) {
 				ctx->pos = ext4_get_htree_eof(file);
 				break;
@@ -614,12 +613,12 @@ static int ext4_dx_readdir(struct file *file, struct dir_context *ctx)
 	}
 finished:
 	info->last_pos = ctx->pos;
-	return 0;
+	return ret < 0 ? ret : 0;
 }
 
 static int ext4_dir_open(struct inode * inode, struct file * filp)
 {
-	if (ext4_encrypted_inode(inode))
+	if (IS_ENCRYPTED(inode))
 		return fscrypt_get_encryption_info(inode) ? -EACCES : 0;
 	return 0;
 }
@@ -668,3 +667,10 @@ const struct file_operations ext4_dir_operations = {
 	.open		= ext4_dir_open,
 	.release	= ext4_release_dir,
 };
+
+#ifdef CONFIG_UNICODE
+const struct dentry_operations ext4_dentry_ops = {
+	.d_hash = generic_ci_d_hash,
+	.d_compare = generic_ci_d_compare,
+};
+#endif

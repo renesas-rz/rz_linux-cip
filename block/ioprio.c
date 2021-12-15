@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * fs/ioprio.c
  *
@@ -16,7 +17,7 @@
  *
  * ioprio_set(PRIO_PROCESS, pid, prio);
  *
- * See also Documentation/block/ioprio.txt
+ * See also Documentation/block/ioprio.rst
  *
  */
 #include <linux/gfp.h>
@@ -68,9 +69,9 @@ int ioprio_check_cap(int ioprio)
 
 	switch (class) {
 		case IOPRIO_CLASS_RT:
-			if (!capable(CAP_SYS_ADMIN))
+			if (!capable(CAP_SYS_NICE) && !capable(CAP_SYS_ADMIN))
 				return -EPERM;
-			/* fall through */
+			fallthrough;
 			/* rt has prio field too */
 		case IOPRIO_CLASS_BE:
 			if (data >= IOPRIO_BE_NR || data < 0)

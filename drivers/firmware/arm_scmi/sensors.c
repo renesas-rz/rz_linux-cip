@@ -5,12 +5,17 @@
  * Copyright (C) 2018 ARM Ltd.
  */
 
+#define pr_fmt(fmt) "SCMI Notifications SENSOR - " fmt
+
+#include <linux/scmi_protocol.h>
+
 #include "common.h"
+#include "notify.h"
 
 enum scmi_sensor_protocol_cmd {
 	SENSOR_DESCRIPTION_GET = 0x3,
-	SENSOR_CONFIG_SET = 0x4,
-	SENSOR_TRIP_POINT_SET = 0x5,
+	SENSOR_TRIP_POINT_NOTIFY = 0x4,
+	SENSOR_TRIP_POINT_CONFIG = 0x5,
 	SENSOR_READING_GET = 0x6,
 };
 
@@ -34,15 +39,18 @@ struct scmi_msg_resp_sensor_description {
 		__le32 attributes_high;
 #define SENSOR_TYPE(x)		((x) & 0xff)
 #define SENSOR_SCALE(x)		(((x) >> 11) & 0x1f)
+#define SENSOR_SCALE_SIGN	BIT(4)
+#define SENSOR_SCALE_EXTEND	GENMASK(7, 5)
 #define SENSOR_UPDATE_SCALE(x)	(((x) >> 22) & 0x1f)
 #define SENSOR_UPDATE_BASE(x)	(((x) >> 27) & 0x1f)
 		    u8 name[SCMI_MAX_STR_SIZE];
 	} desc[0];
 };
 
-struct scmi_msg_set_sensor_config {
+struct scmi_msg_sensor_trip_point_notify {
 	__le32 id;
 	__le32 event_control;
+#define SENSOR_TP_NOTIFY_ALL	BIT(0)
 };
 
 struct scmi_msg_set_sensor_trip_point {
@@ -64,7 +72,14 @@ struct scmi_msg_sensor_reading_get {
 #define SENSOR_READ_ASYNC	BIT(0)
 };
 
+struct scmi_sensor_trip_notify_payld {
+	__le32 agent_id;
+	__le32 sensor_id;
+	__le32 trip_point_desc;
+};
+
 struct sensors_info {
+	u32 version;
 	int num_sensors;
 	int max_requests;
 	u64 reg_addr;
@@ -117,7 +132,7 @@ static int scmi_sensor_description_get(const struct scmi_handle *handle,
 
 	do {
 		/* Set the number of sensors to be skipped/already read */
-		*(__le32 *)t->tx.buf = cpu_to_le32(desc_index);
+		put_unaligned_le32(desc_index, t->tx.buf);
 
 		ret = scmi_do_xfer(handle, t);
 		if (ret)
@@ -133,17 +148,26 @@ static int scmi_sensor_description_get(const struct scmi_handle *handle,
 		}
 
 		for (cnt = 0; cnt < num_returned; cnt++) {
-			u32 attrh;
+			u32 attrh, attrl;
 			struct scmi_sensor_info *s;
 
+			attrl = le32_to_cpu(buf->desc[cnt].attributes_low);
 			attrh = le32_to_cpu(buf->desc[cnt].attributes_high);
 			s = &si->sensors[desc_index + cnt];
 			s->id = le32_to_cpu(buf->desc[cnt].id);
 			s->type = SENSOR_TYPE(attrh);
+			s->scale = SENSOR_SCALE(attrh);
+			/* Sign extend to a full s8 */
+			if (s->scale & SENSOR_SCALE_SIGN)
+				s->scale |= SENSOR_SCALE_EXTEND;
+			s->async = SUPPORTS_ASYNC_READ(attrl);
+			s->num_trip_points = NUM_TRIP_POINTS(attrl);
 			strlcpy(s->name, buf->desc[cnt].name, SCMI_MAX_STR_SIZE);
 		}
 
 		desc_index += num_returned;
+
+		scmi_reset_rx_to_maxsz(handle, t);
 		/*
 		 * check for both returned and remaining to avoid infinite
 		 * loop due to buggy firmware
@@ -154,15 +178,15 @@ static int scmi_sensor_description_get(const struct scmi_handle *handle,
 	return ret;
 }
 
-static int
-scmi_sensor_configuration_set(const struct scmi_handle *handle, u32 sensor_id)
+static int scmi_sensor_trip_point_notify(const struct scmi_handle *handle,
+					 u32 sensor_id, bool enable)
 {
 	int ret;
-	u32 evt_cntl = BIT(0);
+	u32 evt_cntl = enable ? SENSOR_TP_NOTIFY_ALL : 0;
 	struct scmi_xfer *t;
-	struct scmi_msg_set_sensor_config *cfg;
+	struct scmi_msg_sensor_trip_point_notify *cfg;
 
-	ret = scmi_xfer_get_init(handle, SENSOR_CONFIG_SET,
+	ret = scmi_xfer_get_init(handle, SENSOR_TRIP_POINT_NOTIFY,
 				 SCMI_PROTOCOL_SENSOR, sizeof(*cfg), 0, &t);
 	if (ret)
 		return ret;
@@ -177,15 +201,16 @@ scmi_sensor_configuration_set(const struct scmi_handle *handle, u32 sensor_id)
 	return ret;
 }
 
-static int scmi_sensor_trip_point_set(const struct scmi_handle *handle,
-				      u32 sensor_id, u8 trip_id, u64 trip_value)
+static int
+scmi_sensor_trip_point_config(const struct scmi_handle *handle, u32 sensor_id,
+			      u8 trip_id, u64 trip_value)
 {
 	int ret;
 	u32 evt_cntl = SENSOR_TP_BOTH;
 	struct scmi_xfer *t;
 	struct scmi_msg_set_sensor_trip_point *trip;
 
-	ret = scmi_xfer_get_init(handle, SENSOR_TRIP_POINT_SET,
+	ret = scmi_xfer_get_init(handle, SENSOR_TRIP_POINT_CONFIG,
 				 SCMI_PROTOCOL_SENSOR, sizeof(*trip), 0, &t);
 	if (ret)
 		return ret;
@@ -203,11 +228,13 @@ static int scmi_sensor_trip_point_set(const struct scmi_handle *handle,
 }
 
 static int scmi_sensor_reading_get(const struct scmi_handle *handle,
-				   u32 sensor_id, bool async, u64 *value)
+				   u32 sensor_id, u64 *value)
 {
 	int ret;
 	struct scmi_xfer *t;
 	struct scmi_msg_sensor_reading_get *sensor;
+	struct sensors_info *si = handle->sensor_priv;
+	struct scmi_sensor_info *s = si->sensors + sensor_id;
 
 	ret = scmi_xfer_get_init(handle, SENSOR_READING_GET,
 				 SCMI_PROTOCOL_SENSOR, sizeof(*sensor),
@@ -217,14 +244,18 @@ static int scmi_sensor_reading_get(const struct scmi_handle *handle,
 
 	sensor = t->tx.buf;
 	sensor->id = cpu_to_le32(sensor_id);
-	sensor->flags = cpu_to_le32(async ? SENSOR_READ_ASYNC : 0);
 
-	ret = scmi_do_xfer(handle, t);
-	if (!ret) {
-		__le32 *pval = t->rx.buf;
-
-		*value = le32_to_cpu(*pval);
-		*value |= (u64)le32_to_cpu(*(pval + 1)) << 32;
+	if (s->async) {
+		sensor->flags = cpu_to_le32(SENSOR_READ_ASYNC);
+		ret = scmi_do_xfer_with_response(handle, t);
+		if (!ret)
+			*value = get_unaligned_le64((void *)
+						    ((__le32 *)t->rx.buf + 1));
+	} else {
+		sensor->flags = cpu_to_le32(0);
+		ret = scmi_do_xfer(handle, t);
+		if (!ret)
+			*value = get_unaligned_le64(t->rx.buf);
 	}
 
 	scmi_xfer_put(handle, t);
@@ -246,12 +277,58 @@ static int scmi_sensor_count_get(const struct scmi_handle *handle)
 	return si->num_sensors;
 }
 
-static struct scmi_sensor_ops sensor_ops = {
+static const struct scmi_sensor_ops sensor_ops = {
 	.count_get = scmi_sensor_count_get,
 	.info_get = scmi_sensor_info_get,
-	.configuration_set = scmi_sensor_configuration_set,
-	.trip_point_set = scmi_sensor_trip_point_set,
+	.trip_point_config = scmi_sensor_trip_point_config,
 	.reading_get = scmi_sensor_reading_get,
+};
+
+static int scmi_sensor_set_notify_enabled(const struct scmi_handle *handle,
+					  u8 evt_id, u32 src_id, bool enable)
+{
+	int ret;
+
+	ret = scmi_sensor_trip_point_notify(handle, src_id, enable);
+	if (ret)
+		pr_debug("FAIL_ENABLED - evt[%X] dom[%d] - ret:%d\n",
+			 evt_id, src_id, ret);
+
+	return ret;
+}
+
+static void *scmi_sensor_fill_custom_report(const struct scmi_handle *handle,
+					    u8 evt_id, ktime_t timestamp,
+					    const void *payld, size_t payld_sz,
+					    void *report, u32 *src_id)
+{
+	const struct scmi_sensor_trip_notify_payld *p = payld;
+	struct scmi_sensor_trip_point_report *r = report;
+
+	if (evt_id != SCMI_EVENT_SENSOR_TRIP_POINT_EVENT ||
+	    sizeof(*p) != payld_sz)
+		return NULL;
+
+	r->timestamp = timestamp;
+	r->agent_id = le32_to_cpu(p->agent_id);
+	r->sensor_id = le32_to_cpu(p->sensor_id);
+	r->trip_point_desc = le32_to_cpu(p->trip_point_desc);
+	*src_id = r->sensor_id;
+
+	return r;
+}
+
+static const struct scmi_event sensor_events[] = {
+	{
+		.id = SCMI_EVENT_SENSOR_TRIP_POINT_EVENT,
+		.max_payld_sz = sizeof(struct scmi_sensor_trip_notify_payld),
+		.max_report_sz = sizeof(struct scmi_sensor_trip_point_report),
+	},
+};
+
+static const struct scmi_event_ops sensor_event_ops = {
+	.set_notify_enabled = scmi_sensor_set_notify_enabled,
+	.fill_custom_report = scmi_sensor_fill_custom_report,
 };
 
 static int scmi_sensors_protocol_init(struct scmi_handle *handle)
@@ -277,15 +354,17 @@ static int scmi_sensors_protocol_init(struct scmi_handle *handle)
 
 	scmi_sensor_description_get(handle, sinfo);
 
+	scmi_register_protocol_events(handle,
+				      SCMI_PROTOCOL_SENSOR, SCMI_PROTO_QUEUE_SZ,
+				      &sensor_event_ops, sensor_events,
+				      ARRAY_SIZE(sensor_events),
+				      sinfo->num_sensors);
+
+	sinfo->version = version;
 	handle->sensor_ops = &sensor_ops;
 	handle->sensor_priv = sinfo;
 
 	return 0;
 }
 
-static int __init scmi_sensors_init(void)
-{
-	return scmi_protocol_register(SCMI_PROTOCOL_SENSOR,
-				      &scmi_sensors_protocol_init);
-}
-subsys_initcall(scmi_sensors_init);
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(SCMI_PROTOCOL_SENSOR, sensors)

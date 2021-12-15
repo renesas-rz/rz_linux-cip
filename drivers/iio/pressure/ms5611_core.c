@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * MS5611 pressure and temperature sensor driver
  *
  * Copyright (c) Tomasz Duszynski <tduszyns@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Data sheet:
  *  http://www.meas-spec.com/downloads/MS5611-01BA03.pdf
@@ -443,7 +440,6 @@ int ms5611_probe(struct iio_dev *indio_dev, struct device *dev,
 	st->pressure_osr =
 		&ms5611_avail_pressure_osr[ARRAY_SIZE(ms5611_avail_pressure_osr)
 					   - 1];
-	indio_dev->dev.parent = dev;
 	indio_dev->name = name;
 	indio_dev->info = &ms5611_info;
 	indio_dev->channels = ms5611_channels;

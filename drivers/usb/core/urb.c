@@ -71,9 +71,8 @@ struct urb *usb_alloc_urb(int iso_packets, gfp_t mem_flags)
 {
 	struct urb *urb;
 
-	urb = kmalloc(sizeof(struct urb) +
-		iso_packets * sizeof(struct usb_iso_packet_descriptor),
-		mem_flags);
+	urb = kmalloc(struct_size(urb, iso_frame_desc, iso_packets),
+		      mem_flags);
 	if (!urb)
 		return NULL;
 	usb_init_urb(urb);
@@ -193,6 +192,28 @@ static const int pipetypes[4] = {
 };
 
 /**
+ * usb_pipe_type_check - sanity check of a specific pipe for a usb device
+ * @dev: struct usb_device to be checked
+ * @pipe: pipe to check
+ *
+ * This performs a light-weight sanity check for the endpoint in the
+ * given usb device.  It returns 0 if the pipe is valid for the specific usb
+ * device, otherwise a negative error code.
+ */
+int usb_pipe_type_check(struct usb_device *dev, unsigned int pipe)
+{
+	const struct usb_host_endpoint *ep;
+
+	ep = usb_pipe_endpoint(dev, pipe);
+	if (!ep)
+		return -EINVAL;
+	if (usb_pipetype(pipe) != pipetypes[usb_endpoint_type(&ep->desc)])
+		return -EINVAL;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usb_pipe_type_check);
+
+/**
  * usb_urb_ep_type_check - sanity check of endpoint in the given urb
  * @urb: urb to be checked
  *
@@ -202,14 +223,7 @@ static const int pipetypes[4] = {
  */
 int usb_urb_ep_type_check(const struct urb *urb)
 {
-	const struct usb_host_endpoint *ep;
-
-	ep = usb_pipe_endpoint(urb->dev, urb->pipe);
-	if (!ep)
-		return -EINVAL;
-	if (usb_pipetype(urb->pipe) != pipetypes[usb_endpoint_type(&ep->desc)])
-		return -EINVAL;
-	return 0;
+	return usb_pipe_type_check(urb->dev, urb->pipe);
 }
 EXPORT_SYMBOL_GPL(usb_urb_ep_type_check);
 
@@ -475,7 +489,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	 */
 
 	/* Check that the pipe's type matches the endpoint's type */
-	if (usb_urb_ep_type_check(urb))
+	if (usb_pipe_type_check(urb->dev, urb->pipe))
 		dev_WARN(&dev->dev, "BOGUS urb xfer, pipe %x != type %x\n",
 			usb_pipetype(urb->pipe), pipetypes[xfertype]);
 
@@ -487,7 +501,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	case USB_ENDPOINT_XFER_INT:
 		if (is_out)
 			allowed |= URB_ZERO_PACKET;
-		/* FALLTHROUGH */
+		fallthrough;
 	default:			/* all non-iso endpoints */
 		if (!is_out)
 			allowed |= URB_SHORT_NOT_OK;
@@ -520,7 +534,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 			if ((urb->interval < 6)
 				&& (xfertype == USB_ENDPOINT_XFER_INT))
 				return -EINVAL;
-			/* fall through */
+			fallthrough;
 		default:
 			if (urb->interval <= 0)
 				return -EINVAL;

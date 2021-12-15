@@ -262,6 +262,22 @@ struct xenvif_hash {
 	struct xenvif_hash_cache cache;
 };
 
+struct backend_info {
+	struct xenbus_device *dev;
+	struct xenvif *vif;
+
+	/* This is the state that will be reflected in xenstore when any
+	 * active hotplug script completes.
+	 */
+	enum xenbus_state state;
+
+	enum xenbus_state frontend_state;
+	struct xenbus_watch hotplug_status_watch;
+	u8 have_hotplug_status_watch:1;
+
+	const char *hotplug_script;
+};
+
 struct xenvif {
 	/* Unique identifier for this interface. */
 	domid_t          domid;
@@ -278,6 +294,9 @@ struct xenvif {
 	u8 ip_csum:1;
 	u8 ipv6_csum:1;
 	u8 multicast_control:1;
+
+	/* headroom requested by xen-netfront */
+	u16 xdp_headroom;
 
 	/* Is this interface disabled? True when backend discovers
 	 * frontend is rogue.
@@ -296,6 +315,8 @@ struct xenvif {
 
 	struct xenbus_watch credit_watch;
 	struct xenbus_watch mcast_ctrl_watch;
+
+	struct backend_info *be;
 
 	spinlock_t lock;
 
@@ -392,6 +413,7 @@ static inline pending_ring_idx_t nr_pending_reqs(struct xenvif_queue *queue)
 irqreturn_t xenvif_interrupt(int irq, void *dev_id);
 
 extern bool separate_tx_rx_irq;
+extern bool provides_xdp_headroom;
 
 extern unsigned int rx_drain_timeout_msecs;
 extern unsigned int rx_stall_timeout_msecs;

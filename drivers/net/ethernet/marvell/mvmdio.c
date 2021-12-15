@@ -330,6 +330,12 @@ static int orion_mdio_probe(struct platform_device *pdev)
 				break;
 			clk_prepare_enable(dev->clk[i]);
 		}
+
+		if (!IS_ERR(of_clk_get(pdev->dev.of_node,
+				       ARRAY_SIZE(dev->clk))))
+			dev_warn(&pdev->dev,
+				 "unsupported number of clocks, limiting to the first "
+				 __stringify(ARRAY_SIZE(dev->clk)) "\n");
 	} else {
 		dev->clk[0] = clk_get(&pdev->dev, NULL);
 		if (PTR_ERR(dev->clk[0]) == -EPROBE_DEFER) {
@@ -340,7 +346,8 @@ static int orion_mdio_probe(struct platform_device *pdev)
 			clk_prepare_enable(dev->clk[0]);
 	}
 
-	dev->err_interrupt = platform_get_irq(pdev, 0);
+
+	dev->err_interrupt = platform_get_irq_optional(pdev, 0);
 	if (dev->err_interrupt > 0 &&
 	    resource_size(r) < MVMDIO_ERR_INT_MASK + 4) {
 		dev_err(&pdev->dev,

@@ -1,29 +1,28 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * rcar_du_crtc.c  --  R-Car Display Unit CRTCs
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/clk.h>
 #include <linux/mutex.h>
+#include <linux/platform_device.h>
 #include <linux/sys_soc.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_vblank.h>
 
+#include "rcar_cmm.h"
 #include "rcar_du_crtc.h"
 #include "rcar_du_drv.h"
 #include "rcar_du_encoder.h"
@@ -35,21 +34,21 @@
 
 static u32 rcar_du_crtc_read(struct rcar_du_crtc *rcrtc, u32 reg)
 {
-	struct rcar_du_device *rcdu = rcrtc->group->dev;
+	struct rcar_du_device *rcdu = rcrtc->dev;
 
 	return rcar_du_read(rcdu, rcrtc->mmio_offset + reg);
 }
 
 static void rcar_du_crtc_write(struct rcar_du_crtc *rcrtc, u32 reg, u32 data)
 {
-	struct rcar_du_device *rcdu = rcrtc->group->dev;
+	struct rcar_du_device *rcdu = rcrtc->dev;
 
 	rcar_du_write(rcdu, rcrtc->mmio_offset + reg, data);
 }
 
 static void rcar_du_crtc_clr(struct rcar_du_crtc *rcrtc, u32 reg, u32 clr)
 {
-	struct rcar_du_device *rcdu = rcrtc->group->dev;
+	struct rcar_du_device *rcdu = rcrtc->dev;
 
 	rcar_du_write(rcdu, rcrtc->mmio_offset + reg,
 		      rcar_du_read(rcdu, rcrtc->mmio_offset + reg) & ~clr);
@@ -57,7 +56,7 @@ static void rcar_du_crtc_clr(struct rcar_du_crtc *rcrtc, u32 reg, u32 clr)
 
 static void rcar_du_crtc_set(struct rcar_du_crtc *rcrtc, u32 reg, u32 set)
 {
-	struct rcar_du_device *rcdu = rcrtc->group->dev;
+	struct rcar_du_device *rcdu = rcrtc->dev;
 
 	rcar_du_write(rcdu, rcrtc->mmio_offset + reg,
 		      rcar_du_read(rcdu, rcrtc->mmio_offset + reg) | set);
@@ -65,7 +64,7 @@ static void rcar_du_crtc_set(struct rcar_du_crtc *rcrtc, u32 reg, u32 set)
 
 void rcar_du_crtc_dsysr_clr_set(struct rcar_du_crtc *rcrtc, u32 clr, u32 set)
 {
-	struct rcar_du_device *rcdu = rcrtc->group->dev;
+	struct rcar_du_device *rcdu = rcrtc->dev;
 
 	rcrtc->dsysr = (rcrtc->dsysr & ~clr) | set;
 	rcar_du_write(rcdu, rcrtc->mmio_offset + DSYSR, rcrtc->dsysr);
@@ -160,10 +159,9 @@ static void rcar_du_dpll_divider(struct rcar_du_crtc *rcrtc,
 	}
 
 done:
-	dev_dbg(rcrtc->group->dev->dev,
+	dev_dbg(rcrtc->dev->dev,
 		"output:%u, fdpll:%u, n:%u, m:%u, diff:%lu\n",
-		 dpll->output, dpll->fdpll, dpll->n, dpll->m,
-		 best_diff);
+		 dpll->output, dpll->fdpll, dpll->n, dpll->m, best_diff);
 }
 
 struct du_clk_params {
@@ -215,7 +213,7 @@ static const struct soc_device_attribute rcar_du_r8a7795_es1[] = {
 static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 {
 	const struct drm_display_mode *mode = &rcrtc->crtc.state->adjusted_mode;
-	struct rcar_du_device *rcdu = rcrtc->group->dev;
+	struct rcar_du_device *rcdu = rcrtc->dev;
 	unsigned long mode_clock = mode->clock * 1000;
 	u32 dsmr;
 	u32 escr;
@@ -280,7 +278,7 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 			rcar_du_escr_divider(rcrtc->extclock, mode_clock,
 					     ESCR_DCLKSEL_DCLKIN, &params);
 
-		dev_dbg(rcrtc->group->dev->dev,	"mode clock %lu %s rate %lu\n",
+		dev_dbg(rcrtc->dev->dev, "mode clock %lu %s rate %lu\n",
 			mode_clock, params.clk == rcrtc->clock ? "cpg" : "ext",
 			params.rate);
 
@@ -288,11 +286,10 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 		escr = params.escr;
 	}
 
-	dev_dbg(rcrtc->group->dev->dev, "%s: ESCR 0x%08x\n", __func__, escr);
+	dev_dbg(rcrtc->dev->dev, "%s: ESCR 0x%08x\n", __func__, escr);
 
-	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? ESCR2 : ESCR,
-			    escr);
-	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? OTAR2 : OTAR, 0);
+	rcar_du_crtc_write(rcrtc, rcrtc->index % 2 ? ESCR13 : ESCR02, escr);
+	rcar_du_crtc_write(rcrtc, rcrtc->index % 2 ? OTAR13 : OTAR02, 0);
 
 	/* Signal polarities */
 	dsmr = ((mode->flags & DRM_MODE_FLAG_PVSYNC) ? DSMR_VSL : 0)
@@ -337,7 +334,7 @@ plane_format(struct rcar_du_plane *plane)
 static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 {
 	struct rcar_du_plane *planes[RCAR_DU_NUM_HW_PLANES];
-	struct rcar_du_device *rcdu = rcrtc->group->dev;
+	struct rcar_du_device *rcdu = rcrtc->dev;
 	unsigned int num_planes = 0;
 	unsigned int dptsr_planes;
 	unsigned int hwplanes = 0;
@@ -467,7 +464,7 @@ static bool rcar_du_crtc_page_flip_pending(struct rcar_du_crtc *rcrtc)
 
 static void rcar_du_crtc_wait_page_flip(struct rcar_du_crtc *rcrtc)
 {
-	struct rcar_du_device *rcdu = rcrtc->group->dev;
+	struct rcar_du_device *rcdu = rcrtc->dev;
 
 	if (wait_event_timeout(rcrtc->flip_wait,
 			       !rcar_du_crtc_page_flip_pending(rcrtc),
@@ -477,6 +474,45 @@ static void rcar_du_crtc_wait_page_flip(struct rcar_du_crtc *rcrtc)
 	dev_warn(rcdu->dev, "page flip timeout\n");
 
 	rcar_du_crtc_finish_page_flip(rcrtc);
+}
+
+/* -----------------------------------------------------------------------------
+ * Color Management Module (CMM)
+ */
+
+static int rcar_du_cmm_check(struct drm_crtc *crtc,
+			     struct drm_crtc_state *state)
+{
+	struct drm_property_blob *drm_lut = state->gamma_lut;
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+	struct device *dev = rcrtc->dev->dev;
+
+	if (!drm_lut)
+		return 0;
+
+	/* We only accept fully populated LUT tables. */
+	if (drm_color_lut_size(drm_lut) != CM2_LUT_SIZE) {
+		dev_err(dev, "invalid gamma lut size: %zu bytes\n",
+			drm_lut->length);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void rcar_du_cmm_setup(struct drm_crtc *crtc)
+{
+	struct drm_property_blob *drm_lut = crtc->state->gamma_lut;
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+	struct rcar_cmm_config cmm_config = {};
+
+	if (!rcrtc->cmm)
+		return;
+
+	if (drm_lut)
+		cmm_config.lut.table = (struct drm_color_lut *)drm_lut->data;
+
+	rcar_cmm_setup(rcrtc->cmm, &cmm_config);
 }
 
 /* -----------------------------------------------------------------------------
@@ -497,7 +533,7 @@ static void rcar_du_crtc_setup(struct rcar_du_crtc *rcrtc)
 	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? DS2PR : DS1PR, 0);
 
 	/* Enable the VSP compositor. */
-	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
+	if (rcar_du_has(rcrtc->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
 		rcar_du_vsp_enable(rcrtc);
 
 	/* Turn vertical blanking interrupt reporting on. */
@@ -568,7 +604,7 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 
 static void rcar_du_crtc_disable_planes(struct rcar_du_crtc *rcrtc)
 {
-	struct rcar_du_device *rcdu = rcrtc->group->dev;
+	struct rcar_du_device *rcdu = rcrtc->dev;
 	struct drm_crtc *crtc = &rcrtc->crtc;
 	u32 status;
 
@@ -621,8 +657,11 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	drm_crtc_vblank_off(crtc);
 
 	/* Disable the VSP compositor. */
-	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
+	if (rcar_du_has(rcrtc->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
 		rcar_du_vsp_disable(rcrtc);
+
+	if (rcrtc->cmm)
+		rcar_cmm_disable(rcrtc->cmm);
 
 	/*
 	 * Select switch sync mode. This stops display operation and configures
@@ -631,7 +670,7 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	 * TODO: Find another way to stop the display for DUs that don't support
 	 * TVM sync.
 	 */
-	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_TVM_SYNC))
+	if (rcar_du_has(rcrtc->dev, RCAR_DU_FEATURE_TVM_SYNC))
 		rcar_du_crtc_dsysr_clr_set(rcrtc, DSYSR_TVM_MASK,
 					   DSYSR_TVM_SWITCH);
 
@@ -647,13 +686,23 @@ static int rcar_du_crtc_atomic_check(struct drm_crtc *crtc,
 {
 	struct rcar_du_crtc_state *rstate = to_rcar_crtc_state(state);
 	struct drm_encoder *encoder;
+	int ret;
+
+	ret = rcar_du_cmm_check(crtc, state);
+	if (ret)
+		return ret;
 
 	/* Store the routes from the CRTC output to the DU outputs. */
 	rstate->outputs = 0;
 
 	drm_for_each_encoder_mask(encoder, crtc->dev, state->encoder_mask) {
-		struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
+		struct rcar_du_encoder *renc;
 
+		/* Skip the writeback encoder. */
+		if (encoder->encoder_type == DRM_MODE_ENCODER_VIRTUAL)
+			continue;
+
+		renc = to_rcar_encoder(encoder);
 		rstate->outputs |= BIT(renc->output);
 	}
 
@@ -665,8 +714,10 @@ static void rcar_du_crtc_atomic_enable(struct drm_crtc *crtc,
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 	struct rcar_du_crtc_state *rstate = to_rcar_crtc_state(crtc->state);
-	struct rcar_du_device *rcdu = rcrtc->group->dev;
+	struct rcar_du_device *rcdu = rcrtc->dev;
 
+	if (rcrtc->cmm)
+		rcar_cmm_enable(rcrtc->cmm);
 	rcar_du_crtc_get(rcrtc);
 
 	/*
@@ -676,16 +727,21 @@ static void rcar_du_crtc_atomic_enable(struct drm_crtc *crtc,
 	 */
 	if (rcdu->info->lvds_clk_mask & BIT(rcrtc->index) &&
 	    rstate->outputs == BIT(RCAR_DU_OUTPUT_DPAD0)) {
-		struct rcar_du_encoder *encoder =
-			rcdu->encoders[RCAR_DU_OUTPUT_LVDS0 + rcrtc->index];
+		struct drm_bridge *bridge = rcdu->lvds[rcrtc->index];
 		const struct drm_display_mode *mode =
 			&crtc->state->adjusted_mode;
 
-		rcar_lvds_clk_enable(encoder->base.bridge,
-				     mode->clock * 1000);
+		rcar_lvds_clk_enable(bridge, mode->clock * 1000);
 	}
 
 	rcar_du_crtc_start(rcrtc);
+
+	/*
+	 * TODO: The chip manual indicates that CMM tables should be written
+	 * after the DU channel has been activated. Investigate the impact
+	 * of this restriction on the first displayed frame.
+	 */
+	rcar_du_cmm_setup(crtc);
 }
 
 static void rcar_du_crtc_atomic_disable(struct drm_crtc *crtc,
@@ -693,21 +749,20 @@ static void rcar_du_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 	struct rcar_du_crtc_state *rstate = to_rcar_crtc_state(old_state);
-	struct rcar_du_device *rcdu = rcrtc->group->dev;
+	struct rcar_du_device *rcdu = rcrtc->dev;
 
 	rcar_du_crtc_stop(rcrtc);
 	rcar_du_crtc_put(rcrtc);
 
 	if (rcdu->info->lvds_clk_mask & BIT(rcrtc->index) &&
 	    rstate->outputs == BIT(RCAR_DU_OUTPUT_DPAD0)) {
-		struct rcar_du_encoder *encoder =
-			rcdu->encoders[RCAR_DU_OUTPUT_LVDS0 + rcrtc->index];
+		struct drm_bridge *bridge = rcdu->lvds[rcrtc->index];
 
 		/*
 		 * Disable the LVDS clock output, see
 		 * rcar_du_crtc_atomic_enable().
 		 */
-		rcar_lvds_clk_disable(encoder->base.bridge);
+		rcar_lvds_clk_disable(bridge);
 	}
 
 	spin_lock_irq(&crtc->dev->event_lock);
@@ -734,12 +789,16 @@ static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc,
 	 * CRTC will be put later in .atomic_disable().
 	 *
 	 * If a mode set is not in progress the CRTC is enabled, and the
-	 * following get call will be a no-op. There is thus no need to belance
+	 * following get call will be a no-op. There is thus no need to balance
 	 * it in .atomic_flush() either.
 	 */
 	rcar_du_crtc_get(rcrtc);
 
-	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
+	/* If the active state changed, we let .atomic_enable handle CMM. */
+	if (crtc->state->color_mgmt_changed && !crtc->state->active_changed)
+		rcar_du_cmm_setup(crtc);
+
+	if (rcar_du_has(rcrtc->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
 		rcar_du_vsp_atomic_begin(rcrtc);
 }
 
@@ -761,15 +820,16 @@ static void rcar_du_crtc_atomic_flush(struct drm_crtc *crtc,
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 
-	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
+	if (rcar_du_has(rcrtc->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
 		rcar_du_vsp_atomic_flush(rcrtc);
 }
 
-enum drm_mode_status rcar_du_crtc_mode_valid(struct drm_crtc *crtc,
-				   const struct drm_display_mode *mode)
+static enum drm_mode_status
+rcar_du_crtc_mode_valid(struct drm_crtc *crtc,
+			const struct drm_display_mode *mode)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
-	struct rcar_du_device *rcdu = rcrtc->group->dev;
+	struct rcar_du_device *rcdu = rcrtc->dev;
 	bool interlaced = mode->flags & DRM_MODE_FLAG_INTERLACE;
 	unsigned int vbp;
 
@@ -799,6 +859,65 @@ static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.mode_valid = rcar_du_crtc_mode_valid,
 };
 
+static void rcar_du_crtc_crc_init(struct rcar_du_crtc *rcrtc)
+{
+	struct rcar_du_device *rcdu = rcrtc->dev;
+	const char **sources;
+	unsigned int count;
+	int i = -1;
+
+	/* CRC available only on Gen3 HW. */
+	if (rcdu->info->gen < 3)
+		return;
+
+	/* Reserve 1 for "auto" source. */
+	count = rcrtc->vsp->num_planes + 1;
+
+	sources = kmalloc_array(count, sizeof(*sources), GFP_KERNEL);
+	if (!sources)
+		return;
+
+	sources[0] = kstrdup("auto", GFP_KERNEL);
+	if (!sources[0])
+		goto error;
+
+	for (i = 0; i < rcrtc->vsp->num_planes; ++i) {
+		struct drm_plane *plane = &rcrtc->vsp->planes[i].plane;
+		char name[16];
+
+		sprintf(name, "plane%u", plane->base.id);
+		sources[i + 1] = kstrdup(name, GFP_KERNEL);
+		if (!sources[i + 1])
+			goto error;
+	}
+
+	rcrtc->sources = sources;
+	rcrtc->sources_count = count;
+	return;
+
+error:
+	while (i >= 0) {
+		kfree(sources[i]);
+		i--;
+	}
+	kfree(sources);
+}
+
+static void rcar_du_crtc_crc_cleanup(struct rcar_du_crtc *rcrtc)
+{
+	unsigned int i;
+
+	if (!rcrtc->sources)
+		return;
+
+	for (i = 0; i < rcrtc->sources_count; i++)
+		kfree(rcrtc->sources[i]);
+	kfree(rcrtc->sources);
+
+	rcrtc->sources = NULL;
+	rcrtc->sources_count = 0;
+}
+
 static struct drm_crtc_state *
 rcar_du_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
 {
@@ -825,6 +944,15 @@ static void rcar_du_crtc_atomic_destroy_state(struct drm_crtc *crtc,
 	kfree(to_rcar_crtc_state(state));
 }
 
+static void rcar_du_crtc_cleanup(struct drm_crtc *crtc)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+
+	rcar_du_crtc_crc_cleanup(rcrtc);
+
+	return drm_crtc_cleanup(crtc);
+}
+
 static void rcar_du_crtc_reset(struct drm_crtc *crtc)
 {
 	struct rcar_du_crtc_state *state;
@@ -841,8 +969,7 @@ static void rcar_du_crtc_reset(struct drm_crtc *crtc)
 	state->crc.source = VSP1_DU_CRC_NONE;
 	state->crc.index = 0;
 
-	crtc->state = &state->state;
-	crtc->state->crtc = crtc;
+	__drm_atomic_helper_crtc_reset(crtc, &state->state);
 }
 
 static int rcar_du_crtc_enable_vblank(struct drm_crtc *crtc)
@@ -864,17 +991,11 @@ static void rcar_du_crtc_disable_vblank(struct drm_crtc *crtc)
 	rcrtc->vblank_enable = false;
 }
 
-static int rcar_du_crtc_set_crc_source(struct drm_crtc *crtc,
-				       const char *source_name,
-				       size_t *values_cnt)
+static int rcar_du_crtc_parse_crc_source(struct rcar_du_crtc *rcrtc,
+					 const char *source_name,
+					 enum vsp1_du_crc_source *source)
 {
-	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
-	struct drm_modeset_acquire_ctx ctx;
-	struct drm_crtc_state *crtc_state;
-	struct drm_atomic_state *state;
-	enum vsp1_du_crc_source source;
-	unsigned int index = 0;
-	unsigned int i;
+	unsigned int index;
 	int ret;
 
 	/*
@@ -882,31 +1003,72 @@ static int rcar_du_crtc_set_crc_source(struct drm_crtc *crtc,
 	 * CRC on an input plane (%u is the plane ID), and "auto" to compute the
 	 * CRC on the composer (VSP) output.
 	 */
+
 	if (!source_name) {
-		source = VSP1_DU_CRC_NONE;
+		*source = VSP1_DU_CRC_NONE;
+		return 0;
 	} else if (!strcmp(source_name, "auto")) {
-		source = VSP1_DU_CRC_OUTPUT;
+		*source = VSP1_DU_CRC_OUTPUT;
+		return 0;
 	} else if (strstarts(source_name, "plane")) {
-		source = VSP1_DU_CRC_PLANE;
+		unsigned int i;
+
+		*source = VSP1_DU_CRC_PLANE;
 
 		ret = kstrtouint(source_name + strlen("plane"), 10, &index);
 		if (ret < 0)
 			return ret;
 
 		for (i = 0; i < rcrtc->vsp->num_planes; ++i) {
-			if (index == rcrtc->vsp->planes[i].plane.base.id) {
-				index = i;
-				break;
-			}
+			if (index == rcrtc->vsp->planes[i].plane.base.id)
+				return i;
 		}
+	}
 
-		if (i >= rcrtc->vsp->num_planes)
-			return -EINVAL;
-	} else {
+	return -EINVAL;
+}
+
+static int rcar_du_crtc_verify_crc_source(struct drm_crtc *crtc,
+					  const char *source_name,
+					  size_t *values_cnt)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+	enum vsp1_du_crc_source source;
+
+	if (rcar_du_crtc_parse_crc_source(rcrtc, source_name, &source) < 0) {
+		DRM_DEBUG_DRIVER("unknown source %s\n", source_name);
 		return -EINVAL;
 	}
 
 	*values_cnt = 1;
+	return 0;
+}
+
+static const char *const *
+rcar_du_crtc_get_crc_sources(struct drm_crtc *crtc, size_t *count)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+
+	*count = rcrtc->sources_count;
+	return rcrtc->sources;
+}
+
+static int rcar_du_crtc_set_crc_source(struct drm_crtc *crtc,
+				       const char *source_name)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_crtc_state *crtc_state;
+	struct drm_atomic_state *state;
+	enum vsp1_du_crc_source source;
+	unsigned int index;
+	int ret;
+
+	ret = rcar_du_crtc_parse_crc_source(rcrtc, source_name, &source);
+	if (ret < 0)
+		return ret;
+
+	index = ret;
 
 	/* Perform an atomic commit to set the CRC source. */
 	drm_modeset_acquire_init(&ctx, 0);
@@ -961,7 +1123,7 @@ static const struct drm_crtc_funcs crtc_funcs_gen2 = {
 
 static const struct drm_crtc_funcs crtc_funcs_gen3 = {
 	.reset = rcar_du_crtc_reset,
-	.destroy = drm_crtc_cleanup,
+	.destroy = rcar_du_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = rcar_du_crtc_atomic_duplicate_state,
@@ -969,6 +1131,9 @@ static const struct drm_crtc_funcs crtc_funcs_gen3 = {
 	.enable_vblank = rcar_du_crtc_enable_vblank,
 	.disable_vblank = rcar_du_crtc_disable_vblank,
 	.set_crc_source = rcar_du_crtc_set_crc_source,
+	.verify_crc_source = rcar_du_crtc_verify_crc_source,
+	.get_crc_sources = rcar_du_crtc_get_crc_sources,
+	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 };
 
 /* -----------------------------------------------------------------------------
@@ -978,7 +1143,7 @@ static const struct drm_crtc_funcs crtc_funcs_gen3 = {
 static irqreturn_t rcar_du_crtc_irq(int irq, void *arg)
 {
 	struct rcar_du_crtc *rcrtc = arg;
-	struct rcar_du_device *rcdu = rcrtc->group->dev;
+	struct rcar_du_device *rcdu = rcrtc->dev;
 	irqreturn_t ret = IRQ_NONE;
 	u32 status;
 
@@ -1070,6 +1235,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int swindex,
 	init_waitqueue_head(&rcrtc->vblank_wait);
 	spin_lock_init(&rcrtc->vblank_lock);
 
+	rcrtc->dev = rcdu;
 	rcrtc->group = rgrp;
 	rcrtc->mmio_offset = mmio_offsets[hwindex];
 	rcrtc->index = hwindex;
@@ -1087,10 +1253,16 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int swindex,
 	if (ret < 0)
 		return ret;
 
-	drm_crtc_helper_add(crtc, &crtc_helper_funcs);
+	/* CMM might be disabled for this CRTC. */
+	if (rcdu->cmms[swindex]) {
+		rcrtc->cmm = rcdu->cmms[swindex];
+		rgrp->cmms_mask |= BIT(hwindex % 2);
 
-	/* Start with vertical blanking interrupt reporting disabled. */
-	drm_crtc_vblank_off(crtc);
+		drm_mode_crtc_set_gamma_size(crtc, CM2_LUT_SIZE);
+		drm_crtc_enable_color_mgmt(crtc, 0, false, CM2_LUT_SIZE);
+	}
+
+	drm_crtc_helper_add(crtc, &crtc_helper_funcs);
 
 	/* Register the interrupt handler. */
 	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_CRTC_IRQ_CLOCK)) {
@@ -1114,6 +1286,8 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int swindex,
 			"failed to register IRQ for CRTC %u\n", swindex);
 		return ret;
 	}
+
+	rcar_du_crtc_crc_init(rcrtc);
 
 	return 0;
 }

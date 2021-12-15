@@ -1,15 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2001 MontaVista Software Inc.
  * Author: Matt Porter <mporter@mvista.com>
  *
  * Copyright (C) 2009 Lemote, Inc.
  * Author: Wu Zhangjin <wuzhangjin@gmail.com>
- *
- * This program is free software; you can redistribute	it and/or modify it
- * under  the terms of	the GNU General	 Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
+
+#define DISABLE_BRANCH_PROFILING
 
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -75,6 +73,10 @@ void error(char *x)
 
 #ifdef CONFIG_KERNEL_XZ
 #include "../../../../lib/decompress_unxz.c"
+#endif
+
+#ifdef CONFIG_KERNEL_ZSTD
+#include "../../../../lib/decompress_unzstd.c"
 #endif
 
 const unsigned long __stack_chk_guard = 0x000a0dff;

@@ -542,7 +542,7 @@ void tipc_group_filter_msg(struct tipc_group *grp, struct sk_buff_head *inputq,
 				update = true;
 				deliver = false;
 			}
-			/* Fall thru */
+			fallthrough;
 		case TIPC_GRP_BCAST_MSG:
 			m->bc_rcv_nxt++;
 			ack = msg_grp_bc_ack_req(hdr);
@@ -924,7 +924,10 @@ void tipc_group_member_evt(struct tipc_group *grp,
 
 int tipc_group_fill_sock_diag(struct tipc_group *grp, struct sk_buff *skb)
 {
-	struct nlattr *group = nla_nest_start(skb, TIPC_NLA_SOCK_GROUP);
+	struct nlattr *group = nla_nest_start_noflag(skb, TIPC_NLA_SOCK_GROUP);
+
+	if (!group)
+		return -EMSGSIZE;
 
 	if (nla_put_u32(skb, TIPC_NLA_SOCK_GROUP_ID,
 			grp->type) ||

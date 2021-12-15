@@ -1,15 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
    Copyright (c) 2010,2011 Code Aurora Forum.  All rights reserved.
    Copyright (c) 2011,2012 Intel Corp.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License version 2 and
-   only version 2 as published by the Free Software Foundation.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
 */
 
 #include <net/bluetooth/bluetooth.h>
@@ -63,7 +56,7 @@ static void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len, void *dat
 
 	memset(&msg, 0, sizeof(msg));
 
-	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC, &iv, 1, total_len);
+	iov_iter_kvec(&msg.msg_iter, WRITE, &iv, 1, total_len);
 
 	l2cap_chan_send(chan, &msg, total_len);
 
@@ -174,7 +167,7 @@ static int a2mp_discover_req(struct amp_mgr *mgr, struct sk_buff *skb,
 			num_ctrl++;
 	}
 
-	len = num_ctrl * sizeof(struct a2mp_cl) + sizeof(*rsp);
+	len = struct_size(rsp, cl, num_ctrl);
 	rsp = kmalloc(len, GFP_ATOMIC);
 	if (!rsp) {
 		read_unlock(&hci_dev_list_lock);
@@ -388,9 +381,9 @@ static int a2mp_getampassoc_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	hdev = hci_dev_get(req->id);
 	if (!hdev || hdev->amp_type == AMP_TYPE_BREDR || tmp) {
 		struct a2mp_amp_assoc_rsp rsp;
-		rsp.id = req->id;
 
 		memset(&rsp, 0, sizeof(rsp));
+		rsp.id = req->id;
 
 		if (tmp) {
 			rsp.status = A2MP_STATUS_COLLISION_OCCURED;
@@ -519,6 +512,7 @@ static int a2mp_createphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 		assoc = kmemdup(req->amp_assoc, assoc_len, GFP_KERNEL);
 		if (!assoc) {
 			amp_ctrl_put(ctrl);
+			hci_dev_put(hdev);
 			return -ENOMEM;
 		}
 

@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Renesas R-Car GPIO Support
  *
  *  Copyright (C) 2014 Renesas Electronics Corporation
  *  Copyright (C) 2013 Magnus Damm
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/err.h>
@@ -124,7 +116,7 @@ static void gpio_rcar_config_interrupt_input_mode(struct gpio_rcar_priv *p,
 
 	spin_lock_irqsave(&p->lock, flags);
 
-	/* Configure postive or negative logic in POSNEG */
+	/* Configure positive or negative logic in POSNEG */
 	gpio_rcar_modify_bit(p, POSNEG, hwirq, !active_high_rising_edge);
 
 	/* Configure edge or level trigger in EDGLEVEL */
@@ -236,7 +228,7 @@ static void gpio_rcar_config_general_input_output_mode(struct gpio_chip *chip,
 
 	spin_lock_irqsave(&p->lock, flags);
 
-	/* Configure postive logic in POSNEG */
+	/* Configure positive logic in POSNEG */
 	gpio_rcar_modify_bit(p, POSNEG, gpio, false);
 
 	/* Select "General Input/Output Mode" in IOINTSEL */
@@ -258,8 +250,10 @@ static int gpio_rcar_request(struct gpio_chip *chip, unsigned offset)
 	int error;
 
 	error = pm_runtime_get_sync(p->dev);
-	if (error < 0)
+	if (error < 0) {
+		pm_runtime_put(p->dev);
 		return error;
+	}
 
 	error = pinctrl_gpio_request(chip->base + offset);
 	if (error)
@@ -287,7 +281,10 @@ static int gpio_rcar_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
 	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
 
-	return !(gpio_rcar_read(p, INOUTSEL) & BIT(offset));
+	if (gpio_rcar_read(p, INOUTSEL) & BIT(offset))
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int gpio_rcar_direction_input(struct gpio_chip *chip, unsigned offset)
@@ -326,6 +323,9 @@ static void gpio_rcar_set_multiple(struct gpio_chip *chip, unsigned long *mask,
 	u32 val, bankmask;
 
 	bankmask = mask[0] & GENMASK(chip->ngpio - 1, 0);
+	if (chip->valid_mask)
+		bankmask &= chip->valid_mask[0];
+
 	if (!bankmask)
 		return;
 
@@ -435,9 +435,10 @@ static int gpio_rcar_parse_dt(struct gpio_rcar_priv *p, unsigned int *npins)
 static int gpio_rcar_probe(struct platform_device *pdev)
 {
 	struct gpio_rcar_priv *p;
-	struct resource *io, *irq;
+	struct resource *irq;
 	struct gpio_chip *gpio_chip;
 	struct irq_chip *irq_chip;
+	struct gpio_irq_chip *girq;
 	struct device *dev = &pdev->dev;
 	const char *name = dev_name(dev);
 	unsigned int npins;
@@ -466,8 +467,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	p->base = devm_ioremap_resource(dev, io);
+	p->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(p->base)) {
 		ret = PTR_ERR(p->base);
 		goto err0;
@@ -489,7 +489,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	gpio_chip->ngpio = npins;
 
 	irq_chip = &p->irq_chip;
-	irq_chip->name = name;
+	irq_chip->name = "gpio-rcar";
 	irq_chip->parent_device = dev;
 	irq_chip->irq_mask = gpio_rcar_irq_disable;
 	irq_chip->irq_unmask = gpio_rcar_irq_enable;
@@ -497,17 +497,19 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	irq_chip->irq_set_wake = gpio_rcar_irq_set_wake;
 	irq_chip->flags = IRQCHIP_SET_TYPE_MASKED | IRQCHIP_MASK_ON_SUSPEND;
 
+	girq = &gpio_chip->irq;
+	girq->chip = irq_chip;
+	/* This will let us handle the parent IRQ in the driver */
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_level_irq;
+
 	ret = gpiochip_add_data(gpio_chip, p);
 	if (ret) {
 		dev_err(dev, "failed to add GPIO controller\n");
 		goto err0;
-	}
-
-	ret = gpiochip_irqchip_add(gpio_chip, irq_chip, 0, handle_level_irq,
-				   IRQ_TYPE_NONE);
-	if (ret) {
-		dev_err(dev, "cannot add irqchip\n");
-		goto err1;
 	}
 
 	p->irq_parent = irq->start;
@@ -566,6 +568,9 @@ static int gpio_rcar_resume(struct device *dev)
 	u32 mask;
 
 	for (offset = 0; offset < p->gpio_chip.ngpio; offset++) {
+		if (!gpiochip_line_is_valid(&p->gpio_chip, offset))
+			continue;
+
 		mask = BIT(offset);
 		/* I/O pin */
 		if (!(p->bank_info.iointsel & mask)) {

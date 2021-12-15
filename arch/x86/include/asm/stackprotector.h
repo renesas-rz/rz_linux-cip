@@ -13,7 +13,7 @@
  * On x86_64, %gs is shared by percpu area and stack canary.  All
  * percpu symbols are zero based and %gs points to the base of percpu
  * area.  The first occupant of the percpu area is always
- * irq_stack_union which contains stack_canary at offset 40.  Userland
+ * fixed_percpu_data which contains stack_canary at offset 40.  Userland
  * %gs is always saved and restored on kernel entry and exit using
  * swapgs, so stack protector doesn't add any complexity there.
  *
@@ -69,7 +69,7 @@ static __always_inline void boot_init_stack_canary(void)
 	u64 tsc;
 
 #ifdef CONFIG_X86_64
-	BUILD_BUG_ON(offsetof(union irq_stack_union, stack_canary) != 40);
+	BUILD_BUG_ON(offsetof(struct fixed_percpu_data, stack_canary) != 40);
 #endif
 	/*
 	 * We both use the random pool and the current TSC as a source
@@ -84,9 +84,18 @@ static __always_inline void boot_init_stack_canary(void)
 
 	current->stack_canary = canary;
 #ifdef CONFIG_X86_64
-	this_cpu_write(irq_stack_union.stack_canary, canary);
+	this_cpu_write(fixed_percpu_data.stack_canary, canary);
 #else
 	this_cpu_write(stack_canary.canary, canary);
+#endif
+}
+
+static inline void cpu_init_stack_canary(int cpu, struct task_struct *idle)
+{
+#ifdef CONFIG_X86_64
+	per_cpu(fixed_percpu_data.stack_canary, cpu) = idle->stack_canary;
+#else
+	per_cpu(stack_canary.canary, cpu) = idle->stack_canary;
 #endif
 }
 
@@ -117,6 +126,9 @@ static inline void load_stack_canary_segment(void)
 /* dummy boot_init_stack_canary() is defined in linux/stackprotector.h */
 
 static inline void setup_stack_canary_segment(int cpu)
+{ }
+
+static inline void cpu_init_stack_canary(int cpu, struct task_struct *idle)
 { }
 
 static inline void load_stack_canary_segment(void)

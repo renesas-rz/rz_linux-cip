@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Xilinx XADC driver
  *
  * Copyright 2013-2014 Analog Devices Inc.
- *  Author: Lars-Peter Clauen <lars@metafoo.de>
- *
- * Licensed under the GPL-2.
+ *  Author: Lars-Peter Clausen <lars@metafoo.de>
  *
  * Documentation for the parts can be found at:
  *  - XADC hardmacro: Xilinx UG480
@@ -664,7 +663,7 @@ static int xadc_trigger_set_state(struct iio_trigger *trigger, bool state)
 	mutex_lock(&xadc->mutex);
 
 	if (state) {
-		/* Only one of the two triggers can be active at the a time. */
+		/* Only one of the two triggers can be active at a time. */
 		if (xadc->trigger != NULL) {
 			ret = -EBUSY;
 			goto err_out;
@@ -840,8 +839,6 @@ err:
 
 static const struct iio_buffer_setup_ops xadc_buffer_ops = {
 	.preenable = &xadc_preenable,
-	.postenable = &iio_triggered_buffer_postenable,
-	.predisable = &iio_triggered_buffer_predisable,
 	.postdisable = &xadc_postdisable,
 };
 
@@ -1095,6 +1092,7 @@ MODULE_DEVICE_TABLE(of, xadc_of_match_table);
 static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_node *np,
 	unsigned int *conf)
 {
+	struct device *dev = indio_dev->dev.parent;
 	struct xadc *xadc = iio_priv(indio_dev);
 	struct iio_chan_spec *channels, *chan;
 	struct device_node *chan_node, *child;
@@ -1139,7 +1137,8 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_node *np,
 		*conf |= XADC_CONF0_MUX | XADC_CONF0_CHAN(ext_mux_chan);
 	}
 
-	channels = kmemdup(xadc_channels, sizeof(xadc_channels), GFP_KERNEL);
+	channels = devm_kmemdup(dev, xadc_channels,
+				sizeof(xadc_channels), GFP_KERNEL);
 	if (!channels)
 		return -ENOMEM;
 
@@ -1175,8 +1174,9 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_node *np,
 	of_node_put(chan_node);
 
 	indio_dev->num_channels = num_channels;
-	indio_dev->channels = krealloc(channels, sizeof(*channels) *
-					num_channels, GFP_KERNEL);
+	indio_dev->channels = devm_krealloc(dev, channels,
+					    sizeof(*channels) * num_channels,
+					    GFP_KERNEL);
 	/* If we can't resize the channels array, just use the original */
 	if (!indio_dev->channels)
 		indio_dev->channels = channels;
@@ -1189,7 +1189,6 @@ static int xadc_probe(struct platform_device *pdev)
 	const struct of_device_id *id;
 	struct iio_dev *indio_dev;
 	unsigned int bipolar_mask;
-	struct resource *mem;
 	unsigned int conf0;
 	struct xadc *xadc;
 	int ret;
@@ -1219,27 +1218,24 @@ static int xadc_probe(struct platform_device *pdev)
 	spin_lock_init(&xadc->lock);
 	INIT_DELAYED_WORK(&xadc->zynq_unmask_work, xadc_zynq_unmask_worker);
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	xadc->base = devm_ioremap_resource(&pdev->dev, mem);
+	xadc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xadc->base))
 		return PTR_ERR(xadc->base);
 
-	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
 	indio_dev->name = "xadc";
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &xadc_info;
 
 	ret = xadc_parse_dt(indio_dev, pdev->dev.of_node, &conf0);
 	if (ret)
-		goto err_device_free;
+		return ret;
 
 	if (xadc->ops->flags & XADC_FLAGS_BUFFERED) {
 		ret = iio_triggered_buffer_setup(indio_dev,
 			&iio_pollfunc_store_time, &xadc_trigger_handler,
 			&xadc_buffer_ops);
 		if (ret)
-			goto err_device_free;
+			return ret;
 
 		xadc->convst_trigger = xadc_alloc_trigger(indio_dev, "convst");
 		if (IS_ERR(xadc->convst_trigger)) {
@@ -1326,8 +1322,10 @@ static int xadc_probe(struct platform_device *pdev)
 			xadc->threshold[i] = 0xffff;
 		else
 			xadc->threshold[i] = 0;
-		xadc_write_adc_reg(xadc, XADC_REG_THRESHOLD(i),
+		ret = xadc_write_adc_reg(xadc, XADC_REG_THRESHOLD(i),
 			xadc->threshold[i]);
+		if (ret)
+			goto err_free_irq;
 	}
 
 	/* Go to non-buffered mode */
@@ -1355,8 +1353,6 @@ err_free_convst_trigger:
 err_triggered_buffer_cleanup:
 	if (xadc->ops->flags & XADC_FLAGS_BUFFERED)
 		iio_triggered_buffer_cleanup(indio_dev);
-err_device_free:
-	kfree(indio_dev->channels);
 
 	return ret;
 }
@@ -1376,7 +1372,6 @@ static int xadc_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&xadc->zynq_unmask_work);
 	clk_disable_unprepare(xadc->clk);
 	kfree(xadc->data);
-	kfree(indio_dev->channels);
 
 	return 0;
 }

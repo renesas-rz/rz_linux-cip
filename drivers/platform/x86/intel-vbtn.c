@@ -30,6 +30,7 @@ static const struct acpi_device_id intel_vbtn_ids[] = {
 	{"INT33D6", 0},
 	{"", 0},
 };
+MODULE_DEVICE_TABLE(acpi, intel_vbtn_ids);
 
 /* In theory, these are HID usages. */
 static const struct key_entry intel_vbtn_keymap[] = {
@@ -46,8 +47,16 @@ static const struct key_entry intel_vbtn_keymap[] = {
 };
 
 static const struct key_entry intel_vbtn_switchmap[] = {
-	{ KE_SW,     0xCA, { .sw = { SW_DOCK, 1 } } },		/* Docked */
-	{ KE_SW,     0xCB, { .sw = { SW_DOCK, 0 } } },		/* Undocked */
+	/*
+	 * SW_DOCK should only be reported for docking stations, but DSDTs using the
+	 * intel-vbtn code, always seem to use this for 2-in-1s / convertibles and set
+	 * SW_DOCK=1 when in laptop-mode (in tandem with setting SW_TABLET_MODE=0).
+	 * This causes userspace to think the laptop is docked to a port-replicator
+	 * and to disable suspend-on-lid-close, which is undesirable.
+	 * Map the dock events to KEY_IGNORE to avoid this broken SW_DOCK reporting.
+	 */
+	{ KE_IGNORE, 0xCA, { .sw = { SW_DOCK, 1 } } },		/* Docked */
+	{ KE_IGNORE, 0xCB, { .sw = { SW_DOCK, 0 } } },		/* Undocked */
 	{ KE_SW,     0xCC, { .sw = { SW_TABLET_MODE, 1 } } },	/* Tablet */
 	{ KE_SW,     0xCD, { .sw = { SW_TABLET_MODE, 0 } } },	/* Laptop */
 };
@@ -58,16 +67,35 @@ static const struct key_entry intel_vbtn_switchmap[] = {
 struct intel_vbtn_priv {
 	struct key_entry keymap[KEYMAP_LEN];
 	struct input_dev *input_dev;
+	bool has_buttons;
 	bool has_switches;
 	bool wakeup_mode;
 };
+
+static void detect_tablet_mode(struct platform_device *device)
+{
+	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
+	acpi_handle handle = ACPI_HANDLE(&device->dev);
+	unsigned long long vgbs;
+	acpi_status status;
+	int m;
+
+	status = acpi_evaluate_integer(handle, "VGBS", NULL, &vgbs);
+	if (ACPI_FAILURE(status))
+		return;
+
+	m = !(vgbs & VGBS_TABLET_MODE_FLAGS);
+	input_report_switch(priv->input_dev, SW_TABLET_MODE, m);
+	m = (vgbs & VGBS_DOCK_MODE_FLAG) ? 1 : 0;
+	input_report_switch(priv->input_dev, SW_DOCK, m);
+}
 
 static int intel_vbtn_input_setup(struct platform_device *device)
 {
 	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
 	int ret, keymap_len = 0;
 
-	if (true) {
+	if (priv->has_buttons) {
 		memcpy(&priv->keymap[keymap_len], intel_vbtn_keymap,
 		       ARRAY_SIZE(intel_vbtn_keymap) *
 		       sizeof(struct key_entry));
@@ -94,6 +122,9 @@ static int intel_vbtn_input_setup(struct platform_device *device)
 	priv->input_dev->dev.parent = &device->dev;
 	priv->input_dev->name = "Intel Virtual Button driver";
 	priv->input_dev->id.bustype = BUS_HOST;
+
+	if (priv->has_switches)
+		detect_tablet_mode(device);
 
 	return input_register_device(priv->input_dev);
 }
@@ -140,22 +171,12 @@ out_unknown:
 	dev_dbg(&device->dev, "unknown event index 0x%x\n", event);
 }
 
-static void detect_tablet_mode(struct platform_device *device)
+static bool intel_vbtn_has_buttons(acpi_handle handle)
 {
-	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
-	acpi_handle handle = ACPI_HANDLE(&device->dev);
-	unsigned long long vgbs;
 	acpi_status status;
-	int m;
 
-	status = acpi_evaluate_integer(handle, "VGBS", NULL, &vgbs);
-	if (ACPI_FAILURE(status))
-		return;
-
-	m = !(vgbs & VGBS_TABLET_MODE_FLAGS);
-	input_report_switch(priv->input_dev, SW_TABLET_MODE, m);
-	m = (vgbs & VGBS_DOCK_MODE_FLAG) ? 1 : 0;
-	input_report_switch(priv->input_dev, SW_DOCK, m);
+	status = acpi_evaluate_object(handle, "VBDL", NULL, NULL);
+	return ACPI_SUCCESS(status);
 }
 
 /*
@@ -194,12 +215,6 @@ static const struct dmi_system_id dmi_switches_allow_list[] = {
 	{
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "HP Stream x360 Convertible PC 11"),
-		},
-	},
-	{
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion 13 x360 PC"),
 		},
 	},
@@ -207,6 +222,12 @@ static const struct dmi_system_id dmi_switches_allow_list[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Switch SA5-271"),
+		},
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 7352"),
 		},
 	},
 	{} /* Array terminator */
@@ -227,12 +248,15 @@ static bool intel_vbtn_has_switches(acpi_handle handle)
 static int intel_vbtn_probe(struct platform_device *device)
 {
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
+	bool has_buttons, has_switches;
 	struct intel_vbtn_priv *priv;
 	acpi_status status;
 	int err;
 
-	status = acpi_evaluate_object(handle, "VBDL", NULL, NULL);
-	if (ACPI_FAILURE(status)) {
+	has_buttons = intel_vbtn_has_buttons(handle);
+	has_switches = intel_vbtn_has_switches(handle);
+
+	if (!has_buttons && !has_switches) {
 		dev_warn(&device->dev, "failed to read Intel Virtual Button driver\n");
 		return -ENODEV;
 	}
@@ -242,16 +266,14 @@ static int intel_vbtn_probe(struct platform_device *device)
 		return -ENOMEM;
 	dev_set_drvdata(&device->dev, priv);
 
-	priv->has_switches = intel_vbtn_has_switches(handle);
+	priv->has_buttons = has_buttons;
+	priv->has_switches = has_switches;
 
 	err = intel_vbtn_input_setup(device);
 	if (err) {
 		pr_err("Failed to setup Intel Virtual Button\n");
 		return err;
 	}
-
-	if (priv->has_switches)
-		detect_tablet_mode(device);
 
 	status = acpi_install_notify_handler(handle,
 					     ACPI_DEVICE_NOTIFY,
@@ -261,6 +283,12 @@ static int intel_vbtn_probe(struct platform_device *device)
 		return -EBUSY;
 
 	device_init_wakeup(&device->dev, true);
+	/*
+	 * In order for system wakeup to work, the EC GPE has to be marked as
+	 * a wakeup one, so do that here (this setting will persist, but it has
+	 * no effect until the wakeup mask is set for the EC GPE).
+	 */
+	acpi_ec_mark_gpe_for_wake();
 	return 0;
 }
 
@@ -280,22 +308,30 @@ static int intel_vbtn_remove(struct platform_device *device)
 
 static int intel_vbtn_pm_prepare(struct device *dev)
 {
-	struct intel_vbtn_priv *priv = dev_get_drvdata(dev);
+	if (device_may_wakeup(dev)) {
+		struct intel_vbtn_priv *priv = dev_get_drvdata(dev);
 
-	priv->wakeup_mode = true;
+		priv->wakeup_mode = true;
+	}
 	return 0;
 }
 
-static int intel_vbtn_pm_resume(struct device *dev)
+static void intel_vbtn_pm_complete(struct device *dev)
 {
 	struct intel_vbtn_priv *priv = dev_get_drvdata(dev);
 
 	priv->wakeup_mode = false;
+}
+
+static int intel_vbtn_pm_resume(struct device *dev)
+{
+	intel_vbtn_pm_complete(dev);
 	return 0;
 }
 
 static const struct dev_pm_ops intel_vbtn_pm_ops = {
 	.prepare = intel_vbtn_pm_prepare,
+	.complete = intel_vbtn_pm_complete,
 	.resume = intel_vbtn_pm_resume,
 	.restore = intel_vbtn_pm_resume,
 	.thaw = intel_vbtn_pm_resume,
@@ -310,7 +346,6 @@ static struct platform_driver intel_vbtn_pl_driver = {
 	.probe = intel_vbtn_probe,
 	.remove = intel_vbtn_remove,
 };
-MODULE_DEVICE_TABLE(acpi, intel_vbtn_ids);
 
 static acpi_status __init
 check_acpi_dev(acpi_handle handle, u32 lvl, void *context, void **rv)

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* Renesas R-Car CAN device driver
  *
  * Copyright (C) 2013 Cogent Embedded, Inc. <source@cogentembedded.com>
  * Copyright (C) 2013 Renesas Solutions Corp.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/module.h>
@@ -748,7 +744,6 @@ static int rcar_can_probe(struct platform_device *pdev)
 {
 	struct rcar_can_priv *priv;
 	struct net_device *ndev;
-	struct resource *mem;
 	void __iomem *addr;
 	u32 clock_select = CLKR_CLKP1;
 	int err = -ENODEV;
@@ -759,13 +754,11 @@ static int rcar_can_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "No IRQ resource\n");
 		err = irq;
 		goto fail;
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	addr = devm_ioremap_resource(&pdev->dev, mem);
+	addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(addr)) {
 		err = PTR_ERR(addr);
 		goto fail;

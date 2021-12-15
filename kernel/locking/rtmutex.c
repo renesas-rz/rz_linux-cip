@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RT-Mutexes: simple blocking mutual exclusion locks with PI support
  *
@@ -8,7 +9,7 @@
  *  Copyright (C) 2005 Kihon Technologies Inc., Steven Rostedt
  *  Copyright (C) 2006 Esben Nielsen
  *
- *  See Documentation/locking/rt-mutex-design.txt for details.
+ *  See Documentation/locking/rt-mutex-design.rst for details.
  */
 #include <linux/spinlock.h>
 #include <linux/export.h>
@@ -56,7 +57,7 @@ rt_mutex_set_owner(struct rt_mutex *lock, struct task_struct *owner)
 	if (rt_mutex_has_waiters(lock))
 		val |= RT_MUTEX_HAS_WAITERS;
 
-	lock->owner = (struct task_struct *)val;
+	WRITE_ONCE(lock->owner, (struct task_struct *)val);
 }
 
 static inline void clear_rt_mutex_waiters(struct rt_mutex *lock)
@@ -140,7 +141,6 @@ static void fixup_rt_mutex_waiters(struct rt_mutex *lock)
  * set up.
  */
 #ifndef CONFIG_DEBUG_RT_MUTEXES
-# define rt_mutex_cmpxchg_relaxed(l,c,n) (cmpxchg_relaxed(&l->owner, c, n) == c)
 # define rt_mutex_cmpxchg_acquire(l,c,n) (cmpxchg_acquire(&l->owner, c, n) == c)
 # define rt_mutex_cmpxchg_release(l,c,n) (cmpxchg_release(&l->owner, c, n) == c)
 
@@ -201,7 +201,6 @@ static inline bool unlock_rt_mutex_safe(struct rt_mutex *lock,
 }
 
 #else
-# define rt_mutex_cmpxchg_relaxed(l,c,n)	(0)
 # define rt_mutex_cmpxchg_acquire(l,c,n)	(0)
 # define rt_mutex_cmpxchg_release(l,c,n)	(0)
 
@@ -627,8 +626,7 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 		}
 
 		/* [10] Grab the next task, i.e. owner of @lock */
-		task = rt_mutex_owner(lock);
-		get_task_struct(task);
+		task = get_task_struct(rt_mutex_owner(lock));
 		raw_spin_lock(&task->pi_lock);
 
 		/*
@@ -708,8 +706,7 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 	}
 
 	/* [10] Grab the next task, i.e. the owner of @lock */
-	task = rt_mutex_owner(lock);
-	get_task_struct(task);
+	task = get_task_struct(rt_mutex_owner(lock));
 	raw_spin_lock(&task->pi_lock);
 
 	/* [11] requeue the pi waiters if necessary */
@@ -1485,9 +1482,9 @@ void __sched rt_mutex_lock_nested(struct rt_mutex *lock, unsigned int subclass)
 	__rt_mutex_lock(lock, subclass);
 }
 EXPORT_SYMBOL_GPL(rt_mutex_lock_nested);
-#endif
 
-#ifndef CONFIG_DEBUG_LOCK_ALLOC
+#else /* !CONFIG_DEBUG_LOCK_ALLOC */
+
 /**
  * rt_mutex_lock - lock a rt_mutex
  *
@@ -1518,7 +1515,7 @@ int __sched rt_mutex_lock_interruptible(struct rt_mutex *lock)
 	mutex_acquire(&lock->dep_map, 0, 0, _RET_IP_);
 	ret = rt_mutex_fastlock(lock, TASK_INTERRUPTIBLE, rt_mutex_slowlock);
 	if (ret)
-		mutex_release(&lock->dep_map, 1, _RET_IP_);
+		mutex_release(&lock->dep_map, _RET_IP_);
 
 	return ret;
 }
@@ -1562,7 +1559,7 @@ rt_mutex_timed_lock(struct rt_mutex *lock, struct hrtimer_sleeper *timeout)
 				       RT_MUTEX_MIN_CHAINWALK,
 				       rt_mutex_slowlock);
 	if (ret)
-		mutex_release(&lock->dep_map, 1, _RET_IP_);
+		mutex_release(&lock->dep_map, _RET_IP_);
 
 	return ret;
 }
@@ -1601,7 +1598,7 @@ EXPORT_SYMBOL_GPL(rt_mutex_trylock);
  */
 void __sched rt_mutex_unlock(struct rt_mutex *lock)
 {
-	mutex_release(&lock->dep_map, 1, _RET_IP_);
+	mutex_release(&lock->dep_map, _RET_IP_);
 	rt_mutex_fastunlock(lock, rt_mutex_slowunlock);
 }
 EXPORT_SYMBOL_GPL(rt_mutex_unlock);
@@ -1719,8 +1716,7 @@ void rt_mutex_init_proxy_locked(struct rt_mutex *lock,
  * possible because it belongs to the pi_state which is about to be freed
  * and it is not longer visible to other tasks.
  */
-void rt_mutex_proxy_unlock(struct rt_mutex *lock,
-			   struct task_struct *proxy_owner)
+void rt_mutex_proxy_unlock(struct rt_mutex *lock)
 {
 	debug_rt_mutex_proxy_unlock(lock);
 	rt_mutex_set_owner(lock, NULL);

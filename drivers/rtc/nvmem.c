@@ -1,17 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * RTC subsystem, nvmem interface
  *
  * Copyright (C) 2017 Alexandre Belloni
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/err.h>
 #include <linux/types.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/rtc.h>
+#include <linux/slab.h>
 #include <linux/sysfs.h>
 
 /*
@@ -45,9 +43,7 @@ static int rtc_nvram_register(struct rtc_device *rtc,
 {
 	int err;
 
-	rtc->nvram = devm_kzalloc(rtc->dev.parent,
-				sizeof(struct bin_attribute),
-				GFP_KERNEL);
+	rtc->nvram = kzalloc(sizeof(*rtc->nvram), GFP_KERNEL);
 	if (!rtc->nvram)
 		return -ENOMEM;
 
@@ -64,7 +60,7 @@ static int rtc_nvram_register(struct rtc_device *rtc,
 	err = sysfs_create_bin_file(&rtc->dev.parent->kobj,
 				    rtc->nvram);
 	if (err) {
-		devm_kfree(rtc->dev.parent, rtc->nvram);
+		kfree(rtc->nvram);
 		rtc->nvram = NULL;
 	}
 
@@ -74,6 +70,8 @@ static int rtc_nvram_register(struct rtc_device *rtc,
 static void rtc_nvram_unregister(struct rtc_device *rtc)
 {
 	sysfs_remove_bin_file(&rtc->dev.parent->kobj, rtc->nvram);
+	kfree(rtc->nvram);
+	rtc->nvram = NULL;
 }
 
 /*

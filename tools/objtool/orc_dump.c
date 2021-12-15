@@ -1,22 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2017 Josh Poimboeuf <jpoimboe@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <unistd.h>
-#include "orc.h"
+#include <linux/objtool.h>
+#include <asm/orc_types.h>
+#include "objtool.h"
 #include "warn.h"
 
 static const char *reg_name(unsigned int reg)
@@ -48,12 +38,12 @@ static const char *reg_name(unsigned int reg)
 static const char *orc_type_name(unsigned int type)
 {
 	switch (type) {
-	case ORC_TYPE_CALL:
+	case UNWIND_HINT_TYPE_CALL:
 		return "call";
-	case ORC_TYPE_REGS:
+	case UNWIND_HINT_TYPE_REGS:
 		return "regs";
-	case ORC_TYPE_REGS_IRET:
-		return "iret";
+	case UNWIND_HINT_TYPE_REGS_PARTIAL:
+		return "regs (partial)";
 	default:
 		return "?";
 	}

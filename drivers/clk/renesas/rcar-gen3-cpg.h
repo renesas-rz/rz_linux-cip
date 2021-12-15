@@ -1,12 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * R-Car Gen3 Clock Pulse Generator
  *
  * Copyright (C) 2015-2018 Glider bvba
  * Copyright (C) 2018 Renesas Electronics Corp.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #ifndef __CLK_RENESAS_RCAR_GEN3_CPG_H__
@@ -29,6 +27,9 @@ enum rcar_gen3_clk_types {
 	CLK_TYPE_GEN3_E3_RPCSRC,
 	CLK_TYPE_GEN3_RPC,
 	CLK_TYPE_GEN3_RPCD2,
+
+	/* SoC specific definitions start here */
+	CLK_TYPE_GEN3_SOC_BASE,
 };
 
 #define DEF_GEN3_SD(_name, _id, _parent, _offset)	\

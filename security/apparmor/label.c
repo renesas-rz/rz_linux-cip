@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AppArmor security module
  *
  * This file contains AppArmor label definitions
  *
  * Copyright 2017 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #include <linux/audit.h>
@@ -80,7 +76,7 @@ void __aa_proxy_redirect(struct aa_label *orig, struct aa_label *new)
 
 	AA_BUG(!orig);
 	AA_BUG(!new);
-	lockdep_assert_held_exclusive(&labels_set(orig)->lock);
+	lockdep_assert_held_write(&labels_set(orig)->lock);
 
 	tmp = rcu_dereference_protected(orig->proxy->label,
 					&labels_ns(orig)->lock);
@@ -313,10 +309,8 @@ out:
 }
 
 
-static void label_destroy(struct aa_label *label)
+void aa_label_destroy(struct aa_label *label)
 {
-	struct aa_label *tmp;
-
 	AA_BUG(!label);
 
 	if (!label_isprofile(label)) {
@@ -332,16 +326,13 @@ static void label_destroy(struct aa_label *label)
 		}
 	}
 
-	if (rcu_dereference_protected(label->proxy->label, true) == label)
-		rcu_assign_pointer(label->proxy->label, NULL);
-
+	if (label->proxy) {
+		if (rcu_dereference_protected(label->proxy->label, true) == label)
+			rcu_assign_pointer(label->proxy->label, NULL);
+		aa_put_proxy(label->proxy);
+	}
 	aa_free_secid(label->secid);
 
-	tmp = rcu_dereference_protected(label->proxy->label, true);
-	if (tmp == label)
-		rcu_assign_pointer(label->proxy->label, NULL);
-
-	aa_put_proxy(label->proxy);
 	label->proxy = (struct aa_proxy *) PROXY_POISON + 1;
 }
 
@@ -350,7 +341,7 @@ void aa_label_free(struct aa_label *label)
 	if (!label)
 		return;
 
-	label_destroy(label);
+	aa_label_destroy(label);
 	kfree(label);
 }
 
@@ -603,7 +594,7 @@ static bool __label_remove(struct aa_label *label, struct aa_label *new)
 
 	AA_BUG(!ls);
 	AA_BUG(!label);
-	lockdep_assert_held_exclusive(&ls->lock);
+	lockdep_assert_held_write(&ls->lock);
 
 	if (new)
 		__aa_proxy_redirect(label, new);
@@ -640,7 +631,7 @@ static bool __label_replace(struct aa_label *old, struct aa_label *new)
 	AA_BUG(!ls);
 	AA_BUG(!old);
 	AA_BUG(!new);
-	lockdep_assert_held_exclusive(&ls->lock);
+	lockdep_assert_held_write(&ls->lock);
 	AA_BUG(new->flags & FLAG_IN_TREE);
 
 	if (!label_is_stale(old))
@@ -677,7 +668,7 @@ static struct aa_label *__label_insert(struct aa_labelset *ls,
 	AA_BUG(!ls);
 	AA_BUG(!label);
 	AA_BUG(labels_set(label) != ls);
-	lockdep_assert_held_exclusive(&ls->lock);
+	lockdep_assert_held_write(&ls->lock);
 	AA_BUG(label->flags & FLAG_IN_TREE);
 
 	/* Figure out where to put new node */
@@ -1786,13 +1777,13 @@ void aa_label_seq_xprint(struct seq_file *f, struct aa_ns *ns,
 			AA_DEBUG("label print error");
 			return;
 		}
-		seq_printf(f, "%s", str);
+		seq_puts(f, str);
 		kfree(str);
 	} else if (display_mode(ns, label, flags))
 		seq_printf(f, "%s (%s)", label->hname,
 			   label_modename(ns, label, flags));
 	else
-		seq_printf(f, "%s", label->hname);
+		seq_puts(f, label->hname);
 }
 
 void aa_label_xprintk(struct aa_ns *ns, struct aa_label *label, int flags,

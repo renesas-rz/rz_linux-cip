@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
  * Author: Jacob Chen <jacob-chen@iotwrt.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/pm_runtime.h>
@@ -259,7 +251,7 @@ static void rga_cmd_set_trans_info(struct rga_ctx *ctx)
 	}
 
 	/*
-	 * Cacluate the up/down scaling mode/factor.
+	 * Calculate the up/down scaling mode/factor.
 	 *
 	 * RGA used to scale the picture first, and then rotate second,
 	 * so we need to swap the w/h when rotate degree is 90/270.
@@ -307,7 +299,7 @@ static void rga_cmd_set_trans_info(struct rga_ctx *ctx)
 	}
 
 	/*
-	 * Cacluate the framebuffer virtual strides and active size,
+	 * Calculate the framebuffer virtual strides and active size,
 	 * note that the step of vir_stride / vir_width is 4 byte words
 	 */
 	src_vir_info.data.vir_stride = ctx->in.stride >> 2;
@@ -321,7 +313,7 @@ static void rga_cmd_set_trans_info(struct rga_ctx *ctx)
 	dst_act_info.data.act_width = dst_w - 1;
 
 	/*
-	 * Cacluate the source framebuffer base address with offset pixel.
+	 * Calculate the source framebuffer base address with offset pixel.
 	 */
 	src_offsets = rga_get_addr_offset(&ctx->in, src_x, src_y,
 					  src_w, src_h);

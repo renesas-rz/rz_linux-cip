@@ -33,6 +33,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_NETFILTER);
+MODULE_DESCRIPTION("Netfilter messages via netlink socket");
 
 #define nfnl_dereference_protected(id) \
 	rcu_dereference_protected(table[(id)].subsys, \
@@ -44,6 +45,23 @@ static struct {
 	struct mutex				mutex;
 	const struct nfnetlink_subsystem __rcu	*subsys;
 } table[NFNL_SUBSYS_COUNT];
+
+static struct lock_class_key nfnl_lockdep_keys[NFNL_SUBSYS_COUNT];
+
+static const char *const nfnl_lockdep_names[NFNL_SUBSYS_COUNT] = {
+	[NFNL_SUBSYS_NONE] = "nfnl_subsys_none",
+	[NFNL_SUBSYS_CTNETLINK] = "nfnl_subsys_ctnetlink",
+	[NFNL_SUBSYS_CTNETLINK_EXP] = "nfnl_subsys_ctnetlink_exp",
+	[NFNL_SUBSYS_QUEUE] = "nfnl_subsys_queue",
+	[NFNL_SUBSYS_ULOG] = "nfnl_subsys_ulog",
+	[NFNL_SUBSYS_OSF] = "nfnl_subsys_osf",
+	[NFNL_SUBSYS_IPSET] = "nfnl_subsys_ipset",
+	[NFNL_SUBSYS_ACCT] = "nfnl_subsys_acct",
+	[NFNL_SUBSYS_CTNETLINK_TIMEOUT] = "nfnl_subsys_cttimeout",
+	[NFNL_SUBSYS_CTHELPER] = "nfnl_subsys_cthelper",
+	[NFNL_SUBSYS_NFTABLES] = "nfnl_subsys_nftables",
+	[NFNL_SUBSYS_NFT_COMPAT] = "nfnl_subsys_nftcompat",
+};
 
 static const int nfnl_group2type[NFNLGRP_MAX+1] = {
 	[NFNLGRP_CONNTRACK_NEW]		= NFNL_SUBSYS_CTNETLINK,
@@ -211,8 +229,9 @@ replay:
 			return -ENOMEM;
 		}
 
-		err = nla_parse(cda, ss->cb[cb_id].attr_count, attr, attrlen,
-				ss->cb[cb_id].policy, extack);
+		err = nla_parse_deprecated(cda, ss->cb[cb_id].attr_count,
+					   attr, attrlen,
+					   ss->cb[cb_id].policy, extack);
 		if (err < 0) {
 			rcu_read_unlock();
 			return err;
@@ -314,7 +333,7 @@ static void nfnetlink_rcv_batch(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return netlink_ack(skb, nlh, -EINVAL, NULL);
 replay:
 	status = 0;
-
+replay_abort:
 	skb = netlink_skb_clone(oskb, GFP_KERNEL);
 	if (!skb)
 		return netlink_ack(oskb, nlh, -ENOMEM, NULL);
@@ -426,8 +445,10 @@ replay:
 				goto ack;
 			}
 
-			err = nla_parse(cda, ss->cb[cb_id].attr_count, attr,
-					attrlen, ss->cb[cb_id].policy, NULL);
+			err = nla_parse_deprecated(cda,
+						   ss->cb[cb_id].attr_count,
+						   attr, attrlen,
+						   ss->cb[cb_id].policy, NULL);
 			if (err < 0)
 				goto ack;
 
@@ -478,7 +499,7 @@ ack:
 	}
 done:
 	if (status & NFNL_BATCH_REPLAY) {
-		ss->abort(net, oskb);
+		ss->abort(net, oskb, NFNL_ABORT_AUTOLOAD);
 		nfnl_err_reset(&err_list);
 		kfree_skb(skb);
 		module_put(ss->owner);
@@ -489,11 +510,25 @@ done:
 			status |= NFNL_BATCH_REPLAY;
 			goto done;
 		} else if (err) {
-			ss->abort(net, oskb);
+			ss->abort(net, oskb, NFNL_ABORT_NONE);
 			netlink_ack(oskb, nlmsg_hdr(oskb), err, NULL);
 		}
 	} else {
-		ss->abort(net, oskb);
+		enum nfnl_abort_action abort_action;
+
+		if (status & NFNL_BATCH_FAILURE)
+			abort_action = NFNL_ABORT_NONE;
+		else
+			abort_action = NFNL_ABORT_VALIDATE;
+
+		err = ss->abort(net, oskb, abort_action);
+		if (err == -EAGAIN) {
+			nfnl_err_reset(&err_list);
+			kfree_skb(skb);
+			module_put(ss->owner);
+			status |= NFNL_BATCH_FAILURE;
+			goto replay_abort;
+		}
 	}
 	if (ss->cleanup)
 		ss->cleanup(net);
@@ -525,8 +560,8 @@ static void nfnetlink_rcv_skb_batch(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (skb->len < NLMSG_HDRLEN + sizeof(struct nfgenmsg))
 		return;
 
-	err = nla_parse(cda, NFNL_BATCH_MAX, attr, attrlen, nfnl_batch_policy,
-			NULL);
+	err = nla_parse_deprecated(cda, NFNL_BATCH_MAX, attr, attrlen,
+				   nfnl_batch_policy, NULL);
 	if (err < 0) {
 		netlink_ack(skb, nlh, err, NULL);
 		return;
@@ -628,7 +663,7 @@ static int __init nfnetlink_init(void)
 		BUG_ON(nfnl_group2type[i] == NFNL_SUBSYS_NONE);
 
 	for (i=0; i<NFNL_SUBSYS_COUNT; i++)
-		mutex_init(&table[i].mutex);
+		__mutex_init(&table[i].mutex, nfnl_lockdep_names[i], &nfnl_lockdep_keys[i]);
 
 	return register_pernet_subsys(&nfnetlink_net_ops);
 }

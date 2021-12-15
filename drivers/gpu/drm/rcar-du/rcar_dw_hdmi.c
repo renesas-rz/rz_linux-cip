@@ -1,20 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * R-Car Gen3 HDMI PHY
  *
  * Copyright (C) 2016 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
 #include <drm/bridge/dw_hdmi.h>
+#include <drm/drm_modes.h>
 
 #define RCAR_HDMI_PHY_OPMODE_PLLCFG	0x06	/* Mode of operation and PLL dividers */
 #define RCAR_HDMI_PHY_PLLCURRGMPCTRL	0x10	/* PLL current and Gmp (conductance) */
@@ -40,7 +38,8 @@ static const struct rcar_hdmi_phy_params rcar_hdmi_phy_params[] = {
 };
 
 static enum drm_mode_status
-rcar_hdmi_mode_valid(struct drm_connector *connector,
+rcar_hdmi_mode_valid(struct dw_hdmi *hdmi, void *data,
+		     const struct drm_display_info *info,
 		     const struct drm_display_mode *mode)
 {
 	/*
@@ -53,8 +52,7 @@ rcar_hdmi_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static int rcar_hdmi_phy_configure(struct dw_hdmi *hdmi,
-				   const struct dw_hdmi_plat_data *pdata,
+static int rcar_hdmi_phy_configure(struct dw_hdmi *hdmi, void *data,
 				   unsigned long mpixelclock)
 {
 	const struct rcar_hdmi_phy_params *params = rcar_hdmi_phy_params;

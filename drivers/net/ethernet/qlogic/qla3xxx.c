@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * QLogic QLA3xxx NIC HBA Driver
  * Copyright (c)  2003-2006 QLogic Corporation
- *
- * See LICENSE.qla3xxx for copyright and licensing details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -115,7 +114,7 @@ static int ql_sem_spinlock(struct ql3_adapter *qdev,
 		value = readl(&port_regs->CommonRegs.semaphoreReg);
 		if ((value & (sem_mask >> 16)) == sem_bits)
 			return 0;
-		ssleep(1);
+		mdelay(1000);
 	} while (--seconds);
 	return -1;
 }
@@ -155,7 +154,7 @@ static int ql_wait_for_drvr_lock(struct ql3_adapter *qdev)
 				      "driver lock acquired\n");
 			return 1;
 		}
-		ssleep(1);
+		mdelay(1000);
 	} while (++i < 10);
 
 	netdev_err(qdev->ndev, "Timed out waiting for driver lock...\n");
@@ -1542,7 +1541,7 @@ static void ql_link_state_machine_work(struct work_struct *work)
 		if (test_bit(QL_LINK_MASTER, &qdev->flags))
 			ql_port_start(qdev);
 		qdev->port_link_state = LS_DOWN;
-		/* Fall Through */
+		fallthrough;
 
 	case LS_DOWN:
 		if (curr_link_state == LS_UP) {
@@ -1858,7 +1857,6 @@ static void ql_update_small_bufq_prod_index(struct ql3_adapter *qdev)
 		wmb();
 		writel_relaxed(qdev->small_buf_q_producer_index,
 			       &port_regs->CommonRegs.rxSmallQProducerIndex);
-		mmiowb();
 	}
 }
 
@@ -3292,7 +3290,7 @@ static int ql_adapter_reset(struct ql3_adapter *qdev)
 		if ((value & ISP_CONTROL_SR) == 0)
 			break;
 
-		ssleep(1);
+		mdelay(1000);
 	} while ((--max_wait_time));
 
 	/*
@@ -3328,7 +3326,7 @@ static int ql_adapter_reset(struct ql3_adapter *qdev)
 						   ispControlStatus);
 			if ((value & ISP_CONTROL_FSR) == 0)
 				break;
-			ssleep(1);
+			mdelay(1000);
 		} while ((--max_wait_time));
 	}
 	if (max_wait_time == 0)
@@ -3603,7 +3601,7 @@ static int ql3xxx_set_mac_address(struct net_device *ndev, void *p)
 	return 0;
 }
 
-static void ql3xxx_tx_timeout(struct net_device *ndev)
+static void ql3xxx_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct ql3_adapter *qdev = netdev_priv(ndev);
 
@@ -3770,7 +3768,7 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 	struct net_device *ndev = NULL;
 	struct ql3_adapter *qdev = NULL;
 	static int cards_found;
-	int uninitialized_var(pci_using_dac), err;
+	int pci_using_dac, err;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -3887,6 +3885,12 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 	netif_stop_queue(ndev);
 
 	qdev->workqueue = create_singlethread_workqueue(ndev->name);
+	if (!qdev->workqueue) {
+		unregister_netdev(ndev);
+		err = -ENOMEM;
+		goto err_out_iounmap;
+	}
+
 	INIT_DELAYED_WORK(&qdev->reset_work, ql_reset_work);
 	INIT_DELAYED_WORK(&qdev->tx_timeout_work, ql_tx_timeout_work);
 	INIT_DELAYED_WORK(&qdev->link_state_work, ql_link_state_machine_work);

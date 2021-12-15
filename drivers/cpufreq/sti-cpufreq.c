@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Match running platform with pre-defined OPP values for CPUFreq
  *
@@ -5,10 +6,6 @@
  *         Lee Jones <lee.jones@linaro.org>
  *
  * Copyright (C) 2015 STMicroelectronics (R&D) Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License as
- * published by the Free Software Foundation
  */
 
 #include <linux/cpu.h>
@@ -43,11 +40,11 @@ enum {
 };
 
 /**
- * ST CPUFreq Driver Data
+ * struct sti_cpufreq_ddata - ST CPUFreq Driver Data
  *
- * @cpu_node		CPU's OF node
- * @syscfg_eng		Engineering Syscon register map
- * @regmap		Syscon register map
+ * @cpu:		CPU's OF node
+ * @syscfg_eng:		Engineering Syscon register map
+ * @syscfg:		Syscon register map
  */
 static struct sti_cpufreq_ddata {
 	struct device *cpu;

@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * atusb.c - Driver for the ATUSB IEEE 802.15.4 dongle
  *
  * Written 2013 by Werner Almesberger <werner@almesberger.net>
  *
  * Copyright (c) 2015 - 2016 Stefan Schmidt <stefan@datenfreihafen.org>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2
  *
  * Based on at86rf230.c and spi_atusb.c.
  * at86rf230.c is
@@ -368,6 +365,7 @@ static int atusb_alloc_urbs(struct atusb *atusb, int n)
 			return -ENOMEM;
 		}
 		usb_anchor_urb(urb, &atusb->idle_urbs);
+		usb_free_urb(urb);
 		n--;
 	}
 	return 0;

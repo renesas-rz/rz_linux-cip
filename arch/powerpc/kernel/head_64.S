@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  PowerPC version
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
@@ -15,11 +16,6 @@
  *  This file contains the entry point for the 64-bit kernel along
  *  with some early initialization code common to all 64-bit powerpc
  *  variants.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 
 #include <linux/threads.h>
@@ -186,7 +182,8 @@ __secondary_hold:
 	isync
 	bctr
 #else
-	BUG_OPCODE
+0:	trap
+	EMIT_BUG_ENTRY 0b, __FILE__, __LINE__, 0
 #endif
 CLOSE_FIXED_SECTION(first_256B)
 
@@ -303,9 +300,6 @@ _GLOBAL(fsl_secondary_thread_init)
 	rlwimi	r3, r3, 30, 2, 30
 	mtspr	SPRN_PIR, r3
 1:
-#endif
-
-_GLOBAL(generic_secondary_thread_init)
 	mr	r24,r3
 
 	/* turn on 64-bit mode */
@@ -315,12 +309,12 @@ _GLOBAL(generic_secondary_thread_init)
 	bl	relative_toc
 	tovirt(r2,r2)
 
-#ifdef CONFIG_PPC_BOOK3E
 	/* Book3E initialization */
 	mr	r3,r24
 	bl	book3e_secondary_thread_init
-#endif
 	b	generic_secondary_common_init
+
+#endif /* CONFIG_PPC_BOOK3E */
 
 /*
  * On pSeries and most other platforms, secondary processors spin
@@ -540,6 +534,7 @@ __start_initialization_multiplatform:
 	b	__after_prom_start
 #endif /* CONFIG_PPC_BOOK3E */
 
+__REF
 __boot_from_prom:
 #ifdef CONFIG_PPC_OF_BOOT_TRAMPOLINE
 	/* Save parameters */
@@ -577,6 +572,7 @@ __boot_from_prom:
 	/* We never return. We also hit that trap if trying to boot
 	 * from OF while CONFIG_PPC_OF_BOOT_TRAMPOLINE isn't selected */
 	trap
+	.previous
 
 __after_prom_start:
 #ifdef CONFIG_RELOCATABLE
@@ -639,7 +635,7 @@ __after_prom_start:
 	sub	r5,r5,r11
 #else
 	/* just copy interrupts */
-	LOAD_REG_IMMEDIATE(r5, FIXED_SYMBOL_ABS_ADDR(__end_interrupts))
+	LOAD_REG_IMMEDIATE_SYM(r5, r11, FIXED_SYMBOL_ABS_ADDR(__end_interrupts))
 #endif
 	b	5f
 3:
@@ -801,21 +797,19 @@ __secondary_start:
 	/* Set thread priority to MEDIUM */
 	HMT_MEDIUM
 
-	/* Initialize the kernel stack */
-	LOAD_REG_ADDR(r3, current_set)
-	sldi	r28,r24,3		/* get current_set[cpu#]	 */
-	ldx	r14,r3,r28
-	addi	r14,r14,THREAD_SIZE-STACK_FRAME_OVERHEAD
-	std	r14,PACAKSAVE(r13)
-
-	/* Do early setup for that CPU (SLB and hash table pointer) */
+	/*
+	 * Do early setup for this CPU, in particular initialising the MMU so we
+	 * can turn it on below. This is a call to C, which is OK, we're still
+	 * running on the emergency stack.
+	 */
 	bl	early_setup_secondary
 
 	/*
-	 * setup the new stack pointer, but *don't* use this until
-	 * translation is on.
+	 * The primary has initialized our kernel stack for us in the paca, grab
+	 * it and put it in r1. We must *not* use it until we turn on the MMU
+	 * below, because it may not be inside the RMO.
 	 */
-	mr	r1, r14
+	ld	r1, PACAKSAVE(r13)
 
 	/* Clear backchain so we get nice backtraces */
 	li	r7,0
@@ -975,7 +969,6 @@ start_here_multiplatform:
 	RFI
 	b	.	/* prevent speculative execution */
 
-	.previous
 	/* This is where all platforms converge execution */
 
 start_here_common:
@@ -997,7 +990,9 @@ start_here_common:
 	bl	start_kernel
 
 	/* Not reached */
-	BUG_OPCODE
+0:	trap
+	EMIT_BUG_ENTRY 0b, __FILE__, __LINE__, 0
+	.previous
 
 /*
  * We put a few things here that have to be page-aligned.

@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *   (c) 2003-2012 Advanced Micro Devices, Inc.
- *  Your use of this code is subject to the terms and conditions of the
- *  GNU general public license version 2. See "COPYING" or
- *  http://www.gnu.org/licenses/gpl.html
  *
  *  Maintainer:
  *  Andreas Herrmann <herrmann.der.user@googlemail.com>
@@ -11,7 +9,6 @@
  *  (C) 2003 Dave Jones on behalf of SuSE Labs
  *  (C) 2004 Dominik Brodowski <linux@brodo.de>
  *  (C) 2004 Pavel Machek <pavel@ucw.cz>
- *  Licensed under the terms of the GNU GPL License version 2.
  *  Based upon datasheets & sample CPUs kindly provided by AMD.
  *
  *  Valuable input gratefully received from Dave Jones, Pavel Machek,
@@ -89,7 +86,7 @@ static u32 convert_fid_to_vco_fid(u32 fid)
  */
 static int pending_bit_stuck(void)
 {
-	u32 lo, hi;
+	u32 lo, hi __always_unused;
 
 	rdmsr(MSR_FIDVID_STATUS, lo, hi);
 	return lo & MSR_S_LO_CHANGE_PENDING ? 1 : 0;
@@ -285,7 +282,7 @@ static int core_voltage_pre_transition(struct powernow_k8_data *data,
 {
 	u32 rvosteps = data->rvo;
 	u32 savefid = data->currfid;
-	u32 maxvid, lo, rvomult = 1;
+	u32 maxvid, lo __always_unused, rvomult = 1;
 
 	pr_debug("ph1 (cpu%d): start, currfid 0x%x, currvid 0x%x, reqvid 0x%x, rvo 0x%x\n",
 		smp_processor_id(),
@@ -455,7 +452,7 @@ static int core_voltage_post_transition(struct powernow_k8_data *data,
 
 static const struct x86_cpu_id powernow_k8_ids[] = {
 	/* IO based frequency switching */
-	{ X86_VENDOR_AMD, 0xf },
+	X86_MATCH_VENDOR_FAM(AMD, 0xf, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, powernow_k8_ids);
@@ -1175,7 +1172,7 @@ static int powernowk8_init(void)
 	unsigned int i, supported_cpus = 0;
 	int ret;
 
-	if (static_cpu_has(X86_FEATURE_HW_PSTATE)) {
+	if (boot_cpu_has(X86_FEATURE_HW_PSTATE)) {
 		__request_acpi_cpufreq();
 		return -ENODEV;
 	}

@@ -333,18 +333,62 @@ For 32-bit we have the following conventions - kernel is built with
 	ALTERNATIVE "", "lfence", X86_FEATURE_FENCE_SWAPGS_KERNEL
 .endm
 
-#endif /* CONFIG_X86_64 */
-
-/*
- * This does 'call enter_from_user_mode' unless we can avoid it based on
- * kernel config or using the static jump infrastructure.
- */
-.macro CALL_enter_from_user_mode
-#ifdef CONFIG_CONTEXT_TRACKING
-#ifdef CONFIG_JUMP_LABEL
-	STATIC_JUMP_IF_FALSE .Lafter_call_\@, context_tracking_enabled, def=0
-#endif
-	call enter_from_user_mode
-.Lafter_call_\@:
+.macro STACKLEAK_ERASE_NOCLOBBER
+#ifdef CONFIG_GCC_PLUGIN_STACKLEAK
+	PUSH_AND_CLEAR_REGS
+	call stackleak_erase
+	POP_REGS
 #endif
 .endm
+
+.macro SAVE_AND_SET_GSBASE scratch_reg:req save_reg:req
+	rdgsbase \save_reg
+	GET_PERCPU_BASE \scratch_reg
+	wrgsbase \scratch_reg
+.endm
+
+#else /* CONFIG_X86_64 */
+# undef		UNWIND_HINT_IRET_REGS
+# define	UNWIND_HINT_IRET_REGS
+#endif /* !CONFIG_X86_64 */
+
+.macro STACKLEAK_ERASE
+#ifdef CONFIG_GCC_PLUGIN_STACKLEAK
+	call stackleak_erase
+#endif
+.endm
+
+#ifdef CONFIG_SMP
+
+/*
+ * CPU/node NR is loaded from the limit (size) field of a special segment
+ * descriptor entry in GDT.
+ */
+.macro LOAD_CPU_AND_NODE_SEG_LIMIT reg:req
+	movq	$__CPUNODE_SEG, \reg
+	lsl	\reg, \reg
+.endm
+
+/*
+ * Fetch the per-CPU GSBASE value for this processor and put it in @reg.
+ * We normally use %gs for accessing per-CPU data, but we are setting up
+ * %gs here and obviously can not use %gs itself to access per-CPU data.
+ *
+ * Do not use RDPID, because KVM loads guest's TSC_AUX on vm-entry and
+ * may not restore the host's value until the CPU returns to userspace.
+ * Thus the kernel would consume a guest's TSC_AUX if an NMI arrives
+ * while running KVM's run loop.
+ */
+.macro GET_PERCPU_BASE reg:req
+	LOAD_CPU_AND_NODE_SEG_LIMIT \reg
+	andq	$VDSO_CPUNODE_MASK, \reg
+	movq	__per_cpu_offset(, \reg, 8), \reg
+.endm
+
+#else
+
+.macro GET_PERCPU_BASE reg:req
+	movq	pcpu_unit_offsets(%rip), \reg
+.endm
+
+#endif /* CONFIG_SMP */

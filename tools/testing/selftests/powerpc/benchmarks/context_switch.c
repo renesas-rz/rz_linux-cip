@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Context switch microbenchmark.
  *
  * Copyright (C) 2015 Anton Blanchard <anton@au.ibm.com>, IBM
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define _GNU_SOURCE
@@ -484,6 +480,12 @@ int main(int argc, char *argv[])
 		printf("yield");
 	else
 		printf("futex");
+
+	if (!have_hwcap(PPC_FEATURE_HAS_ALTIVEC))
+		touch_altivec = 0;
+
+	if (!have_hwcap(PPC_FEATURE_HAS_VSX))
+		touch_vector = 0;
 
 	printf(" on cpus %d/%d touching FP:%s altivec:%s vector:%s vdso:%s\n",
 	       cpu1, cpu2, touch_fp ?  "yes" : "no", touch_altivec ? "yes" : "no",

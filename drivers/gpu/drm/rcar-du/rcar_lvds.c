@@ -10,18 +10,21 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/sys_soc.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 
 #include "rcar_lvds.h"
 #include "rcar_lvds_regs.h"
@@ -93,17 +96,19 @@ static int rcar_lvds_connector_get_modes(struct drm_connector *connector)
 {
 	struct rcar_lvds *lvds = connector_to_rcar_lvds(connector);
 
-	return drm_panel_get_modes(lvds->panel);
+	return drm_panel_get_modes(lvds->panel, connector);
 }
 
 static int rcar_lvds_connector_atomic_check(struct drm_connector *connector,
-					    struct drm_connector_state *state)
+					    struct drm_atomic_state *state)
 {
 	struct rcar_lvds *lvds = connector_to_rcar_lvds(connector);
 	const struct drm_display_mode *panel_mode;
+	struct drm_connector_state *conn_state;
 	struct drm_crtc_state *crtc_state;
 
-	if (!state->crtc)
+	conn_state = drm_atomic_get_new_connector_state(state, connector);
+	if (!conn_state->crtc)
 		return 0;
 
 	if (list_empty(&connector->modes)) {
@@ -115,7 +120,7 @@ static int rcar_lvds_connector_atomic_check(struct drm_connector *connector,
 				      struct drm_display_mode, head);
 
 	/* We're not allowed to modify the resolution. */
-	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
+	crtc_state = drm_atomic_get_crtc_state(state, conn_state->crtc);
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
@@ -561,9 +566,13 @@ static void __rcar_lvds_atomic_enable(struct drm_bridge *bridge,
 	}
 
 	if (lvds->info->quirks & RCAR_LVDS_QUIRK_GEN3_LVEN) {
-		/* Turn on the LVDS PHY. */
+		/*
+		 * Turn on the LVDS PHY. On D3, the LVEN and LVRES bit must be
+		 * set at the same time, so don't write the register yet.
+		 */
 		lvdcr0 |= LVDCR0_LVEN;
-		rcar_lvds_write(lvds, LVDCR0, lvdcr0);
+		if (!(lvds->info->quirks & RCAR_LVDS_QUIRK_PWD))
+			rcar_lvds_write(lvds, LVDCR0, lvdcr0);
 	}
 
 	if (!(lvds->info->quirks & RCAR_LVDS_QUIRK_EXT_PLL)) {
@@ -582,8 +591,9 @@ static void __rcar_lvds_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void rcar_lvds_atomic_enable(struct drm_bridge *bridge,
-				    struct drm_atomic_state *state)
+				    struct drm_bridge_state *old_bridge_state)
 {
+	struct drm_atomic_state *state = old_bridge_state->base.state;
 	struct drm_connector *connector;
 	struct drm_crtc *crtc;
 
@@ -595,7 +605,7 @@ static void rcar_lvds_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void rcar_lvds_atomic_disable(struct drm_bridge *bridge,
-				     struct drm_atomic_state *state)
+				     struct drm_bridge_state *old_bridge_state)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
 
@@ -610,7 +620,8 @@ static void rcar_lvds_atomic_disable(struct drm_bridge *bridge,
 
 	/* Disable the companion LVDS encoder in dual-link mode. */
 	if (lvds->link_type != RCAR_LVDS_SINGLE_LINK && lvds->companion)
-		lvds->companion->funcs->atomic_disable(lvds->companion, state);
+		lvds->companion->funcs->atomic_disable(lvds->companion,
+						       old_bridge_state);
 
 	clk_disable_unprepare(lvds->clocks.mod);
 }
@@ -633,7 +644,8 @@ static bool rcar_lvds_mode_fixup(struct drm_bridge *bridge,
 	return true;
 }
 
-static int rcar_lvds_attach(struct drm_bridge *bridge)
+static int rcar_lvds_attach(struct drm_bridge *bridge,
+			    enum drm_bridge_attach_flags flags)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
 	struct drm_connector *connector = &lvds->connector;
@@ -643,7 +655,12 @@ static int rcar_lvds_attach(struct drm_bridge *bridge)
 	/* If we have a next bridge just attach it. */
 	if (lvds->next_bridge)
 		return drm_bridge_attach(bridge->encoder, lvds->next_bridge,
-					 bridge);
+					 bridge, flags);
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+		DRM_ERROR("Fix bridge driver to make connector optional!");
+		return -EINVAL;
+	}
 
 	/* Otherwise if we have a panel, create a connector. */
 	if (!lvds->panel)
@@ -660,20 +677,19 @@ static int rcar_lvds_attach(struct drm_bridge *bridge)
 	if (ret < 0)
 		return ret;
 
-	return drm_panel_attach(lvds->panel, connector);
+	return 0;
 }
 
 static void rcar_lvds_detach(struct drm_bridge *bridge)
 {
-	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
-
-	if (lvds->panel)
-		drm_panel_detach(lvds->panel);
 }
 
 static const struct drm_bridge_funcs rcar_lvds_bridge_ops = {
 	.attach = rcar_lvds_attach,
 	.detach = rcar_lvds_detach,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_reset = drm_atomic_helper_bridge_reset,
 	.atomic_enable = rcar_lvds_atomic_enable,
 	.atomic_disable = rcar_lvds_atomic_disable,
 	.mode_fixup = rcar_lvds_mode_fixup,
@@ -865,8 +881,23 @@ static int rcar_lvds_get_clocks(struct rcar_lvds *lvds)
 	return 0;
 }
 
+static const struct rcar_lvds_device_info rcar_lvds_r8a7790es1_info = {
+	.gen = 2,
+	.quirks = RCAR_LVDS_QUIRK_LANES,
+	.pll_setup = rcar_lvds_pll_setup_gen2,
+};
+
+static const struct soc_device_attribute lvds_quirk_matches[] = {
+	{
+		.soc_id = "r8a7790", .revision = "ES1.*",
+		.data = &rcar_lvds_r8a7790es1_info,
+	},
+	{ /* sentinel */ }
+};
+
 static int rcar_lvds_probe(struct platform_device *pdev)
 {
+	const struct soc_device_attribute *attr;
 	struct rcar_lvds *lvds;
 	struct resource *mem;
 	int ret;
@@ -879,6 +910,10 @@ static int rcar_lvds_probe(struct platform_device *pdev)
 
 	lvds->dev = &pdev->dev;
 	lvds->info = of_device_get_match_data(&pdev->dev);
+
+	attr = soc_device_match(lvds_quirk_matches);
+	if (attr)
+		lvds->info = attr->data;
 
 	ret = rcar_lvds_parse_dt(lvds);
 	if (ret < 0)
@@ -916,12 +951,6 @@ static const struct rcar_lvds_device_info rcar_lvds_gen2_info = {
 	.pll_setup = rcar_lvds_pll_setup_gen2,
 };
 
-static const struct rcar_lvds_device_info rcar_lvds_r8a7790_info = {
-	.gen = 2,
-	.quirks = RCAR_LVDS_QUIRK_LANES,
-	.pll_setup = rcar_lvds_pll_setup_gen2,
-};
-
 static const struct rcar_lvds_device_info rcar_lvds_gen3_info = {
 	.gen = 3,
 	.quirks = RCAR_LVDS_QUIRK_PWD,
@@ -949,17 +978,23 @@ static const struct rcar_lvds_device_info rcar_lvds_r8a77995_info = {
 };
 
 static const struct of_device_id rcar_lvds_of_table[] = {
+	{ .compatible = "renesas,r8a7742-lvds", .data = &rcar_lvds_gen2_info },
 	{ .compatible = "renesas,r8a7743-lvds", .data = &rcar_lvds_gen2_info },
+	{ .compatible = "renesas,r8a7744-lvds", .data = &rcar_lvds_gen2_info },
 	{ .compatible = "renesas,r8a774a1-lvds", .data = &rcar_lvds_gen3_info },
 	{ .compatible = "renesas,r8a774b1-lvds", .data = &rcar_lvds_gen3_info },
 	{ .compatible = "renesas,r8a774c0-lvds", .data = &rcar_lvds_r8a77990_info },
 	{ .compatible = "renesas,r8a774e1-lvds", .data = &rcar_lvds_gen3_info },
-	{ .compatible = "renesas,r8a7790-lvds", .data = &rcar_lvds_r8a7790_info },
+	{ .compatible = "renesas,r8a7790-lvds", .data = &rcar_lvds_gen2_info },
 	{ .compatible = "renesas,r8a7791-lvds", .data = &rcar_lvds_gen2_info },
 	{ .compatible = "renesas,r8a7793-lvds", .data = &rcar_lvds_gen2_info },
 	{ .compatible = "renesas,r8a7795-lvds", .data = &rcar_lvds_gen3_info },
 	{ .compatible = "renesas,r8a7796-lvds", .data = &rcar_lvds_gen3_info },
+	{ .compatible = "renesas,r8a77965-lvds", .data = &rcar_lvds_gen3_info },
 	{ .compatible = "renesas,r8a77970-lvds", .data = &rcar_lvds_r8a77970_info },
+	{ .compatible = "renesas,r8a77980-lvds", .data = &rcar_lvds_gen3_info },
+	{ .compatible = "renesas,r8a77990-lvds", .data = &rcar_lvds_r8a77990_info },
+	{ .compatible = "renesas,r8a77995-lvds", .data = &rcar_lvds_r8a77995_info },
 	{ }
 };
 

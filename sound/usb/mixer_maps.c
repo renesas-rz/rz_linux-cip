@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   Additional mixer mapping
  *
  *   Copyright (c) 2002 by Takashi Iwai <tiwai@suse.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 struct usbmix_dB_map {
@@ -28,7 +14,7 @@ struct usbmix_name_map {
 	int id;
 	const char *name;
 	int control;
-	struct usbmix_dB_map *dB;
+	const struct usbmix_dB_map *dB;
 };
 
 struct usbmix_selector_map {
@@ -67,7 +53,7 @@ Mic-IN[9] --+->FU[10]----------------------------+                  |
            ++--+->SU[11]-->FU[12] --------------------------------------------------------------------------------------> USB_OUT[13]
 */
 
-static struct usbmix_name_map extigy_map[] = {
+static const struct usbmix_name_map extigy_map[] = {
 	/* 1: IT pcm */
 	{ 2, "PCM Playback" }, /* FU */
 	/* 3: IT pcm */
@@ -108,12 +94,12 @@ static struct usbmix_name_map extigy_map[] = {
  * e.g. no Master and fake PCM volume
  *			Pavel Mihaylov <bin@bash.info>
  */
-static struct usbmix_dB_map mp3plus_dB_1 = {.min = -4781, .max = 0};
+static const struct usbmix_dB_map mp3plus_dB_1 = {.min = -4781, .max = 0};
 						/* just guess */
-static struct usbmix_dB_map mp3plus_dB_2 = {.min = -1781, .max = 618};
+static const struct usbmix_dB_map mp3plus_dB_2 = {.min = -1781, .max = 618};
 						/* just guess */
 
-static struct usbmix_name_map mp3plus_map[] = {
+static const struct usbmix_name_map mp3plus_map[] = {
 	/* 1: IT pcm */
 	/* 2: IT mic */
 	/* 3: IT line */
@@ -154,7 +140,7 @@ Lin_IN[7]-+--->FU[8]---+              +->EU[23]->FU[28]------------->Spk_OUT[19]
             |                                              ^
             +->FU[13]--------------------------------------+
 */
-static struct usbmix_name_map audigy2nx_map[] = {
+static const struct usbmix_name_map audigy2nx_map[] = {
 	/* 1: IT pcm playback */
 	/* 4: IT digital in */
 	{ 6, "Digital In Playback" }, /* FU */
@@ -182,12 +168,12 @@ static struct usbmix_name_map audigy2nx_map[] = {
 	{ 0 } /* terminator */
 };
 
-static struct usbmix_name_map mbox1_map[] = {
+static const struct usbmix_name_map mbox1_map[] = {
 	{ 1, "Clock" },
 	{ 0 } /* terminator */
 };
 
-static struct usbmix_selector_map c400_selectors[] = {
+static const struct usbmix_selector_map c400_selectors[] = {
 	{
 		.id = 0x80,
 		.count = 2,
@@ -196,7 +182,7 @@ static struct usbmix_selector_map c400_selectors[] = {
 	{ 0 } /* terminator */
 };
 
-static struct usbmix_selector_map audigy2nx_selectors[] = {
+static const struct usbmix_selector_map audigy2nx_selectors[] = {
 	{
 		.id = 14, /* Capture Source */
 		.count = 3,
@@ -216,21 +202,21 @@ static struct usbmix_selector_map audigy2nx_selectors[] = {
 };
 
 /* Creative SoundBlaster Live! 24-bit External */
-static struct usbmix_name_map live24ext_map[] = {
+static const struct usbmix_name_map live24ext_map[] = {
 	/* 2: PCM Playback Volume */
 	{ 5, "Mic Capture" }, /* FU, default PCM Capture Volume */
 	{ 0 } /* terminator */
 };
 
 /* LineX FM Transmitter entry - needed to bypass controls bug */
-static struct usbmix_name_map linex_map[] = {
+static const struct usbmix_name_map linex_map[] = {
 	/* 1: IT pcm */
 	/* 2: OT Speaker */ 
 	{ 3, "Master" }, /* FU: master volume - left / right / mute */
 	{ 0 } /* terminator */
 };
 
-static struct usbmix_name_map maya44_map[] = {
+static const struct usbmix_name_map maya44_map[] = {
 	/* 1: IT line */
 	{ 2, "Line Playback" }, /* FU */
 	/* 3: IT line */
@@ -247,13 +233,13 @@ static struct usbmix_name_map maya44_map[] = {
 };
 
 /* Section "justlink_map" below added by James Courtier-Dutton <James@superbug.demon.co.uk>
- * sourced from Maplin Electronics (http://www.maplin.co.uk), part number A56AK
+ * sourced from Maplin Electronics (https://www.maplin.co.uk), part number A56AK
  * Part has 2 connectors that act as a single output. (TOSLINK Optical for digital out, and 3.5mm Jack for Analogue out.)
  * The USB Mixer publishes a Microphone and extra Volume controls for it, but none exist on the device,
  * so this map removes all unwanted sliders from alsamixer
  */
 
-static struct usbmix_name_map justlink_map[] = {
+static const struct usbmix_name_map justlink_map[] = {
 	/* 1: IT pcm playback */
 	/* 2: Not present */
 	{ 3, NULL}, /* IT mic (No mic input on device) */
@@ -270,7 +256,7 @@ static struct usbmix_name_map justlink_map[] = {
 };
 
 /* TerraTec Aureon 5.1 MkII USB */
-static struct usbmix_name_map aureon_51_2_map[] = {
+static const struct usbmix_name_map aureon_51_2_map[] = {
 	/* 1: IT USB */
 	/* 2: IT Mic */
 	/* 3: IT Line */
@@ -289,7 +275,7 @@ static struct usbmix_name_map aureon_51_2_map[] = {
 	{} /* terminator */
 };
 
-static struct usbmix_name_map scratch_live_map[] = {
+static const struct usbmix_name_map scratch_live_map[] = {
 	/* 1: IT Line 1 (USB streaming) */
 	/* 2: OT Line 1 (Speaker) */
 	/* 3: IT Line 1 (Line connector) */
@@ -305,7 +291,7 @@ static struct usbmix_name_map scratch_live_map[] = {
 	{ 0 } /* terminator */
 };
 
-static struct usbmix_name_map ebox44_map[] = {
+static const struct usbmix_name_map ebox44_map[] = {
 	{ 4, NULL }, /* FU */
 	{ 6, NULL }, /* MU */
 	{ 7, NULL }, /* FU */
@@ -320,7 +306,7 @@ static struct usbmix_name_map ebox44_map[] = {
  *  FIXME: or mp3plus_map should use "Capture Source" too,
  *  so this maps can be merget
  */
-static struct usbmix_name_map hercules_usb51_map[] = {
+static const struct usbmix_name_map hercules_usb51_map[] = {
 	{ 8, "Capture Source" },	/* SU, default "PCM Capture Source" */
 	{ 9, "Master Playback" },	/* FU, default "Speaker Playback" */
 	{ 10, "Mic Boost", 7 },		/* FU, default "Auto Gain Input" */
@@ -331,7 +317,7 @@ static struct usbmix_name_map hercules_usb51_map[] = {
 };
 
 /* Plantronics Gamecom 780 has a broken volume control, better to disable it */
-static struct usbmix_name_map gamecom780_map[] = {
+static const struct usbmix_name_map gamecom780_map[] = {
 	{ 9, NULL }, /* FU, speaker out */
 	{}
 };
@@ -345,10 +331,17 @@ static const struct usbmix_name_map scms_usb3318_map[] = {
 };
 
 /* Bose companion 5, the dB conversion factor is 16 instead of 256 */
-static struct usbmix_dB_map bose_companion5_dB = {-5006, -6};
-static struct usbmix_name_map bose_companion5_map[] = {
+static const struct usbmix_dB_map bose_companion5_dB = {-5006, -6};
+static const struct usbmix_name_map bose_companion5_map[] = {
 	{ 3, NULL, .dB = &bose_companion5_dB },
 	{ 0 }	/* terminator */
+};
+
+/* Sennheiser Communications Headset [PC 8], the dB value is reported as -6 negative maximum  */
+static const struct usbmix_dB_map sennheiser_pc8_dB = {-9500, 0};
+static const struct usbmix_name_map sennheiser_pc8_map[] = {
+	{ 9, NULL, .dB = &sennheiser_pc8_dB },
+	{ 0 }   /* terminator */
 };
 
 /*
@@ -364,12 +357,27 @@ static const struct usbmix_name_map dell_alc4020_map[] = {
 	{ 0 }
 };
 
+/*
+ * Corsair Virtuoso calls everything "Headset" without this, leading to
+ * applications moving the sidetone control instead of the main one.
+ */
+static const struct usbmix_name_map corsair_virtuoso_map[] = {
+	{ 3, "Mic Capture" },
+	{ 6, "Sidetone Playback" },
+	{ 0 }
+};
+
 /* Some mobos shipped with a dummy HD-audio show the invalid GET_MIN/GET_MAX
  * response for Input Gain Pad (id=19, control=12) and the connector status
  * for SPDIF terminal (id=18).  Skip them.
  */
 static const struct usbmix_name_map asus_rog_map[] = {
 	{ 18, NULL }, /* OT, connector control */
+	{ 19, NULL, 12 }, /* FU, Input Gain Pad */
+	{}
+};
+
+static const struct usbmix_name_map lenovo_p620_rear_map[] = {
 	{ 19, NULL, 12 }, /* FU, Input Gain Pad */
 	{}
 };
@@ -420,7 +428,7 @@ static const struct usbmix_name_map aorus_master_alc1220vb_map[] = {
  * Control map entries
  */
 
-static struct usbmix_ctl_map usbmix_ctl_maps[] = {
+static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	{
 		.id = USB_ID(0x041e, 0x3000),
 		.map = extigy_map,
@@ -535,6 +543,26 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		.id = USB_ID(0x05a7, 0x1020),
 		.map = bose_companion5_map,
 	},
+	{
+		/* Corsair Virtuoso SE (wired mode) */
+		.id = USB_ID(0x1b1c, 0x0a3d),
+		.map = corsair_virtuoso_map,
+	},
+	{
+		/* Corsair Virtuoso SE (wireless mode) */
+		.id = USB_ID(0x1b1c, 0x0a3e),
+		.map = corsair_virtuoso_map,
+	},
+	{
+		/* Corsair Virtuoso (wired mode) */
+		.id = USB_ID(0x1b1c, 0x0a41),
+		.map = corsair_virtuoso_map,
+	},
+	{
+		/* Corsair Virtuoso (wireless mode) */
+		.id = USB_ID(0x1b1c, 0x0a42),
+		.map = corsair_virtuoso_map,
+	},
 	{	/* Gigabyte TRX40 Aorus Master (rear panel + front mic) */
 		.id = USB_ID(0x0414, 0xa001),
 		.map = aorus_master_alc1220vb_map,
@@ -550,7 +578,8 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	},
 	{	/* ASUS ROG Strix */
 		.id = USB_ID(0x0b05, 0x1917),
-		.map = asus_rog_map,
+		.map = trx40_mobo_map,
+		.connector_map = trx40_mobo_connector_map,
 	},
 	{	/* MSI TRX40 Creator */
 		.id = USB_ID(0x0db0, 0x0d64),
@@ -567,6 +596,15 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		.map = trx40_mobo_map,
 		.connector_map = trx40_mobo_connector_map,
 	},
+	{	/* Lenovo ThinkStation P620 Rear */
+		.id = USB_ID(0x17aa, 0x1046),
+		.map = lenovo_p620_rear_map,
+	},
+	{
+		/* Sennheiser Communications Headset [PC 8] */
+		.id = USB_ID(0x1395, 0x0025),
+		.map = sennheiser_pc8_map,
+	},
 	{ 0 } /* terminator */
 };
 
@@ -574,37 +612,37 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
  * Control map entries for UAC3 BADD profiles
  */
 
-static struct usbmix_name_map uac3_badd_generic_io_map[] = {
+static const struct usbmix_name_map uac3_badd_generic_io_map[] = {
 	{ UAC3_BADD_FU_ID2, "Generic Out Playback" },
 	{ UAC3_BADD_FU_ID5, "Generic In Capture" },
 	{ 0 }					/* terminator */
 };
-static struct usbmix_name_map uac3_badd_headphone_map[] = {
+static const struct usbmix_name_map uac3_badd_headphone_map[] = {
 	{ UAC3_BADD_FU_ID2, "Headphone Playback" },
 	{ 0 }					/* terminator */
 };
-static struct usbmix_name_map uac3_badd_speaker_map[] = {
+static const struct usbmix_name_map uac3_badd_speaker_map[] = {
 	{ UAC3_BADD_FU_ID2, "Speaker Playback" },
 	{ 0 }					/* terminator */
 };
-static struct usbmix_name_map uac3_badd_microphone_map[] = {
+static const struct usbmix_name_map uac3_badd_microphone_map[] = {
 	{ UAC3_BADD_FU_ID5, "Mic Capture" },
 	{ 0 }					/* terminator */
 };
 /* Covers also 'headset adapter' profile */
-static struct usbmix_name_map uac3_badd_headset_map[] = {
+static const struct usbmix_name_map uac3_badd_headset_map[] = {
 	{ UAC3_BADD_FU_ID2, "Headset Playback" },
 	{ UAC3_BADD_FU_ID5, "Headset Capture" },
 	{ UAC3_BADD_FU_ID7, "Sidetone Mixing" },
 	{ 0 }					/* terminator */
 };
-static struct usbmix_name_map uac3_badd_speakerphone_map[] = {
+static const struct usbmix_name_map uac3_badd_speakerphone_map[] = {
 	{ UAC3_BADD_FU_ID2, "Speaker Playback" },
 	{ UAC3_BADD_FU_ID5, "Mic Capture" },
 	{ 0 }					/* terminator */
 };
 
-static struct usbmix_ctl_map uac3_badd_usbmix_ctl_maps[] = {
+static const struct usbmix_ctl_map uac3_badd_usbmix_ctl_maps[] = {
 	{
 		.id = UAC3_FUNCTION_SUBCLASS_GENERIC_IO,
 		.map = uac3_badd_generic_io_map,

@@ -1,18 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2017 Josh Poimboeuf <jpoimboe@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _ORC_TYPES_H
@@ -51,28 +39,6 @@
 #define ORC_REG_SP_INDIRECT		9
 #define ORC_REG_MAX			15
 
-/*
- * ORC_TYPE_CALL: Indicates that sp_reg+sp_offset resolves to PREV_SP (the
- * caller's SP right before it made the call).  Used for all callable
- * functions, i.e. all C code and all callable asm functions.
- *
- * ORC_TYPE_REGS: Used in entry code to indicate that sp_reg+sp_offset points
- * to a fully populated pt_regs from a syscall, interrupt, or exception.
- *
- * ORC_TYPE_REGS_IRET: Used in entry code to indicate that sp_reg+sp_offset
- * points to the iret return frame.
- *
- * The UNWIND_HINT macros are used only for the unwind_hint struct.  They
- * aren't used in struct orc_entry due to size and complexity constraints.
- * Objtool converts them to real types when it converts the hints to orc
- * entries.
- */
-#define ORC_TYPE_CALL			0
-#define ORC_TYPE_REGS			1
-#define ORC_TYPE_REGS_IRET		2
-#define UNWIND_HINT_TYPE_SAVE		3
-#define UNWIND_HINT_TYPE_RESTORE	4
-
 #ifndef __ASSEMBLY__
 /*
  * This struct is more or less a vastly simplified version of the DWARF Call
@@ -91,19 +57,6 @@ struct orc_entry {
 	unsigned	end:1;
 } __packed;
 
-/*
- * This struct is used by asm and inline asm code to manually annotate the
- * location of registers on the stack for the ORC unwinder.
- *
- * Type can be either ORC_TYPE_* or UNWIND_HINT_TYPE_*.
- */
-struct unwind_hint {
-	u32		ip;
-	s16		sp_offset;
-	u8		sp_reg;
-	u8		type;
-	u8		end;
-};
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ORC_TYPES_H */

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
 /*
  * linux/can/skb.h
  *
@@ -34,7 +34,7 @@
 struct can_skb_priv {
 	int ifindex;
 	int skbcnt;
-	struct can_frame cf[0];
+	struct can_frame cf[];
 };
 
 static inline struct can_skb_priv *can_skb_prv(struct sk_buff *skb)
@@ -49,8 +49,12 @@ static inline void can_skb_reserve(struct sk_buff *skb)
 
 static inline void can_skb_set_owner(struct sk_buff *skb, struct sock *sk)
 {
-	if (sk) {
-		sock_hold(sk);
+	/* If the socket has already been closed by user space, the
+	 * refcount may already be 0 (and the socket will be freed
+	 * after the last TX skb has been freed). So only increase
+	 * socket refcount if the refcount is > 0.
+	 */
+	if (sk && refcount_inc_not_zero(&sk->sk_refcnt)) {
 		skb->destructor = sock_efree;
 		skb->sk = sk;
 	}

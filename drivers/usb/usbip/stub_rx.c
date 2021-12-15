@@ -18,9 +18,9 @@ static int is_clear_halt_cmd(struct urb *urb)
 
 	req = (struct usb_ctrlrequest *) urb->setup_packet;
 
-	 return (req->bRequest == USB_REQ_CLEAR_FEATURE) &&
-		 (req->bRequestType == USB_RECIP_ENDPOINT) &&
-		 (req->wValue == USB_ENDPOINT_HALT);
+	return (req->bRequest == USB_REQ_CLEAR_FEATURE) &&
+	       (req->bRequestType == USB_RECIP_ENDPOINT) &&
+	       (req->wValue == USB_ENDPOINT_HALT);
 }
 
 static int is_set_interface_cmd(struct urb *urb)
@@ -424,7 +424,7 @@ static void masking_bogus_flags(struct urb *urb)
 	case USB_ENDPOINT_XFER_BULK:
 		if (is_out)
 			allowed |= URB_ZERO_PACKET;
-		/* FALLTHROUGH */
+		fallthrough;
 	default:			/* all non-iso endpoints */
 		if (!is_out)
 			allowed |= URB_SHORT_NOT_OK;

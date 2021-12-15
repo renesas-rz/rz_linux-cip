@@ -35,9 +35,6 @@
 #include <linux/workqueue.h>
 #include <acpi/video.h>
 
-ACPI_MODULE_NAME("video");
-#define _COMPONENT		ACPI_VIDEO_COMPONENT
-
 void acpi_video_unregister_backlight(void);
 
 static bool backlight_notifier_registered;
@@ -112,7 +109,7 @@ static int video_detect_force_none(const struct dmi_system_id *d)
 static const struct dmi_system_id video_detect_dmi_table[] = {
 	/* On Samsung X360, the BIOS will set a flag (VDRV) if generic
 	 * ACPI backlight device is used. This flag will definitively break
-	 * the backlight interface (even the vendor interface) untill next
+	 * the backlight interface (even the vendor interface) until next
 	 * reboot. It's why we should prevent video.ko from being used here
 	 * and we can't rely on a later call to acpi_video_unregister().
 	 */
@@ -139,6 +136,22 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "UL30A"),
+		},
+	},
+	{
+	.callback = video_detect_force_vendor,
+	.ident = "GIGABYTE GB-BXBT-2807",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "GIGABYTE"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "GB-BXBT-2807"),
+		},
+	},
+	{
+	.callback = video_detect_force_vendor,
+	.ident = "Sony VPCEH3U1E",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "VPCEH3U1E"),
 		},
 	},
 
@@ -173,14 +186,14 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201s"),
 		},
 	},
-        {
-         .callback = video_detect_force_video,
-         .ident = "ThinkPad X201T",
-         .matches = {
-                DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-                DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201T"),
-                },
-        },
+	{
+	 .callback = video_detect_force_video,
+	 .ident = "ThinkPad X201T",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201T"),
+		},
+	},
 
 	/* The native backlight controls do not work on some older machines */
 	{
@@ -304,6 +317,22 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		},
 	},
 	{
+	 .callback = video_detect_force_native,
+	 .ident = "Lenovo E41-25",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "81FS"),
+		},
+	},
+	{
+	 .callback = video_detect_force_native,
+	 .ident = "Lenovo E41-45",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "82BK"),
+		},
+	},
+	{
 	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1217249 */
 	 .callback = video_detect_force_native,
 	 .ident = "Apple MacBook Pro 12,1",
@@ -354,6 +383,30 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 5735Z"),
 		DMI_MATCH(DMI_BOARD_NAME, "BA51_MV"),
+		},
+	},
+	{
+	.callback = video_detect_force_native,
+	.ident = "ASUSTeK COMPUTER INC. GA401",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "GA401"),
+		},
+	},
+	{
+	.callback = video_detect_force_native,
+	.ident = "ASUSTeK COMPUTER INC. GA502",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "GA502"),
+		},
+	},
+	{
+	.callback = video_detect_force_native,
+	.ident = "ASUSTeK COMPUTER INC. GA503",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "GA503"),
 		},
 	},
 

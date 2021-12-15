@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * CIPSO - Commercial IP Security Option
  *
@@ -9,30 +10,15 @@
  *
  * The CIPSO draft specification can be found in the kernel's Documentation
  * directory as well as the following URL:
- *   http://tools.ietf.org/id/draft-ietf-cipso-ipsecurity-01.txt
+ *   https://tools.ietf.org/id/draft-ietf-cipso-ipsecurity-01.txt
  * The FIPS-188 specification can be found at the following URL:
- *   http://www.itl.nist.gov/fipspubs/fip188.htm
+ *   https://www.itl.nist.gov/fipspubs/fip188.htm
  *
  * Author: Paul Moore <paul.moore@hp.com>
- *
  */
 
 /*
  * (c) Copyright Hewlett-Packard Development Company, L.P., 2006, 2008
- *
- * This program is free software;  you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY;  without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- * the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program;  if not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <linux/init.h>
@@ -297,7 +283,7 @@ static int cipso_v4_cache_check(const unsigned char *key,
 
 /**
  * cipso_v4_cache_add - Add an entry to the CIPSO cache
- * @skb: the packet
+ * @cipso_ptr: pointer to CIPSO IP option
  * @secattr: the packet's security attributes
  *
  * Description:
@@ -486,6 +472,7 @@ void cipso_v4_doi_free(struct cipso_v4_doi *doi_def)
 		kfree(doi_def->map.std->lvl.local);
 		kfree(doi_def->map.std->cat.cipso);
 		kfree(doi_def->map.std->cat.local);
+		kfree(doi_def->map.std);
 		break;
 	}
 	kfree(doi_def);
@@ -512,7 +499,7 @@ static void cipso_v4_doi_free_rcu(struct rcu_head *entry)
 /**
  * cipso_v4_doi_remove - Remove an existing DOI from the CIPSO protocol engine
  * @doi: the DOI value
- * @audit_secid: the LSM secid to use in the audit message
+ * @audit_info: NetLabel audit information
  *
  * Description:
  * Removes a DOI definition from the CIPSO engine.  The NetLabel routines will
@@ -533,16 +520,10 @@ int cipso_v4_doi_remove(u32 doi, struct netlbl_audit *audit_info)
 		ret_val = -ENOENT;
 		goto doi_remove_return;
 	}
-	if (!refcount_dec_and_test(&doi_def->refcount)) {
-		spin_unlock(&cipso_v4_doi_list_lock);
-		ret_val = -EBUSY;
-		goto doi_remove_return;
-	}
 	list_del_rcu(&doi_def->list);
 	spin_unlock(&cipso_v4_doi_list_lock);
 
-	cipso_v4_cache_invalidate();
-	call_rcu(&doi_def->rcu, cipso_v4_doi_free_rcu);
+	cipso_v4_doi_putdef(doi_def);
 	ret_val = 0;
 
 doi_remove_return:
@@ -599,9 +580,6 @@ void cipso_v4_doi_putdef(struct cipso_v4_doi *doi_def)
 
 	if (!refcount_dec_and_test(&doi_def->refcount))
 		return;
-	spin_lock(&cipso_v4_doi_list_lock);
-	list_del_rcu(&doi_def->list);
-	spin_unlock(&cipso_v4_doi_list_lock);
 
 	cipso_v4_cache_invalidate();
 	call_rcu(&doi_def->rcu, cipso_v4_doi_free_rcu);
@@ -1549,6 +1527,7 @@ unsigned char *cipso_v4_optptr(const struct sk_buff *skb)
 
 /**
  * cipso_v4_validate - Validate a CIPSO option
+ * @skb: the packet
  * @option: the start of the option, on error it is set to point to the error
  *
  * Description:
@@ -2080,7 +2059,7 @@ void cipso_v4_sock_delattr(struct sock *sk)
 
 /**
  * cipso_v4_req_delattr - Delete the CIPSO option from a request socket
- * @reg: the request socket
+ * @req: the request socket
  *
  * Description:
  * Removes the CIPSO option from a request socket, if present.
@@ -2172,6 +2151,7 @@ int cipso_v4_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
 /**
  * cipso_v4_skbuff_setattr - Set the CIPSO option on a packet
  * @skb: the packet
+ * @doi_def: the DOI structure
  * @secattr: the security attributes
  *
  * Description:

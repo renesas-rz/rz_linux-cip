@@ -11,9 +11,9 @@
  *
  * Based on:
  *	o MAX3421E datasheet
- *		http://datasheets.maximintegrated.com/en/ds/MAX3421E.pdf
+ *		https://datasheets.maximintegrated.com/en/ds/MAX3421E.pdf
  *	o MAX3421E Programming Guide
- *		http://www.hdl.co.jp/ftpdata/utl-001/AN3785.pdf
+ *		https://www.hdl.co.jp/ftpdata/utl-001/AN3785.pdf
  *	o gadget/dummy_hcd.c
  *		For USB HCD implementation.
  *	o Arduino MAX3421 driver
@@ -153,8 +153,6 @@ struct max3421_hcd {
 	 */
 	struct urb *curr_urb;
 	enum scheduling_pass sched_pass;
-	struct usb_device *loaded_dev;	/* dev that's loaded into the chip */
-	int loaded_epnum;		/* epnum whose toggles are loaded */
 	int urb_done;			/* > 0 -> no errors, < 0: errno */
 	size_t curr_len;
 	u8 hien;
@@ -317,7 +315,7 @@ static const int hrsl_to_error[] = {
 };
 
 /*
- * See http://www.beyondlogic.org/usbnutshell/usb4.shtml#Control for a
+ * See https://www.beyondlogic.org/usbnutshell/usb4.shtml#Control for a
  * reasonable overview of how control transfers use the the IN/OUT
  * tokens.
  */
@@ -492,39 +490,17 @@ max3421_set_speed(struct usb_hcd *hcd, struct usb_device *dev)
  * Caller must NOT hold HCD spinlock.
  */
 static void
-max3421_set_address(struct usb_hcd *hcd, struct usb_device *dev, int epnum,
-		    int force_toggles)
+max3421_set_address(struct usb_hcd *hcd, struct usb_device *dev, int epnum)
 {
-	struct max3421_hcd *max3421_hcd = hcd_to_max3421(hcd);
-	int old_epnum, same_ep, rcvtog, sndtog;
-	struct usb_device *old_dev;
+	int rcvtog, sndtog;
 	u8 hctl;
 
-	old_dev = max3421_hcd->loaded_dev;
-	old_epnum = max3421_hcd->loaded_epnum;
-
-	same_ep = (dev == old_dev && epnum == old_epnum);
-	if (same_ep && !force_toggles)
-		return;
-
-	if (old_dev && !same_ep) {
-		/* save the old end-points toggles: */
-		u8 hrsl = spi_rd8(hcd, MAX3421_REG_HRSL);
-
-		rcvtog = (hrsl >> MAX3421_HRSL_RCVTOGRD_BIT) & 1;
-		sndtog = (hrsl >> MAX3421_HRSL_SNDTOGRD_BIT) & 1;
-
-		/* no locking: HCD (i.e., we) own toggles, don't we? */
-		usb_settoggle(old_dev, old_epnum, 0, rcvtog);
-		usb_settoggle(old_dev, old_epnum, 1, sndtog);
-	}
 	/* setup new endpoint's toggle bits: */
 	rcvtog = usb_gettoggle(dev, epnum, 0);
 	sndtog = usb_gettoggle(dev, epnum, 1);
 	hctl = (BIT(rcvtog + MAX3421_HCTL_RCVTOG0_BIT) |
 		BIT(sndtog + MAX3421_HCTL_SNDTOG0_BIT));
 
-	max3421_hcd->loaded_epnum = epnum;
 	spi_wr8(hcd, MAX3421_REG_HCTL, hctl);
 
 	/*
@@ -532,7 +508,6 @@ max3421_set_address(struct usb_hcd *hcd, struct usb_device *dev, int epnum,
 	 * address-assignment so it's best to just always load the
 	 * address whenever the end-point changed/was forced.
 	 */
-	max3421_hcd->loaded_dev = dev;
 	spi_wr8(hcd, MAX3421_REG_PERADDR, dev->devnum);
 }
 
@@ -667,7 +642,7 @@ max3421_select_and_start_urb(struct usb_hcd *hcd)
 	struct max3421_hcd *max3421_hcd = hcd_to_max3421(hcd);
 	struct urb *urb, *curr_urb = NULL;
 	struct max3421_ep *max3421_ep;
-	int epnum, force_toggles = 0;
+	int epnum;
 	struct usb_host_endpoint *ep;
 	struct list_head *pos;
 	unsigned long flags;
@@ -777,7 +752,6 @@ done:
 			usb_settoggle(urb->dev, epnum, 0, 1);
 			usb_settoggle(urb->dev, epnum, 1, 1);
 			max3421_ep->pkt_state = PKT_STATE_SETUP;
-			force_toggles = 1;
 		} else
 			max3421_ep->pkt_state = PKT_STATE_TRANSFER;
 	}
@@ -785,7 +759,7 @@ done:
 	spin_unlock_irqrestore(&max3421_hcd->lock, flags);
 
 	max3421_ep->last_active = max3421_hcd->frame_number;
-	max3421_set_address(hcd, urb->dev, epnum, force_toggles);
+	max3421_set_address(hcd, urb->dev, epnum);
 	max3421_set_speed(hcd, urb->dev);
 	max3421_next_transfer(hcd, 0);
 	return 1;
@@ -925,7 +899,7 @@ max3421_handle_error(struct usb_hcd *hcd, u8 hrsl)
 			spi_wr8(hcd, MAX3421_REG_HCTL,
 				BIT(sndtog + MAX3421_HCTL_SNDTOG0_BIT));
 		}
-		/* FALL THROUGH */
+		fallthrough;
 	case MAX3421_HRSL_BADBC:	/* bad byte count */
 	case MAX3421_HRSL_PIDERR:	/* received PID is corrupted */
 	case MAX3421_HRSL_PKTERR:	/* packet error (stuff, EOP) */
@@ -1380,6 +1354,16 @@ max3421_urb_done(struct usb_hcd *hcd)
 		status = 0;
 	urb = max3421_hcd->curr_urb;
 	if (urb) {
+		/* save the old end-points toggles: */
+		u8 hrsl = spi_rd8(hcd, MAX3421_REG_HRSL);
+		int rcvtog = (hrsl >> MAX3421_HRSL_RCVTOGRD_BIT) & 1;
+		int sndtog = (hrsl >> MAX3421_HRSL_SNDTOGRD_BIT) & 1;
+		int epnum = usb_endpoint_num(&urb->ep->desc);
+
+		/* no locking: HCD (i.e., we) own toggles, don't we? */
+		usb_settoggle(urb->dev, epnum, 0, rcvtog);
+		usb_settoggle(urb->dev, epnum, 1, sndtog);
+
 		max3421_hcd->curr_urb = NULL;
 		spin_lock_irqsave(&max3421_hcd->lock, flags);
 		usb_hcd_unlink_urb_from_ep(hcd, urb);
@@ -1715,7 +1699,7 @@ max3421_hub_control(struct usb_hcd *hcd, u16 type_req, u16 value, u16 index,
 			dev_dbg(hcd->self.controller, "power-off\n");
 			max3421_gpout_set_value(hcd, pdata->vbus_gpout,
 						!pdata->vbus_active_level);
-			/* FALLS THROUGH */
+			fallthrough;
 		default:
 			max3421_hcd->port_status &= ~(1 << value);
 		}
@@ -1768,7 +1752,7 @@ max3421_hub_control(struct usb_hcd *hcd, u16 type_req, u16 value, u16 index,
 			break;
 		case USB_PORT_FEAT_RESET:
 			max3421_reset_port(hcd);
-			/* FALLS THROUGH */
+			fallthrough;
 		default:
 			if ((max3421_hcd->port_status & USB_PORT_STAT_POWER)
 			    != 0)
@@ -1800,21 +1784,6 @@ max3421_bus_resume(struct usb_hcd *hcd)
 	return -1;
 }
 
-/*
- * The SPI driver already takes care of DMA-mapping/unmapping, so no
- * reason to do it twice.
- */
-static int
-max3421_map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
-{
-	return 0;
-}
-
-static void
-max3421_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
-{
-}
-
 static const struct hc_driver max3421_hcd_desc = {
 	.description =		"max3421",
 	.product_desc =		DRIVER_DESC,
@@ -1826,8 +1795,6 @@ static const struct hc_driver max3421_hcd_desc = {
 	.get_frame_number =	max3421_get_frame_number,
 	.urb_enqueue =		max3421_urb_enqueue,
 	.urb_dequeue =		max3421_urb_dequeue,
-	.map_urb_for_dma =	max3421_map_urb_for_dma,
-	.unmap_urb_for_dma =	max3421_unmap_urb_for_dma,
 	.endpoint_disable =	max3421_endpoint_disable,
 	.hub_status_data =	max3421_hub_status_data,
 	.hub_control =		max3421_hub_control,

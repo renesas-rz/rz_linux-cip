@@ -30,6 +30,12 @@ static void nft_tproxy_eval_v4(const struct nft_expr *expr,
 	__be16 tport = 0;
 	struct sock *sk;
 
+	if (pkt->tprot != IPPROTO_TCP &&
+	    pkt->tprot != IPPROTO_UDP) {
+		regs->verdict.code = NFT_BREAK;
+		return;
+	}
+
 	hp = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_hdr), &_hdr);
 	if (!hp) {
 		regs->verdict.code = NFT_BREAK;
@@ -91,7 +97,8 @@ static void nft_tproxy_eval_v6(const struct nft_expr *expr,
 
 	memset(&taddr, 0, sizeof(taddr));
 
-	if (!pkt->tprot_set) {
+	if (pkt->tprot != IPPROTO_TCP &&
+	    pkt->tprot != IPPROTO_UDP) {
 		regs->verdict.code = NFT_BREAK;
 		return;
 	}
@@ -218,14 +225,14 @@ static int nft_tproxy_init(const struct nft_ctx *ctx,
 
 	switch (priv->family) {
 	case NFPROTO_IPV4:
-		alen = FIELD_SIZEOF(union nf_inet_addr, in);
+		alen = sizeof_field(union nf_inet_addr, in);
 		err = nf_defrag_ipv4_enable(ctx->net);
 		if (err)
 			return err;
 		break;
 #if IS_ENABLED(CONFIG_NF_TABLES_IPV6)
 	case NFPROTO_IPV6:
-		alen = FIELD_SIZEOF(union nf_inet_addr, in6);
+		alen = sizeof_field(union nf_inet_addr, in6);
 		err = nf_defrag_ipv6_enable(ctx->net);
 		if (err)
 			return err;

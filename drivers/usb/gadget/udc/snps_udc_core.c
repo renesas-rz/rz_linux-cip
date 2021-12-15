@@ -2,7 +2,7 @@
 /*
  * amd5536.c -- AMD 5536 UDC high/full speed USB device controller
  *
- * Copyright (C) 2005-2007 AMD (http://www.amd.com)
+ * Copyright (C) 2005-2007 AMD (https://www.amd.com)
  * Author: Thomas Dahlmann
  */
 
@@ -96,9 +96,7 @@ static int stop_pollstall_timer;
 static DECLARE_COMPLETION(on_pollstall_exit);
 
 /* tasklet for usb disconnect */
-static DECLARE_TASKLET(disconnect_tasklet, udc_tasklet_disconnect,
-		(unsigned long) &udc);
-
+static DECLARE_TASKLET_OLD(disconnect_tasklet, udc_tasklet_disconnect);
 
 /* endpoint names used for print */
 static const char ep0_string[] = "ep0in";
@@ -947,15 +945,14 @@ static int prep_dma(struct udc_ep *ep, struct udc_request *req, gfp_t gfp)
 				UDC_DMA_STP_STS_BS_HOST_READY,
 				UDC_DMA_STP_STS_BS);
 
-
-			/* clear NAK by writing CNAK */
-			if (ep->naking) {
-				tmp = readl(&ep->regs->ctl);
-				tmp |= AMD_BIT(UDC_EPCTL_CNAK);
-				writel(tmp, &ep->regs->ctl);
-				ep->naking = 0;
-				UDC_QUEUE_CNAK(ep, ep->num);
-			}
+		/* clear NAK by writing CNAK */
+		if (ep->naking) {
+			tmp = readl(&ep->regs->ctl);
+			tmp |= AMD_BIT(UDC_EPCTL_CNAK);
+			writel(tmp, &ep->regs->ctl);
+			ep->naking = 0;
+			UDC_QUEUE_CNAK(ep, ep->num);
+		}
 
 	}
 
@@ -1662,7 +1659,7 @@ static void usb_disconnect(struct udc *dev)
 /* Tasklet for disconnect to be outside of interrupt context */
 static void udc_tasklet_disconnect(unsigned long par)
 {
-	struct udc *dev = (struct udc *)(*((struct udc **) par));
+	struct udc *dev = udc;
 	u32 tmp;
 
 	DBG(dev, "Tasklet disconnect\n");

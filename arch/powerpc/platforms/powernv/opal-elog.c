@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Error log support on PowerNV.
  *
  * Copyright 2013,2014 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -76,9 +72,14 @@ static ssize_t elog_ack_store(struct elog_obj *elog_obj,
 			      const char *buf,
 			      size_t count)
 {
-	opal_send_ack_elog(elog_obj->id);
-	sysfs_remove_file_self(&elog_obj->kobj, &attr->attr);
-	kobject_put(&elog_obj->kobj);
+	/*
+	 * Try to self remove this attribute. If we are successful,
+	 * delete the kobject itself.
+	 */
+	if (sysfs_remove_file_self(&elog_obj->kobj, &attr->attr)) {
+		opal_send_ack_elog(elog_obj->id);
+		kobject_put(&elog_obj->kobj);
+	}
 	return count;
 }
 

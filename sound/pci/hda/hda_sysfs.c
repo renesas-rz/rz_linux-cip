@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sysfs interface for HD-audio codec
  *
@@ -14,7 +15,7 @@
 #include <linux/string.h>
 #include <linux/export.h>
 #include <sound/core.h>
-#include "hda_codec.h"
+#include <sound/hda_codec.h>
 #include "hda_local.h"
 #include <sound/hda_hwdep.h>
 #include <sound/minors.h>
@@ -610,7 +611,7 @@ struct hda_patch_item {
 	void (*parser)(char *buf, struct hda_bus *bus, struct hda_codec **retc);
 };
 
-static struct hda_patch_item patch_items[NUM_LINE_MODES] = {
+static const struct hda_patch_item patch_items[NUM_LINE_MODES] = {
 	[LINE_MODE_CODEC] = {
 		.tag = "[codec]",
 		.parser = parse_codec_mode,

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RPR-0521 ROHM Ambient Light and Proximity Sensor
  *
  * Copyright (c) 2015, Intel Corporation.
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * IIO driver for RPR-0521RS (7-bit I2C slave address 0x38).
  *
@@ -582,8 +579,6 @@ static int rpr0521_buffer_postdisable(struct iio_dev *indio_dev)
 
 static const struct iio_buffer_setup_ops rpr0521_buffer_setup_ops = {
 	.preenable = rpr0521_buffer_preenable,
-	.postenable = iio_triggered_buffer_postenable,
-	.predisable = iio_triggered_buffer_predisable,
 	.postdisable = rpr0521_buffer_postdisable,
 };
 
@@ -960,7 +955,6 @@ static int rpr0521_probe(struct i2c_client *client,
 
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &rpr0521_info;
 	indio_dev->name = RPR0521_DRV_NAME;
 	indio_dev->channels = rpr0521_channels;

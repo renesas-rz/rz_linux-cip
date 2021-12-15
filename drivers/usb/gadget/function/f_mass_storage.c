@@ -47,7 +47,7 @@
  *
  * For more information about MSF and in particular its module
  * parameters and sysfs interface read the
- * <Documentation/usb/mass-storage.txt> file.
+ * <Documentation/usb/mass-storage.rst> file.
  */
 
 /*
@@ -216,6 +216,7 @@
 #include <linux/freezer.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
+#include <asm/unaligned.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -408,7 +409,7 @@ static void __raise_exception(struct fsg_common *common, enum fsg_state new_stat
 		common->state = new_state;
 		common->exception_arg = arg;
 		if (common->thread_task)
-			send_sig_info(SIGUSR1, SEND_SIG_FORCED,
+			send_sig_info(SIGUSR1, SEND_SIG_PRIV,
 				      common->thread_task);
 	}
 	spin_unlock_irqrestore(&common->lock, flags);
@@ -2038,7 +2039,6 @@ static int do_scsi_command(struct fsg_common *common)
 	case RELEASE:
 	case RESERVE:
 	case SEND_DIAGNOSTIC:
-		/* Fall through */
 
 	default:
 unknown_cmnd:
@@ -2321,7 +2321,7 @@ static void handle_exception(struct fsg_common *common)
 	 * into a high-priority EXIT exception.
 	 */
 	for (;;) {
-		int sig = kernel_dequeue_signal(NULL);
+		int sig = kernel_dequeue_signal();
 		if (!sig)
 			break;
 		if (sig != SIGUSR1) {

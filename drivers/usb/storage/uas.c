@@ -279,17 +279,17 @@ static bool uas_evaluate_response_iu(struct response_iu *riu, struct scsi_cmnd *
 
 	switch (response_code) {
 	case RC_INCORRECT_LUN:
-		cmnd->result = DID_BAD_TARGET << 16;
+		set_host_byte(cmnd, DID_BAD_TARGET);
 		break;
 	case RC_TMF_SUCCEEDED:
-		cmnd->result = DID_OK << 16;
+		set_host_byte(cmnd, DID_OK);
 		break;
 	case RC_TMF_NOT_SUPPORTED:
-		cmnd->result = DID_TARGET_FAILURE << 16;
+		set_host_byte(cmnd, DID_TARGET_FAILURE);
 		break;
 	default:
 		uas_log_cmd_state(cmnd, "response iu", response_code);
-		cmnd->result = DID_ERROR << 16;
+		set_host_byte(cmnd, DID_ERROR);
 		break;
 	}
 
@@ -396,24 +396,18 @@ static void uas_data_cmplt(struct urb *urb)
 	struct scsi_cmnd *cmnd = urb->context;
 	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
 	struct uas_dev_info *devinfo = (void *)cmnd->device->hostdata;
-	struct scsi_data_buffer *sdb = NULL;
+	struct scsi_data_buffer *sdb = &cmnd->sdb;
 	unsigned long flags;
 	int status = urb->status;
 
 	spin_lock_irqsave(&devinfo->lock, flags);
 
 	if (cmdinfo->data_in_urb == urb) {
-		sdb = scsi_in(cmnd);
 		cmdinfo->state &= ~DATA_IN_URB_INFLIGHT;
 		cmdinfo->data_in_urb = NULL;
 	} else if (cmdinfo->data_out_urb == urb) {
-		sdb = scsi_out(cmnd);
 		cmdinfo->state &= ~DATA_OUT_URB_INFLIGHT;
 		cmdinfo->data_out_urb = NULL;
-	}
-	if (sdb == NULL) {
-		WARN_ON_ONCE(1);
-		goto out;
 	}
 
 	if (devinfo->resetting)
@@ -429,9 +423,9 @@ static void uas_data_cmplt(struct urb *urb)
 		if (status != -ENOENT && status != -ECONNRESET && status != -ESHUTDOWN)
 			uas_log_cmd_state(cmnd, "data cmplt err", status);
 		/* error: no data transfered */
-		sdb->resid = sdb->length;
+		scsi_set_resid(cmnd, sdb->length);
 	} else {
-		sdb->resid = sdb->length - urb->actual_length;
+		scsi_set_resid(cmnd, sdb->length - urb->actual_length);
 	}
 	uas_try_complete(cmnd, __func__);
 out:
@@ -454,8 +448,7 @@ static struct urb *uas_alloc_data_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 	struct usb_device *udev = devinfo->udev;
 	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
 	struct urb *urb = usb_alloc_urb(0, gfp);
-	struct scsi_data_buffer *sdb = (dir == DMA_FROM_DEVICE)
-		? scsi_in(cmnd) : scsi_out(cmnd);
+	struct scsi_data_buffer *sdb = &cmnd->sdb;
 	unsigned int pipe = (dir == DMA_FROM_DEVICE)
 		? devinfo->data_in_pipe : devinfo->data_out_pipe;
 
@@ -667,7 +660,7 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 	spin_lock_irqsave(&devinfo->lock, flags);
 
 	if (devinfo->resetting) {
-		cmnd->result = DID_ERROR << 16;
+		set_host_byte(cmnd, DID_ERROR);
 		cmnd->scsi_done(cmnd);
 		goto zombie;
 	}
@@ -694,7 +687,7 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 		break;
 	case DMA_BIDIRECTIONAL:
 		cmdinfo->state |= ALLOC_DATA_IN_URB | SUBMIT_DATA_IN_URB;
-		/* fall through */
+		fallthrough;
 	case DMA_TO_DEVICE:
 		cmdinfo->state |= ALLOC_DATA_OUT_URB | SUBMIT_DATA_OUT_URB;
 	case DMA_NONE:
@@ -711,7 +704,7 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 	 * of queueing, no matter how fatal the error
 	 */
 	if (err == -ENODEV) {
-		cmnd->result = DID_ERROR << 16;
+		set_host_byte(cmnd, DID_ERROR);
 		cmnd->scsi_done(cmnd);
 		goto zombie;
 	}
@@ -917,8 +910,8 @@ static struct scsi_host_template uas_host_template = {
 	.eh_abort_handler = uas_eh_abort_handler,
 	.eh_device_reset_handler = uas_eh_device_reset_handler,
 	.this_id = -1,
-	.sg_tablesize = SG_NONE,
 	.skip_settle_delay = 1,
+	.dma_boundary = PAGE_SIZE - 1,
 };
 
 #define UNUSUAL_DEV(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax, \
@@ -1289,5 +1282,6 @@ module_init(uas_init);
 module_exit(uas_exit);
 
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(USB_STORAGE);
 MODULE_AUTHOR(
 	"Hans de Goede <hdegoede@redhat.com>, Matthew Wilcox and Sarah Sharp");

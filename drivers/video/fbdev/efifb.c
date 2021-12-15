@@ -154,6 +154,11 @@ static void efifb_show_boot_graphics(struct fb_info *info)
 		return;
 	}
 
+	if (bgrt_tab.status & 0x06) {
+		pr_info("efifb: BGRT rotation bits set, not showing boot graphics\n");
+		return;
+	}
+
 	/* Avoid flashing the logo if we're going to print std probe messages */
 	if (console_loglevel > CONSOLE_LOGLEVEL_QUIET)
 		return;
@@ -250,7 +255,7 @@ static void efifb_destroy(struct fb_info *info)
 	fb_dealloc_cmap(&info->cmap);
 }
 
-static struct fb_ops efifb_ops = {
+static const struct fb_ops efifb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_destroy	= efifb_destroy,
 	.fb_setcolreg	= efifb_setcolreg,
@@ -433,7 +438,6 @@ static int efifb_probe(struct platform_device *dev)
 
 	info = framebuffer_alloc(sizeof(u32) * 16, &dev->dev);
 	if (!info) {
-		pr_err("efifb: cannot allocate framebuffer\n");
 		err = -ENOMEM;
 		goto err_release_mem;
 	}
@@ -649,7 +653,7 @@ static void efifb_fixup_resources(struct pci_dev *dev)
 	if (!base)
 		return;
 
-	for (i = 0; i <= PCI_STD_RESOURCE_END; i++) {
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 		struct resource *res = &dev->resource[i];
 
 		if (!(res->flags & IORESOURCE_MEM))

@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
  * Author:     Luis Carlos Cobo <luisca@cozybit.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/etherdevice.h>
@@ -63,7 +60,10 @@ static struct mesh_table *mesh_table_alloc(void)
 	atomic_set(&newtbl->entries,  0);
 	spin_lock_init(&newtbl->gates_lock);
 	spin_lock_init(&newtbl->walk_lock);
-	rhashtable_init(&newtbl->rhead, &mesh_rht_params);
+	if (rhashtable_init(&newtbl->rhead, &mesh_rht_params)) {
+		kfree(newtbl);
+		return NULL;
+	}
 
 	return newtbl;
 }
@@ -76,7 +76,6 @@ static void mesh_table_free(struct mesh_table *tbl)
 }
 
 /**
- *
  * mesh_path_assign_nexthop - update mesh path next hop
  *
  * @mpath: mesh path to update
@@ -144,7 +143,6 @@ static void prepare_for_gate(struct sk_buff *skb, char *dst_addr,
 }
 
 /**
- *
  * mesh_path_move_to_queue - Move or copy frames from one mpath queue to another
  *
  * This function is used to transfer or copy frames from an unresolved mpath to
@@ -156,7 +154,7 @@ static void prepare_for_gate(struct sk_buff *skb, char *dst_addr,
  *
  * The gate mpath must be an active mpath with a valid mpath->next_hop.
  *
- * @mpath: An active mpath the frames will be sent to (i.e. the gate)
+ * @gate_mpath: An active mpath the frames will be sent to (i.e. the gate)
  * @from_mpath: The failed mpath
  * @copy: When true, copy all the frames to the new mpath queue.  When false,
  * move them.
@@ -218,7 +216,7 @@ static struct mesh_path *mpath_lookup(struct mesh_table *tbl, const u8 *dst,
 {
 	struct mesh_path *mpath;
 
-	mpath = rhashtable_lookup_fast(&tbl->rhead, dst, mesh_rht_params);
+	mpath = rhashtable_lookup(&tbl->rhead, dst, mesh_rht_params);
 
 	if (mpath && mpath_expired(mpath)) {
 		spin_lock_bh(&mpath->state_lock);
@@ -405,7 +403,6 @@ struct mesh_path *mesh_path_add(struct ieee80211_sub_if_data *sdata,
 {
 	struct mesh_table *tbl;
 	struct mesh_path *mpath, *new_mpath;
-	int ret;
 
 	if (ether_addr_equal(dst, sdata->vif.addr))
 		/* never add ourselves as neighbours */
@@ -423,25 +420,18 @@ struct mesh_path *mesh_path_add(struct ieee80211_sub_if_data *sdata,
 
 	tbl = sdata->u.mesh.mesh_paths;
 	spin_lock_bh(&tbl->walk_lock);
-	do {
-		ret = rhashtable_lookup_insert_fast(&tbl->rhead,
-						    &new_mpath->rhash,
-						    mesh_rht_params);
-
-		if (ret == -EEXIST)
-			mpath = rhashtable_lookup_fast(&tbl->rhead,
-						       dst,
-						       mesh_rht_params);
-		else if (!ret)
-			hlist_add_head(&new_mpath->walk_list, &tbl->walk_head);
-	} while (unlikely(ret == -EEXIST && !mpath));
+	mpath = rhashtable_lookup_get_insert_fast(&tbl->rhead,
+						  &new_mpath->rhash,
+						  mesh_rht_params);
+	if (!mpath)
+		hlist_add_head(&new_mpath->walk_list, &tbl->walk_head);
 	spin_unlock_bh(&tbl->walk_lock);
 
-	if (ret) {
+	if (mpath) {
 		kfree(new_mpath);
 
-		if (ret != -EEXIST)
-			return ERR_PTR(ret);
+		if (IS_ERR(mpath))
+			return mpath;
 
 		new_mpath = mpath;
 	}

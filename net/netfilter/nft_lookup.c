@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2009 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Development of this code funded by Astaro AG (http://www.astaro.com/)
  */
@@ -32,7 +29,7 @@ void nft_lookup_eval(const struct nft_expr *expr,
 {
 	const struct nft_lookup *priv = nft_expr_priv(expr);
 	const struct nft_set *set = priv->set;
-	const struct nft_set_ext *ext;
+	const struct nft_set_ext *ext = NULL;
 	bool found;
 
 	found = set->ops->lookup(nft_net(pkt), set, &regs->data[priv->sreg],
@@ -42,10 +39,13 @@ void nft_lookup_eval(const struct nft_expr *expr,
 		return;
 	}
 
-	if (set->flags & NFT_SET_MAP)
-		nft_data_copy(&regs->data[priv->dreg],
-			      nft_set_ext_data(ext), set->dlen);
+	if (ext) {
+		if (set->flags & NFT_SET_MAP)
+			nft_data_copy(&regs->data[priv->dreg],
+				      nft_set_ext_data(ext), set->dlen);
 
+		nft_set_elem_update_expr(ext, regs, pkt);
+	}
 }
 
 static const struct nla_policy nft_lookup_policy[NFTA_LOOKUP_MAX + 1] = {

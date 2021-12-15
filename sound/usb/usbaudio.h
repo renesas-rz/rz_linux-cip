@@ -1,24 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef __USBAUDIO_H
 #define __USBAUDIO_H
 /*
  *   (Tentative) USB Audio Driver for ALSA
  *
  *   Copyright (c) 2002 by Takashi Iwai <tiwai@suse.de>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 /* handling of USB vendor/product ID pairs as 32-bit numbers */
@@ -30,12 +16,18 @@
  *
  */
 
+struct media_device;
+struct media_intf_devnode;
+
+#define MAX_CARD_INTERFACES	16
+
 struct snd_usb_audio {
 	int index;
 	struct usb_device *dev;
 	struct snd_card *card;
-	struct usb_interface *pm_intf;
+	struct usb_interface *intf[MAX_CARD_INTERFACES];
 	u32 usb_id;
+	uint16_t quirk_type;
 	struct mutex mutex;
 	unsigned int system_suspend;
 	atomic_t active;
@@ -45,6 +37,7 @@ struct snd_usb_audio {
 	unsigned int txfr_quirk:1; /* Subframe boundaries on transfers */
 	unsigned int tx_length_quirk:1; /* Put length specifier in transfers */
 	unsigned int setup_fmt_after_resume_quirk:1; /* setup the format to interface after resume */
+	unsigned int need_delayed_register:1; /* warn for delayed registration */
 	int num_interfaces;
 	int num_suspended_intf;
 	int sample_rate_read_error;
@@ -66,7 +59,11 @@ struct snd_usb_audio {
 					 */
 
 	struct usb_host_interface *ctrl_intf;	/* the audio control interface */
+	struct media_device *media_dev;
+	struct media_intf_devnode *ctl_intf_media_devnode;
 };
+
+#define USB_AUDIO_IFACE_UNUSED	((void *)-1L)
 
 #define usb_audio_err(chip, fmt, args...) \
 	dev_err(&(chip)->dev->dev, fmt, ##args)
@@ -108,6 +105,7 @@ enum quirk_type {
 	QUIRK_AUDIO_ALIGN_TRANSFER,
 	QUIRK_AUDIO_STANDARD_MIXER,
 	QUIRK_SETUP_FMT_AFTER_RESUME,
+	QUIRK_SETUP_DISABLE_AUTOSUSPEND,
 
 	QUIRK_TYPE_COUNT
 };
@@ -115,9 +113,9 @@ enum quirk_type {
 struct snd_usb_audio_quirk {
 	const char *vendor_name;
 	const char *product_name;
-	const char *profile_name;	/* override the card->longname */
 	int16_t ifnum;
 	uint16_t type;
+	bool shares_media_device;
 	const void *data;
 };
 
@@ -129,5 +127,6 @@ int snd_usb_lock_shutdown(struct snd_usb_audio *chip);
 void snd_usb_unlock_shutdown(struct snd_usb_audio *chip);
 
 extern bool snd_usb_use_vmalloc;
+extern bool snd_usb_skip_validation;
 
 #endif /* __USBAUDIO_H */

@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012 Linutronix GmbH
  * Copyright (c) 2014 sigma star gmbh
  * Author: Richard Weinberger <richard@nod.at>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
- * the GNU General Public License for more details.
- *
  */
 
 /**
@@ -125,6 +116,21 @@ void ubi_refill_pools(struct ubi_device *ubi)
 	wl_pool->size = 0;
 	pool->size = 0;
 
+	if (ubi->fm_anchor) {
+		wl_tree_add(ubi->fm_anchor, &ubi->free);
+		ubi->free_count++;
+	}
+	if (ubi->fm_next_anchor) {
+		wl_tree_add(ubi->fm_next_anchor, &ubi->free);
+		ubi->free_count++;
+	}
+
+	/* All available PEBs are in ubi->free, now is the time to get
+	 * the best anchor PEBs.
+	 */
+	ubi->fm_anchor = ubi_wl_get_fm_peb(ubi, 1);
+	ubi->fm_next_anchor = ubi_wl_get_fm_peb(ubi, 1);
+
 	for (;;) {
 		enough = 0;
 		if (pool->size < pool->max_size) {
@@ -199,7 +205,7 @@ static int produce_free_peb(struct ubi_device *ubi)
  */
 int ubi_wl_get_peb(struct ubi_device *ubi)
 {
-	int ret, retried = 0;
+	int ret, attempts = 0;
 	struct ubi_fm_pool *pool = &ubi->fm_pool;
 	struct ubi_fm_pool *wl_pool = &ubi->fm_wl_pool;
 
@@ -224,12 +230,12 @@ again:
 
 	if (pool->used == pool->size) {
 		spin_unlock(&ubi->wl_lock);
-		if (retried) {
+		attempts++;
+		if (attempts == 10) {
 			ubi_err(ubi, "Unable to get a free PEB from user WL pool");
 			ret = -ENOSPC;
 			goto out;
 		}
-		retried = 1;
 		up_read(&ubi->fm_eba_sem);
 		ret = produce_free_peb(ubi);
 		if (ret < 0) {
@@ -280,26 +286,20 @@ static struct ubi_wl_entry *get_peb_for_wl(struct ubi_device *ubi)
 int ubi_ensure_anchor_pebs(struct ubi_device *ubi)
 {
 	struct ubi_work *wrk;
-	struct ubi_wl_entry *anchor;
 
 	spin_lock(&ubi->wl_lock);
 
-	/* Do we already have an anchor? */
-	if (ubi->fm_anchor) {
-		spin_unlock(&ubi->wl_lock);
-		return 0;
+	/* Do we have a next anchor? */
+	if (!ubi->fm_next_anchor) {
+		ubi->fm_next_anchor = ubi_wl_get_fm_peb(ubi, 1);
+		if (!ubi->fm_next_anchor)
+			/* Tell wear leveling to produce a new anchor PEB */
+			ubi->fm_do_produce_anchor = 1;
 	}
 
-	/* See if we can find an anchor PEB on the list of free PEBs */
-	anchor = ubi_wl_get_fm_peb(ubi, 1);
-	if (anchor) {
-		ubi->fm_anchor = anchor;
-		spin_unlock(&ubi->wl_lock);
-		return 0;
-	}
-
-	/* No luck, trigger wear leveling to produce a new anchor PEB */
-	ubi->fm_do_produce_anchor = 1;
+	/* Do wear leveling to get a new anchor PEB or check the
+	 * existing next anchor candidate.
+	 */
 	if (ubi->wl_scheduled) {
 		spin_unlock(&ubi->wl_lock);
 		return 0;
@@ -379,6 +379,11 @@ static void ubi_fastmap_close(struct ubi_device *ubi)
 	if (ubi->fm_anchor) {
 		return_unused_peb(ubi, ubi->fm_anchor);
 		ubi->fm_anchor = NULL;
+	}
+
+	if (ubi->fm_next_anchor) {
+		return_unused_peb(ubi, ubi->fm_next_anchor);
+		ubi->fm_next_anchor = NULL;
 	}
 
 	if (ubi->fm) {

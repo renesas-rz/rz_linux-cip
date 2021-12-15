@@ -1,10 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
+
 #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #endif
 #include <linux/cpu.h>
 #include <linux/kexec.h>
 #include <linux/slab.h>
 
+#include <xen/xen.h>
 #include <xen/features.h>
 #include <xen/page.h>
 
@@ -68,7 +71,7 @@ EXPORT_SYMBOL_GPL(xen_have_vector_callback);
  * NB: needs to live in .data because it's used by xen_prepare_pvh which runs
  * before clearing the bss.
  */
-uint32_t xen_start_flags __attribute__((section(".data"))) = 0;
+uint32_t xen_start_flags __section(".data") = 0;
 EXPORT_SYMBOL(xen_start_flags);
 
 /*

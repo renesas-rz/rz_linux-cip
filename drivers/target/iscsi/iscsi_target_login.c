@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * This file contains the login functions used by the iSCSI Target driver.
  *
@@ -5,15 +6,6 @@
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  ******************************************************************************/
 
 #include <crypto/hash.h>
@@ -23,6 +15,7 @@
 #include <linux/sched/signal.h>
 #include <linux/idr.h>
 #include <linux/tcp.h>        /* TCP_NODELAY */
+#include <net/ip.h>
 #include <net/ipv6.h>         /* ipv6_addr_v4mapped() */
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
@@ -579,7 +572,7 @@ int iscsi_login_post_auth_non_zero_tsih(
 	}
 
 	/*
-	 * Check for any connection recovery entires containing CID.
+	 * Check for any connection recovery entries containing CID.
 	 * We use the original ExpStatSN sent in the first login request
 	 * to acknowledge commands for the failed connection.
 	 *
@@ -863,7 +856,7 @@ int iscsit_setup_np(
 	struct sockaddr_storage *sockaddr)
 {
 	struct socket *sock = NULL;
-	int backlog = ISCSIT_TCP_BACKLOG, ret, opt = 0, len;
+	int backlog = ISCSIT_TCP_BACKLOG, ret, len;
 
 	switch (np->np_network_transport) {
 	case ISCSI_TCP:
@@ -883,9 +876,6 @@ int iscsit_setup_np(
 				np->np_network_transport);
 		return -EINVAL;
 	}
-
-	np->np_ip_proto = IPPROTO_TCP;
-	np->np_sock_type = SOCK_STREAM;
 
 	ret = sock_create(sockaddr->ss_family, np->np_sock_type,
 			np->np_ip_proto, &sock);
@@ -908,34 +898,10 @@ int iscsit_setup_np(
 	/*
 	 * Set SO_REUSEADDR, and disable Nagel Algorithm with TCP_NODELAY.
 	 */
-	/* FIXME: Someone please explain why this is endian-safe */
-	opt = 1;
-	if (np->np_network_transport == ISCSI_TCP) {
-		ret = kernel_setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
-				(char *)&opt, sizeof(opt));
-		if (ret < 0) {
-			pr_err("kernel_setsockopt() for TCP_NODELAY"
-				" failed: %d\n", ret);
-			goto fail;
-		}
-	}
-
-	/* FIXME: Someone please explain why this is endian-safe */
-	ret = kernel_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
-			(char *)&opt, sizeof(opt));
-	if (ret < 0) {
-		pr_err("kernel_setsockopt() for SO_REUSEADDR"
-			" failed\n");
-		goto fail;
-	}
-
-	ret = kernel_setsockopt(sock, IPPROTO_IP, IP_FREEBIND,
-			(char *)&opt, sizeof(opt));
-	if (ret < 0) {
-		pr_err("kernel_setsockopt() for IP_FREEBIND"
-			" failed\n");
-		goto fail;
-	}
+	if (np->np_network_transport == ISCSI_TCP)
+		tcp_sock_set_nodelay(sock->sk);
+	sock_set_reuseaddr(sock->sk);
+	ip_sock_set_freebind(sock->sk);
 
 	ret = kernel_bind(sock, (struct sockaddr *)&np->np_sockaddr, len);
 	if (ret < 0) {
@@ -1160,13 +1126,13 @@ static struct iscsi_conn *iscsit_alloc_conn(struct iscsi_np *np)
 
 	if (!zalloc_cpumask_var(&conn->conn_cpumask, GFP_KERNEL)) {
 		pr_err("Unable to allocate conn->conn_cpumask\n");
-		goto free_mask;
+		goto free_conn_ops;
 	}
 
 	return conn;
 
-free_mask:
-	free_cpumask_var(conn->conn_cpumask);
+free_conn_ops:
+	kfree(conn->conn_ops);
 put_transport:
 	iscsit_put_transport(conn->conn_transport);
 free_conn:

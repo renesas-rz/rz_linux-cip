@@ -1,19 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMD Cryptographic Coprocessor (CCP) driver
  *
- * Copyright (C) 2013,2017 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013-2019 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  * Author: Gary R Hook <gary.hook@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/des.h>
@@ -168,14 +165,13 @@ static int ccp_init_dm_workarea(struct ccp_dm_workarea *wa,
 	if (len <= CCP_DMAPOOL_MAX_SIZE) {
 		wa->dma_pool = cmd_q->dma_pool;
 
-		wa->address = dma_pool_alloc(wa->dma_pool, GFP_KERNEL,
+		wa->address = dma_pool_zalloc(wa->dma_pool, GFP_KERNEL,
 					     &wa->dma.address);
 		if (!wa->address)
 			return -ENOMEM;
 
 		wa->dma.length = CCP_DMAPOOL_MAX_SIZE;
 
-		memset(wa->address, 0, CCP_DMAPOOL_MAX_SIZE);
 	} else {
 		wa->address = kzalloc(len, GFP_KERNEL);
 		if (!wa->address)
@@ -637,13 +633,12 @@ ccp_run_aes_gcm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	struct ccp_data src, dst;
 	struct ccp_data aad;
 	struct ccp_op op;
-
-	unsigned long long *final;
 	unsigned int dm_offset;
 	unsigned int authsize;
 	unsigned int jobid;
 	unsigned int ilen;
 	bool in_place = true; /* Default value */
+	__be64 *final;
 	int ret;
 
 	struct scatterlist *p_inp, sg_inp[2];
@@ -783,7 +778,7 @@ ccp_run_aes_gcm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 				    in_place ? DMA_BIDIRECTIONAL
 					     : DMA_TO_DEVICE);
 		if (ret)
-			goto e_ctx;
+			goto e_aad;
 
 		if (in_place) {
 			dst = src;
@@ -845,7 +840,7 @@ ccp_run_aes_gcm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 				   DMA_BIDIRECTIONAL);
 	if (ret)
 		goto e_dst;
-	final = (unsigned long long *) final_wa.address;
+	final = (__be64 *)final_wa.address;
 	final[0] = cpu_to_be64(aes->aad_len * 8);
 	final[1] = cpu_to_be64(ilen * 8);
 
@@ -868,7 +863,7 @@ ccp_run_aes_gcm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	op.u.aes.size = 0;
 	ret = cmd_q->ccp->vdata->perform->aes(&op);
 	if (ret)
-		goto e_dst;
+		goto e_final_wa;
 
 	if (aes->action == CCP_AES_ACTION_ENCRYPT) {
 		/* Put the ciphered tag after the ciphertext. */
@@ -878,17 +873,19 @@ ccp_run_aes_gcm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		ret = ccp_init_dm_workarea(&tag, cmd_q, authsize,
 					   DMA_BIDIRECTIONAL);
 		if (ret)
-			goto e_tag;
+			goto e_final_wa;
 		ret = ccp_set_dm_area(&tag, 0, p_tag, 0, authsize);
-		if (ret)
-			goto e_tag;
+		if (ret) {
+			ccp_dm_free(&tag);
+			goto e_final_wa;
+		}
 
 		ret = crypto_memneq(tag.address, final_wa.address,
 				    authsize) ? -EBADMSG : 0;
 		ccp_dm_free(&tag);
 	}
 
-e_tag:
+e_final_wa:
 	ccp_dm_free(&final_wa);
 
 e_dst:
@@ -929,8 +926,7 @@ ccp_run_aes_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		return -EINVAL;
 
 	if (((aes->mode == CCP_AES_MODE_ECB) ||
-	     (aes->mode == CCP_AES_MODE_CBC) ||
-	     (aes->mode == CCP_AES_MODE_CFB)) &&
+	     (aes->mode == CCP_AES_MODE_CBC)) &&
 	    (aes->src_len & (AES_BLOCK_SIZE - 1)))
 		return -EINVAL;
 
@@ -1329,7 +1325,6 @@ ccp_run_des3_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 			return -EINVAL;
 	}
 
-	ret = -EIO;
 	/* Zero out all the fields of the command desc */
 	memset(&op, 0, sizeof(op));
 

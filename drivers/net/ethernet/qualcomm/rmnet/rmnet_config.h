@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2013-2014, 2016-2018 The Linux Foundation. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * RMNET Data configuration engine
- *
  */
 
 #include <linux/skbuff.h>
@@ -82,4 +73,6 @@ int rmnet_add_bridge(struct net_device *rmnet_dev,
 		     struct netlink_ext_ack *extack);
 int rmnet_del_bridge(struct net_device *rmnet_dev,
 		     struct net_device *slave_dev);
+struct rmnet_port*
+rmnet_get_port_rtnl(const struct net_device *real_dev);
 #endif /* _RMNET_CONFIG_H_ */

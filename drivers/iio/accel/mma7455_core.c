@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IIO accel core driver for Freescale MMA7455L 3-axis 10-bit accelerometer
  * Copyright 2015 Joachim Eastwood <manabian@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * UNSUPPORTED hardware features:
  *  - 8-bit mode with different scales
@@ -271,7 +268,6 @@ int mma7455_core_probe(struct device *dev, struct regmap *regmap,
 
 	indio_dev->info = &mma7455_info;
 	indio_dev->name = name;
-	indio_dev->dev.parent = dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = mma7455_channels;
 	indio_dev->num_channels = ARRAY_SIZE(mma7455_channels);
