@@ -472,7 +472,7 @@
 
 	sd0_pwr_en {
 		gpio-hog;
-		gpios = <RZG2L_GPIO(40, 2) GPIO_ACTIVE_HIGH>;
+		gpios = <RZG2L_GPIO(18, 1) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "sd0_pwr_en";
 	};
