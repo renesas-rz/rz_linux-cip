@@ -526,9 +526,9 @@ struct cpg_param resolution_param_parallel[TABLE_PARALLEL_MAX] = {
 		/* 720p 74.176MHz	*/
 		/* frequency		*/	74176,
 		/* pl5_refdiv		*/	1,
-		/* pl5_intin		*/	86,
-		/* pl5_fracin		*/	9037327,
-		/* pl5_postdiv1		*/	7,
+		/* pl5_intin		*/	74,
+		/* pl5_fracin		*/	2952790,
+		/* pl5_postdiv1		*/	6,
 		/* pl5_postdiv2		*/	2,
 		/* pl5_divval		*/	0,
 		/* pl5_spread		*/	0x16,
@@ -596,8 +596,11 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 		u32 ditr0, ditr1, ditr2, ditr3, ditr4, ditr5, pbcr0;
 		void __iomem *cpg_base = ioremap_nocache(0x11010000, 0x1000);
 		u32 i, index, prevIndex = 0;
+		enum rcar_du_output output;
 
-		if (of_machine_is_compatible("renesas,r9a07g043u"))
+		output = rcar_du_encoder_get_output();
+
+		if (output == RCAR_DU_OUTPUT_DPAD0)
 		{
 			parallelOut = 1;
 			tableMax = TABLE_PARALLEL_MAX;

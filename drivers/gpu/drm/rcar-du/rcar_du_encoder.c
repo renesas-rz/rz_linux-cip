@@ -24,9 +24,16 @@
 #include "rcar_du_kms.h"
 #include "rcar_lvds.h"
 
+static enum rcar_du_output holdOutput;
+
 /* -----------------------------------------------------------------------------
  * Encoder
  */
+enum rcar_du_output rcar_du_encoder_get_output(void)
+{
+	return holdOutput;
+}
+
 static enum drm_mode_status rcar_du_encoder_mode_valid(
 					struct drm_encoder *crtc,
 					const struct drm_display_mode *mode)
@@ -36,7 +43,10 @@ static enum drm_mode_status rcar_du_encoder_mode_valid(
 	if (of_machine_is_compatible("renesas,r8a774c0") &&
 	    renc->output == RCAR_DU_OUTPUT_DPAD0 && mode->clock > 75000) {
 		return MODE_BAD;
-	} else if (of_machine_is_compatible("renesas,r9a07g043u") && mode->clock > 83500) {
+	} else if ((of_machine_is_compatible("renesas,r9a07g043u") ||
+				of_machine_is_compatible("renesas,r9a07g044l") ||
+				of_machine_is_compatible("renesas,r9a07g044l2")) &&
+				renc->output == RCAR_DU_OUTPUT_DPAD0 && mode->clock > 83500) {
 		return MODE_BAD;
 	} else {
 		return MODE_OK;
@@ -66,6 +76,7 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 
 	rcdu->encoders[output] = renc;
 	renc->output = output;
+	holdOutput = output;
 	encoder = rcar_encoder_to_drm_encoder(renc);
 
 	dev_dbg(rcdu->dev, "initializing encoder %pOF for output %u\n",
