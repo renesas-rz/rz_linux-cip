@@ -563,6 +563,8 @@ struct cpg_param resolution_param_parallel[TABLE_PARALLEL_MAX] = {
 	},
 };
 
+#include "rzg2l_user_define_cpg.h"
+
 #define	CPG_SIPPL3_CLK5		(0x0134)
 #define	CPG_SIPLL5_STBY		(0x0140)
 #define	CPG_SIPLL5_CLK1		(0x0144)
@@ -589,17 +591,34 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 	u32 escr;
 	u32 val, nowLcdcClkOn;
 	u32 parallelOut;
+#if !RZG2L_USER_DEFINE_CPG_ENABLE
 	u32	tableMax;
+#endif
 	struct cpg_param *paramPtr;
 
 	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_RZG2L)) {
 		u32 ditr0, ditr1, ditr2, ditr3, ditr4, ditr5, pbcr0;
 		void __iomem *cpg_base = ioremap_nocache(0x11010000, 0x1000);
-		u32 i, index, prevIndex = 0;
+#if !RZG2L_USER_DEFINE_CPG_ENABLE
+		u32 i, prevIndex = 0;
+#endif
+		u32 index = 0;
 		enum rcar_du_output output;
 
 		output = rcar_du_encoder_get_output();
 
+#if RZG2L_USER_DEFINE_CPG_ENABLE
+		if (output == RCAR_DU_OUTPUT_DPAD0)
+		{
+			parallelOut = 1;
+			paramPtr = &parallel_output_param;
+		}
+		else
+		{
+			parallelOut = 0;
+			paramPtr = &mipi_dsi_output_param;
+		}
+#else
 		if (output == RCAR_DU_OUTPUT_DPAD0)
 		{
 			parallelOut = 1;
@@ -637,8 +656,9 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 		{
 			index = tableMax - 1;
 		}
+#endif
 
-		if ((parallelOut == 0) && (paramPtr[i].frequency > 74250))
+		if ((parallelOut == 0) && (paramPtr[index].frequency > 74250))
 		{
 			reg_write(cpg_base + CPG_SIPPL3_CLK5, 0x02);
 		}
