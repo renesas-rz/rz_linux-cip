@@ -63,6 +63,7 @@ obj-$(CONFIG_RZG2L_DMA) += rzg2l-dma.o
 obj-$(CONFIG_R9A07G044L_DMA) += r9a07g044l-dma.o
 obj-$(CONFIG_R9A07G044C_DMA) += r9a07g044l-dma.o
 obj-$(CONFIG_R9A07G054L_DMA) += r9a07g044l-dma.o
+obj-$(CONFIG_R9A07G043U_DMA) += r9a07g044l-dma.o
 obj-$(CONFIG_SIRF_DMA) += sirf-dma.o
 obj-$(CONFIG_STE_DMA40) += ste_dma40.o ste_dma40_ll.o
 obj-$(CONFIG_STM32_DMA) += stm32-dma.o
