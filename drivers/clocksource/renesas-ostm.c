@@ -302,6 +302,7 @@ static const struct of_device_id ostm_of_table[] = {
 	{ .compatible = "renesas,r9a07g044l-ostm", },
 	{ .compatible = "renesas,r9a07g044c-ostm", },
 	{ .compatible = "renesas,r9a07g054l-ostm", },
+	{ .compatible = "renesas,r9a07g043u-ostm", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ostm_of_table);
