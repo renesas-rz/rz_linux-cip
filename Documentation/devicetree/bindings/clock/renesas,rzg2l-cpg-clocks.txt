@@ -11,6 +11,7 @@ Required Properties:
     - "renesas,r9a07g044l-cpg" for the r9a07g044l CPG
     - "renesas,r9a07g044c-cpg" for the r9a07g044c CPG
     - "renesas,r9a07g054l-cpg" for the r9a07g054l CPG
+    - "renesas,r9a07g043u-cpg" for the r9a07g043u CPG
   - reg: Base address and length of the memory resource used by the CPG
   - clocks: References to possible external input clocks,
 	one entry for each entry in clock-names
