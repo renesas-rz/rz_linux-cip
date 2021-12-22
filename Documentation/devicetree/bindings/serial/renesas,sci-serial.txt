@@ -33,6 +33,7 @@ Required properties:
     - "renesas,scif-r9a07g044l" for R9A07G044L (RZ/G2L) SCIFA compatible UART.
     - "renesas,scif-r9a07g044c" for R9A07G044C (RZ/G2LC) SCIFA compatible UART.
     - "renesas,scif-r9a07g054l" for R9A07G054L (RZ/V2L) SCIFA compatible UART.
+    - "renesas,scif-r9a07g043u" for R9A07G043U (RZ/G2UL) SCIFA compatible UART.
     - "renesas,scif-r8a7778" for R8A7778 (R-Car M1) SCIF compatible UART.
     - "renesas,scif-r8a7779" for R8A7779 (R-Car H1) SCIF compatible UART.
     - "renesas,scif-r8a7790" for R8A7790 (R-Car H2) SCIF compatible UART.
