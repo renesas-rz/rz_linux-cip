@@ -547,6 +547,10 @@ static const struct soc_device_attribute soc_no_adp_ctrl[] = {
 		.soc_id = "r9a07g054l2",
 		.data = (void *)USB2_NO_ADP_CTRL,
 	},
+	{
+		.soc_id = "r9a07g043u",
+		.data = (void *)USB2_NO_ADP_CTRL,
+	},
 	{ /* Sentinel */ }
 };
 
