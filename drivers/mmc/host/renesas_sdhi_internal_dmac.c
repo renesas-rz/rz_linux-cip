@@ -296,6 +296,7 @@ static const struct soc_device_attribute gen3_soc_whitelist[] = {
 	{ .soc_id = "r9a07g044l2" },
 	{ .soc_id = "r9a07g044c2" },
 	{ .soc_id = "r9a07g054l2" },
+	{ .soc_id = "r9a07g043u" },
 	{ /* sentinel */ }
 };
 
