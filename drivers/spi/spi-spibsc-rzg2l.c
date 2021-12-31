@@ -633,6 +633,27 @@ static int spibsc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int spibsc_suspend(struct device *dev)
+{
+	struct spibsc_priv *sbsc = dev_get_drvdata(dev);
+
+	return spi_master_suspend(sbsc->master);
+}
+
+static int spibsc_resume(struct device *dev)
+{
+	struct spibsc_priv *sbsc = dev_get_drvdata(dev);
+
+	return spi_master_resume(sbsc->master);
+}
+
+static SIMPLE_DEV_PM_OPS(spibsc_pm_ops, spibsc_suspend, spibsc_resume);
+#define DEV_PM_OPS	(&spibsc_pm_ops)
+#else
+#define DEV_PM_OPS	NULL
+#endif /* CONFIG_PM_SLEEP */
+
 static const struct of_device_id of_spibsc_match[] = {
 	{ .compatible = "renesas,r7s72100-spibsc", .data = (void *)HAS_SPBCR},
 	{ .compatible = "renesas,r9a07g044l-spibsc"},
@@ -650,6 +671,7 @@ static struct platform_driver spibsc_driver = {
 		.name = "spibsc",
 		.owner = THIS_MODULE,
 		.of_match_table = of_spibsc_match,
+		.pm = DEV_PM_OPS,
 	},
 };
 module_platform_driver(spibsc_driver);
