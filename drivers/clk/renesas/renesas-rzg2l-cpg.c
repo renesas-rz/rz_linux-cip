@@ -565,6 +565,7 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 			  | MSTOP_BIT(clock->mstop);
 		if (clock->mstop)
 			writel(mstop_val, priv->base + MSTOP_OFF(clock->mstop));
+
 		writel(value, priv->base + CLK_ON_R(reg));
 	}
 
@@ -603,7 +604,7 @@ static int rzg2l_mod_clock_is_enabled(struct clk_hw *hw)
 {
 	struct mstp_clock *clock = to_mod_clock(hw);
 	struct cpg_mssr_priv *priv = clock->priv;
-	u32 value;
+	u32 value, mstop_val;
 
 	if (clock->bit == 0) {
 		dev_dbg(priv->dev, "%pC does not support ON/OFF\n",  hw->clk);
@@ -611,6 +612,13 @@ static int rzg2l_mod_clock_is_enabled(struct clk_hw *hw)
 	}
 
 	value = readl(priv->base + CLK_MON_R(MSSR_OFF(clock->bit) * 4));
+
+	if (clock->mstop) {
+		mstop_val = readl(priv->base + MSTOP_OFF(clock->mstop));
+		mstop_val &= MSTOP_BIT(clock->mstop);
+		return ((value & (MSSR_ON(clock->bit))) != 0)
+			|| (mstop_val == 0);
+	}
 
 	return value & (MSSR_ON(clock->bit));
 }
