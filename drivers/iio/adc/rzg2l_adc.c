@@ -20,6 +20,7 @@
 #include <linux/iio/iio.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 
 #define ADM(n)		(n * 0x4)
 #define ADM0_ADCE	BIT(0)
@@ -291,21 +292,14 @@ static int rzg2l_adc_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	adc->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(adc->clk)) {
-		dev_err(&pdev->dev, "missing controller clock");
-		return PTR_ERR(adc->clk);
-	}
-
 	adc->rstc = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(adc->rstc)) {
 		dev_err(&pdev->dev, "failed to get cpg reset\n");
 		return PTR_ERR(adc->rstc);
 	}
 
-	ret = clk_prepare_enable(adc->clk);
-	if (ret)
-		return ret;
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
 
 	ret = rzg2l_parse_of(pdev, adc);
 	if (ret)
@@ -334,7 +328,8 @@ static int rzg2l_adc_probe(struct platform_device *pdev)
 
 	ret = iio_device_register(indio_dev);
 	if (ret) {
-		clk_disable_unprepare(adc->clk);
+		pm_runtime_put_sync(&pdev->dev);
+		pm_runtime_disable(&pdev->dev);
 		return ret;
 	}
 
@@ -344,14 +339,14 @@ static int rzg2l_adc_probe(struct platform_device *pdev)
 static int rzg2l_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct rzg2l_adc *adc = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 
 	kfree(indio_dev->name);
 	iio_device_free(indio_dev);
 
-	clk_disable_unprepare(adc->clk);
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
