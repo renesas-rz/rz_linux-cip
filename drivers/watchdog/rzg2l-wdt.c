@@ -285,6 +285,28 @@ static int rzg2l_wdt_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused rzg2l_wdt_suspend(struct device *dev)
+{
+	struct rzg2l_wdt_priv *priv = dev_get_drvdata(dev);
+
+	if (watchdog_active(&priv->wdev))
+		rzg2l_wdt_stop(&priv->wdev);
+
+	return 0;
+}
+
+static int __maybe_unused rzg2l_wdt_resume(struct device *dev)
+{
+	struct rzg2l_wdt_priv *priv = dev_get_drvdata(dev);
+
+	if (watchdog_active(&priv->wdev))
+		rzg2l_wdt_start(&priv->wdev);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(rzg2l_wdt_pm_ops, rzg2l_wdt_suspend, rzg2l_wdt_resume);
+
 static const struct of_device_id rzg2l_wdt_ids[] = {
 	{ .compatible = "renesas,rzg2l-wdt", },
 	{ /* sentinel */ }
@@ -295,6 +317,7 @@ static struct platform_driver rzg2l_wdt_driver = {
 	.driver = {
 		.name = "rzg2l_wdt",
 		.of_match_table = rzg2l_wdt_ids,
+		.pm = &rzg2l_wdt_pm_ops,
 	},
 	.probe = rzg2l_wdt_probe,
 	.remove = rzg2l_wdt_remove,
