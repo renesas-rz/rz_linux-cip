@@ -42,25 +42,24 @@
 			d-cache-size = <0x8000>; // 32KB d-cache
 			d-cache-line-size = <0x40>; // 64B cache line
 			next-level-cache = <&l2cache>;
-                        
-                        cpu0_intc: interrupt-controller {
-                                #interrupt-cells = <1>;
-                                compatible = "riscv,cpu-intc";
-                                interrupt-controller;
-                        };
 
+			cpu0_intc: interrupt-controller {
+				#interrupt-cells = <1>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+			};
 		};
 
 		l2cache: cache-controller@13400000 {
 			compatible = "cache";
-            		cache-level = <0x2>;
-            		cache-size = <0x40000>; // 256KB l2-cache
-            		reg = <0x0 0x13400000 0x0 0x100000>; 
+			cache-level = <0x2>;
+			cache-size = <0x40000>; // 256KB l2-cache
+			reg = <0x0 0x13400000 0x0 0x100000>; 
 			andes,inst-prefetch = <0x4>; // 1
 			andes,data-prefetch = <0x4>; // 
 			andes,tag-ram-ctl = <0x0 0x0>;
 			andes,data-ram-ctl = <0x0 0x0>;
-        	};
+		};
 
 	};
     
@@ -162,7 +161,10 @@
 			      <0x0 0x13000000 0 0x400000>;
 			clocks = <&cpg CPG_MOD R9A07G043F_CLK_NCEPLIC>;
 			clock-names = "plic100ss";
-			interrupt-extended = <&cpu0_intc 9>;
+			interrupt-extended = <
+								&cpu0_intc 0xffffffff 	// for target 0
+								&cpu0_intc 9		  	// for target 1
+								&cpu0_intc 0xffffffff>; // for target 2 
 		};
 
 		mtu3: timer@10001200 {
