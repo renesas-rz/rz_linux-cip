@@ -185,17 +185,6 @@ static int rzg2l_wdt_probe(struct platform_device *pdev)
 	struct clk *clks[2];
 	int ret;
 
-	{
-		/* FIXME: Hard code to access to CPG registers until can find
-		 * another way. CPG_WDTRST_SEL register is belong to CPG used
-		 * to mask/unmask WDT overflow system reset
-		 */
-		void __iomem *cpg_base = ioremap_nocache(0x11010000, 0x1000);
-
-		iowrite32(0x00770077, cpg_base + 0xb14);
-		iounmap(cpg_base);
-	}
-
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
