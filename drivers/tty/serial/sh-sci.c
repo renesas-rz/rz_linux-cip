@@ -44,6 +44,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/sysrq.h>
+#include <linux/sys_soc.h>
 #include <linux/timer.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
@@ -156,6 +157,7 @@ struct sci_port {
 
 	bool has_rtscts;
 	bool autorts;
+	bool is_rzg2l;
 };
 
 #define SCI_NPORTS CONFIG_SERIAL_SH_SCI_NR_UARTS
@@ -306,6 +308,7 @@ static const struct sci_port_params sci_port_params[SCIx_NR_REGTYPES] = {
 			[SCFDR]		= { 0x0E, 16 },
 			[SCSPTR]	= { 0x10, 16 },
 			[SCLSR]		= { 0x12, 16 },
+			[SCSEMR]	= { 0x14, 8 },
 		},
 		.fifosize = 16,
 		.overrun_reg = SCLSR,
@@ -2574,6 +2577,9 @@ done:
 		scr_val = s->cfg->scscr & (SCSCR_CKE1 | SCSCR_CKE0);
 		smr_val |= serial_port_in(port, SCSMR) &
 			   (SCSMR_CKEDG | SCSMR_SRC_MASK | SCSMR_CKS);
+
+		if (s->is_rzg2l)
+			serial_port_out(port, SCSEMR, 0);
 		serial_port_out(port, SCSCR, scr_val | s->hscif_tot);
 		serial_port_out(port, SCSMR, smr_val);
 	}
@@ -3193,6 +3199,10 @@ static const struct of_device_id of_sci_match[] = {
 	{
 		.compatible = "renesas,scif-r7s9210",
 		.data = SCI_OF_DATA(PORT_SCIF, SCIx_RZ_SCIFA_REGTYPE),
+	},	
+	{
+		.compatible = "renesas,scif-r9a07g043f",
+		.data = SCI_OF_DATA(PORT_SCIF, SCIx_RZ_SCIFA_REGTYPE),
 	},
 	/* Family-specific types */
 	{
@@ -3269,12 +3279,21 @@ static struct plat_sci_port *sci_parse_dt(struct platform_device *pdev,
 	return p;
 }
 
+static const struct soc_device_attribute soc_r9a07g043f[] = {
+	{
+		.soc_id = "r9a07g043f",
+		.data = (void *)1,
+	},
+	{ /* Sentinel */ }
+};
+
 static int sci_probe_single(struct platform_device *dev,
 				      unsigned int index,
 				      struct plat_sci_port *p,
 				      struct sci_port *sciport)
 {
 	int ret;
+	const struct soc_device_attribute *attr;
 
 	/* Sanity check */
 	if (unlikely(index >= SCI_NPORTS)) {
@@ -3319,6 +3338,10 @@ static int sci_probe_single(struct platform_device *dev,
 		sci_cleanup_single(sciport);
 		return ret;
 	}
+
+	attr = soc_device_match(soc_r9a07g043f);
+	if (attr)
+		sciport->is_rzg2l = attr->data;
 
 	return 0;
 }
@@ -3495,6 +3518,8 @@ static int __init hscif_early_console_setup(struct earlycon_device *device,
 OF_EARLYCON_DECLARE(sci, "renesas,sci", sci_early_console_setup);
 OF_EARLYCON_DECLARE(scif, "renesas,scif", scif_early_console_setup);
 OF_EARLYCON_DECLARE(scif, "renesas,scif-r7s9210", rzscifa_early_console_setup);
+OF_EARLYCON_DECLARE(scif, "renesas,scif-r9a07g043f",
+		    rzscifa_early_console_setup);
 OF_EARLYCON_DECLARE(scifa, "renesas,scifa", scifa_early_console_setup);
 OF_EARLYCON_DECLARE(scifb, "renesas,scifb", scifb_early_console_setup);
 OF_EARLYCON_DECLARE(hscif, "renesas,hscif", hscif_early_console_setup);
