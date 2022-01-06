@@ -15,6 +15,8 @@ Required properties:
   - compatible: should be:
     - "renesas,r9a07g044l-pinctrl": for R9A07G044L SoC.
     - "renesas,r9a07g054l-pinctrl": for R9A07G054L SoC.
+    - "renesas,r9a07g043u11-pinctrl": for R9A07G043U SoC, G2UL Dev Type 1
+    - "renesas,r9a07g043u12-pinctrl": for R9A07G043U SoC, G2UL Dev Type 2
 
   - reg: include 2 areas:
     1st: address base and length of the memory area where the pin controller
