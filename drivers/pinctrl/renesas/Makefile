@@ -43,6 +43,9 @@ obj-$(CONFIG_PINCTRL_PFC_SH7785)	+= pfc-sh7785.o
 obj-$(CONFIG_PINCTRL_PFC_SH7786)	+= pfc-sh7786.o
 obj-$(CONFIG_PINCTRL_PFC_SHX3)		+= pfc-shx3.o
 
+obj-$(CONFIG_PINCTRL_PFC_RZG2L)		+= pinctrl-rzg2l.o
+obj-$(CONFIG_PINCTRL_PFC_R9A07G043F)	+= pfc-r9a07g043f.o
+
 obj-$(CONFIG_PINCTRL_RZA1)	+= pinctrl-rza1.o
 obj-$(CONFIG_PINCTRL_RZA2)	+= pinctrl-rza2.o
 obj-$(CONFIG_PINCTRL_RZN1)	+= pinctrl-rzn1.o

@@ -36,6 +36,7 @@ config PINCTRL_RENESAS
 	select PINCTRL_PFC_R8A77980 if ARCH_R8A77980
 	select PINCTRL_PFC_R8A77990 if ARCH_R8A77990
 	select PINCTRL_PFC_R8A77995 if ARCH_R8A77995
+	select PINCTRL_PFC_R9A07G043F if ARCH_R9A07G043F
 	select PINCTRL_PFC_SH7203 if CPU_SUBTYPE_SH7203
 	select PINCTRL_PFC_SH7264 if CPU_SUBTYPE_SH7264
 	select PINCTRL_PFC_SH7269 if CPU_SUBTYPE_SH7269
@@ -149,6 +150,21 @@ config PINCTRL_PFC_R8A7740
 config PINCTRL_PFC_R8A73A4
 	bool "pin control support for R-Mobile APE6" if COMPILE_TEST
 	select PINCTRL_SH_PFC_GPIO
+
+config PINCTRL_PFC_RZG2L
+	select GPIOLIB
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	def_bool y
+	help
+	 This enables pin control and gpio drivers for Renesas RZ/G2L platforms
+
+config PINCTRL_PFC_R9A07G043F
+	bool "pin control support for RZ/Five" if COMPILE_TEST
+	def_bool y
+	depends on ARCH_R9A07G043F
+	select PINCTRL_PFC_RZG2L
 
 config PINCTRL_RZA1
 	bool "pin control support for RZ/A1"
