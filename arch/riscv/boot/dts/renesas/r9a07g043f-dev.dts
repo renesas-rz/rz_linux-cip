@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the RZG2UL Single A55 Evaluation board
+ *
+ * Copyright (C) 2021 Renesas Electronics Corp.
+ */
+
+/dts-v1/;
+#include "r9a07g043f.dtsi"
+#include "rzg2ul-type1-dev.dtsi"
+
+/ {
+	model = "Development board based on r9a07g043f";
+	compatible = "renesas,r9a07g043f-dev",
+		     "renesas,r9a07g043f",
+		     "renesas,r9a07g043f";
+
+	memory@40000000{
+		device_type = "memory";
+		reg = <0x0 0x40000000 0x0 0x40000000>;
+	};
+	
+//	memory@48000000 {
+//		device_type = "memory";
+//		/* first 128MB is reserved for secure area. */
+//		reg = <0x0 0x48000000 0x0 0x38000000>;
+//	};
+//
+//	reserved-memory {
+//		#address-cells = <2>;
+//		#size-cells = <2>;
+//		ranges;
+//
+//		reserved: linux,cma@58000000 {
+//			compatible = "shared-dma-pool";
+//			linux,cma-default;
+//			reusable;
+//			reg = <0x0 0x58000000 0x0 0x10000000>;
+//		};
+//	};
+};
