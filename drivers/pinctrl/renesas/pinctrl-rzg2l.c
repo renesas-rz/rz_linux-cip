@@ -18,6 +18,7 @@
 #include "pinctrl-rzg2l.h"
 
 #define DRV_NAME "rzg2l-pinctrl"
+#define MAX_NIRQS 32
 
 static void rzg2l_pinctrl_set_pfc_mode(struct rzg2l_pinctrl *pctrl,
 				       int pins, unsigned long pfc_mode)
@@ -947,6 +948,7 @@ static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 	const struct rzg2l_pin_soc *psoc;
 	int i;
 	int ret;
+	char *irqstr[MAX_NIRQS];
 
 	psoc = of_device_get_match_data(&pdev->dev);
 
@@ -1027,7 +1029,6 @@ static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 	};
 
 	for (i = 0; i < psoc->nirqs; i++) {
-		char *irqstr[psoc->nirqs];
 
 		irq = platform_get_resource(pdev, IORESOURCE_IRQ, i);
 		if (!irq) {
