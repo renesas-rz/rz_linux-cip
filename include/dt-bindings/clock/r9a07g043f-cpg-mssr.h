@@ -77,24 +77,18 @@
 #define R9A07G043F_CLK_OSTM1            35
 #define R9A07G043F_CLK_OSTM2            36
 #define R9A07G043F_CLK_WDT0             37
-#define R9A07G043F_CLK_WDT1             38
-#define R9A07G043F_CLK_WDT2             39
-#define R9A07G043F_CLK_WDT_PON          40
-#define R9A07G043F_CLK_GPU              41
-#define R9A07G043F_CLK_ISU              42
-#define R9A07G043F_CLK_H264             43
-#define R9A07G043F_CLK_CRU              44
-#define R9A07G043F_CLK_MIPI_DSI         45
-#define R9A07G043F_CLK_LCDC             46
-#define R9A07G043F_CLK_SRC              47
-#define R9A07G043F_CLK_RSPI0            48
-#define R9A07G043F_CLK_RSPI1            49
-#define R9A07G043F_CLK_RSPI2            50
-#define R9A07G043F_CLK_ADC              51
-#define R9A07G043F_CLK_TSU_PCLK         52
-#define R9A07G043F_CLK_SPI              53
-#define R9A07G043F_CLK_MIPI_DSI_V       54
-#define R9A07G043F_CLK_MIPI_DSI_PIN     55
-#define R9A07G043F_CLK_CSI2             56
+#define R9A07G043F_CLK_WDT2             38
+#define R9A07G043F_CLK_WDT_PON          39
+#define R9A07G043F_CLK_ISU              40
+#define R9A07G043F_CLK_CRU              41
+#define R9A07G043F_CLK_LCDC             42
+#define R9A07G043F_CLK_SRC              43
+#define R9A07G043F_CLK_RSPI0            44
+#define R9A07G043F_CLK_RSPI1            45
+#define R9A07G043F_CLK_RSPI2            46
+#define R9A07G043F_CLK_ADC              47
+#define R9A07G043F_CLK_TSU_PCLK         48
+#define R9A07G043F_CLK_SPI              49
+#define R9A07G043F_CLK_CSI2             50
 
 #endif /* __DT_BINDINGS_CLOCK_R9A07G043F_CPG_H__ */

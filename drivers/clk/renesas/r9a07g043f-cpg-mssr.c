@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * RZG2L Clock Pulse Generator
+ * RZFive Clock Pulse Generator
  *
  * Copyright (C) 2020 Renesas Electronics Corp.
  *
@@ -283,9 +283,6 @@ static struct mssr_mod_clk r9a07g043f_mod_clks[] = {
 	 DEF_MOD("mtu3",	R9A07G043F_CLK_MTU,
 	 			R9A07G043F_CLK_P0,
 	 			MSSR(14, BIT(0), BIT(0))),
-	 DEF_MOD("gpt",		R9A07G043F_CLK_GPT,
-	 			R9A07G043F_CLK_P0,
-	 			MSSR(16, BIT(0), BIT(0))),
 	 DEF_MOD("eth0",	R9A07G043F_CLK_ETH0,
 	 			R9A07G043F_CLK_HP,
 	 			MSSR(31, BIT(0), BIT(0))),
@@ -375,34 +372,19 @@ static struct mssr_mod_clk r9a07g043f_mod_clks[] = {
 	 DEF_MOD("wdt0",		R9A07G043F_CLK_WDT0,
 	 			R9A07G043F_CLK_P0,
 	 			MSSR(18, (BIT(0) | BIT(1)), BIT(0))),
-	 DEF_MOD("wdt1",		R9A07G043F_CLK_WDT1,
-	 			R9A07G043F_CLK_P0,
-	 			MSSR(18, (BIT(2) | BIT(3)), BIT(1))),
 	 DEF_MOD("wdt2",		R9A07G043F_CLK_WDT2,
 	 			R9A07G043F_CLK_P0,
 	 			MSSR(18, (BIT(4) | BIT(5)), BIT(2))),
 	 DEF_MOD("wdt_pon",	R9A07G043F_CLK_WDT_PON,
 	 			R9A07G043F_CLK_P0,
 	 			MSSR(18, (BIT(6) | BIT(7)), BIT(3))),
-	 DEF_MOD("gpu",		R9A07G043F_CLK_GPU,
-	 			R9A07G043F_CLK_G,
-	 			MSSR(22, (BIT(0) | BIT(1) | BIT(2)),
-	 				 (BIT(0) | BIT(1) | BIT(2)))),
 	 DEF_MOD("isu",		R9A07G043F_CLK_ISU,
 	 			R9A07G043F_CLK_P1,
 	 			MSSR(23, (BIT(0) | BIT(1)), (BIT(0) | BIT(1)))),
-	 DEF_MOD("h264",		R9A07G043F_CLK_H264,
-	 			R9A07G043F_CLK_M0,
-	 			MSSR(24, BIT(0), (BIT(0) | BIT(1)))),
 	 DEF_MOD("cru",		R9A07G043F_CLK_CRU,
 	 			R9A07G043F_CLK_M2,
 	 			MSSR(25, (BIT(1) | BIT(2) | BIT(3) | BIT(4)),
 	 				 (BIT(1) | BIT(2)))),
-	 DEF_MOD("mipi_dsi",	R9A07G043F_CLK_MIPI_DSI,
-	 			R9A07G043F_CLK_P2,
-	 			MSSR(26, (BIT(0) | BIT(1) | BIT(2) | BIT(3)
-	 						  | BIT(4) | BIT(5)),
-	 				 (BIT(0) | BIT(1) | BIT(2)))),
 	 DEF_MOD("lcdc",		R9A07G043F_CLK_LCDC,
 	 			R9A07G043F_CLK_M3,
 	 			MSSR(27, (BIT(0) | BIT(1)), BIT(0))),
@@ -427,10 +409,6 @@ static struct mssr_mod_clk r9a07g043f_mod_clks[] = {
 	 DEF_MOD("spi-multi",	R9A07G043F_CLK_SPI,
 	 			R9A07G043F_CLK_SPI1,
 	 			MSSR(20, (BIT(0) | BIT(1)), BIT(0))),
-	 DEF_MOD("mipi_dsi_v",	R9A07G043F_CLK_MIPI_DSI_V,
-	 			R9A07G043F_CLK_M3, 0),
-	 DEF_MOD("mipi_dsi_pin", R9A07G043F_CLK_MIPI_DSI_PIN,
-	 			R9A07G043F_CLK_M1, 0),
 	 DEF_MOD("csi2",		R9A07G043F_CLK_CSI2,
 	 			CLK_M2_DIV2,
 	 			MSSR(25, BIT(0), BIT(0))),
