@@ -10,6 +10,7 @@ Mandatory properties
  - compatible: Must be one or more of the following
    - "renesas,r9a07g044l-csi2" for the R9A07G044L device.
    - "renesas,rzg2l-csi2" for the generic RZ/G2L device.
+   - "renesas,r9a07g043u-csi2" for the R9A07G043U device.
 
  - reg: the register base and size for the device registers
  - interrupts: the interrupt for the device
