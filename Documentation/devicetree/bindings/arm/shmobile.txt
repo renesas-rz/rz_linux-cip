@@ -114,6 +114,10 @@ Boards:
 		 "renesas,r9a07g044c2-smarc", "renesas,r9a07g044c2",
 		 "renesas,r9a07g054l2-dev", "renesas,r9a07g054l2",
 		 "renesas,r9a07g054l2-smarc", "renesas,r9a07g054l2"
+  - RZ/G2UL Development Board
+    compatible = "renesas,r9a07g043u11-dev", "renesas,r9a07g043u11",
+		 "renesas,r9a07g043u12-dev", "renesas,r9a07g043u12",
+		 "renesas,r9a07g043u11-smarc", "renesas,r9a07g043u11"
   - HopeRun expansion board for HiHope RZ/G2 platforms
     compatible = "hoperun,hihope-rzg2h", "renesas,r8a774e1",
                  "hoperun,hihope-rzg2m", "renesas,r8a774a1",
