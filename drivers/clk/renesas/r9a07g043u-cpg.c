@@ -446,6 +446,10 @@ static struct mssr_mod_clk r9a07g043u_mod_clks[] = {
 	DEF_MOD("csi2",		R9A07G043U_CLK_CSI2,
 				CLK_M2_DIV2,
 				MSSR(25, BIT(0), BIT(0)), 0),
+	DEF_MOD("poe3",		R9A07G043U_CLK_POE3,
+				R9A07G043U_CLK_P0,
+				MSSR(15, BIT(0), BIT(0)),
+				MSTOP(MCPU1_MSTOP, BIT(9))),
 };
 
 static const unsigned int r9a07g043u_crit_mod_clks[] __initconst = {
@@ -468,5 +472,5 @@ const struct cpg_mssr_info r9a07g043u_cpg_info = {
 	/* Module clk */
 	.mod_clks = r9a07g043u_mod_clks,
 	.num_mod_clks = ARRAY_SIZE(r9a07g043u_mod_clks),
-	.num_hw_mod_clks = R9A07G043U_CLK_CSI2 + 1,
+	.num_hw_mod_clks = R9A07G043U_CLK_POE3 + 1,
 };
