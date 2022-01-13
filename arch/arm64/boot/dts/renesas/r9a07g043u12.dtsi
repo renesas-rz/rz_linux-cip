@@ -652,6 +652,7 @@
 			interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 			resets = <&cpg R9A07G043U_CLK_WDT0>;
+			power-domains = <&cpg>;
 			status = "disabled";
 		};
 
