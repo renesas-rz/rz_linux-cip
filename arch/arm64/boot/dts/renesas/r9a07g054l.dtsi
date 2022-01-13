@@ -1071,6 +1071,7 @@
 			interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 			resets = <&cpg R9A07G054L_CLK_WDT0>;
+			power-domains = <&cpg>;
 			status = "disabled";
 		};
 
@@ -1082,6 +1083,7 @@
 			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
 			resets = <&cpg R9A07G054L_CLK_WDT1>;
+			power-domains = <&cpg>;
 			status = "disabled";
 		};
 
@@ -1093,6 +1095,7 @@
 			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
 			resets = <&cpg R9A07G054L_CLK_WDT2>;
+			power-domains = <&cpg>;
 			status = "disabled";
 		};
 
