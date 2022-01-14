@@ -437,7 +437,7 @@
 
 #if (SCIF1_GPT3)
 	gpt3_pins: gpt3 {
-		groups = "gpt3_b_d";
+		groups = "gpt3_a_d", "gpt3_b_d";
 		function = "gpt3";
 	};
 #endif
@@ -609,7 +609,7 @@
 &gpt3 {
 	pinctrl-0 = <&gpt3_pins>;
 	pinctrl-names = "default";
-	channel = "channel_B";
+	channel = "both_AB";
 	status = "okay";
 };
 #endif
