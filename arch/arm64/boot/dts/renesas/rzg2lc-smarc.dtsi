@@ -67,6 +67,10 @@
 #error "Can not set 1 to both SW_SCIF_CAN and SW_RSPI_CAN due to Hardware."
 #endif
 
+/* Select function support POEGD (1: enabled, 0 : disabled)
+ */
+#define POEGD_SUPPORT		1
+
 / {
 	aliases {
 		i2c0 = &i2c0;
@@ -605,11 +609,20 @@
 	};
 };
 
+#if (POEGD_SUPPORT)
+&poegd {
+	status = "okay";
+};
+#endif
+
 #if (SCIF1_GPT3)
 &gpt3 {
 	pinctrl-0 = <&gpt3_pins>;
 	pinctrl-names = "default";
 	channel = "both_AB";
+#if (POEGD_SUPPORT)
+	poeg = <&poegd>;
+#endif
 	status = "okay";
 };
 #endif
