@@ -33,6 +33,11 @@ static const struct renesas_family fam_rcar_gen3 __initconst __maybe_unused = {
 	.reg	= 0xfff00044,		/* PRR (Product Register) */
 };
 
+static const struct renesas_family fam_rzg2l __initconst __maybe_unused = {
+	.name	= "RZ/G2L",
+  .reg    = 0x11020a04,           /* DEVID (Device ID Register) */
+};
+
 static const struct renesas_family fam_rmobile __initconst __maybe_unused = {
 	.name	= "R-Mobile",
 	.reg	= 0xe600101c,		/* CCCR (Common Chip Code Register) */
@@ -64,12 +69,18 @@ static const struct renesas_family fam_shmobile __initconst __maybe_unused = {
 
 struct renesas_soc {
 	const struct renesas_family *family;
-	u8 id;
+  u32 id;
 };
 
 static const struct renesas_soc soc_rz_a1h __initconst __maybe_unused = {
 	.family	= &fam_rza1,
 };
+
+static const struct renesas_soc soc_rz_g2l __initconst __maybe_unused = {
+	.family = &fam_rzg2l,
+	.id     = 0x847c447,
+};
+
 
 static const struct renesas_soc soc_rz_a2m __initconst __maybe_unused = {
 	.family	= &fam_rza2,
@@ -299,6 +310,9 @@ static const struct of_device_id renesas_socs[] __initconst = {
 #ifdef CONFIG_ARCH_R8A779A0
 	{ .compatible = "renesas,r8a779a0",	.data = &soc_rcar_v3u },
 #endif
+#if defined(CONFIG_ARCH_R9A07G043F)
+	{ .compatible = "renesas,r9a07g043f",	.data = &soc_rz_g2l },
+#endif
 #ifdef CONFIG_ARCH_SH73A0
 	{ .compatible = "renesas,sh73a0",	.data = &soc_shmobile_ag5 },
 #endif
@@ -332,7 +346,9 @@ static int __init renesas_soc_init(void)
 			product = readl(chipid);
 			iounmap(chipid);
 
-			if (soc->id && ((product >> 16) & 0xff) != soc->id) {
+					/*RZ/G2L use 28 bits for product identification*/
+      if (soc->id && ((product >> 8) & 0xff) != soc->id &&
+        (product & 0xfffffff) != soc->id) {
 				pr_warn("SoC mismatch (product = 0x%x)\n",
 					product);
 				return -ENODEV;
@@ -388,6 +404,9 @@ done:
 	if (eshi)
 		soc_dev_attr->revision = kasprintf(GFP_KERNEL, "ES%u.%u", eshi,
 						   eslo);
+  /*FIXME: current RZG2L family do not support product revision*/
+  if (strcmp(soc_dev_attr->family, fam_rzg2l.name))
+    soc_dev_attr->revision = 0;
 
 	pr_info("Detected Renesas %s %s %s\n", soc_dev_attr->family,
 		soc_dev_attr->soc_id, soc_dev_attr->revision ?: "");
