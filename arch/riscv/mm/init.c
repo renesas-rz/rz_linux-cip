@@ -621,15 +621,15 @@ static inline void setup_vm_final(void)
 #ifdef CONFIG_STRICT_KERNEL_RWX
 void mark_rodata_ro(void)
 {
-	unsigned long init_start = (unsigned long)_start;
-	unsigned long init_end = (unsigned long)__init_end;
+	//unsigned long init_start = (unsigned long)_start;
+	//unsigned long init_end = (unsigned long)__init_end;
 	unsigned long text_start = (unsigned long)_text;
 	unsigned long text_end = (unsigned long)_etext;
 	unsigned long rodata_start = (unsigned long)__start_rodata;
 	unsigned long data_start = (unsigned long)_data;
 	unsigned long max_low = (unsigned long)(__va(PFN_PHYS(max_low_pfn)));
 
-	set_memory_ro(init_start, (init_end - init_start) >> PAGE_SHIFT);
+	//set_memory_ro(init_start, (init_end - init_start) >> PAGE_SHIFT);
 	set_memory_ro(text_start, (text_end - text_start) >> PAGE_SHIFT);
 	set_memory_ro(rodata_start, (data_start - rodata_start) >> PAGE_SHIFT);
 	set_memory_nx(rodata_start, (data_start - rodata_start) >> PAGE_SHIFT);
