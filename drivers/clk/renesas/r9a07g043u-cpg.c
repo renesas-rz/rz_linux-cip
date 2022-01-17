@@ -349,7 +349,7 @@ static struct mssr_mod_clk r9a07g043u_mod_clks[] = {
 				MSSR(30, (BIT(0) | BIT(2) | BIT(3)),
 					 (BIT(0) | BIT(2) | BIT(3))),
 				MSTOP(PERI_COM_MSTOP,
-					BIT(6) | BIT(5) | BIT(4))),
+					BIT(6) | BIT(5))),
 	DEF_MOD("usb1",		R9A07G043U_CLK_USB1,
 				R9A07G043U_CLK_P1,
 				MSSR(30, (BIT(1) | BIT(3)),
