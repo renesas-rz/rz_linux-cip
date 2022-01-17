@@ -17,21 +17,14 @@
 */
 #define	JP1	1
 
-#define DISP_PARALLEL_HDMI	1
-#define DISP_PARALLEL_PANEL	0
-#define DISP_PARALLEL		(DISP_PARALLEL_HDMI | DISP_PARALLEL_PANEL)
 #define	SDHI0_SDSLOT		0
 
 / {
 	aliases {
 		serial0 = &scif0;
-#if !(DISP_PARALLEL_HDMI)
 		serial1 = &scif1;
-#endif
-#if !(DISP_PARALLEL)
 		can0 = &can;
 		can1 = &can;
-#endif
 		ethernet0 = &eth0;
 		ethernet1 = &eth1;
 	};
@@ -75,7 +68,6 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
-#if !(DISP_PARALLEL)
 	snd_rzg2l: sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
@@ -98,7 +90,6 @@
 			clocks = <&versa3 3>;
 		};
 	};
-#endif
 
 	x1_clk: x1-clock {
 		compatible = "fixed-clock";
@@ -158,47 +149,10 @@
 		};
 	};
 
-#if (DISP_PARALLEL_HDMI)
-	hdmi-out {
-		compatible = "hdmi-connector";
-		type = "d";
-
-		port {
-			hdmi_con_out: endpoint {
-				remote-endpoint = <&adv7513_out>;
-			};
-		};
-	};
-#endif
-
 	clk_ext_camera: clk_ext_camera {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <24000000>;
-	};
-
-	ov5645_vdddo_1v8: 1p8v {
-		compatible = "regulator-fixed";
-		regulator-name = "camera_vdddo";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-always-on;
-	};
-
-	ov5645_vdda_2v8: 2p8v {
-		compatible = "regulator-fixed";
-		regulator-name = "camera_vdda";
-		regulator-min-microvolt = <2800000>;
-		regulator-max-microvolt = <2800000>;
-		regulator-always-on;
-	};
-
-	ov5645_vddd_1v5: 1p5v {
-		compatible = "regulator-fixed";
-		regulator-name = "camera_vddd";
-		regulator-min-microvolt = <1500000>;
-		regulator-max-microvolt = <1500000>;
-		regulator-always-on;
 	};
 };
 
@@ -212,12 +166,10 @@
 		function = "scif0";
 	};
 
-#if !(DISP_PARALLEL_HDMI)
 	scif1_pins: scif1 {
 		groups = "scif1_data_c";
 		function = "scif1";
 	};
-#endif
 
 #if !(SDHI0_SDSLOT)
 	/* Support pinctrl for MMC function of SDHI0*/
@@ -332,7 +284,6 @@
 		input-enable;
 	};
 
-#if !(DISP_PARALLEL)
 	can0_stb {
 		gpio-hog;
 		gpios = <RZG2L_GPIO(13, 3) GPIO_ACTIVE_LOW>;
@@ -356,7 +307,6 @@
 		groups = "can1_tx_c", "can1_rx_c";
 		function = "can1";
 	};
-#endif
 
 	ether0_pins: eth0 {
 		groups = "eth0_link", "eth0_mdio", "eth0_rgmii";
@@ -388,22 +338,10 @@
 		input-enable;
 	};
 
-#if (DISP_PARALLEL)
-	du_pins: du {
-#if (DISP_PARALLEL_HDMI)
-		groups = "disp_bgr888", "disp_sync", "disp_de", "disp_clk";
-#else
-		groups = "disp_bgr666", "disp_sync", "disp_de", "disp_clk";
-#endif
-		function = "disp";
-	};
-#endif
-#if !(DISP_PARALLEL)
 	ssi1_pins: ssi1 {
 		groups = "ssi1_ctrl_c", "ssi1_data_c";
 		function = "ssi1";
 	};
-#endif
 };
 
 &audio_clk1{
@@ -420,13 +358,11 @@
 	status = "okay";
 };
 
-#if !(DISP_PARALLEL_HDMI)
 &scif1 {
 	pinctrl-0 = <&scif1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
-#endif
 
 #if !(SDHI0_SDSLOT)
 &sdhi0 {
@@ -472,7 +408,6 @@
 	status = "okay";
 };
 
-#if !(DISP_PARALLEL)
 &can {
 	pinctrl-0 = <&can0_pins &can1_pins>;
 	pinctrl-names = "default";
@@ -486,7 +421,6 @@
 		status = "okay";
 	};
 };
-#endif
 
 &eth0 {
 	pinctrl-0 = <&ether0_pins>;
@@ -539,10 +473,8 @@
 		txd2-skew-psec = <0>;
 		txd3-skew-psec = <0>;
 
-#if !(DISP_PARALLEL_HDMI)
 		interrupt-parent = <&pinctrl>;
 		interrupts = <RZG2L_GPIO(14, 2) IRQ_TYPE_EDGE_FALLING>;
-#endif
 	};
 };
 
@@ -551,7 +483,6 @@
 	/delete-node/ qspi@20000000;
 };
 
-#if !(DISP_PARALLEL)
 &ssi1 {
 	pinctrl-0 = <&ssi1_pins &sound_clk_pins>;
 	pinctrl-names = "default";
@@ -562,7 +493,6 @@
 
 	status = "okay";
 };
-#endif
 
 &spibsc {
 	status = "okay";
@@ -619,67 +549,10 @@
 
 	status = "okay";
 
-#if (DISP_PARALLEL_HDMI)
-	adv7513: adv7513@39 {
-		compatible = "adi,adv7513";
-		reg = <0x39>;
-
-		adi,input-depth = <8>;
-		adi,input-colorspace = "rgb";
-		adi,input-clock = "1x";
-
-		avdd-supply = <&reg_1p8v>;
-		dvdd-supply = <&reg_1p8v>;
-		pvdd-supply = <&reg_1p8v>;
-		dvdd-3v-supply = <&reg_3p3v>;
-		bgvdd-supply = <&reg_1p8v>;
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-
-				adv7513_in: endpoint {
-					remote-endpoint = <&du_out_rgb>;
-				};
-			};
-
-			port@1 {
-				reg = <1>;
-
-				adv7513_out: endpoint {
-					remote-endpoint = <&hdmi_con_out>;
-				};
-			};
-		};
-	};
-#endif
-#if !(DISP_PARALLEL)
 	wm8978: codec@1a {
 		compatible = "wlf,wm8978";
 		#sound-dai-cells = <0>;
 		reg = <0x1a>;
-	};
-#endif
-};
-
-&du {
-#if (DISP_PARALLEL)
-	pinctrl-0 = <&du_pins>;
-	pinctrl-names = "default";
-#endif
-	status = "okay";
-
-	ports {
-		port@0 {
-			du_out_rgb: endpoint {
-#if (DISP_PARALLEL_HDMI)
-				remote-endpoint = <&adv7513_in>;
-#endif
-			};
-		};
 	};
 };
 
@@ -753,44 +626,5 @@
 					<11289600>, <24000000>;
 		clock-divider-read-only = <1>, <1>, <1>, <1>, <1>;
 		clock-flags = <2176>, <2176>, <2176>, <2052>, <2176>, <2048>;
-	};
-
-	ov5645: camera@3c {
-		compatible = "ovti,ov5645";
-		reg = <0x3c>;
-		clock-names = "xclk";
-		clocks = <&clk_ext_camera>;
-		clock-frequency = <24000000>;
-		vdddo-supply = <&ov5645_vdddo_1v8>;
-		vdda-supply = <&ov5645_vdda_2v8>;
-		vddd-supply = <&ov5645_vddd_1v5>;
-		enable-gpios = <&pinctrl RZG2L_GPIO(8, 2) GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&pinctrl RZG2L_GPIO(8, 1) GPIO_ACTIVE_LOW>;
-
-		port {
-			ov5645_to_csi: endpoint {
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-				remote-endpoint = <&csi2_in>;
-			};
-		};
-	};
-};
-
-&cru {
-	status = "okay";
-};
-
-&csi2 {
-	status = "okay";
-
-	ports {
-		port {
-			csi2_in: endpoint {
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-				remote-endpoint = <&ov5645_to_csi>;
-			};
-		};
 	};
 };

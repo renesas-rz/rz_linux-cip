@@ -5,7 +5,7 @@
  * Copyright (C) 2021 Renesas Electronics Corp.
  */
 
-//#include <dt-bindings/interrupt-controller/arm-gic.h>
+
 #include <dt-bindings/clock/r9a07g043f-cpg-mssr.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
@@ -27,13 +27,14 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		timebase-frequency = <12000000>;
 
 		ax45mp: cpu@0 {
 			compatible = "riscv";
 			device_type = "cpu";
 			reg = <0x0>;
 			status = "okay";
-			riscv,isa = "rv64imacfdn";
+			riscv,isa = "rv64imafdc";
 			riscv,priv-major = <0x1>;
 			riscv,priv-minor = <0xa>;
 			mmu-type = "riscv,sv39";
@@ -51,14 +52,14 @@
 		};
 
 		l2cache: cache-controller@13400000 {
-			compatible = "cache";
+			compatible = "v5l2cache";
 			cache-level = <0x2>;
 			cache-size = <0x40000>; // 256KB l2-cache
 			reg = <0x0 0x13400000 0x0 0x100000>; 
-			andes,inst-prefetch = <0x4>; // 1
-			andes,data-prefetch = <0x4>; // 
-			andes,tag-ram-ctl = <0x0 0x0>;
-			andes,data-ram-ctl = <0x0 0x0>;
+			andes,inst-prefetch = <0x0>; // 1
+			andes,data-prefetch = <0x0>; // 
+			andes,tag-ram-ctl = <0x1 0x0>;
+			andes,data-ram-ctl = <0x1 0x0>;
 		};
 
 	};
@@ -156,15 +157,15 @@
 			compatible = "renesas,plic-100ss";
 			#interrupt-cells = <2>;
 			#address-cells = <0>;
+			riscv,ndev = <500>; // copy from hifive unmatched board
 			interrupt-controller;
 			reg = <0x0 0x12C00000 0 0x400000>,
 			      <0x0 0x13000000 0 0x400000>;
 			clocks = <&cpg CPG_MOD R9A07G043F_CLK_NCEPLIC>;
 			clock-names = "plic100ss";
-			interrupt-extended = <
-								&cpu0_intc 0xffffffff 	// for target 0
-								&cpu0_intc 9		  	// for target 1
-								&cpu0_intc 0xffffffff>; // for target 2 
+			interrupts-extended = <
+						&cpu0_intc 11 	// for target 0
+						&cpu0_intc 9>;	 
 		};
 
 		mtu3: timer@10001200 {
@@ -187,12 +188,12 @@
 			compatible = "renesas,scif-r9a07g043f";
 			reg = <0 0x1004b800 0 0x400>;
 			interrupts =
-				<380 IRQ_TYPE_LEVEL_HIGH>,
-				<382 IRQ_TYPE_LEVEL_HIGH>,
-				<383 IRQ_TYPE_LEVEL_HIGH>,
-				<381 IRQ_TYPE_LEVEL_HIGH>,
-				<384 IRQ_TYPE_LEVEL_HIGH>,
-				<384 IRQ_TYPE_LEVEL_HIGH>;
+				<412 IRQ_TYPE_LEVEL_HIGH>,
+				<414 IRQ_TYPE_LEVEL_HIGH>,
+				<415 IRQ_TYPE_LEVEL_HIGH>,
+				<413 IRQ_TYPE_LEVEL_HIGH>,
+				<416 IRQ_TYPE_LEVEL_HIGH>,
+				<416 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD R9A07G043F_CLK_SCIF0>;
 			clock-names = "fck";
 			resets = <&cpg R9A07G043F_CLK_SCIF0>;
@@ -272,8 +273,8 @@
 			compatible = "renesas,sdhi-r9a07g043u",
 				     "renesas,rcar-gen3-sdhi";
 			reg = <0 0x11c00000 0 0x10000>;
-			interrupts = < 104 IRQ_TYPE_LEVEL_HIGH>,
-				     < 105 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = < 136 IRQ_TYPE_LEVEL_HIGH>,
+				     < 137 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD R9A07G043F_CLK_SDHI0>;
 			resets = <&cpg R9A07G043F_CLK_SDHI0>;
 			power-domains = <&cpg>;
@@ -284,8 +285,8 @@
 			compatible = "renesas,sdhi-r9a07g043u",
 				     "renesas,rcar-gen3-sdhi";
 			reg = <0x0 0x11c10000 0 0x10000>;
-			interrupts = < 106 IRQ_TYPE_LEVEL_HIGH>,
-				     < 107 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = < 138 IRQ_TYPE_LEVEL_HIGH>,
+				     < 139 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD R9A07G043F_CLK_SDHI1>;
 			resets = <&cpg R9A07G043F_CLK_SDHI1>;
 			power-domains = <&cpg>;
@@ -632,65 +633,6 @@
 			status = "disabled";
 		};
 
-		vspd0: vsp@10870000 {
-			compatible = "renesas,vsp2";
-			reg = <0 0x10870000 0 0x10000>;
-			interrupts = <149 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpg CPG_MOD R9A07G043F_CLK_LCDC>;
-			resets = <&cpg R9A07G043F_CLK_LCDC>;
-			power-domains = <&cpg>;
-			renesas,fcp = <&fcpvd0>;
-		};
-
-		fcpvd0: fcp@10880000 {
-			compatible = "renesas,fcpv";
-			reg = <0 0x10880000 0 0x10000>;
-			clocks = <&cpg CPG_MOD R9A07G043F_CLK_LCDC>;
-			resets = <&cpg R9A07G043F_CLK_LCDC>;
-			power-domains = <&cpg>;
-		};
-
-		isu: isum@10840000 {
-			compatible = "renesas,isum";
-			reg = <0 0x10840000 0 0x01F4>;
-			interrupts = <157 IRQ_TYPE_LEVEL_HIGH>,
-				<158 IRQ_TYPE_LEVEL_HIGH>,
-				<159 IRQ_TYPE_LEVEL_HIGH>,
-				<160 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpg CPG_MOD R9A07G043F_CLK_ISU>;
-			clock-names = "isu_aclk";
-			resets = <&cpg R9A07G043F_CLK_ISU>;
-			renesas,#ch = <0>;
-			renesas,#rpf = <1>;
-			renesas,#wpf = <1>;
-			renesas,has-rs;
-			power-domains = <&cpg>;
-		};
-
-		du: display@10890000 {
-			compatible = "renesas,du-r9a07g043u";
-			reg = <0 0x10890000 0 0x10000>;
-			interrupts = <152 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpg CPG_MOD R9A07G043F_CLK_LCDC>;
-			clock-names = "du.0";
-			resets = <&cpg R9A07G043F_CLK_LCDC>;
-			reset-names = "du.0";
-			vsps = <&vspd0 0>;
-			power-domains = <&cpg>;
-			status = "disabled";
-
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@0 {
-					reg = <0>;
-					du_out_rgb: endpoint {
-					};
-				};
-			};
-		};
-
 		ssi0: ssi@10049c00 {
 			#sound-dai-cells = <0>;
 			compatible = "renesas,rzg2l-ssi";
@@ -790,56 +732,6 @@
 			power-domains = <&cpg>;
 			resets = <&cpg R9A07G043F_CLK_OSTM2>;
 			status = "disabled";
-		};
-
-		cru: video@10830000 {
-			compatible =	"renesas,cru-r9a07g043u",
-					"renesas,cru-rzg2l";
-			reg = <0 0x10830000 0 0x400>;
-			clocks = <&cpg CPG_MOD R9A07G043F_CLK_CRU>;
-			interrupts = <167 IRQ_TYPE_LEVEL_HIGH>;
-			resets = <&cpg R9A07G043F_CLK_CRU>;
-			power-domains = <&cpg>;
-			status = "disabled";
-
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@1 {
-					reg = <1>;
-
-					cru_to_csi2: endpoint {
-						remote-endpoint =
-								<&csi2_to_cru>;
-					};
-				};
-			};
-		};
-
-		csi2: csi2@10830400 {
-			compatible =	"renesas,r9a07g043u-csi2",
-					"renesas,rzg2l-csi2";
-			reg = <0 0x10830400 0 0xc00>;
-			interrupts = <166 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpg CPG_MOD R9A07G043F_CLK_CSI2>;
-			resets = <&cpg R9A07G043F_CLK_CSI2>;
-			power-domains = <&cpg>;
-			status = "disabled";
-
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@1 {
-					reg = <1>;
-
-					csi2_to_cru: endpoint {
-						remote-endpoint =
-								<&cru_to_csi2>;
-					};
-				};
-			};
 		};
 	};
 
