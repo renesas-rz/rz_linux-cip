@@ -351,6 +351,25 @@ static int rzg2l_adc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#if defined(CONFIG_PM)
+static int rzg2l_adc_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int rzg2l_adc_resume(struct device *dev)
+{
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(rzg2l_adc_pm_ops,
+			rzg2l_adc_suspend,
+			rzg2l_adc_resume);
+#define DEV_PM_OPS (&rzg2l_adc_pm_ops)
+#else
+#define DEV_PM_OPS NULL
+#endif
+
 static const struct of_device_id rzg2l_adc_match[] = {
 	{
 		.compatible = "renesas,adc-r9a07g044l",
@@ -371,6 +390,7 @@ static struct platform_driver rzg2l_adc_driver = {
 	.driver		= {
 		.name	= "rzg2l-adc",
 		.of_match_table = rzg2l_adc_match,
+		.pm	= DEV_PM_OPS,
 	},
 };
 
