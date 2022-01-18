@@ -27,6 +27,11 @@
 
 /* Maximum bumber of CSI2 virtual channels */
 #define CSI2_VCHANNEL	4
+
+/* Time until source device reconnects */
+#define CONNECTION_TIME		2000
+#define SETUP_WAIT_TIME		3000
+
 /**
  * STOPPED  - No operation in progress
  * STARTING - Capture starting up
@@ -127,6 +132,11 @@ struct rzg2l_cru_info {
  * @crop:		active cropping
  * @source:		active size of the video source
  * @std:		active video standard of the video source
+ *
+ * @work_queue:		work queue at resuming
+ * @rzg2l_cru_resume:	delayed work at resuming
+ * @setup_wait:		wait queue used to setup VIN
+ * @suspend:		suspend flag
  */
 struct rzg2l_cru_dev {
 	struct device *dev;
@@ -169,6 +179,11 @@ struct rzg2l_cru_dev {
 	v4l2_std_id std;
 
 	struct reset_control *rstc;
+
+	struct workqueue_struct *work_queue;
+	struct delayed_work rzg2l_cru_resume;
+	wait_queue_head_t setup_wait;
+	bool suspend;
 };
 
 #define cru_to_source(cru)		((cru)->parallel->subdev)
@@ -211,4 +226,6 @@ void rzg2l_cru_v4l2_unregister(struct rzg2l_cru_dev *cru);
 const struct rzg2l_cru_video_format
 *rzg2l_cru_format_from_pixel(u32 pixelformat);
 
+void rzg2l_cru_resume_start_streaming(struct work_struct *work);
+void rzg2l_cru_suspend_stop_streaming(struct rzg2l_cru_dev *cru);
 #endif

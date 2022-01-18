@@ -987,6 +987,70 @@ out:
 	return ret;
 }
 
+void rzg2l_cru_resume_start_streaming(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct rzg2l_cru_dev *cru = container_of(dwork,
+						 struct rzg2l_cru_dev,
+						 rzg2l_cru_resume);
+	unsigned long flags;
+	int ret;
+
+	ret = rzg2l_cru_set_stream(cru, 1);
+	if (ret) {
+		dev_warn(cru->dev, "Warning at streaming when resuming.\n");
+		spin_lock_irqsave(&cru->qlock, flags);
+		return_all_buffers(cru, VB2_BUF_STATE_ERROR);
+		spin_unlock_irqrestore(&cru->qlock, flags);
+	}
+
+	spin_lock_irqsave(&cru->qlock, flags);
+	cru->sequence = 0;
+	spin_unlock_irqrestore(&cru->qlock, flags);
+
+	cru->suspend = false;
+	wake_up(&cru->setup_wait);
+}
+
+void rzg2l_cru_suspend_stop_streaming(struct rzg2l_cru_dev *cru)
+{
+	unsigned long flags;
+	int retries = 0;
+
+	spin_lock_irqsave(&cru->qlock, flags);
+
+	/* Disable and clear the interrupt */
+	rzg2l_cru_write(cru, CRUnIE, 0);
+	rzg2l_cru_write(cru, CRUnINTS, 0x001F0F0F);
+
+	/* Stop the operation of image conversion */
+	rzg2l_cru_write(cru, ICnEN, 0);
+
+	/* Stop AXI bus */
+	rzg2l_cru_write(cru, AMnAXISTP, AMnAXISTP_AXI_STOP);
+
+	/* Wait until the AXI bus stop */
+	for (retries = 5; retries > 0; retries--) {
+		if (rzg2l_cru_read(cru, AMnAXISTPACK) &
+						AMnAXISTPACK_AXI_STOP_ACK)
+			break;
+
+		udelay(10);
+	};
+
+	/* Cancel the AXI bus stop request */
+	rzg2l_cru_write(cru, AMnAXISTP, 0);
+
+	/* Release all active buffers */
+	return_all_buffers(cru, VB2_BUF_STATE_ERROR);
+
+	spin_unlock_irqrestore(&cru->qlock, flags);
+
+	rzg2l_cru_set_stream(cru, 0);
+
+	cru->suspend = true;
+}
+
 static const struct vb2_ops rzg2l_cru_qops = {
 	.queue_setup		= rzg2l_cru_queue_setup,
 	.buf_prepare		= rzg2l_cru_buffer_prepare,
@@ -1120,6 +1184,8 @@ int rzg2l_cru_dma_register(struct rzg2l_cru_dev *cru, int irq)
 	spin_lock_init(&cru->qlock);
 
 	cru->state = STOPPED;
+	cru->suspend = false;
+	init_waitqueue_head(&cru->setup_wait);
 
 	for (i = 0; i < HW_BUFFER_MAX; i++)
 		cru->queue_buf[i] = NULL;

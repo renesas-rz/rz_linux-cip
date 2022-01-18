@@ -552,6 +552,15 @@ static int rzg2l_cru_probe(struct platform_device *pdev)
 	pm_suspend_ignore_children(&pdev->dev, true);
 	pm_runtime_enable(&pdev->dev);
 
+
+	cru->work_queue = create_singlethread_workqueue(dev_name(cru->dev));
+	if (!cru->work_queue) {
+		ret = -ENOMEM;
+		goto free_ctrl;
+	}
+	INIT_DELAYED_WORK(&cru->rzg2l_cru_resume,
+			  rzg2l_cru_resume_start_streaming);
+
 	return 0;
 
 free_ctrl:
@@ -594,10 +603,48 @@ static int rzg2l_cru_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int rzg2l_cru_suspend(struct device *dev)
+{
+	struct rzg2l_cru_dev *cru = dev_get_drvdata(dev);
+
+	if (cru->state == STOPPED)
+		return 0;
+
+	rzg2l_cru_suspend_stop_streaming(cru);
+
+	pm_runtime_put(cru->dev);
+
+	return 0;
+}
+
+static int rzg2l_cru_resume(struct device *dev)
+{
+	struct rzg2l_cru_dev *cru = dev_get_drvdata(dev);
+
+	if (cru->state == STOPPED)
+		return 0;
+
+	pm_runtime_get_sync(cru->dev);
+
+	queue_delayed_work_on(0, cru->work_queue, &cru->rzg2l_cru_resume,
+			      msecs_to_jiffies(CONNECTION_TIME));
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(rzg2l_cru_pm_ops,
+			 rzg2l_cru_suspend, rzg2l_cru_resume);
+#define DEV_PM_OPS (&rzg2l_cru_pm_ops)
+#else
+#define DEV_PM_OPS NULL
+#endif /* CONFIG_PM_SLEEP */
+
 static struct platform_driver rzg2l_cru_driver = {
 	.driver = {
 		.name = "rzg2l-cru",
 		.of_match_table = rzg2l_cru_of_id_table,
+		.pm = DEV_PM_OPS,
 	},
 	.probe = rzg2l_cru_probe,
 	.remove = rzg2l_cru_remove,
