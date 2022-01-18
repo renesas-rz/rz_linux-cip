@@ -29,6 +29,15 @@ config DRM_RCAR_LVDS
 	help
 	  Enable support for the R-Car Display Unit embedded LVDS encoders.
 
+config DRM_RCAR_RGB_DUMMY
+	tristate "R-Car DU RGB Dummy Encoder Support"
+	depends on DRM && DRM_BRIDGE && OF
+	select DRM_KMS_HELPER
+	select DRM_PANEL
+	select OF_FLATTREE
+	help
+	  Enable support for the R-Car RGB Dummy encoders.
+
 config DRM_RZG2L_MIPI_DSI
 	tristate "RZ/G2L MIPI DSI Encoder Support"
 	depends on DRM && DRM_BRIDGE && OF
