@@ -509,67 +509,176 @@ static int usb1_ovrcur_d_pins[] = {
 };
 
 /* MTU channel 0 */
-static int mtu0_a_pins[] = {
-	/* MTIOC0A, MTIOC0B  */
-	RZ_G2L_PIN(12, 0), RZ_G2L_PIN(12, 1),
+static int mtioc0a_a_pins[] = {
+	/* MTIOC0A_A */
+	RZ_G2L_PIN(12, 0),
+};
+
+static int mtioc0b_a_pins[] = {
+	/* MTIOC0B_A */
+	RZ_G2L_PIN(12, 1),
 };
 
 /* MTU channel 1 */
-static int mtu1_c_pins[] = {
-	/* MTIOC1A, MTIOC1B */
-	RZ_G2L_PIN(0, 2), RZ_G2L_PIN(0, 3),
+static int mtioc1a_c_pins[] = {
+	/* MTIOC1A_C */
+	RZ_G2L_PIN(0, 2),
+};
+
+static int mtioc1b_c_pins[] = {
+	/* MTIOC1B_C */
+	RZ_G2L_PIN(0, 3),
 };
 
 /* MTU channel 2 */
-static int mtu2_c_pins[] = {
-	/* MTIOC2A, MTIOC2B */
-	RZ_G2L_PIN(0, 0), RZ_G2L_PIN(0, 1),
+static int mtioc2a_c_pins[] = {
+	/* MTIOC2A_C */
+	RZ_G2L_PIN(0, 0),
+};
+
+static int mtioc2b_c_pins[] = {
+	/* MTIOC2B_C */
+	RZ_G2L_PIN(0, 1),
 };
 
 /* MTU channel 3 */
-static int mtu3_b_pins[] = {
-	/* MTIOC3A, MTIOC3B, MTIOC3C, MTIOC3D */
-	RZ_G2L_PIN(17, 0), RZ_G2L_PIN(17, 1),
-	RZ_G2L_PIN(17, 2), RZ_G2L_PIN(17, 3),
+static int mtioc3a_b_pins[] = {
+	/* MTIOC3A_B */
+	RZ_G2L_PIN(17, 0),
+};
+
+static int mtioc3b_b_pins[] = {
+	/* MTIOC3B_B */
+	RZ_G2L_PIN(17, 1),
+};
+
+static int mtioc3c_b_pins[] = {
+	/* MTIOC3C_B */
+	RZ_G2L_PIN(17, 2),
+};
+
+static int mtioc3d_b_pins[] = {
+	/* MTIOC3D_B */
+	RZ_G2L_PIN(17, 3),
 };
 
 /* MTU channel 4 */
-static int mtu4_pins[] = {
-	/* MTIOC4A, MTIOC4B, MTIOC4C, MTIOC4D */
-	RZ_G2L_PIN(13, 0), RZ_G2L_PIN(13, 1),
-	RZ_G2L_PIN(13, 2), RZ_G2L_PIN(13, 3),
+static int mtioc4a_a_pins[] = {
+	/* MTIOC4A */
+	RZ_G2L_PIN(13, 0),
+};
+
+static int mtioc4b_a_pins[] = {
+	/* MTIOC4B */
+	RZ_G2L_PIN(13, 1),
+};
+
+static int mtioc4c_a_pins[] = {
+	/* MTIOC4C */
+	RZ_G2L_PIN(13, 2),
+};
+
+static int mtioc4d_a_pins[] = {
+	/* MTIOC4D */
+	RZ_G2L_PIN(13, 3),
 };
 
 /* MTU channel 5 */
-static int mtu5_b_pins[] = {
-	/* MTIC5U, MTIC5V, MTIC5W */
-	RZ_G2L_PIN(14, 0), RZ_G2L_PIN(14, 1), RZ_G2L_PIN(14, 2),
+static int mtic5u_b_pins[] = {
+	/* MTIC5U_B */
+	RZ_G2L_PIN(14, 0),
+};
+
+static int mtic5v_b_pins[] = {
+	/* MTIC5V_B */
+	RZ_G2L_PIN(14, 1),
+};
+
+static int mtic5w_b_pins[] = {
+	/* MTIC5W_B */
+	RZ_G2L_PIN(14, 2),
 };
 
 /* MTU channel 7 */
-static int mtu7_a_pins[] = {
-	/* MTIOC7A, MTIOC7B, MTIOC7C, MTIOC7D */
-	RZ_G2L_PIN(5, 0), RZ_G2L_PIN(5, 1),
-	RZ_G2L_PIN(5, 2), RZ_G2L_PIN(5, 3),
+static int mtioc7a_a_pins[] = {
+	/* MTIOC7A_A */
+	RZ_G2L_PIN(5, 0),
 };
 
-static int mtu7_b_pins[] = {
-	/* MTIOC7A, MTIOC7B, MTIOC7C, MTIOC7D */
-	RZ_G2L_PIN(6, 0), RZ_G2L_PIN(6, 1),
-	RZ_G2L_PIN(6, 2), RZ_G2L_PIN(6, 3),
+static int mtioc7b_a_pins[] = {
+	/* MTIOC7B_A */
+	RZ_G2L_PIN(5, 1),
+};
+
+static int mtioc7c_a_pins[] = {
+	/* MTIOC7C_A */
+	RZ_G2L_PIN(5, 2),
+};
+
+static int mtioc7d_a_pins[] = {
+	/* MTIOC7D_A */
+	RZ_G2L_PIN(5, 3),
+};
+
+static int mtioc7a_b_pins[] = {
+	/* MTIOC7A_B */
+	RZ_G2L_PIN(6, 0),
+};
+
+static int mtioc7b_b_pins[] = {
+	/* MTIOC7B_B */
+	RZ_G2L_PIN(6, 1),
+};
+
+static int mtioc7c_b_pins[] = {
+	/* MTIOC7C_B */
+	RZ_G2L_PIN(6, 2),
+};
+
+static int mtioc7d_b_pins[] = {
+	/* MTIOC7D_B */
+	RZ_G2L_PIN(6, 3),
 };
 
 /* MTU channel 8 */
-static int mtu8_a_pins[] = {
-	/* MTIOC8A, MTIOC8B, MTIOC8C, MTIOC8D */
-	RZ_G2L_PIN(4, 0), RZ_G2L_PIN(4, 1),
-	RZ_G2L_PIN(4, 2), RZ_G2L_PIN(4, 3),
+static int mtioc8a_a_pins[] = {
+	/* MTIOC8A_A */
+	RZ_G2L_PIN(4, 0),
 };
 
-static int mtu8_b_pins[] = {
-	/* MTIOC8A, MTIOC8B, MTIOC8C, MTIOC8D */
-	RZ_G2L_PIN(15, 0), RZ_G2L_PIN(15, 1),
-	RZ_G2L_PIN(15, 2), RZ_G2L_PIN(15, 3),
+static int mtioc8b_a_pins[] = {
+	/* MTIOC8B_A */
+	RZ_G2L_PIN(4, 1),
+};
+
+static int mtioc8c_a_pins[] = {
+	/* MTIOC8C_A */
+	RZ_G2L_PIN(4, 2),
+};
+
+static int mtioc8d_a_pins[] = {
+	/* MTIOC8D_A */
+	RZ_G2L_PIN(4, 3),
+};
+
+static int mtioc8a_b_pins[] = {
+	/* MTIOC8A_B */
+	RZ_G2L_PIN(15, 0),
+};
+
+static int mtioc8b_b_pins[] = {
+	/* MTIOC8B_B */
+	RZ_G2L_PIN(15, 1),
+};
+
+static int mtioc8c_b_pins[] = {
+	/* MTIOC8C_B */
+	RZ_G2L_PIN(15, 2),
+};
+
+static int mtioc8d_b_pins[] = {
+	/* MTIOC8D_B */
+	RZ_G2L_PIN(15, 3),
 };
 
 /* I2C channel 2 */
@@ -997,16 +1106,39 @@ static struct group_desc r9a07g043u12_groups[] = {
 	RZ_G2L_PINCTRL_PIN_GROUP(scif2_clk_d,  4),
 	RZ_G2L_PINCTRL_PIN_GROUP(scif2_ctrl_d, 4),
 	RZ_G2L_PINCTRL_PIN_GROUP(scif3_data, 5),
-	RZ_G2L_PINCTRL_PIN_GROUP(mtu0_a, 4),
-	RZ_G2L_PINCTRL_PIN_GROUP(mtu1_c, 3),
-	RZ_G2L_PINCTRL_PIN_GROUP(mtu2_c, 4),
-	RZ_G2L_PINCTRL_PIN_GROUP(mtu3_b, 4),
-	RZ_G2L_PINCTRL_PIN_GROUP(mtu4,   4),
-	RZ_G2L_PINCTRL_PIN_GROUP(mtu5_b, 4),
-	RZ_G2L_PINCTRL_PIN_GROUP(mtu7_a, 3),
-	RZ_G2L_PINCTRL_PIN_GROUP(mtu7_b, 5),
-	RZ_G2L_PINCTRL_PIN_GROUP(mtu8_a, 3),
-	RZ_G2L_PINCTRL_PIN_GROUP(mtu8_b, 5),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc0a_a, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc0b_a, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc1a_c, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc1b_c, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc2a_c, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc2b_c, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc3a_b, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc3b_b, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc3c_b, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc3d_b, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc4a_a, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc4b_a, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc4c_a, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc4d_a, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtic5u_b, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtic5v_b, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtic5w_b, 4),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc7a_a, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc7b_a, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc7c_a, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc7d_a, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc7a_b, 5),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc7b_b, 5),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc7c_b, 5),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc7d_b, 5),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc8a_a, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc8b_a, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc8c_a, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc8d_a, 3),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc8a_b, 5),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc8b_b, 5),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc8c_b, 5),
+	RZ_G2L_PINCTRL_PIN_GROUP(mtioc8d_b, 5),
 	RZ_G2L_PINCTRL_PIN_GROUP(i2c2_b, 4),
 	RZ_G2L_PINCTRL_PIN_GROUP(i2c2_c, 1),
 	RZ_G2L_PINCTRL_PIN_GROUP(i2c3_b, 3),
@@ -1114,35 +1246,37 @@ static const char *r9a07g043u12_scif3_groups[] = {
 };
 
 static const char *r9a07g043u12_mtu0_groups[] = {
-	"mtu0_a",
+	"mtioc0a_a", "mtioc0b_a",
 };
 
 static const char *r9a07g043u12_mtu1_groups[] = {
-	"mtu1_c",
+	"mtioc1a_c", "mtioc1b_c",
 };
 
 static const char *r9a07g043u12_mtu2_groups[] = {
-	"mtu2_c",
+	"mtioc2a_c", "mtioc2b_c",
 };
 
 static const char *r9a07g043u12_mtu3_groups[] = {
-	"mtu3_b",
+	"mtioc3a_b", "mtioc3b_b", "mtioc3c_b", "mtioc3d_b",
 };
 
 static const char *r9a07g043u12_mtu4_groups[] = {
-	"mtu4",
+	"mtioc4a_a", "mtioc4b_a", "mtioc4c_a", "mtioc4d_a",
 };
 
 static const char *r9a07g043u12_mtu5_groups[] = {
-	"mtu5_b",
+	"mtic5u_b", "mtic5v_b", "mtic5w_b"
 };
 
 static const char *r9a07g043u12_mtu7_groups[] = {
-	"mtu7_a", "mtu7_b",
+	"mtioc7a_a", "mtioc7b_a", "mtioc7c_a", "mtioc7d_a",
+	"mtioc7a_b", "mtioc7b_b", "mtioc7c_b", "mtioc7d_b",
 };
 
 static const char *r9a07g043u12_mtu8_groups[] = {
-	"mtu8_a", "mtu8_b",
+	"mtioc8a_a", "mtioc8b_a", "mtioc8c_a", "mtioc8d_a",
+	"mtioc8a_b", "mtioc8b_b", "mtioc8c_b", "mtioc8d_b",
 };
 
 static const char *r9a07g043u12_usb0_groups[] = {
