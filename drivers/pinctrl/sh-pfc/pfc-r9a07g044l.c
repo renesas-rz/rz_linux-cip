@@ -2638,47 +2638,47 @@ static const char *r9a07g044l_gpt7_groups[] = {
 	"gpt7_a_c", "gpt7_b_c",
 };
 
-static const char *r9a07g044l_mtioc0_groups[] = {
+static const char *r9a07g044l_mtu0_groups[] = {
 	"mtioc0a_a", "mtioc0b_a", "mtioc0c_a", "mtioc0d_a",
 	"mtioc0a_b", "mtioc0b_b", "mtioc0c_b", "mtioc0d_b",
 };
 
-static const char *r9a07g044l_mtioc1_groups[] = {
+static const char *r9a07g044l_mtu1_groups[] = {
 	"mtioc1a_a", "mtioc1b_a",
 	"mtioc1a_b", "mtioc1b_b",
 	"mtioc1a_c", "mtioc1b_c",
 };
 
-static const char *r9a07g044l_mtioc2_groups[] = {
+static const char *r9a07g044l_mtu2_groups[] = {
 	"mtioc2a_a", "mtioc2b_a",
 	"mtioc2a_b", "mtioc2b_b",
 	"mtioc2a_c", "mtioc2b_c",
 };
 
-static const char *r9a07g044l_mtioc3_groups[] = {
+static const char *r9a07g044l_mtu3_groups[] = {
 	"mtioc3a_a", "mtioc3b_a", "mtioc3c_a", "mtioc3d_a",
 	"mtioc3a_b", "mtioc3b_b", "mtioc3c_b", "mtioc3d_b",
 };
 
-static const char *r9a07g044l_mtioc4_groups[] = {
+static const char *r9a07g044l_mtu4_groups[] = {
 	"mtioc4a", "mtioc4b", "mtioc4c", "mtioc4d",
 };
 
-static const char *r9a07g044l_mtioc5_groups[] = {
+static const char *r9a07g044l_mtu5_groups[] = {
 	"mtioc5u_a", "mtioc5v_a", "mtioc5w_a",
 	"mtioc5u_b", "mtioc5v_b", "mtioc5w_b",
 };
 
-static const char *r9a07g044l_mtioc6_groups[] = {
+static const char *r9a07g044l_mtu6_groups[] = {
 	"mtioc6a", "mtioc6b", "mtioc6c", "mtioc6d",
 };
 
-static const char *r9a07g044l_mtioc7_groups[] = {
+static const char *r9a07g044l_mtu7_groups[] = {
 	"mtioc7a_a", "mtioc7b_a", "mtioc7c_a", "mtioc7d_a",
 	"mtioc7a_b", "mtioc7b_b", "mtioc7c_b", "mtioc7d_b",
 };
 
-static const char *r9a07g044l_mtioc8_groups[] = {
+static const char *r9a07g044l_mtu8_groups[] = {
 	"mtioc8a_a", "mtioc8b_a", "mtioc8c_a", "mtioc8d_a",
 	"mtioc8a_b", "mtioc8b_b", "mtioc8c_b", "mtioc8d_b",
 };
@@ -2842,24 +2842,24 @@ static const struct function_desc r9a07g044l_funcs[] = {
 		ARRAY_SIZE(r9a07g044l_gpt6_groups)},
 	{"gpt7", r9a07g044l_gpt7_groups,
 		ARRAY_SIZE(r9a07g044l_gpt7_groups)},
-	{"mtioc0", r9a07g044l_mtioc0_groups,
-		ARRAY_SIZE(r9a07g044l_mtioc0_groups)},
-	{"mtioc1", r9a07g044l_mtioc1_groups,
-		ARRAY_SIZE(r9a07g044l_mtioc1_groups)},
-	{"mtioc2", r9a07g044l_mtioc2_groups,
-		ARRAY_SIZE(r9a07g044l_mtioc2_groups)},
-	{"mtioc3", r9a07g044l_mtioc3_groups,
-		ARRAY_SIZE(r9a07g044l_mtioc3_groups)},
-	{"mtioc4", r9a07g044l_mtioc4_groups,
-		ARRAY_SIZE(r9a07g044l_mtioc4_groups)},
-	{"mtioc5", r9a07g044l_mtioc5_groups,
-		ARRAY_SIZE(r9a07g044l_mtioc5_groups)},
-	{"mtioc6", r9a07g044l_mtioc6_groups,
-		ARRAY_SIZE(r9a07g044l_mtioc6_groups)},
-	{"mtioc7", r9a07g044l_mtioc7_groups,
-		ARRAY_SIZE(r9a07g044l_mtioc7_groups)},
-	{"mtioc8", r9a07g044l_mtioc8_groups,
-		ARRAY_SIZE(r9a07g044l_mtioc8_groups)},
+	{"mtu0", r9a07g044l_mtu0_groups,
+		ARRAY_SIZE(r9a07g044l_mtu0_groups)},
+	{"mtu1", r9a07g044l_mtu1_groups,
+		ARRAY_SIZE(r9a07g044l_mtu1_groups)},
+	{"mtu2", r9a07g044l_mtu2_groups,
+		ARRAY_SIZE(r9a07g044l_mtu2_groups)},
+	{"mtu3", r9a07g044l_mtu3_groups,
+		ARRAY_SIZE(r9a07g044l_mtu3_groups)},
+	{"mtu4", r9a07g044l_mtu4_groups,
+		ARRAY_SIZE(r9a07g044l_mtu4_groups)},
+	{"mtu5", r9a07g044l_mtu5_groups,
+		ARRAY_SIZE(r9a07g044l_mtu5_groups)},
+	{"mtu6", r9a07g044l_mtu6_groups,
+		ARRAY_SIZE(r9a07g044l_mtu6_groups)},
+	{"mtu7", r9a07g044l_mtu7_groups,
+		ARRAY_SIZE(r9a07g044l_mtu7_groups)},
+	{"mtu8", r9a07g044l_mtu8_groups,
+		ARRAY_SIZE(r9a07g044l_mtu8_groups)},
 	{"cam", r9a07g044l_cam_groups,
 		ARRAY_SIZE(r9a07g044l_cam_groups)},
 	{"usb0", r9a07g044l_usb0_groups,
