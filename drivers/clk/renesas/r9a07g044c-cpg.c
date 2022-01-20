@@ -448,6 +448,22 @@ static struct mssr_mod_clk r9a07g044c_mod_clks[] = {
 				R9A07G044C_CLK_P0,
 				MSSR(15, BIT(0), BIT(0)),
 				MSTOP(MCPU1_MSTOP, BIT(9))),
+	DEF_MOD("poega",	R9A07G044C_CLK_POEGA,
+				R9A07G044C_CLK_P0,
+				MSSR(17, BIT(0), BIT(0)),
+				MSTOP(MCPU1_MSTOP, BIT(5))),
+	DEF_MOD("poegb",	R9A07G044C_CLK_POEGB,
+				R9A07G044C_CLK_P0,
+				MSSR(17, BIT(1), BIT(1)),
+				MSTOP(MCPU1_MSTOP, BIT(6))),
+	DEF_MOD("poegc",	R9A07G044C_CLK_POEGC,
+				R9A07G044C_CLK_P0,
+				MSSR(17, BIT(2), BIT(2)),
+				MSTOP(MCPU1_MSTOP, BIT(7))),
+	DEF_MOD("poegd",	R9A07G044C_CLK_POEGD,
+				R9A07G044C_CLK_P0,
+				MSSR(17, BIT(3), BIT(3)),
+				MSTOP(MCPU1_MSTOP, BIT(8))),
 };
 
 static const unsigned int r9a07g044c_crit_mod_clks[] __initconst = {
@@ -470,5 +486,5 @@ const struct cpg_mssr_info r9a07g044c_cpg_info = {
 	/* Module clk */
 	.mod_clks = r9a07g044c_mod_clks,
 	.num_mod_clks = ARRAY_SIZE(r9a07g044c_mod_clks),
-	.num_hw_mod_clks = R9A07G044C_CLK_POE3 + 1,
+	.num_hw_mod_clks = R9A07G044C_CLK_POEGD + 1,
 };
