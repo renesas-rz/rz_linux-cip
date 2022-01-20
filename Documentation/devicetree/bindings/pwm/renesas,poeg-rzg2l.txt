@@ -4,6 +4,7 @@ Required Properties:
 - compatible: should be "renesas,poeg" and one of the following.
  - "renesas,poeg-r9a07g044l": for RZ/G2L
  - "renesas,poeg-r9a07g054l": for RZ/V2L
+ - "renesas,poeg-r9a07g044c": for RZ/G2LC
 - reg: base address and length of the registers block for the POEG
 - pinctrl-0: phandle, referring to a default pin configuration node.
 - pinctrl-names: Set to "default".
