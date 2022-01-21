@@ -216,6 +216,9 @@ static const struct cpg_core_clk r9a07g044c_core_clks[] __initconst = {
 			sel_pll6_2, 2, CLK_MUX_HIWORD_MASK),
 
 	/* Core output clk*/
+	DEF_DIV("I", R9A07G044C_CLK_I, CLK_SEL_PLL1,
+		DIVPL1, NULL,
+		CLK_DIVIDER_POWER_OF_TWO | CLK_DIVIDER_HIWORD_MASK),
 	DEF_DIV("I2", R9A07G044C_CLK_I2, CLK200FIX_CD,
 		DIVPL3CLK200FIX, dtable_3b, CLK_DIVIDER_HIWORD_MASK),
 	DEF_DIV("G", R9A07G044C_CLK_G, CLK_SEL_G2,
