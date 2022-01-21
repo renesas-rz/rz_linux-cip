@@ -8,6 +8,7 @@
 #include <dt-bindings/clock/renesas-cpg-mssr.h>
 
 /* r9a07g054l CPG Core Clocks */
+#define R9A07G054L_CLK_I		0
 #define R9A07G054L_CLK_I2		1
 #define R9A07G054L_CLK_G		2
 #define R9A07G054L_CLK_S0		3
