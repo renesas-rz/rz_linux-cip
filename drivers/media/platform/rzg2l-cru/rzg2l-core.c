@@ -460,7 +460,7 @@ static int rzg2l_cru_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct rzg2l_cru_dev *cru = container_of(ctrl->handler,
 						 struct rzg2l_cru_dev,
 						 ctrl_handler);
-	int ret;
+	int ret = 0;
 
 	switch (ctrl->id) {
 	case V4L2_CID_MIN_BUFFERS_FOR_CAPTURE:
