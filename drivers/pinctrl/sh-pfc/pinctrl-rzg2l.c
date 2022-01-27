@@ -284,11 +284,17 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 
 			spin_lock_irqsave(&pctrl->lock, flags);
 
-			reg = readq(addr + IOLH(port));
+			if (bit < 4)
+				reg = readq(addr + IOLH(port));
+			else
+				reg = readl(addr + 4 + IOLH(port));
 			mask = IOLH_MASK << (bit * 8);
 			reg = reg & ~mask;
 			val = arg == 2 ? 0 : arg/4;
-			writeq(reg | (val << (bit * 8)), addr + IOLH(port));
+			if (bit < 4)
+				writeq(reg | (val << (bit * 8)), addr + IOLH(port));
+			else
+				writel(reg | (val << (bit * 8)), addr + 4 + IOLH(port));
 
 			spin_unlock_irqrestore(&pctrl->lock, flags);
 			break;
