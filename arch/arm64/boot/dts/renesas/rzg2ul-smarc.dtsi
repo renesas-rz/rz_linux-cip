@@ -585,8 +585,16 @@
 #endif
 
 	du_pins: du {
-		groups = "disp_bgr888", "disp_sync", "disp_de", "disp_clk";
-		function = "disp";
+		clk {
+			groups = "disp_clk";
+			function = "disp";
+		};
+
+		data_sync_de {
+			groups = "disp_bgr888", "disp_sync", "disp_de";
+			function = "disp";
+			drive-strength = <2>;
+		};
 	};
 };
 
