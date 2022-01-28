@@ -20,6 +20,7 @@
 #include "rcar2.h"
 #include "rcar3.h"
 #include "rza.h"
+#include "g2l.h"
 
 /*
  *		image of renesas_usbhs
@@ -580,6 +581,10 @@ static const struct of_device_id usbhs_of_match[] = {
 	{
 		.compatible = "renesas,rza2-usbhs",
 		.data = &usbhs_rza2_plat_info,
+	},
+	{
+		.compatible = "renesas,g2l-usbhs",
+		.data = &usbhs_rzg2l_plat_info,
 	},
 	{ },
 };

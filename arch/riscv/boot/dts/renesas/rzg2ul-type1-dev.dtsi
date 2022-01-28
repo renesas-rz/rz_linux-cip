@@ -13,20 +13,45 @@
  *
  * Please change the jumper setting coresponding to below Macros:
  *
- * JP1:  1: JP1-1  SD1_WP	0: JP1-3  ET0_INTB
+ * JP1:  1: JP1-1  SD1_WP
 */
-#define	JP1	1
+#define	JP1	0
 
 #define	SDHI0_SDSLOT		0
 
+#define	CN4_PMOD		0
+#define	CN4_CAN_AUDIO		1
+
+#define	CN11_PMOD		0
+#define	CN11_ETHER0		1
+
+#define	CN12_PMOD		1
+#define	CN12_ETHER1		0
+
+#if (CN4_PMOD & CN4_CAN_AUDIO)
+#error "RZ/G2UL can not enable CN4_PMOD and CN4_CAN_AUDIO simultaneously"
+#endif
+#if (CN11_PMOD & CN11_ETHER0)
+#error "RZ/G2UL can not enable CN11_PMOD and CN11_ETHER0 simultaneously"
+#endif
+#if (CN12_PMOD & CN12_ETHER1)
+#error "RZ/G2UL can not enable CN12_PMOD and CN12_ETHER1 simultaneously"
+#endif
+
 / {
 	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
 		serial0 = &scif0;
+#if (CN12_PMOD)
 		serial1 = &scif1;
-		can0 = &can;
-		can1 = &can;
+#endif
+#if (CN11_ETHER0)
 		ethernet0 = &eth0;
+#endif
+#if (CN12_ETHER1)
 		ethernet1 = &eth1;
+#endif
 	};
 
 	chosen {
@@ -68,6 +93,7 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
+#if (CN4_CAN_AUDIO)
 	snd_rzg2l: sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
@@ -90,12 +116,7 @@
 			clocks = <&versa3 3>;
 		};
 	};
-
-	x1_clk: x1-clock {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <24000000>;
-	};
+#endif
 
 #if SDHI0_SDSLOT
 	vccq_sdhi0: regulator-vccq-sdhi0 {
@@ -109,7 +130,7 @@
 
 		gpios-states = <1>;
 		states = <3300000 1
-			  1800000 ->;
+			  1800000 0>;
 	};
 #endif
 
@@ -127,26 +148,10 @@
 			  1800000 0>;
 	};
 
-/* Read Only File system in QSPI Example */
-/* File System in XIP QSPI */
-/* Remember, we'll be in QSPI XIP mode at this point */
-/* Requires CONFIG_MTD_ROM=y */
-	qspi@20000000 {
-		compatible = "mtd-rom";
-		//probe-type = "map_rom";
-		probe-type = "direct-mapped";   // XIP from QSPI
-		reg = <0 0x20000000 0 0x4000000>;   /* 64 MB*/
-		bank-width = <4>;
-		device-width = <1>;
-
-		#address-cells = <1>;
-		#size-cells = <1>;
-
-		partition@800000 {
-			label ="rootfs_xipcramfs";
-			reg = <0x0800000 0x1000000>; /* 16MB @ 0x20800000 */
-			read-only;
-		};
+	x1_clk: x1-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
 	};
 
 	clk_ext_camera: clk_ext_camera {
@@ -156,19 +161,244 @@
 	};
 };
 
-&xinclk {
-	clock-frequency = <24000000>;
+&audio_clk1{
+	clock-frequency = <11289600>;
+};
+
+&audio_clk2{
+	clock-frequency = <12288000>;
+};
+
+#if 0
+&adc {
+	pinctrl-0 = <&adc_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+#endif
+
+#if (CN4_CAN_AUDIO)
+&can {
+	pinctrl-0 = <&canfd0_pins &canfd1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+	channel0 {
+		status = "okay";
+	};
+	channel1 {
+		status = "okay";
+	};
+};
+#endif
+
+&ehci0 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&ehci1 {
+	status = "okay";
+};
+
+#if (CN11_ETHER0)
+&eth0 {
+	pinctrl-0 = <&ether0_pins>;
+	pinctrl-names = "default";
+	phy-handle = <&phy0>;
+	phy-mode = "rgmii-id";
+	status = "okay";
+
+	phy0: ethernet-phy@7 {
+		compatible = "ethernet-phy-id0022.1640",
+				 "ethernet-phy-ieee802.3-c22";
+		reg = <7>;
+		rxc-skew-psec = <2400>;
+		txc-skew-psec = <2400>;
+		rxdv-skew-psec = <0>;
+		txdv-skew-psec = <0>;
+		rxd0-skew-psec = <0>;
+		rxd1-skew-psec = <0>;
+		rxd2-skew-psec = <0>;
+		rxd3-skew-psec = <0>;
+		txd0-skew-psec = <0>;
+		txd1-skew-psec = <0>;
+		txd2-skew-psec = <0>;
+		txd3-skew-psec = <0>;
+	};
+};
+#endif
+
+#if (CN12_ETHER1)
+&eth1 {
+	pinctrl-0 = <&ether1_pins>;
+	pinctrl-names = "default";
+	phy-handle = <&phy1>;
+	phy-mode = "rgmii-id";
+	status = "okay";
+
+	phy1: ethernet-phy@7 {
+		compatible = "ethernet-phy-id0022.1640",
+			     "ethernet-phy-ieee802.3-c22";
+		reg = <7>;
+		rxc-skew-psec = <2400>;
+		txc-skew-psec = <2400>;
+		rxdv-skew-psec = <0>;
+		txdv-skew-psec = <0>;
+		rxd0-skew-psec = <0>;
+		rxd1-skew-psec = <0>;
+		rxd2-skew-psec = <0>;
+		rxd3-skew-psec = <0>;
+		txd0-skew-psec = <0>;
+		txd1-skew-psec = <0>;
+		txd2-skew-psec = <0>;
+		txd3-skew-psec = <0>;
+		interrupt-parent = <&pinctrl>;
+		interrupts = <RZG2L_GPIO(14, 2) IRQ_TYPE_EDGE_FALLING>;
+	};
+};
+#endif
+
+&hsusb {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&i2c0 {
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	versa3: versa3@68 {
+		compatible = "renesas,5p35023";
+		reg = <0x68>;
+		#clock-cells = <1>;
+		clocks = <&x1_clk>;
+		clock-names = "x1";
+		assigned-clocks = <&versa3 0>,
+				   <&versa3 1>,
+				   <&versa3 2>,
+				   <&versa3 3>,
+				   <&versa3 4>,
+				   <&versa3 5>;
+		assigned-clock-rates =	<12288000>, <25000000>,
+					<12000000>, <11289600>,
+					<11289600>, <24000000>;
+		clock-divider-read-only = <1>, <1>, <1>, <1>, <1>;
+		clock-flags = <2176>, <2176>, <2176>, <2052>, <2176>, <2048>;
+	};
+};
+
+&i2c1 {
+	pinctrl-0 = <&i2c1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+#if (CN4_CAN_AUDIO)
+	wm8978: codec@1a {
+		compatible = "wlf,wm8978";
+		#sound-dai-cells = <0>;
+		reg = <0x1a>;
+	};
+#endif
+};
+
+&ohci0 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&ohci1 {
+	status = "okay";
 };
 
 &pinctrl {
+	pinctrl-0 = <&sound_clk_pins>;
+	pinctrl-names = "default";
+
+#if 0
+	adc_pins: adc {
+		groups = "adc_f";
+		function = "adc";
+	};
+#endif
+
+#if (CN4_CAN_AUDIO)
+	canfd0_en {
+		gpio-hog;
+		gpios = <RZG2L_GPIO(13, 3) GPIO_ACTIVE_LOW>;
+		output-high;
+		line-name = "canfd0_en";
+	};
+
+	canfd1_en {
+		gpio-hog;
+		gpios = <RZG2L_GPIO(13, 4) GPIO_ACTIVE_LOW>;
+		output-high;
+		line-name = "canfd1_en";
+	};
+
+	canfd0_pins: canfd0 {
+		groups = "can0_tx_c", "can0_rx_c";
+		function = "can0";
+	};
+
+	canfd1_pins: canfd1 {
+		groups = "can1_tx_c", "can1_rx_c";
+		function = "can1";
+	};
+#endif
+
+#if (CN11_ETHER0)
+	ether0_pins: eth0 {
+		groups = "eth0_link", "eth0_mdio", "eth0_rgmii";
+		function = "eth0";
+	};
+#endif
+
+#if (CN12_ETHER1)
+	ether1_pins: eth1 {
+		groups = "eth1_link", "eth1_mdio", "eth1_rgmii";
+		function = "eth1";
+	};
+#endif
+
 	scif0_pins: scif0 {
 		groups = "scif0_data_c";
 		function = "scif0";
 	};
 
+#if (CN12_PMOD)
 	scif1_pins: scif1 {
-		groups = "scif1_data_c";
+		groups = "scif1_data_b", "scif1_ctrl_b";
 		function = "scif1";
+	};
+#endif
+
+	i2c0_pins: i2c0 {
+		pins = "RIIC0_SDA", "RIIC0_SCL";
+		input-enable;
+	};
+
+	i2c1_pins: i2c1 {
+		pins = "RIIC1_SDA", "RIIC1_SCL";
+		input-enable;
+	};
+
+#if (SDHI0_SDSLOT)
+	sd0_pwr_en {
+		gpio-hog;
+		gpios = <RZG2L_GPIO(18, 4) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "sd0_pwr_en";
+	};
+#endif
+
+	sd1_pwr_en {
+		gpio-hog;
+		gpios = <RZG2L_GPIO(18, 5) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "sd1_pwr_en";
 	};
 
 #if !(SDHI0_SDSLOT)
@@ -223,13 +453,6 @@
 			function = "sdhi0";
 		};
 	};
-
-	sd0_pwr_en {
-		gpio-hog;
-		gpios = <RZG2L_GPIO(18, 4) GPIO_ACTIVE_HIGH>;
-		output-high;
-		line-name = "sd0_pwr_en";
-	};
 #endif
 
 	sdhi1_pins: sd1 {
@@ -267,16 +490,13 @@
 		};
 
 		sd1_mux_uhs {
+#if (JP1)
 			groups = "sdhi1_cd_b", "sdhi1_wp_b";
+#else
+			groups = "sdhi1_cd_b";
+#endif
 			function = "sdhi1";
 		};
-	};
-
-	sd1_pwr_en {
-		gpio-hog;
-		gpios = <RZG2L_GPIO(18, 5) GPIO_ACTIVE_HIGH>;
-		output-high;
-		line-name = "sd1_pwr_en";
 	};
 
 	sound_clk_pins: sound_clk {
@@ -284,47 +504,15 @@
 		input-enable;
 	};
 
-	can0_stb {
-		gpio-hog;
-		gpios = <RZG2L_GPIO(13, 3) GPIO_ACTIVE_LOW>;
-		output-high;
-		line-name = "can0_stb";
+#if (CN4_CAN_AUDIO)
+	ssi1_pins: ssi1 {
+		groups = "ssi1_ctrl_c", "ssi1_data_c";
+		function = "ssi1";
 	};
-
-	can1_stb {
-		gpio-hog;
-		gpios = <RZG2L_GPIO(13, 4) GPIO_ACTIVE_LOW>;
-		output-high;
-		line-name = "can1_stb";
-	};
-
-	can0_pins: can0 {
-		groups = "can0_tx_c", "can0_rx_c";
-		function = "can0";
-	};
-
-	can1_pins: can1 {
-		groups = "can1_tx_c", "can1_rx_c";
-		function = "can1";
-	};
-
-	ether0_pins: eth0 {
-		groups = "eth0_link", "eth0_mdio", "eth0_rgmii";
-		function = "eth0";
-	};
-
-	ether1_pins: eth1 {
-		groups = "eth1_link", "eth1_mdio", "eth1_rgmii";
-		function = "eth1";
-	};
-
-	i2c1_pins: i2c1 {
-		pins = "RIIC1_SDA", "RIIC1_SCL";
-		input-enable;
-	};
+#endif
 
 	usb0_pins: usb0 {
-		groups = "usb0_a";
+		groups = "usb0_a", "usb0_a_otg_id", "usb0_a_otg_exicen";
 		function = "usb0";
 	};
 
@@ -333,23 +521,31 @@
 		function = "usb1";
 	};
 
-	i2c0_pins: i2c0 {
-		pins = "RIIC0_SDA", "RIIC0_SCL";
-		input-enable;
+#if (CN4_PMOD)
+	spi1_pins: rspi1 {
+		groups = "rspi1_clk_b", "rspi1_data_b", "rspi1_ssl_b";
+		function = "rspi1";
+	};
+#endif
+
+#if (CN11_PMOD)
+	spi0_pins: rspi0 {
+		groups = "rspi0_clk_a", "rspi0_data_a", "rspi0_ssl_a";
+		function = "rspi0";
 	};
 
-	ssi1_pins: ssi1 {
-		groups = "ssi1_ctrl_c", "ssi1_data_c";
-		function = "ssi1";
+	spi1_pins: rspi1 {
+		groups = "rspi1_clk_a", "rspi1_data_a", "rspi1_ssl_a";
+		function = "rspi1";
 	};
-};
+#endif
 
-&audio_clk1{
-	clock-frequency = <11289600>;
-};
-
-&audio_clk2{
-	clock-frequency = <12288000>;
+#if (CN12_PMOD)
+	spi2_pins: rspi2 {
+		groups = "rspi2_clk_a","rspi2_data_a","rspi2_ssl_a";
+		function = "rspi2";
+	};
+#endif
 };
 
 &scif0 {
@@ -358,11 +554,13 @@
 	status = "okay";
 };
 
+#if (CN12_PMOD)
 &scif1 {
 	pinctrl-0 = <&scif1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
+#endif
 
 #if !(SDHI0_SDSLOT)
 &sdhi0 {
@@ -408,83 +606,13 @@
 	status = "okay";
 };
 
-&can {
-	pinctrl-0 = <&can0_pins &can1_pins>;
-	pinctrl-names = "default";
+&mtu3 {
 	status = "okay";
-	channel0 {
-		renesas,channel = <0>;
-		status = "okay";
-	};
-	channel1 {
-		renesas,channel = <1>;
-		status = "okay";
-	};
 };
 
-&eth0 {
-	pinctrl-0 = <&ether0_pins>;
-	pinctrl-names = "default";
-	phy-handle = <&phy0>;
-	phy-mode = "rgmii";
-	status = "okay";
-
-	phy0: ethernet-phy@7 {
-		reg = <7>;
-		rxc-skew-psec = <2400>;
-		txc-skew-psec = <2400>;
-		rxdv-skew-psec = <0>;
-		txdv-skew-psec = <0>;
-		rxd0-skew-psec = <0>;
-		rxd1-skew-psec = <0>;
-		rxd2-skew-psec = <0>;
-		rxd3-skew-psec = <0>;
-		txd0-skew-psec = <0>;
-		txd1-skew-psec = <0>;
-		txd2-skew-psec = <0>;
-		txd3-skew-psec = <0>;
-
-#if !(JP1)
-		interrupt-parent = <&pinctrl>;
-		interrupts = <RZG2L_GPIO(0, 3) IRQ_TYPE_EDGE_FALLING>;
-#endif
-	};
-};
-
-&eth1 {
-	pinctrl-0 = <&ether1_pins>;
-	pinctrl-names = "default";
-	phy-handle = <&phy1>;
-	phy-mode = "rgmii";
-	status = "okay";
-	
-	phy1: ethernet-phy@7 {
-		reg = <7>;
-		rxc-skew-psec = <2400>;
-		txc-skew-psec = <2400>;
-		rxdv-skew-psec = <0>;
-		txdv-skew-psec = <0>;
-		rxd0-skew-psec = <0>;
-		rxd1-skew-psec = <0>;
-		rxd2-skew-psec = <0>;
-		rxd3-skew-psec = <0>;
-		txd0-skew-psec = <0>;
-		txd1-skew-psec = <0>;
-		txd2-skew-psec = <0>;
-		txd3-skew-psec = <0>;
-
-		interrupt-parent = <&pinctrl>;
-		interrupts = <RZG2L_GPIO(14, 2) IRQ_TYPE_EDGE_FALLING>;
-	};
-};
-
-/* Delete our XIP QSPI partitions from the top of this file. You would not have these for non-XIP systems */
-/ {
-	/delete-node/ qspi@20000000;
-};
-
+#if (CN4_CAN_AUDIO)
 &ssi1 {
-	pinctrl-0 = <&ssi1_pins &sound_clk_pins>;
+	pinctrl-0 = <&ssi1_pins>;
 	pinctrl-names = "default";
 
 	dmas = <&dma0 0x9601>,
@@ -493,6 +621,73 @@
 
 	status = "okay";
 };
+#endif
+
+&usb2_phy0 {
+	pinctrl-0 = <&usb0_pins>;
+	pinctrl-names = "default";
+
+	vbus-supply = <&vbus0_usb2>;
+	status = "okay";
+};
+
+&usb2_phy1 {
+	pinctrl-0 = <&usb1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&xinclk {
+	clock-frequency = <24000000>;
+};
+
+&wdt0 {
+	status = "okay";
+	timeout-sec = <60>;
+};
+
+#if (CN4_PMOD)
+&rspi1 {
+        pinctrl-0 = <&spi1_pins>;
+        pinctrl-names = "default";
+        status = "okay";
+        dmas = <&dma0 0xa601>,
+               <&dma0 0xa602>;
+        dma-names = "tx", "rx";
+};
+#endif
+
+#if (CN11_PMOD)
+&rspi0 {
+        pinctrl-0 = <&spi0_pins>;
+        pinctrl-names = "default";
+        status = "okay";
+        dmas = <&dma0 0xa501>,
+               <&dma0 0xa502>;
+        dma-names = "tx", "rx";
+};
+
+&rspi1 {
+        pinctrl-0 = <&spi1_pins>;
+        pinctrl-names = "default";
+        status = "okay";
+        dmas = <&dma0 0xa601>,
+               <&dma0 0xa602>;
+        dma-names = "tx", "rx";
+};
+#endif
+
+#if (CN12_PMOD)
+&rspi2 {
+        pinctrl-0 = <&spi2_pins>;
+        pinctrl-names = "default";
+        status = "okay";
+        dmas = <&dma0 0xa701>,
+               <&dma0 0xa702>;
+        dma-names = "tx", "rx";
+};
+#endif
 
 &spibsc {
 	status = "okay";
@@ -543,88 +738,10 @@
 	};
 };
 
-&i2c1 {
-	pinctrl-0 = <&i2c1_pins>;
-	pinctrl-names = "default";
-
-	status = "okay";
-
-	wm8978: codec@1a {
-		compatible = "wlf,wm8978";
-		#sound-dai-cells = <0>;
-		reg = <0x1a>;
-	};
+&ostm1 {
+        status = "okay";
 };
 
-&ehci0 {
-	dr_mode = "otg";
-	status = "okay";
-};
-
-&ehci1 {
-	status = "okay";
-};
-
-&mtu3 {
-	status = "okay";
-};
-
-&ohci0 {
-	dr_mode = "otg";
-	status = "okay";
-};
-
-&ohci1 {
-	status = "okay";
-};
-
-&hsusb {
-	dr_mode = "otg";
-	status = "okay";
-};
-
-&usb2_phy0 {
-	pinctrl-0 = <&usb0_pins>;
-	pinctrl-names = "default";
-
-	vbus-supply = <&vbus0_usb2>;
-	status = "okay";
-};
-
-&usb2_phy1 {
-	pinctrl-0 = <&usb1_pins>;
-	pinctrl-names = "default";
-
-	status = "okay";
-};
-
-&wdt0 {
-	status = "okay";
-	timeout-sec = <60>;
-};
-
-&i2c0 {
-	pinctrl-0 = <&i2c0_pins>;
-	pinctrl-names = "default";
-
-	status = "okay";
-
-	versa3: versa3@68 {
-		compatible = "renesas,5p35023";
-		reg = <0x68>;
-		#clock-cells = <1>;
-		clocks = <&x1_clk>;
-		clock-names = "x1";
-		assigned-clocks = <&versa3 0>,
-				   <&versa3 1>,
-				   <&versa3 2>,
-				   <&versa3 3>,
-				   <&versa3 4>,
-				   <&versa3 5>;
-		assigned-clock-rates =	<12288000>, <25000000>,
-					<12000000>, <11289600>,
-					<11289600>, <24000000>;
-		clock-divider-read-only = <1>, <1>, <1>, <1>, <1>;
-		clock-flags = <2176>, <2176>, <2176>, <2052>, <2176>, <2048>;
-	};
+&ostm2 {
+        status = "okay";
 };
