@@ -347,6 +347,7 @@
 		clock-flags = <2176>, <2176>, <2176>, <2052>, <2176>, <2048>;
 	};
 
+#if !(CN12_PMOD)
 	ov5645: camera@3c {
 		compatible = "ovti,ov5645";
 		reg = <0x3c>;
@@ -367,6 +368,7 @@
 			};
 		};
 	};
+#endif
 };
 
 &i2c1 {
@@ -432,8 +434,8 @@
 	pinctrl-names = "default";
 
 	adc_pins: adc {
-		renesas,groups = "adc_f";
-		renesas,function = "adc";
+		groups = "adc_f";
+		function = "adc";
 	};
 
 #if (CN4_CAN_AUDIO)
@@ -636,27 +638,27 @@
 
 #if (CN4_PMOD)
 	spi1_pins: rspi1 {
-		renesas,groups = "rspi1_clk_b", "rspi1_data_b", "rspi1_ssl_b";
-		renesas,function = "rspi1";
+		groups = "rspi1_clk_b", "rspi1_data_b", "rspi1_ssl_b";
+		function = "rspi1";
 	};
 #endif
 
 #if (CN11_PMOD)
 	spi0_pins: rspi0 {
-		renesas,groups = "rspi0_clk_a", "rspi0_data_a", "rspi0_ssl_a";
-		renesas,function = "rspi0";
+		groups = "rspi0_clk_a", "rspi0_data_a", "rspi0_ssl_a";
+		function = "rspi0";
 	};
 
 	spi1_pins: rspi1 {
-		renesas,groups = "rspi1_clk_a", "rspi1_data_a", "rspi1_ssl_a";
-		renesas,function = "rspi1";
+		groups = "rspi1_clk_a", "rspi1_data_a", "rspi1_ssl_a";
+		function = "rspi1";
 	};
 #endif
 
 #if (CN12_PMOD)
 	spi2_pins: rspi2 {
-		renesas,groups = "rspi2_clk_a","rspi2_data_a","rspi2_ssl_a";
-		renesas,function = "rspi2";
+		groups = "rspi2_clk_a","rspi2_data_a","rspi2_ssl_a";
+		function = "rspi2";
 	};
 #endif
 
@@ -874,6 +876,7 @@
 	status = "okay";
 };
 
+#if !(CN12_PMOD)
 &csi2 {
 	status = "okay";
 
@@ -887,3 +890,4 @@
 		};
 	};
 };
+#endif
