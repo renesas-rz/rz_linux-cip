@@ -57,9 +57,9 @@
 
 #define PM_MASK			0x03
 #define PFC_MASK		0x07
-#define IOLH_MASK		0x03
-#define IEN_MASK		0x01
-#define SR_MASK			0x01
+#define IOLH_MASK		0x03ULL
+#define IEN_MASK		0x01ULL
+#define SR_MASK			0x01ULL
 #define PVDD_MASK		0x01
 #define ETH_PVDD_MASK		0x03
 
