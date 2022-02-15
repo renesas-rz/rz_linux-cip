@@ -24,7 +24,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		reserved: linux,cma@58000000 {
+		global_cma: linux,cma@58000000 {
 			compatible = "shared-dma-pool";
 			linux,cma-default;
 			reusable;
@@ -51,3 +51,18 @@
 	};
 };
 
+&ehci0 {
+	memory-region = <&global_cma>;
+};
+
+&ohci0 {
+	memory-region = <&global_cma>;
+};
+
+&ehci1 {
+	memory-region = <&global_cma>;
+};
+
+&ohci1 {
+	memory-region = <&global_cma>;
+};
