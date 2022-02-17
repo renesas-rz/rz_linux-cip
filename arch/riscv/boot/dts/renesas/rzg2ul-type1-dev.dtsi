@@ -205,7 +205,7 @@
 	pinctrl-0 = <&ether0_pins>;
 	pinctrl-names = "default";
 	phy-handle = <&phy0>;
-	phy-mode = "rgmii-id";
+	phy-mode = "rgmii";
 	status = "okay";
 
 	phy0: ethernet-phy@7 {
@@ -233,7 +233,7 @@
 	pinctrl-0 = <&ether1_pins>;
 	pinctrl-names = "default";
 	phy-handle = <&phy1>;
-	phy-mode = "rgmii-id";
+	phy-mode = "rgmii";
 	status = "okay";
 
 	phy1: ethernet-phy@7 {
@@ -252,8 +252,8 @@
 		txd1-skew-psec = <0>;
 		txd2-skew-psec = <0>;
 		txd3-skew-psec = <0>;
-		interrupt-parent = <&pinctrl>;
-		interrupts = <RZG2L_GPIO(14, 2) IRQ_TYPE_EDGE_FALLING>;
+		// interrupt-parent = <&pinctrl>;
+		// interrupts = <RZG2L_GPIO(14, 2) IRQ_TYPE_EDGE_FALLING>;
 	};
 };
 #endif
@@ -512,7 +512,7 @@
 #endif
 
 	usb0_pins: usb0 {
-		groups = "usb0_a", "usb0_a_otg_id", "usb0_a_otg_exicen";
+		groups = "usb0_a", "usb0_a_otg_id";
 		function = "usb0";
 	};
 
