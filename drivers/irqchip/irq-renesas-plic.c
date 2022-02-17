@@ -46,9 +46,9 @@
  * 	value 0:     never interrupt
  * 	value 1-255: larger value, higher priority
  */
-#define PRIORITY_BASE			0x4
+#define PRIORITY_BASE			0
 #define PRIORITY_PER_ID			4
-#define PRIORITY_END                    0x880 
+#define PRIORITY_END			0x880 
 
 /*
  * Each interrupt source has a pending bit associated with it.
@@ -122,7 +122,6 @@ struct plic_handler {
 	 */
 	raw_spinlock_t		enable_lock;
 	void __iomem		*enable_base;
-	void __iomem		*trigger_type_base;
 	struct plic_priv	*priv;
 };
 static int plic_parent_irq;
@@ -210,36 +209,14 @@ static int plic_set_affinity(struct irq_data *d,
 static void plic_irq_eoi(struct irq_data *d)
 {
 	struct plic_handler *handler = this_cpu_ptr(&plic_handlers);
-	
-	writel(d->hwirq, handler->hart_base + CLAIM_COMPLETE_REG);
-}
 
-static inline unsigned int plic_hwirq(struct irq_data *d)
-{
-	return d->hwirq;
-}
-
-static int plic_irq_type(struct irq_data *d, unsigned int type)
-{
-	unsigned int hwirq = 0;
-	u32 hwirq_mask = 0;
-	u32 __iomem *reg = NULL;
-	struct plic_handler *handler = this_cpu_ptr(&plic_handlers);
-
-	hwirq = plic_hwirq(d);
-	if(!hwirq || (plic_hwirq(d) > MAX_IRQ_LINE))
-		return -EINVAL;
-
-	/* Be sensitive for the edge-trigger, and set the level-trigger as default */
-	reg = handler->trigger_type_base + (hwirq / 32) * sizeof(u32);
-	hwirq_mask = (1 << (hwirq % 32));
-  
-	if(type & IRQ_TYPE_EDGE_BOTH)
-		writel(readl(reg) | hwirq_mask, reg);	
-	else
-		writel(readl(reg) & ~hwirq_mask, reg);
-	
-	return 0;
+	if (irqd_irq_masked(d)) {
+		plic_irq_unmask(d);
+		writel(d->hwirq, handler->hart_base + CLAIM_COMPLETE_REG);
+		plic_irq_mask(d);
+	} else {
+		writel(d->hwirq, handler->hart_base + CLAIM_COMPLETE_REG);
+	}
 }
 
 static struct irq_chip plic_chip = {
@@ -247,7 +224,6 @@ static struct irq_chip plic_chip = {
 	.irq_mask	= plic_irq_mask,
 	.irq_unmask	= plic_irq_unmask,
 	.irq_eoi	= plic_irq_eoi,
-	.irq_set_type   = plic_irq_type,
 #ifdef CONFIG_SMP
 	.irq_set_affinity = plic_set_affinity,
 #endif
@@ -315,7 +291,7 @@ static void plic_handle_irq(struct irq_desc *desc)
 		
 		/* Get the IRQ trigger type, if is edge-triggered, then complete the IRQ */
 		is_edge_trigger = irq_get_trigger_type(irq) & IRQ_TYPE_EDGE_BOTH;
-		if(is_edge_trigger)
+		if(likely(is_edge_trigger))
 			chained_irq_exit(chip, desc);
 
 		if (unlikely(irq <= 0))
@@ -335,8 +311,7 @@ static void plic_set_threshold(struct plic_handler *handler, u32 threshold)
 	/* priority must be > threshold to trigger an interrupt 
 	 * NCEPLIC100SS allows max threshold is 255
 	 * */
-	if(threshold <= MAX_THRESHOLD)
-		writel(threshold, handler->hart_base + THRESHOLD_REG);
+	writel(threshold, handler->hart_base + THRESHOLD_REG);
 }
 
 static int plic_dying_cpu(unsigned int cpu)
@@ -450,8 +425,6 @@ static int __init plic_init(struct device_node *node,
 		raw_spin_lock_init(&handler->enable_lock);
 		handler->enable_base =
 			priv->regs + ENABLE_BASE + i * ENABLE_PER_HART;
-		handler->trigger_type_base = 
-			priv->regs + TRIGGER_TYPE_ARRAY_BASE;
 		handler->priv = priv;
 done:
 		for (hwirq = 1; hwirq <= nr_irqs; hwirq++)
