@@ -1,6 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "Platform selection"
 
+config ARCH_R9A09G011GBG
+       bool "Renesas RZ/V2M SoC Platform"
+       depends on ARCH_RENESAS
+       help
+         This enables support for the Renesas RZ/V2M SoC.
+
 config ARCH_ACTIONS
 	bool "Actions Semi Platforms"
 	select OWL_TIMER
