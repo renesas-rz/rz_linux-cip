@@ -15,7 +15,7 @@
 /* Current Exception Level values, as contained in CurrentEL */
 #define CurrentEL_EL1		(1 << 2)
 #define CurrentEL_EL2		(2 << 2)
-
+#define CurrentEL_EL3           (3 << 2)
 /*
  * PMR values used to mask/unmask interrupts.
  *
