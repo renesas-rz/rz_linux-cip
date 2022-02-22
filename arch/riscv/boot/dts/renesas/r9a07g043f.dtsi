@@ -154,7 +154,7 @@
 		};
 
 		plic: interrupt-controller@12C00000 {
-			compatible = "renesas,plic-100ss";
+			compatible = "renesas,plic-r9a07g043f";
 			#interrupt-cells = <2>;
 			#address-cells = <0>;
 			riscv,ndev = <543>;
@@ -420,7 +420,7 @@
 		};
 
 		can: can@10050000 {
-			compatible = "renesas,r9a07g043u-canfd";
+			compatible = "renesas,r9a07g043f-canfd";
 			reg = <0 0x10050000 0 0x6000>;
 			interrupts =    <458 IRQ_TYPE_LEVEL_HIGH>,
 					<454 IRQ_TYPE_LEVEL_HIGH>,
@@ -709,7 +709,8 @@
 
 		wdt0: watchdog@12800800 {
 			compatible = "renesas,rzg2l-wdt";
-			reg = <0 0x12800800 0 0x60>;
+			reg = <0 0x12800800 0 0x60>,
+				<0 0x11010000 0 0x1000>;
 			clocks = <&xinclk>,
 				 <&cpg CPG_MOD R9A07G043F_CLK_WDT0>;
 			interrupts = <81 IRQ_TYPE_LEVEL_HIGH>,
