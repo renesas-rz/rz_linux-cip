@@ -32,12 +32,6 @@
 	status = "disabled";
 };
 
-&i2c0 {
-	/delete-property/ pinctrl-0;
-	/delete-property/ pinctrl-names;
-	status = "disabled";
-};
-
 &i2c3 {
 	/delete-property/ pinctrl-0;
 	/delete-property/ pinctrl-names;
