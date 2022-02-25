@@ -8,7 +8,10 @@
  * Traditionally, it just describes i8250 and related serial ports
  * that have this clock rate.
  */
-
-#define BASE_BAUD (1843200 / 16)
+#if defined(CONFIG_ARCH_R9A09G011GBG)
+	#define BASE_BAUD (48000000 / 16)
+#else  /* defined(CONFIG_ARCH_R9A09G011GBG) */
+	#define BASE_BAUD (1843200 / 16)
+#endif /* defined(CONFIG_ARCH_R9A09G011GBG) */
 
 #endif /* __ASM_GENERIC_SERIAL_H */
