@@ -146,7 +146,7 @@
        status = "okay";
 };
 
-#if 0
+#if 1
 &usb3_peri0 {
 //     companion = <&xhci0>;
 
@@ -166,7 +166,7 @@
 #endif
 
 
-#if 0
+#if 1
 &i2c0 {
        status = "okay";
        clock-frequency = <100000>;

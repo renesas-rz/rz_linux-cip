@@ -179,7 +179,7 @@
                        #size-cells = <0>;
                        compatible = "renesas,rzv2m-i2c";
                        reg = <0 0xa4030000 0 0x80>;
-                       interrupts = <GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>,<GIC_SPI 236 IRQ_TYPE_LEVEL_HIGH>;
+		       interrupts = <GIC_SPI 232 IRQ_TYPE_EDGE_RISING>,<GIC_SPI 236 IRQ_TYPE_EDGE_RISING>;
                        clocks = <&pclk>;
        /*              power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
        /*              resets = <&cpg 931>;*/
@@ -200,7 +200,7 @@
                        /*resets = <&cpg 328>;*/
                        status = "disabled";
                };
-#if 0
+#if 1
                usb3_peri0: usb@85070000 {
                        compatible = "renesas,r8a774c0-usb3-peri",
                                     "renesas,rcar-gen3-usb3-peri";
