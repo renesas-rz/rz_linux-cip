@@ -8,7 +8,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
-#include <linux/math.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
