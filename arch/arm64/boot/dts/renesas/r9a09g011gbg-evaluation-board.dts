@@ -10,7 +10,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-       model = "RZ/GV2M RDK platform";
+       model = "RZ/V2M";
        compatible = "renesas,evaluation-board", "renesas,r9a09g011gbg";
 
        aliases {
