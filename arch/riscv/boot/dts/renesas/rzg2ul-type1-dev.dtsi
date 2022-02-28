@@ -645,6 +645,9 @@
 &wdt0 {
 	status = "okay";
 	timeout-sec = <60>;
+#if 0
+	timeout-reboot;
+#endif
 };
 
 #if (CN4_PMOD)
