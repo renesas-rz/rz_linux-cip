@@ -202,6 +202,7 @@
 		v1p2-supply = <&reg_1p8v>;
 
 		adi,dsi-lanes = <4>;
+		#sound-dai-cells = <0>;
 
 		ports {
 			#address-cells = <1>;
@@ -218,6 +219,13 @@
 				reg = <1>;
 				adv7535_out: endpoint@1 {
 					remote-endpoint = <&hdmi_con_out>;
+				};
+			};
+
+			port@2 {
+				reg = <2>;
+				codec_endpoint: endpoint {
+					remote-endpoint = <&i2s2_cpu_endpoint>;
 				};
 			};
 		};
