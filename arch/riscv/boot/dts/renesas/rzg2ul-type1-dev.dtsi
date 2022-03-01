@@ -512,12 +512,12 @@
 #endif
 
 	usb0_pins: usb0 {
-		groups = "usb0_a", "usb0_a_otg_id";
+		groups = "usb0_vbusen_a", "usb0_ovrcur_a", "usb0_otg_id_a";
 		function = "usb0";
 	};
 
 	usb1_pins: usb1 {
-		groups = "usb1_d";
+		groups = "usb1_ovrcur_d", "usb1_vbusen_d";
 		function = "usb1";
 	};
 
