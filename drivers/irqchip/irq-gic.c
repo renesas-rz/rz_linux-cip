@@ -46,6 +46,7 @@
 #include <asm/virt.h>
 
 #include "irq-gic-common.h"
+#include "irq-gic-renesas-rzv2m.h"
 
 #ifdef CONFIG_ARM64
 #include <asm/cpufeature.h>
@@ -486,6 +487,16 @@ static void gic_dist_init(struct gic_chip_data *gic)
 	cpumask |= cpumask << 16;
 	for (i = 32; i < gic_irqs; i += 4)
 		writel_relaxed(cpumask, base + GIC_DIST_TARGET + i * 4 / 4);
+
+       /*
+        * Set all global interrupts to CPU #0 and #1 for RZ/V2M.
+        */
+    {
+        unsigned int cnt, t_size;
+        t_size = sizeof(gic_init_target) / sizeof(u32);
+       for (cnt = 0; cnt < t_size; cnt++)
+            writel_relaxed(gic_init_target[cnt], base + GIC_DIST_TARGET + (0x20+(cnt*4)));
+    }
 
 	gic_dist_config(base, gic_irqs, NULL);
 
