@@ -86,7 +86,7 @@ static const struct cpg_core_clk r8arzv2m_core_clks[] __initconst = {
                CPG_CLK48_DSEL, CPG_CLK48_DSEL_WEN_SELB, 0,     CPG_CLK48_DSEL_SELB),
        DEF_DIV(".seld",     CLK_SEL_D,          CLK_DIV_D,  1,
                CPG_CLK48_DSEL, CPG_CLK48_DSEL_WEN_SELD, 0,     CPG_CLK48_DSEL_SELD),
-       DEF_DIV(".sele",     CLK_SEL_E,          CLK_DIV_D,  1,
+       DEF_DIV(".sele",     CLK_SEL_E,          CLK_DIV_E,  1,
                CPG_CLK48_DSEL, CPG_CLK48_DSEL_WEN_SELE, 0,     CPG_CLK48_DSEL_SELE),
 #if 0 //static defined is disabled
        DEF_STATIC(".selcsi0",     CLK_SEL_CSI0,          CLK_MAIN,       1,
