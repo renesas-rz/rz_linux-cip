@@ -491,8 +491,12 @@ static int rzv2m_i2c_master_xfer(struct i2c_adapter *adap,
 /* Return i2c function which is susported by RZ/V2M */
 static u32 rzv2m_i2c_func(struct i2c_adapter *adap)
 {
-       return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR;
+       return I2C_FUNC_I2C | (I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK) | I2C_FUNC_10BIT_ADDR;
 }
+
+static const struct i2c_adapter_quirks rzv2m_i2c_quirks = {
+        .flags = I2C_AQ_NO_ZERO_LEN,
+};
 
 /* I2c algorithm struct */
 static struct i2c_algorithm rzv2m_i2c_algo = {
@@ -531,6 +535,7 @@ static int rzv2m_i2c_probe(struct platform_device *pdev)
        adap = &priv->adap;
        adap->nr = pdev->id;
        adap->algo = &rzv2m_i2c_algo;
+       adap->quirks = &rzv2m_i2c_quirks;
        adap->class = I2C_CLASS_DEPRECATED;
        adap->dev.parent = dev;
        adap->dev.of_node = dev->of_node;
