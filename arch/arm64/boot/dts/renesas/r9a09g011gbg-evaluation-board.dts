@@ -209,10 +209,6 @@
     status = "okay";
 };
 
-&pwm15 {
-    status = "okay";
-};
-
 &tim8 {
     status = "okay";
 };
