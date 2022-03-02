@@ -309,6 +309,7 @@
 			clocks = <&cpg CPG_MOD R9A07G043F_CLK_I2C0>;
 			clock-frequency = <100000>;
 			resets = <&cpg R9A07G043F_CLK_I2C0>;
+			power-domains = <&cpg>;
 			status = "disabled";
 		};
 
@@ -329,6 +330,7 @@
 			clocks = <&cpg CPG_MOD R9A07G043F_CLK_I2C1>;
 			clock-frequency = <100000>;
 			resets = <&cpg R9A07G043F_CLK_I2C1>;
+			power-domains = <&cpg>;
 			status = "disabled";
 		};
 
@@ -349,6 +351,7 @@
 			clocks = <&cpg CPG_MOD R9A07G043F_CLK_I2C2>;
 			clock-frequency = <100000>;
 			resets = <&cpg R9A07G043F_CLK_I2C2>;
+			power-domains = <&cpg>;
 			status = "disabled";
 		};
 
@@ -369,6 +372,7 @@
 			clocks = <&cpg CPG_MOD R9A07G043F_CLK_I2C3>;
 			clock-frequency = <100000>;
 			resets = <&cpg R9A07G043F_CLK_I2C3>;
+			power-domains = <&cpg>;
 			status = "disabled";
 		};
 
