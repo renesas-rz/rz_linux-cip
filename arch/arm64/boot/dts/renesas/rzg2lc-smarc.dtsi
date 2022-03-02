@@ -19,6 +19,7 @@
  */
 
 #define SW_SD0_DEV_SEL	1
+#define SW_I2S0_I2S1	1
 
 #define SW_SCIF_CAN	0
 #if (SW_SCIF_CAN)
@@ -43,7 +44,17 @@
 / {
 	aliases {
 		serial1 = &scif1;
+#if (!SW_I2S0_I2S1)
+		i2c2 = &i2c2;
+#endif
 	};
+#if (SW_I2S0_I2S1)
+	/delete-node/ sound;
+	sound_card {
+		compatible = "audio-graph-card";
+		dais = <&i2s2_port0>;
+	};
+#endif
 };
 
 #if (SW_SCIF_CAN || SW_RSPI_CAN)
@@ -85,3 +96,41 @@
 	interrupt-parent = <&pinctrl>;
 	interrupts = <RZG2L_GPIO(43, 1) IRQ_TYPE_EDGE_FALLING>;
 };
+
+&i2c3 {
+	/delete-node/ codec@1a;
+};
+
+#if (SW_I2S0_I2S1)
+&ssi0 {
+	ports {
+		i2s2_port0: port@0 {
+			i2s2_cpu_endpoint: endpoint {
+				remote-endpoint = <&codec_endpoint>;
+				dai-format = "i2s";
+			};
+		};
+	};
+};
+#else
+&adv7535 {
+	/delete-property/ #sound-dai-cells;
+	ports {
+		/delete-node/ port@2;
+	};
+};
+
+&i2c2 {
+	pinctrl-0 = <&i2c2_pins>;
+	pinctrl-names = "default";
+	clock-frequency = <400000>;
+
+	status = "okay";
+
+	wm8978: codec@1a {
+		compatible = "wlf,wm8978";
+		#sound-dai-cells = <0>;
+		reg = <0x1a>;
+	};
+};
+#endif
