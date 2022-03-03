@@ -310,11 +310,10 @@ struct page *dma_alloc_contiguous(struct device *dev, size_t size, gfp_t gfp)
 	/* CMA can be used only in the context which permits sleeping */
 	// if (!gfpflags_allow_blocking(gfp))
 	// 	return NULL;
-	size = PAGE_SIZE + 1;
 	if (dev->cma_area)
 		return cma_alloc_aligned(dev->cma_area, size, gfp);
 	if (size <= PAGE_SIZE)
-		return NULL;
+		size = PAGE_SIZE + 1;
 
 #ifdef CONFIG_DMA_PERNUMA_CMA
 	if (nid != NUMA_NO_NODE && !(gfp & (GFP_DMA | GFP_DMA32))) {
