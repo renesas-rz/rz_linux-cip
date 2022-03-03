@@ -169,13 +169,11 @@
 	clock-frequency = <12288000>;
 };
 
-#if 0
 &adc {
 	pinctrl-0 = <&adc_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
-#endif
 
 #if (CN4_CAN_AUDIO)
 &can {
@@ -316,12 +314,10 @@
 	pinctrl-0 = <&sound_clk_pins>;
 	pinctrl-names = "default";
 
-#if 0
 	adc_pins: adc {
 		groups = "adc_f";
 		function = "adc";
 	};
-#endif
 
 #if (CN4_CAN_AUDIO)
 	canfd0_en {

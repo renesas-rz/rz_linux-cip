@@ -129,7 +129,6 @@
 };
 
 #if (SW_SW0_DEV_SEL)
-#if 0
 &adc {
 	pinctrl-0 = <&adc_pins>;
 	pinctrl-names = "default";
@@ -142,7 +141,6 @@
 	/delete-node/ channel@6;
 	/delete-node/ channel@7;
 };
-#endif
 #endif
 
 #if (SW_ET0_EN_N)
@@ -525,11 +523,6 @@
 &ssi1 {
 	pinctrl-0 = <&ssi1_pins>;
 	pinctrl-names = "default";
-
-	dmas = <&dma0 0x9601>,
-	       <&dma0 0x9602>;
-	dma-names = "tx", "rx";
-
 	status = "okay";
 };
 #endif
@@ -558,17 +551,12 @@
 	timeout-sec = <60>;
 };
 
-#if 0
 #if (SW_ET0_EN_N)
 &rspi1 {
 	pinctrl-0 = <&spi1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
-	dmas = <&dma0 0xa601>,
-	       <&dma0 0xa602>;
-	dma-names = "tx", "rx";
 };
-#endif
 #endif
 
 &spibsc {
