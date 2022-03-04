@@ -14,6 +14,20 @@
 
 #include "proc.h"
 
+static void dma_flush_page(struct page *page, size_t size)
+{
+	unsigned long k_d_vaddr;
+	/*
+	 * Invalidate any data that might be lurking in the
+	 * kernel direct-mapped region for device DMA.
+	 */
+	k_d_vaddr = (unsigned long)page_to_virt(page);
+	memset((void *)k_d_vaddr, 0, size);
+	cpu_dma_wb_range(k_d_vaddr, k_d_vaddr + size);
+	cpu_dma_inval_range(k_d_vaddr, k_d_vaddr + size);
+}
+
+
 static inline void cache_op(phys_addr_t paddr, size_t size,
 		void (*fn)(unsigned long start, unsigned long end))
 {
@@ -60,16 +74,16 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 	void* kvaddr, *coherent_kvaddr;
 	size = PAGE_ALIGN(size);
 
-	kvaddr = dma_direct_alloc_pages(dev, size, handle, gfp & (~__GFP_DIRECT_RECLAIM), attrs);
+	kvaddr = dma_direct_alloc_pages(dev, size, handle, gfp, attrs);
 	if (!kvaddr)
 		goto no_mem;
 
 	coherent_kvaddr = ioremap(dma_to_phys(dev, *handle), size);
 	if (!coherent_kvaddr)
 		goto no_map;
-#if 0
+
 	dma_flush_page(virt_to_page(kvaddr),size);
-#endif
+
 	return coherent_kvaddr;
 no_map:
 	dma_direct_free_pages(dev, size, kvaddr, *handle, attrs);
