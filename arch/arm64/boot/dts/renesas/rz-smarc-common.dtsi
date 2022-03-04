@@ -264,6 +264,7 @@
 
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&vccq_sdhi1>;
+	cd-gpios = <&pinctrl RZG2L_GPIO(19, 0) GPIO_ACTIVE_LOW>;
 	bus-width = <4>;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
