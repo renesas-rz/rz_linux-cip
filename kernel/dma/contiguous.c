@@ -313,7 +313,7 @@ struct page *dma_alloc_contiguous(struct device *dev, size_t size, gfp_t gfp)
 	if (dev->cma_area)
 		return cma_alloc_aligned(dev->cma_area, size, gfp);
 	if (size <= PAGE_SIZE)
-		size = PAGE_SIZE + 1;
+		size = PAGE_SIZE;
 
 #ifdef CONFIG_DMA_PERNUMA_CMA
 	if (nid != NUMA_NO_NODE && !(gfp & (GFP_DMA | GFP_DMA32))) {

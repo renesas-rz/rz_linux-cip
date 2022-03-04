@@ -12,6 +12,9 @@
 #include <linux/device.h>
 #include <asm/cacheinfo.h>
 
+#include <asm/sbi.h>
+#include <asm/csr.h>
+
 #include "proc.h"
 #include "csr.h"
 
@@ -22,7 +25,7 @@
 #define CCTL_CMD_REG	0x40
 #define L2_WBINVAL_ALL	0x12
 #define L2_ENABLE		BIT(0)
-#define CCTL_STS_CN_MASK(mhartid) (0xF << ((mhartid << 2))) 
+#define CCTL_STS_CN_MASK(mhartid) (0xF << ((mhartid << 2)))
 
  /* prefetch */
  #define IPREPETCH_OFF	3
@@ -60,6 +63,41 @@ DEFINE_PER_CPU(struct andesv5_cache_info, cpu_cache_info) = {
 	.dcache_line_size = SZ_32
 };
 
+static uint32_t cpu_get_mcache_ctl_status(void)
+{
+	struct sbiret ret;
+	ret = sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_GET_MCACHE_CTL_STATUS, 0, 0, 0, 0, 0, 0);
+	return ret.value;
+}
+
+static uint32_t cpu_get_micm_cfg_status(void)
+{
+	struct sbiret ret;
+	ret = sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_GET_MICM_CTL_STATUS, 0, 0, 0, 0, 0, 0);
+	return ret.value;
+}
+
+static uint32_t cpu_get_mdcm_cfg_status(void)
+{
+	struct sbiret ret;
+	ret = sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_GET_MDCM_CTL_STATUS, 0, 0, 0, 0, 0, 0);
+	return ret.value;
+}
+
+static uint32_t cpu_get_mmsc_cfg_status(void)
+{
+	struct sbiret ret;
+	ret = sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_GET_MMSC_CTL_STATUS, 0, 0, 0, 0, 0, 0);
+	return ret.value;
+}
+
+static uint32_t cpu_get_misa_cfg_status(void)
+{
+	struct sbiret ret;
+	ret = sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_GET_MISA_CTL_STATUS, 0, 0, 0, 0, 0, 0);
+	return ret.value;
+}
+
 static void fill_cpu_cache_info(struct andesv5_cache_info *cpu_ci)
 {
 	struct cpu_cacheinfo *this_cpu_ci =
@@ -89,19 +127,55 @@ static uint32_t cpu_l2c_get_cctl_status(void)
 	return readl((void*)(l2c_base + L2C_REG_STATUS_OFFSET));
 }
 
+uint32_t cpu_l2c_ctl_status(void)
+{
+	return readl((void*)(l2c_base + L2C_REG_CTL_OFFSET));
+}
+
+static bool cpu_cache_controlable(void)
+{
+#if 0
+	bool ucctl_flag = false;
+
+	ucctl_flag = (cpu_get_micm_cfg_status() & MICM_CFG_ISZ_MASK) || \
+				(cpu_get_mdcm_cfg_status() & MDCM_CFG_DSZ_MASK);
+	pr_err("[%s] %d micm:%08x\n", __func__, __LINE__, cpu_get_micm_cfg_status() & MICM_CFG_ISZ_MASK);
+	pr_err("[%s] %d mdcm:%08x\n", __func__, __LINE__, cpu_get_mdcm_cfg_status() & MDCM_CFG_DSZ_MASK);
+	ucctl_flag &= (cpu_get_misa_cfg_status() & MISA_20_MASK);
+	pr_err("[%s] %d misa:%08x\n", __func__, __LINE__, cpu_get_misa_cfg_status() & MISA_20_MASK);
+	ucctl_flag &= (cpu_get_mmsc_cfg_status() & MMSC_CFG_CCTLCSR_MASK);
+	pr_err("[%s] %d mmsc:%08x\n", __func__, __LINE__, cpu_get_mmsc_cfg_status() & MMSC_CFG_CCTLCSR_MASK);
+	ucctl_flag &= (cpu_get_mcache_ctl_status() & MCACHE_CTL_CCTL_SUEN_MASK);
+	pr_err("[%s] %d mcache:%08x\n", __func__, __LINE__, cpu_get_mcache_ctl_status() & MCACHE_CTL_CCTL_SUEN_MASK);
+#endif
+
+	return (((cpu_get_micm_cfg_status() & MICM_CFG_ISZ_MASK) || \
+				(cpu_get_mdcm_cfg_status() & MDCM_CFG_DSZ_MASK)) && \
+				(cpu_get_misa_cfg_status() & MISA_20_MASK) && \
+				(cpu_get_mmsc_cfg_status() & MMSC_CFG_CCTLCSR_MASK) && \
+				(cpu_get_mcache_ctl_status() & MCACHE_CTL_CCTL_SUEN_MASK));
+}
+
 void cpu_dcache_wb_range(unsigned long start, unsigned long end, int line_size)
 {
 	int mhartid = 0;
 	unsigned long pa;
+	bool ucctl_ok = false;
 #ifdef CONFIG_SMP
 	mhartid = smp_processor_id();
 #endif
 
-	while (end > start) {
-		custom_csr_write(CCTL_REG_UCCTLBEGINADDR_NUM, start);
-		custom_csr_write(CCTL_REG_UCCTLCOMMAND_NUM, CCTL_L1D_VA_WB);
+	ucctl_ok = cpu_cache_controlable();
 
-		if (l2c_base) {
+	while (end > start) {
+
+		if(ucctl_ok){
+			custom_csr_write(CCTL_REG_UCCTLBEGINADDR_NUM, start);
+			custom_csr_write(CCTL_REG_UCCTLCOMMAND_NUM, CCTL_L1D_VA_WB);
+		}
+
+		// when the l2 cahce is probed and enabled.
+		if (l2c_base && (cpu_l2c_ctl_status() & L2_CACHE_CTL_mskCEN)) {
 			pa = virt_to_phys((void*)start);
 			writel(pa, (void*)(l2c_base+ L2C_REG_CN_ACC_OFFSET(mhartid)));
 			writel(CCTL_L2_PA_WB, (void*)(l2c_base + L2C_REG_CN_CMD_OFFSET(mhartid)));
@@ -117,15 +191,22 @@ void cpu_dcache_inval_range(unsigned long start, unsigned long end, int line_siz
 {
 	int mhartid = 0;
 	unsigned long pa;
+	bool ucctl_ok = false;
 #ifdef CONFIG_SMP
 	mhartid = smp_processor_id();
 #endif
 
-	while (end > start) {
-		custom_csr_write(CCTL_REG_UCCTLBEGINADDR_NUM, start);
-		custom_csr_write(CCTL_REG_UCCTLCOMMAND_NUM, CCTL_L1D_VA_INVAL);
+	ucctl_ok = cpu_cache_controlable();
 
-		if (l2c_base) {
+	while (end > start) {
+
+		if(ucctl_ok){
+			custom_csr_write(CCTL_REG_UCCTLBEGINADDR_NUM, start);
+			custom_csr_write(CCTL_REG_UCCTLCOMMAND_NUM, CCTL_L1D_VA_INVAL);
+		}
+
+		// when the l2 cahce is probed and enabled.
+		if (l2c_base && (cpu_l2c_ctl_status() & L2_CACHE_CTL_mskCEN)) {
 			pa = virt_to_phys((void*)start);
 			writel(pa, (void*)(l2c_base + L2C_REG_CN_ACC_OFFSET(mhartid)));
 			writel(CCTL_L2_PA_INVAL, (void*)(l2c_base + L2C_REG_CN_CMD_OFFSET(mhartid)));
@@ -208,18 +289,15 @@ void cpu_dcache_disable(void *info)
 
 }
 
-uint32_t cpu_l2c_ctl_status(void)
-{
-	return readl((void*)(l2c_base + L2C_REG_CTL_OFFSET));
-}
-
-
 #ifndef CONFIG_SMP
 void cpu_l2c_inval_range(unsigned long pa, unsigned long size)
 {
 	unsigned long line_size = get_cache_line_size();
 	unsigned long start = pa, end = pa + size;
 	unsigned long align_start, align_end;
+
+	if(!(cpu_l2c_ctl_status() & L2_CACHE_CTL_mskCEN))
+		return;
 
 	align_start = start & ~(line_size - 1);
 	align_end  = (end + line_size - 1) & ~(line_size - 1);
@@ -239,6 +317,9 @@ void cpu_l2c_wb_range(unsigned long pa, unsigned long size)
 	unsigned long line_size = get_cache_line_size();
 	unsigned long start = pa, end = pa + size;
 	unsigned long align_start, align_end;
+
+	if(!(cpu_l2c_ctl_status() & L2_CACHE_CTL_mskCEN))
+		return;
 
 	align_start = start & ~(line_size - 1);
 	align_end  = (end + line_size - 1) & ~(line_size - 1);
@@ -260,6 +341,9 @@ void cpu_l2c_inval_range(unsigned long pa, unsigned long size)
 	unsigned long start = pa, end = pa + size;
 	unsigned long align_start, align_end;
 
+	if(!(cpu_l2c_ctl_status() & L2_CACHE_CTL_mskCEN))
+		return;
+
 	align_start = start & ~(line_size - 1);
 	align_end  = (end + line_size - 1) & ~(line_size - 1);
 
@@ -279,6 +363,9 @@ void cpu_l2c_wb_range(unsigned long pa, unsigned long size)
 	unsigned long line_size = get_cache_line_size();
 	unsigned long start = pa, end = pa + size;
 	unsigned long align_start, align_end;
+
+	if(!(cpu_l2c_ctl_status() & L2_CACHE_CTL_mskCEN))
+		return;
 
 	align_start = start & ~(line_size - 1);
 	align_end  = (end + line_size - 1) & ~(line_size - 1);
@@ -307,10 +394,6 @@ void cpu_l2c_disable(void)
 
 	/*No l2 cache */
 	if(!l2c_base)
-		return;
-
-	/*l2 cache has disabled*/
-	if(!(readl(l2c_base + CONTROL_REG) & L2_ENABLE))
 		return;
 
 	local_irq_save(flags);
@@ -342,7 +425,7 @@ void cpu_l2c_enable(struct v5l2_plat *priv)
 {
 	u32 ctl_val;
 
-	ctl_val = readl(priv->base + CONTROL_REG);
+	ctl_val =cpu_l2c_ctl_status();
 #if 0
 	if (!(ctl_val & L2_ENABLE))
 		ctl_val |= L2_ENABLE;
@@ -405,27 +488,26 @@ static int __init sifive_l2_init(void)
 	struct device_node *np;
 	struct v5l2_plat *priv;
 	struct resource res;
-    int ret;
+	int ret;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-		    
+
 	np = of_find_matching_node(NULL, sifive_l2_ids);
 	if (!np)
 		return -ENODEV;
 
-    ret = of_address_to_resource(np, 0, &res);
+	ret = of_address_to_resource(np, 0, &res);
 	if (ret){
-        pr_err("[%s] %d ret:%d\n", __func__, __LINE__, ret);
 		return -ENODEV;
-    }
-    
+	}
+
 	priv->base = ioremap(res.start, resource_size(&res));
 	if (!priv->base)
 		return -ENOMEM;
 	l2c_base = priv->base;
-    
+
 	cpu_l2c_of_to_plat(priv, np);
 
 	pr_info("L2CACHE: INFO\n");

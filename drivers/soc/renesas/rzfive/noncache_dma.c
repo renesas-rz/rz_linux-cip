@@ -57,24 +57,24 @@ void arch_sync_dma_for_cpu(phys_addr_t paddr,
 void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
                gfp_t gfp, unsigned long attrs)
 {
-       void* kvaddr, *coherent_kvaddr;
-       size = PAGE_ALIGN(size);
+	void* kvaddr, *coherent_kvaddr;
+	size = PAGE_ALIGN(size);
 
-       kvaddr = dma_direct_alloc_pages(dev, size, handle, gfp, attrs);
-       if (!kvaddr)
-               goto no_mem;
-        
-       coherent_kvaddr = ioremap(dma_to_phys(dev, *handle), size);
-       if (!coherent_kvaddr)
-               goto no_map;
+	kvaddr = dma_direct_alloc_pages(dev, size, handle, gfp & (~__GFP_DIRECT_RECLAIM), attrs);
+	if (!kvaddr)
+		goto no_mem;
+
+	coherent_kvaddr = ioremap(dma_to_phys(dev, *handle), size);
+	if (!coherent_kvaddr)
+		goto no_map;
 #if 0
-       dma_flush_page(virt_to_page(kvaddr),size);
+	dma_flush_page(virt_to_page(kvaddr),size);
 #endif
-       return coherent_kvaddr;
+	return coherent_kvaddr;
 no_map:
-       dma_direct_free_pages(dev, size, kvaddr, *handle, attrs);
+	dma_direct_free_pages(dev, size, kvaddr, *handle, attrs);
 no_mem:
-       return NULL;
+	return NULL;
 }
 
 void arch_dma_free(struct device *dev, size_t size, void *vaddr,
