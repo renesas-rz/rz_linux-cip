@@ -762,6 +762,16 @@
 	};
 };
 
+&wdt0 {
+	status = "okay";
+	timeout-sec = <60>;
+};
+
+&wdt2 {
+	status = "okay";
+	timeout-sec = <60>;
+};
+
 &ostm1 {
 	status = "okay";
 };
