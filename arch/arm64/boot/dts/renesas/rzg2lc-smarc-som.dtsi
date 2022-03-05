@@ -269,3 +269,10 @@
 	status = "okay";
 };
 
+&gpt4 {
+	pinctrl-0 = <&gpt4_pins>;
+	pinctrl-names = "default";
+	channel = "channel_A";
+	status = "okay";
+};
+
