@@ -57,7 +57,7 @@
 &spi1 {
 	/delete-property/ pinctrl-0;
 	/delete-property/ pinctrl-names;
-	status = "disabled";
+	status = "okay";
 };
 
 &usb2_phy0 {
