@@ -17,19 +17,19 @@
 &ehci0 {
 	/delete-property/ pinctrl-0;
 	/delete-property/ pinctrl-names;
-	status = "disabled";
+	status = "okay";
 };
 
 &ehci1 {
 	/delete-property/ pinctrl-0;
 	/delete-property/ pinctrl-names;
-	status = "disabled";
+	status = "okay";
 };
 
 &hsusb {
 	/delete-property/ pinctrl-0;
 	/delete-property/ pinctrl-names;
-	status = "disabled";
+	status = "okay";
 };
 
 &i2c3 {
@@ -41,17 +41,17 @@
 &ohci0 {
 	/delete-property/ pinctrl-0;
 	/delete-property/ pinctrl-names;
-	status = "disabled";
+	status = "okay";
 };
 
 &ohci1 {
 	/delete-property/ pinctrl-0;
 	/delete-property/ pinctrl-names;
-	status = "disabled";
+	status = "okay";
 };
 
 &phyrst {
-	status = "disabled";
+	status = "okay";
 };
 
 &spi1 {
@@ -63,11 +63,11 @@
 &usb2_phy0 {
 	/delete-property/ pinctrl-0;
 	/delete-property/ pinctrl-names;
-	status = "disabled";
+	status = "okay";
 };
 
 &usb2_phy1 {
 	/delete-property/ pinctrl-0;
 	/delete-property/ pinctrl-names;
-	status = "disabled";
+	status = "okay";
 };
