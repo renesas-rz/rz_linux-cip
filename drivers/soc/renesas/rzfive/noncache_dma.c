@@ -82,8 +82,9 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 	if (!coherent_kvaddr)
 		goto no_map;
 
+#if 0
 	dma_flush_page(virt_to_page(kvaddr),size);
-
+#endif
 	return coherent_kvaddr;
 no_map:
 	dma_direct_free_pages(dev, size, kvaddr, *handle, attrs);
