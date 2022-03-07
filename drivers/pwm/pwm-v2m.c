@@ -208,7 +208,6 @@ static int v2m_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
                dev_warn(chip->dev, "pwm is already enabled \n");
                return 0;
        }
-       dev_info(NULL, "%s Cycle setting function is entered.\n",__func__);
        div = v2m_pwm_get_clock_division(rp, period_ns);
        if (div < 0)
                return div;
@@ -224,7 +223,6 @@ static int v2m_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
        struct v2m_pwm_chip *rp = to_v2m_pwm_chip(chip);
        u32 value;
 
-       dev_info(NULL, "%s Interrupt enable function is entered.\n",__func__);
 
        /* Don't enable the PWM device if V2M_PWMCYC is 0 */
        value = v2m_pwm_read(rp, V2M_PWMCYC);
@@ -243,7 +241,6 @@ static void v2m_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
        struct v2m_pwm_chip *rp = to_v2m_pwm_chip(chip);
 
-       dev_info(NULL, "%s Interrupt disable function is entered.\n",__func__);
 
        v2m_pwm_update(rp, V2M_PWMCTR_PWME, 0, V2M_PWMCTR);
        v2m_pwm_update(rp, V2M_PWMIEN_PWMEC, 0, V2M_PWMIEN);
@@ -254,7 +251,6 @@ static int v2m_pwm_set_polarity(struct pwm_chip *chip, struct pwm_device *pwm, e
 {
        struct v2m_pwm_chip *rp = to_v2m_pwm_chip(chip);
 
-       dev_info(NULL, "%s polarity function is entered.\n",__func__);
 
        if (polarity == PWM_POLARITY_NORMAL)
        {
