@@ -130,6 +130,15 @@
     };
 };
 
+&pfc {
+    status = "okay";
+    pinctrl-names = "default";
+    csi4_pins: csi@4 {
+        groups = "csi4rw";
+        function = "csi";
+    };
+};
+
 &csi4{
     status = "okay";
     slavedev {

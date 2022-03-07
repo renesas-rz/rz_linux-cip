@@ -1,0 +1,5 @@
+config PINCTRL_RZV2M
+	tristate "PFC for RZV2M"
+	select GPIOLIB
+	help
+		Enable pin controller for RZ/V2M
