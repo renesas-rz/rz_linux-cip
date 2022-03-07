@@ -131,10 +131,153 @@
         #size-cells = <2>;
         ranges;
 
-        pfc: pin-controller@B6250000 {
-            compatible = "renesas,pfc-r8a774c0";
-            reg = <0 0xB6250000 0 0x2>;
-        };
+       pfc: pin-controller@B6250000 {
+            compatible = "renesas,pfc-r8arzv2m";
+            reg = <0 0xB6250000 0 0x1000>;
+            #interrupt-cells = <2>;
+            interrupt-controller;
+            interrupts =
+                <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+                gpio0: gpio0 {
+                        #gpio-cells = <2>;
+                        gpio-controller;
+                        gpio-ranges = <&pfc 0 0 14>;
+                };
+                gpio1: gpio1 {
+                        #gpio-cells = <2>;
+                        gpio-controller;
+                        gpio-ranges = <&pfc 0 16 16>;
+                };
+                gpio2: gpio2 {
+                        gpio-controller;
+                        #gpio-cells = <2>;
+                        gpio-ranges =   <&pfc 0 0x20 8>;
+                };
+                gpio3: gpio3 {
+                        gpio-controller;
+                        #gpio-cells = <2>;
+                        gpio-ranges =   <&pfc 0 0x30 16>;
+                };
+                gpio4: gpio4 {
+                        gpio-controller;
+                        #gpio-cells = <2>;
+                        gpio-ranges =   <&pfc 0 0x40 8>;
+                };
+                gpio5: gpio5 {
+                        gpio-controller;
+                        #gpio-cells = <2>;
+                        gpio-ranges =   <&pfc 0 0x50 4>;
+                };
+                gpio6: gpio6 {
+                        gpio-controller;
+                        #gpio-cells = <2>;
+                        gpio-ranges =   <&pfc 0 0x60 12>;
+                };
+                gpio7: gpio7 {
+                        gpio-controller;
+                        #gpio-cells = <2>;
+                        gpio-ranges =   <&pfc 0 0x70 6>;
+                };
+                gpio8: gpio8 {
+                        gpio-controller;
+                        #gpio-cells = <2>;
+                        gpio-ranges =   <&pfc 0 0x80 8>;
+                };
+                gpio9: gpio9 {
+                        gpio-controller;
+                        #gpio-cells = <2>;
+                        gpio-ranges =   <&pfc 0 0x90 8>;
+                };
+                gpio10: gpio10 {
+                    gpio-controller;
+                    #gpio-cells = <2>;
+                    gpio-ranges =   <&pfc 0 0xA0 9>;
+                };
+                gpio11: gpio11 {
+                    gpio-controller;
+                    #gpio-cells = <2>;
+                    gpio-ranges =   <&pfc 0 0xB0 9>;
+                };
+                gpio12: gpio12 {
+                    gpio-controller;
+                    #gpio-cells = <2>;
+                    gpio-ranges =   <&pfc 0 0xC0 4>;
+                };
+                gpio13: gpio13 {
+                    gpio-controller;
+                    #gpio-cells = <2>;
+                    gpio-ranges =   <&pfc 0 0xD0 12>;
+                };
+                gpio14: gpio14 {
+                    gpio-controller;
+                    #gpio-cells = <2>;
+                    gpio-ranges =   <&pfc 0 0xE0 8>;
+                };
+                gpio15: gpio15 {
+                    gpio-controller;
+                    #gpio-cells = <2>;
+                    gpio-ranges =   <&pfc 0 0xF0 16>;
+                };
+                gpio16: gpio16 {
+                    gpio-controller;
+                    #gpio-cells = <2>;
+                    gpio-ranges =   <&pfc 0 0x100 14>;
+                };
+                gpio17: gpio17 {
+                    gpio-controller;
+                    #gpio-cells = <2>;
+                    gpio-ranges =   <&pfc 0 0x110 1>;
+                };
+                gpio20: gpio20 {
+                    gpio-controller;
+                    #gpio-cells = <2>;
+                    gpio-ranges =   <&pfc 0 0x140 3>;
+                };
+                gpio21: gpio21 {
+                    gpio-controller;
+                    #gpio-cells = <2>;
+                    gpio-ranges =   <&pfc 0 0x150 1>;
+                };
+	};
+
 
        csi0: csi@a4020000 {
             compatible = "renesas,rzv2m-csi";
