@@ -768,6 +768,10 @@
 	status = "okay";
 };
 
+&mtu3 {
+	status = "okay";
+};
+
 &spi1 {
 #if (SW_ET0_EN_N)
 	pinctrl-0 = <&spi1_pins>;

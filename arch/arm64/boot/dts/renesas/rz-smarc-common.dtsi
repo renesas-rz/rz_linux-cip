@@ -349,3 +349,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 };
+
+&mtu3 {
+	status = "okay";
+};
