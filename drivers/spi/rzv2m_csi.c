@@ -541,7 +541,7 @@ static int rzv2m_csi_set_fifo_trg(struct spi_master *master, struct spi_transfer
        const void *tx_buf = t->tx_buf;
        void *rx_buf = t->rx_buf;
 
-       if(!tx_buf){
+       if(tx_buf != NULL){
                if(is_16bit_data_leng(p)){ //16 bit mode
                        if((info->transmit_trigger_level > 4)){
                                ret = -EINVAL;
@@ -559,7 +559,7 @@ static int rzv2m_csi_set_fifo_trg(struct spi_master *master, struct spi_transfer
                }
        }
 
-       if(!rx_buf){
+       if(rx_buf != NULL){
                //setting for receive trigger level
                if(is_16bit_data_leng(p)){ //16 bit mode
                        if((info->receive_trigger_level > 4)){
