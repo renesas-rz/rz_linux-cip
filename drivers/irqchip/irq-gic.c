@@ -477,17 +477,6 @@ static void gic_dist_init(struct gic_chip_data *gic)
 	unsigned int gic_irqs = gic->gic_irqs;
 	void __iomem *base = gic_data_dist_base(gic);
 
-	writel_relaxed(GICD_DISABLE, base + GIC_DIST_CTRL);
-
-	/*
-	 * Set all global interrupts to this CPU only.
-	 */
-	cpumask = gic_get_cpumask(gic);
-	cpumask |= cpumask << 8;
-	cpumask |= cpumask << 16;
-	for (i = 32; i < gic_irqs; i += 4)
-		writel_relaxed(cpumask, base + GIC_DIST_TARGET + i * 4 / 4);
-
        /*
         * Set all global interrupts to CPU #0 and #1 for RZ/V2M.
         */
@@ -500,7 +489,10 @@ static void gic_dist_init(struct gic_chip_data *gic)
 
 	gic_dist_config(base, gic_irqs, NULL);
 
-	writel_relaxed(GICD_ENABLE, base + GIC_DIST_CTRL);
+       if (0 == (readl_relaxed(base + GIC_DIST_CTRL)&GICD_ENABLE)) {
+               writel_relaxed(GICD_ENABLE, base + GIC_DIST_CTRL);
+       }
+
 }
 
 static int gic_cpu_init(struct gic_chip_data *gic)
