@@ -1080,6 +1080,7 @@
 				"gtciv", "gtciu", "gtcih", "gtcil",
 				"gtdei";
 			clocks = <&cpg CPG_MOD R9A07G044_GPT_PCLK>;
+			power-domains = <&cpg>;
 			resets =  <&cpg R9A07G044_GPT_RST_C>;
 			status = "disabled";
 		};
@@ -1161,6 +1162,7 @@
 				"gtciv", "gtciu", "gtcih", "gtcil",
 				"gtdei";
 			clocks = <&cpg CPG_MOD R9A07G044_GPT_PCLK>;
+			power-domains = <&cpg>;
 			resets =  <&cpg R9A07G044_GPT_RST_C>;
 			status = "disabled";
 		};
@@ -1187,6 +1189,7 @@
 				"gtciv", "gtciu", "gtcih", "gtcil",
 				"gtdei";
 			clocks = <&cpg CPG_MOD R9A07G044_GPT_PCLK>;
+			power-domains = <&cpg>;
 			resets =  <&cpg R9A07G044_GPT_RST_C>;
 			status = "disabled";
 		};
@@ -1214,6 +1217,7 @@
 				"gtciv", "gtciu", "gtcih", "gtcil",
 				"gtdei";
 			clocks = <&cpg CPG_MOD R9A07G044_GPT_PCLK>;
+			power-domains = <&cpg>;
 			resets =  <&cpg R9A07G044_GPT_RST_C>;
 			status = "disabled";
 		};
@@ -1240,6 +1244,7 @@
 				"gtciv", "gtciu", "gtcih", "gtcil",
 				"gtdei";
 			clocks = <&cpg CPG_MOD R9A07G044_GPT_PCLK>;
+			power-domains = <&cpg>;
 			resets =  <&cpg R9A07G044_GPT_RST_C>;
 			status = "disabled";
 		};
@@ -1266,6 +1271,7 @@
 				"gtciv", "gtciu", "gtcih", "gtcil",
 				"gtdei";
 			clocks = <&cpg CPG_MOD R9A07G044_GPT_PCLK>;
+			power-domains = <&cpg>;
 			resets =  <&cpg R9A07G044_GPT_RST_C>;
 			status = "disabled";
 		};
