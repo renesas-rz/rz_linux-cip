@@ -22,12 +22,6 @@
         stdout-path = "serial0:115200n8";
     };
 
-    memory@58000000 {
-        device_type = "memory";
-        /* first 256MB is reserved for secure area. */
-        reg = <0x00000000 0x58000000 0x0 0x28000000>;
-    };
-
     memory@180000000 {
         device_type = "memory";
         reg = <0x1 0x80000000 0x0 0x80000000>;
@@ -39,23 +33,23 @@
         ranges;
 
         /* global autoconfigured region for contiguous allocations */
-        linux,cma@67800000 {
+	linux,cma@1E7800000 {
             compatible = "shared-dma-pool";
             reusable;
-            reg = <0x0 0x67800000 0x0 0x8000000>;
+	    reg = <0x1 0xE7800000 0x0 0x8000000>;
             linux,cma-default;
         };
 
         /* device specific region for contiguous allocations */
         drp_reserved: linux,CMAtoDRP {
             reusable;
-            reg = <0x0 0x6F800000 0x0 0x10000000>;
+	    reg = <0x1 0xEF800000 0x0 0x10000000>;
         };
 
         v4l2_reserved: v4l2-DRP_buf@0 {
             compatible = "shared-dma-pool";
             reusable;
-            reg = <0x0 0x7F800000 0x0 0x400000>; //4MiB
+	    reg = <0x1 0xFF800000 0x0 0x400000>; //4MiB
             label = "image_buf0";
         };
 
