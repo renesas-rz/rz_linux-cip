@@ -739,7 +739,7 @@ static void usb3_check_id(struct renesas_usb3 *usb3)
         else{
                 usb3->connection_state = USB_ROLE_DEVICE;
         }
-        if ((!usb3->usb_role_switch_property &&	
+	if ((!usb3->role_sw_by_connector && 	
 	     usb3->extcon_host && !usb3->forced_b_device) ||
 	     usb3->connection_state == USB_ROLE_HOST)
 		usb3_mode_config(usb3, true, true);
