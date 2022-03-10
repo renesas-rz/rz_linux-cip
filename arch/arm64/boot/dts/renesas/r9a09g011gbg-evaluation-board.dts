@@ -132,6 +132,11 @@
         groups = "csi4rw";
         function = "csi";
     };
+
+    i2c2_pins: i2c@2 {
+        groups = "i2c2";
+        function = "i2c";
+    };
 };
 
 &csi4{
@@ -155,6 +160,8 @@
 };
 
 &i2c2 {
+    pinctrl-0 = <&i2c2_pins>;
+    pinctrl-names = "default";
     clock-frequency = <100000>;
     status = "okay";
 };

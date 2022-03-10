@@ -108,6 +108,12 @@
                       <&gic GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>;
 	clock-frequency = <24000000>;
     };
+    aliases {
+        i2c0 = &i2c0;
+        i2c1 = &i2c1;
+        i2c2 = &i2c2;
+        i2c3 = &i2c3;
+    };
 
     soc: soc {
         compatible = "simple-bus";
