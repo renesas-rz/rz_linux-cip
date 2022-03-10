@@ -5246,9 +5246,6 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 		 * Some USB 3.1 capable hosts therefore have sbrn 0x30, and
 		 * minor revision set to 0x1 instead of 0x10.
 		 */
-		if (xhci->usb3_rhub.min_rev == 0x1)
-			minor_rev = 1;
-		else
 			minor_rev = xhci->usb3_rhub.min_rev / 0x10;
 
 		switch (minor_rev) {
