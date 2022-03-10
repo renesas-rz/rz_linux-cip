@@ -58,7 +58,7 @@
 
     pmu_a53 { /* Support only for core0 not core1 */
         compatible = "arm,cortex-a53-pmu";
-        interrupts-extended = <&gic GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+	interrupts-extended = <&gic GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-affinity = <&a53_0>;
     };
 
