@@ -30,7 +30,6 @@
             dynamic-power-coefficient = <277>;
             cooling-min-level = <0>;
             cooling-max-level = <2>;
-            cpu-idle-states = <&CPU_SLEEP_1>;
             clocks = <&cpg CPG_CORE R8A774C0_CLK_Z2>;
         };
 
@@ -41,19 +40,6 @@
             cache-level = <2>;
         };
 
-        idle-states {
-            entry-method = "psci";
-
-            CPU_SLEEP_1: cpu-sleep-1 {
-                compatible = "arm,idle-state";
-                arm,psci-suspend-param = <0x0010000>;
-                local-timer-stop;
-                entry-latency-us = <700>;
-                exit-latency-us = <700>;
-                min-residency-us = <5000>;
-                status = "okay";
-            };
-        };
     };
 
     pmu_a53 { /* Support only for core0 not core1 */
