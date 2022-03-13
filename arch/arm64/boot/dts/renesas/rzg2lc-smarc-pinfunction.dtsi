@@ -110,6 +110,7 @@
 	i2c2_pins: i2c2 {
 		pinmux = <RZG2L_PORT_PINMUX(42, 3, 1)>, /* SDA */
 			 <RZG2L_PORT_PINMUX(42, 4, 1)>; /* SCL */
+	};
 
 	gpt4_pins: gpt4 {
 		pinmux = <RZG2L_PORT_PINMUX(43, 0, 2)>, /* Channel A */
