@@ -982,6 +982,7 @@ enum CSR0_BIT {
 #define RX_QUEUE_OFFSET	4
 #define NUM_RX_QUEUE	2
 #define NUM_TX_QUEUE	2
+#define BANK_SETTING BIT(32)  /* 34bit extension for rzv2m(add bank address with bit32 ) */
 
 #define RX_BUF_SZ	(2048 - ETH_FCS_LEN + sizeof(__sum16))
 

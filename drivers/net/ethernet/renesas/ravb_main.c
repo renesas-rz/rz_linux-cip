@@ -213,7 +213,7 @@ static int ravb_tx_free(struct net_device *ndev, int q, bool free_txed_only)
 		size = le16_to_cpu(desc->ds_tagl) & TX_DS;
 		/* Free the original skb. */
 		if (priv->tx_skb[q][entry / num_tx_desc]) {
-			dma_unmap_single(ndev->dev.parent, le32_to_cpu(desc->dptr),
+			dma_unmap_single(ndev->dev.parent, BANK_SETTING | le32_to_cpu(desc->dptr),
 					 size, DMA_TO_DEVICE);
 			/* Last packet descriptor? */
 			if (entry % num_tx_desc == num_tx_desc - 1) {
@@ -270,9 +270,9 @@ static void ravb_rx_ring_free_rcar(struct net_device *ndev, int q)
 		struct ravb_ex_rx_desc *desc = &priv->rx_ring[q][i];
 
 		if (!dma_mapping_error(ndev->dev.parent,
-				       le32_to_cpu(desc->dptr)))
+				       BANK_SETTING | le32_to_cpu(desc->dptr)))
 			dma_unmap_single(ndev->dev.parent,
-					 le32_to_cpu(desc->dptr),
+				       BANK_SETTING | le32_to_cpu(desc->dptr),
 					 RX_BUF_SZ,
 					 DMA_FROM_DEVICE);
 	}
@@ -933,7 +933,7 @@ static bool ravb_rx_rcar(struct net_device *ndev, int *quota, int q)
 
 			skb = priv->rx_skb[q][entry];
 			priv->rx_skb[q][entry] = NULL;
-			dma_unmap_single(ndev->dev.parent, le32_to_cpu(desc->dptr),
+			dma_unmap_single(ndev->dev.parent, BANK_SETTING | le32_to_cpu(desc->dptr),
 					 RX_BUF_SZ,
 					 DMA_FROM_DEVICE);
 			get_ts &= (q == RAVB_NC) ?
@@ -1911,7 +1911,7 @@ static netdev_tx_t ravb_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct ravb_tstamp_skb *ts_skb;
 	struct ravb_tx_desc *desc;
 	unsigned long flags;
-	u32 dma_addr;
+	dma_addr_t dma_addr;
 	void *buffer;
 	u32 entry;
 	u32 len;
@@ -1960,7 +1960,7 @@ static netdev_tx_t ravb_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 		desc = &priv->tx_ring[q][entry];
 		desc->ds_tagl = cpu_to_le16(len);
-		desc->dptr = cpu_to_le32(dma_addr);
+		desc->dptr = cpu_to_le32((u32)dma_addr);
 
 		buffer = skb->data + len;
 		len = skb->len - len;
@@ -2028,7 +2028,7 @@ exit:
 	return NETDEV_TX_OK;
 
 unmap:
-	dma_unmap_single(ndev->dev.parent, le32_to_cpu(desc->dptr),
+	dma_unmap_single(ndev->dev.parent, BANK_SETTING | le32_to_cpu(desc->dptr),
 			 le16_to_cpu(desc->ds_tagl), DMA_TO_DEVICE);
 drop:
 	dev_kfree_skb_any(skb);
@@ -2581,7 +2581,8 @@ static int ravb_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	info = of_device_get_match_data(&pdev->dev);
-
+	
+	dma_set_mask_and_coherent(&pdev->dev,DMA_BIT_MASK(34));  //34bit extension for rzv2m
 	ndev->features = info->net_features;
 	ndev->hw_features = info->net_hw_features;
 
