@@ -712,6 +712,8 @@
 				 <&audio_clk1>,
 				 <&audio_clk2>;
 			clock-names = "ssi", "audio_clk1", "audio_clk2";
+			dmas = <&dma0 0x2659>, <&dma0 0x265a>;
+			dma-names = "tx", "rx";
 			resets = <&cpg R9A07G043F_CLK_SSI1>;
 			power-domains = <&cpg>;
 			status = "disabled";
