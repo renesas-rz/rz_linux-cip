@@ -2856,6 +2856,8 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 		renesas_usb3_role_switch_desc.fwnode = dev_fwnode(&pdev->dev);
 	}
 
+	renesas_usb3_role_switch_desc.driver_data = usb3;	
+
 	INIT_WORK(&usb3->role_work, renesas_usb3_role_work);
 	usb3->role_sw = usb_role_switch_register(&pdev->dev,
 					&renesas_usb3_role_switch_desc);
