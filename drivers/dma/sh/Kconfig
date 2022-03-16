@@ -50,7 +50,7 @@ config RENESAS_USB_DMAC
 
 config RZ_DMAC
 	tristate "Renesas RZ/G2L DMA Controller"
-	depends on ARCH_R9A07G044 || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	select RENESAS_DMA
 	select DMA_VIRTUAL_CHANNELS
 	help
