@@ -16,17 +16,13 @@
 #include <linux/reset.h>
 #include <linux/units.h>
 #include <linux/watchdog.h>
-#include <asm/system_misc.h>
 
-#define PECR		0x10
-#define PEEN		0x14
 #define WDTCNT		0x00
 #define WDTSET		0x04
 #define WDTTIM		0x08
 #define WDTINT		0x0C
 #define WDTCNT_WDTEN	BIT(0)
 #define WDTINT_INTDISP	BIT(0)
-#define PEEN_FORCE_RST	BIT(0)
 
 #define WDT_DEFAULT_TIMEOUT		60U
 
@@ -35,8 +31,6 @@
 #define WDTSET_COUNTER_VAL(f)		((f) << 20)
 
 #define F2CYCLE_NSEC(f)			(1000000000 / (f))
-
-extern void (*arm_pm_restart)(int reboot_mode, const char *cmd);
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
@@ -131,10 +125,10 @@ static int rzg2l_wdt_restart(struct watchdog_device *wdev,
 	pm_runtime_get_sync(wdev->parent);
 
 	/* smallest counter value to reboot soon */
-	rzg2l_wdt_write(priv, 0, PECR);
+	rzg2l_wdt_write(priv, WDTSET_COUNTER_VAL(1), WDTSET);
 
 	/* Enable watchdog timer*/
-	rzg2l_wdt_write(priv, PEEN_FORCE_RST, PEEN);
+	rzg2l_wdt_write(priv, WDTCNT_WDTEN, WDTCNT);
 
 	return 0;
 }
@@ -239,15 +233,6 @@ static int rzg2l_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_nowayout(&priv->wdev, nowayout);
 	watchdog_stop_on_unregister(&priv->wdev);
-
-	/*
-	 * TODO:
-	 * Reboot code is specific controlled by PSCI for ARM64.
-	 * However, we do not support reboot code in TF-A currently.
-	 * Will update when TF-A support reboot API.
-	 */
-	arm_pm_restart = NULL;
-	watchdog_set_restart_priority(&priv->wdev, 0);
 
 	ret = watchdog_init_timeout(&priv->wdev, 0, dev);
 	if (ret)
