@@ -53,7 +53,7 @@ static void rzg2l_wdt_wait_delay(struct rzg2l_wdt_priv *priv)
 
 static u32 rzg2l_wdt_get_cycle_usec(unsigned long cycle, u32 wdttime)
 {
-	u64 timer_cycle_us = 1024 * 1024 * ((u64)wdttime + 1) * MICRO;
+	u64 timer_cycle_us = 1024 * 1024 * (wdttime + 1) * MICRO;
 
 	return div64_ul(timer_cycle_us, cycle);
 }
@@ -87,8 +87,6 @@ static int rzg2l_wdt_start(struct watchdog_device *wdev)
 	struct rzg2l_wdt_priv *priv = watchdog_get_drvdata(wdev);
 
 	reset_control_deassert(priv->rstc);
-	udelay(35);
-
 	pm_runtime_get_sync(wdev->parent);
 
 	/* Initialize time out */
@@ -120,8 +118,6 @@ static int rzg2l_wdt_restart(struct watchdog_device *wdev,
 
 	/* Reset the module before we modify any register */
 	reset_control_reset(priv->rstc);
-	udelay(35);
-
 	pm_runtime_get_sync(wdev->parent);
 
 	/* smallest counter value to reboot soon */
