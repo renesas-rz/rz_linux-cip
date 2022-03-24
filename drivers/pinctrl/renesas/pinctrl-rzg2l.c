@@ -81,7 +81,7 @@
 #define RZG2L_SINGLE_PIN		BIT(31)
 #define RZG2L_SINGLE_PIN_PACK(p, b, f)	(RZG2L_SINGLE_PIN | \
 					 ((p) << 24) | ((b) << 20) | (f))
-#define RZG2L_SINGLE_PIN_GET_PORT(x)	(((x) & GENMASK(30, 24)) >> 24)
+#define RZG2L_SINGLE_PIN_GET_PORT_OFFSET(x)	(((x) & GENMASK(30, 24)) >> 24)
 #define RZG2L_SINGLE_PIN_GET_BIT(x)	(((x) & GENMASK(22, 20)) >> 20)
 #define RZG2L_SINGLE_PIN_GET_CFGS(x)	((x) & GENMASK(19, 0))
 
@@ -577,10 +577,10 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 	enum pin_config_param param = pinconf_to_config_param(*config);
 	const struct pinctrl_pin_desc *pin = &pctrl->desc.pins[_pin];
 	unsigned int *pin_data = pin->drv_data;
+	u32 port_offset = 0, reg;
 	unsigned int arg = 0;
 	unsigned long flags;
 	void __iomem *addr;
-	u32 port = 0, reg;
 	u32 cfg = 0;
 	u8 bit = 0;
 
@@ -588,7 +588,7 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 
 	if (*pin_data & RZG2L_SINGLE_PIN) {
-		port = RZG2L_SINGLE_PIN_GET_PORT(*pin_data);
+		port_offset = RZG2L_SINGLE_PIN_GET_PORT_OFFSET(*pin_data);
 		cfg = RZG2L_SINGLE_PIN_GET_CFGS(*pin_data);
 		bit = RZG2L_SINGLE_PIN_GET_BIT(*pin_data);
 	} else {
@@ -601,7 +601,7 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 		spin_lock_irqsave(&pctrl->lock, flags);
 		/* handle _L/_H for 32-bit register read/write */
-		addr = pctrl->base + IEN(port);
+		addr = pctrl->base + IEN(port_offset);
 		if (bit >= 4) {
 			bit -= 4;
 			addr += 4;
@@ -660,9 +660,9 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 	const struct pinctrl_pin_desc *pin = &pctrl->desc.pins[_pin];
 	unsigned int *pin_data = pin->drv_data;
 	enum pin_config_param param;
+	u32 port_offset = 0, reg;
 	unsigned long flags;
 	void __iomem *addr;
-	u32 port = 0, reg;
 	unsigned int i;
 	u32 cfg = 0;
 	u8 bit = 0;
@@ -671,7 +671,7 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 
 	if (*pin_data & RZG2L_SINGLE_PIN) {
-		port = RZG2L_SINGLE_PIN_GET_PORT(*pin_data);
+		port_offset = RZG2L_SINGLE_PIN_GET_PORT_OFFSET(*pin_data);
 		cfg = RZG2L_SINGLE_PIN_GET_CFGS(*pin_data);
 		bit = RZG2L_SINGLE_PIN_GET_BIT(*pin_data);
 	} else {
@@ -689,7 +689,7 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 				return -EINVAL;
 
 			/* handle _L/_H for 32-bit register read/write */
-			addr = pctrl->base + IEN(port);
+			addr = pctrl->base + IEN(port_offset);
 			if (bit >= 4) {
 				bit -= 4;
 				addr += 4;
