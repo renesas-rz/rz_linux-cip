@@ -116,6 +116,7 @@
 #define PM_OUTPUT		0x2
 
 #define RZG2L_PIN_ID_TO_PORT(id)	((id) / RZG2L_PINS_PER_PORT)
+#define RZG2L_PIN_ID_TO_PORT_OFFSET(id)	(RZG2L_PIN_ID_TO_PORT(id) + 0x10)
 #define RZG2L_PIN_ID_TO_PIN(id)		((id) % RZG2L_PINS_PER_PORT)
 
 /* Hardware Registers support GPIO interrupt in IA55 Module */
@@ -569,6 +570,23 @@ done:
 	return ret;
 }
 
+static int rzg2l_validate_gpio_pin(struct rzg2l_pinctrl *pctrl,
+				   u32 cfg, u32 port, u8 bit)
+{
+	u8 pincount = RZG2L_GPIO_PORT_GET_PINCNT(cfg);
+	u32 port_index = RZG2L_GPIO_PORT_GET_INDEX(cfg);
+	u32 data;
+
+	if (bit >= pincount || port >= pctrl->data->n_port_pins)
+		return -EINVAL;
+
+	data = pctrl->data->port_pin_configs[port];
+	if (port_index != RZG2L_GPIO_PORT_GET_INDEX(data))
+		return -EINVAL;
+
+	return 0;
+}
+
 static u32 rzg2l_read_pin_config(struct rzg2l_pinctrl *pctrl, u32 offset,
 				 u8 bit, u32 mask)
 {
@@ -610,7 +628,7 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 	enum pin_config_param param = pinconf_to_config_param(*config);
 	const struct pinctrl_pin_desc *pin = &pctrl->desc.pins[_pin];
 	unsigned int *pin_data = pin->drv_data;
-	u32 port_offset = 0;
+	u32 port_offset;
 	unsigned int arg = 0;
 	unsigned long flags;
 	void __iomem *addr;
@@ -626,6 +644,12 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 		bit = RZG2L_SINGLE_PIN_GET_BIT(*pin_data);
 	} else {
 		cfg = RZG2L_GPIO_PORT_GET_CFGS(*pin_data);
+		port_offset = RZG2L_PIN_ID_TO_PORT_OFFSET(_pin);
+		bit = RZG2L_PIN_ID_TO_PIN(_pin);
+
+		if (rzg2l_validate_gpio_pin(pctrl, *pin_data,
+					    RZG2L_PIN_ID_TO_PORT(_pin), bit))
+			return -EINVAL;
 	}
 
 	switch (param) {
@@ -685,7 +709,7 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 	const struct pinctrl_pin_desc *pin = &pctrl->desc.pins[_pin];
 	unsigned int *pin_data = pin->drv_data;
 	enum pin_config_param param;
-	u32 port_offset = 0;
+	u32 port_offset;
 	unsigned long flags;
 	void __iomem *addr;
 	unsigned int i;
@@ -701,6 +725,12 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 		bit = RZG2L_SINGLE_PIN_GET_BIT(*pin_data);
 	} else {
 		cfg = RZG2L_GPIO_PORT_GET_CFGS(*pin_data);
+		port_offset = RZG2L_PIN_ID_TO_PORT_OFFSET(_pin);
+		bit = RZG2L_PIN_ID_TO_PIN(_pin);
+
+		if (rzg2l_validate_gpio_pin(pctrl, *pin_data,
+					    RZG2L_PIN_ID_TO_PORT(_pin), bit))
+			return -EINVAL;
 	}
 
 	for (i = 0; i < num_configs; i++) {
