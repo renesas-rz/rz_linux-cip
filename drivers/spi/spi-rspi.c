@@ -677,7 +677,7 @@ static void qspi_receive_init(const struct rspi_data *rspi)
 static bool __rspi_can_dma(const struct rspi_data *rspi,
 			   const struct spi_transfer *xfer)
 {
-	return xfer->len > rspi->ops->fifo_size;
+	return xfer->len > 0;
 }
 
 static bool rspi_can_dma(struct spi_controller *ctlr, struct spi_device *spi,
