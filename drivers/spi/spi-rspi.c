@@ -311,7 +311,8 @@ static int rspi_rz_set_config_register(struct rspi_data *rspi, int access_size)
 	rspi_write8(rspi, rspi->sppcr, RSPI_SPPCR);
 
 	/* Sets transfer bit rate */
-	rspi_set_rate(rspi);
+	if (!spi_controller_is_slave(rspi->ctlr))
+		rspi_set_rate(rspi);
 
 	/* Disable dummy transmission, set byte access */
 	rspi_write8(rspi, SPDCR_SPLBYTE, RSPI_SPDCR);
@@ -328,7 +329,8 @@ static int rspi_rz_set_config_register(struct rspi_data *rspi, int access_size)
 	rspi_write16(rspi, rspi->spcmd, RSPI_SPCMD0);
 
 	/* Sets RSPI mode */
-	rspi_write8(rspi, SPCR_MSTR, RSPI_SPCR);
+	if (!spi_controller_is_slave(rspi->ctlr))
+		rspi_write8(rspi, SPCR_MSTR, RSPI_SPCR);
 
 	return 0;
 }
@@ -992,7 +994,8 @@ static int rspi_prepare_message(struct spi_controller *ctlr,
 			rspi->speed_hz = xfer->speed_hz;
 	}
 
-	rspi->spcmd = SPCMD_SSLKP;
+	if (!spi_controller_is_slave(rspi->ctlr))
+		rspi->spcmd = SPCMD_SSLKP;
 	if (spi->mode & SPI_CPOL)
 		rspi->spcmd |= SPCMD_CPOL;
 	if (spi->mode & SPI_CPHA)
@@ -1296,7 +1299,10 @@ static int rspi_probe(struct platform_device *pdev)
 	const struct spi_ops *ops;
 	unsigned long clksrc;
 
-	ctlr = spi_alloc_master(&pdev->dev, sizeof(struct rspi_data));
+	if (of_property_read_bool(pdev->dev.of_node, "spi-slave"))
+		ctlr = spi_alloc_slave(&pdev->dev, sizeof(struct rspi_data));
+	else
+		ctlr = spi_alloc_master(&pdev->dev, sizeof(struct rspi_data));
 	if (ctlr == NULL)
 		return -ENOMEM;
 
