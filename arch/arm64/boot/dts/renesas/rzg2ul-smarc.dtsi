@@ -570,7 +570,7 @@
 
 	usb1_pins: usb1 {
 		pinmux = <RZG2L_PORT_PINMUX(5, 4, 5)>, /* VBUS */
-			 <RZG2L_PORT_PINMUX(6, 0, 5)>; /* OVC */
+			 <RZG2L_PORT_PINMUX(6, 0, 1)>; /* OVC */
 	};
 
 #if (SW_ET0_EN_N)
