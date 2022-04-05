@@ -1349,7 +1349,7 @@
 		};
 
 		du: display@feb00000 {
-			compatible = "renesas,du-rzg2l";
+			compatible = "renesas,du-rzv2l";
 			reg = <0 0x10890000 0 0x10000>;
 			interrupts = <GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD R9A07G054_LCDC_CLK_A>,
