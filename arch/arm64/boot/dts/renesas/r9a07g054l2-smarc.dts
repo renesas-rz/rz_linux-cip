@@ -18,8 +18,6 @@
 };
 
 &pinctrl {
-	/delete-node/ can0-stb;
-	/delete-node/ can1-stb;
 	/delete-node/ gpio-sd0-pwr-en-hog;
 	/delete-node/ sd0-dev-sel-hog;
 	/delete-node/ sd1-pwr-en-hog;
