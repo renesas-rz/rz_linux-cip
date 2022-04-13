@@ -45,6 +45,7 @@ dtb-$(CONFIG_ARCH_R8A774C0) += r8a774c0-es10-ek874-mipi-2.1.dtb
 dtb-$(CONFIG_ARCH_R8A774C0) += r8a774c0-es10-ek874-mipi-2.4.dtb
 
 dtb-$(CONFIG_ARCH_R8A774E1) += r8a774e1-hihope-rzg2h.dtb
+dtb-$(CONFIG_ARCH_R9A09G011GBG) += r9a09g011gbg-evaluation-board.dtb
 dtb-$(CONFIG_ARCH_R8A774E1) += r8a774e1-hihope-rzg2h-ex.dtb
 dtb-$(CONFIG_ARCH_R8A774E1) += r8a774e1-hihope-rzg2h-ex-idk-1110wr.dtb
 dtb-$(CONFIG_ARCH_R8A774E1) += r8a774e1-hihope-rzg2h-ex-mipi-2.1.dtb
