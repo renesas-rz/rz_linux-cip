@@ -812,8 +812,10 @@ static void rmw_writeb(u8 bval, void __iomem *addr)
 static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 			    bool force)
 {
-	void __iomem *reg = gic_dist_base(d) + GIC_DIST_TARGET + gic_irq(d);
-	unsigned int cpu;
+	void __iomem *reg = gic_dist_base(d) + GIC_DIST_TARGET + (gic_irq(d) & ~3);
+	unsigned int cpu, shift = (gic_irq(d) % 4) * 8;
+	u32 val, bit;
+	unsigned long flags;
 
 	if (!force)
 		cpu = cpumask_any_and(mask_val, cpu_online_mask);
@@ -826,7 +828,12 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	if (static_branch_unlikely(&needs_rmw_access))
 		rmw_writeb(gic_cpu_map[cpu], reg);
 	else
-		writeb_relaxed(gic_cpu_map[cpu], reg);
+		gic_lock_irqsave(flags);
+		bit = gic_cpu_map[cpu] << shift;
+		val = readl_relaxed(reg) | bit;
+		writel_relaxed(val, reg);
+		gic_unlock_irqrestore(flags);
+
 	irq_data_update_effective_affinity(d, cpumask_of(cpu));
 
 	return IRQ_SET_MASK_OK_DONE;
