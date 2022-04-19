@@ -44,6 +44,10 @@ ifeq ($(CONFIG_BROKEN_GAS_INST),y)
 $(warning Detected assembler with broken .inst; disassembly will be unreliable)
 endif
 
+# This is a workaround for https://bugs.llvm.org/show_bug.cgi?id=30792.
+KBUILD_CFLAGS   += $(call clang-ifversion, -lt, 0600, -mno-implicit-float, -mgeneral-regs-only)
+KBUILD_CFLAGS   += $(lseinstr) $(brokengasinst)
+
 KBUILD_CFLAGS	+= -mgeneral-regs-only	\
 		   $(compat_vdso) $(cc_has_k_constraint)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, psabi)
