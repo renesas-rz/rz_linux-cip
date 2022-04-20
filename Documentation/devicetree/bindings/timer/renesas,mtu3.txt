@@ -70,3 +70,24 @@ Example 2: Add optional properties for pwm_mode1 and pwm_complementary of MTU3.
 		pwm_complementary = <3 1 100000>, <7 0 50000>;
 		status = "okay";
 	};
+
+ - 16-bit_phase_counting: Assign 16-bit A/B phase counting for MTU3 channel1 and channel2, and
+   expose IIO sysfs to interact with. Use this function along with MTLCK pins setting to count
+   when signals change on these pins. Format is:
+
+   16-bit_phase_counting = <indexes of MTU3 channels>;
+
+Example 3: Add A/B phase counters by using channel1 and channel2 of MTU3.
+
+	&mtu3 {
+		16-bit_phase_counting = <1 2>;
+	};
+
+Note: The oder of priority of MTU3's properties is:
+ 1. Phase counter (16-bit_phase_counting).
+ 2. PWM functions (pwm_mode1, pwm_complementary).
+ 3. Clocksource and clockevent (these 2 functions will be automatically supported by the smallest
+    index channels which have not been assgined for any special functions).
+
+For example: If MTU3 channel1 have been set for phase counter and pwm mode 1 at a same time,
+driver will assign phase counting function for this channel.
