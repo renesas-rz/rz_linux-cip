@@ -578,7 +578,7 @@
 		pinmux = <RZG2L_PORT_PINMUX(4, 0, 2)>, /* CK */
 			 <RZG2L_PORT_PINMUX(4, 1, 2)>, /* MOSI */
 			 <RZG2L_PORT_PINMUX(4, 2, 2)>, /* MISO */
-			 <RZG2L_PORT_PINMUX(4, 3, 1)>; /* SSL */
+			 <RZG2L_PORT_PINMUX(4, 3, 2)>; /* SSL */
 	};
 #endif
 
