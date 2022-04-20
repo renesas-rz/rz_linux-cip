@@ -109,6 +109,16 @@
 #error "RZ/G2L can only display 1 output interface"
 #endif
 
+/*
+ * MTU3 macros are created to support setting pinctrl and properties
+ * to use MTU3 functions. However, their pins on PMODs are mixed with SCIF2
+ * and SPI1, so we must disable these modules to avoid conflict.
+ * - MTU3_PWM_SUPPORT: Disable SPI1 to support PWM of channel3.
+ * - MTU3_PHASE_COUNTING_SUPPORT: Disable SCIF2 to support phase counting functions.
+ */
+#define MTU3_PWM_SUPPORT		0
+#define MTU3_PHASE_COUNTING_SUPPORT	0
+
 / {
 	aliases {
 		serial0 = &scif0;
@@ -290,12 +300,14 @@
 			 <RZG2L_PORT_PINMUX(40, 1, 1)>;	/* RxD */
 	};
 
+#if (!MTU3_PHASE_COUNTING_SUPPORT)
 	scif2_pins: scif2 {
 		pinmux = <RZG2L_PORT_PINMUX(48, 0, 1)>, /* TxD */
 			 <RZG2L_PORT_PINMUX(48, 1, 1)>, /* RxD */
 			 <RZG2L_PORT_PINMUX(48, 3, 1)>, /* CTS# */
 			 <RZG2L_PORT_PINMUX(48, 4, 1)>; /* RTS# */
 	};
+#endif
 
 	sdhi0_pins: sd0 {
 		sd0_data {
@@ -441,12 +453,14 @@
 	};
 #endif
 
+#if (!MTU3_PWM_SUPPORT)
 	spi1_pins: rspi1 {
 		pinmux = <RZG2L_PORT_PINMUX(44, 0, 1)>, /* CK */
 			 <RZG2L_PORT_PINMUX(44, 1, 1)>, /* MOSI */
 			 <RZG2L_PORT_PINMUX(44, 2, 1)>, /* MISO */
 			 <RZG2L_PORT_PINMUX(44, 3, 1)>; /* SSL */
 	};
+#endif
 
 #if (GPT3_SUPPORT & !GPT4_SUPPORT)
 	gpt3_pins: gpt3 {
@@ -540,6 +554,29 @@
 		};
 	};
 #endif
+
+#if (MTU3_PWM_SUPPORT || MTU3_PHASE_COUNTING_SUPPORT)
+	mtu3_pins: mtu3 {
+		pinmux =
+#if (MTU3_PWM_SUPPORT)
+			<RZG2L_PORT_PINMUX(3, 0, 4)>,  /* MTIOC2A */
+			<RZG2L_PORT_PINMUX(44, 0, 4)>, /* MTIOC3A */
+			<RZG2L_PORT_PINMUX(44, 1, 4)>, /* MTIOC3B */
+			<RZG2L_PORT_PINMUX(44, 2, 4)>, /* MTIOC3C */
+#if (!MTU3_PHASE_COUNTING_SUPPORT)
+			<RZG2L_PORT_PINMUX(44, 3, 4)>; /* MTIOC3D */
+#else
+			<RZG2L_PORT_PINMUX(44, 3, 4)>, /* MTIOC3D */
+#endif
+#endif
+#if (MTU3_PHASE_COUNTING_SUPPORT)
+			<RZG2L_PORT_PINMUX(48, 0, 4)>, /* MTCLKA */
+			<RZG2L_PORT_PINMUX(48, 1, 4)>, /* MTLCKB */
+			<RZG2L_PORT_PINMUX(48, 3, 4)>, /* MTLCKC */
+			<RZG2L_PORT_PINMUX(48, 4, 4)>; /* MTLCKD */
+#endif
+	};
+#endif
 };
 
 &audio_clk1{
@@ -595,12 +632,14 @@
 	status = "okay";
 };
 
+#if (!MTU3_PHASE_COUNTING_SUPPORT)
 &scif2 {
 	pinctrl-0 = <&scif2_pins>;
 	pinctrl-names = "default";
 	uart-has-rtscts;
 	status = "okay";
 };
+#endif
 
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_pins>;
@@ -777,6 +816,7 @@
 	};
 };
 
+#if (!MTU3_PWM_SUPPORT)
 &spi1 {
 	pinctrl-0 = <&spi1_pins>;
 	pinctrl-names = "default";
@@ -785,6 +825,7 @@
 	       <&dmac 0x2e9a>;
 	dma-names = "tx", "rx";
 };
+#endif
 
 #if !(CN12)
 &poegd {
@@ -964,6 +1005,21 @@
 };
 
 &mtu3 {
+#if (MTU3_PWM_SUPPORT || MTU3_PHASE_COUNTING_SUPPORT)
+	pinctrl-0 = <&mtu3_pins>;
+	pinctrl-names = "default";
+#endif
+
+	/* Enable PWM output at MTIOC2A and MTIOC3C pins. */
+#if MTU3_PWM_SUPPORT
+	pwm_mode1 = <2 0>, <3 1>;
+#endif
+
+#if MTU3_PHASE_COUNTING_SUPPORT
+	/* Enable phase counting for channel1 and channel2. */
+	16-bit_phase_counting = <1 2>;
+#endif
+
 	status = "okay";
 };
 
