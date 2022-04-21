@@ -39,6 +39,7 @@ enum clk_ids {
 	CLK_PLL3_DIV2_2,
 	CLK_PLL3_DIV2_4,
 	CLK_PLL3_DIV2_4_2,
+	CLK_PLL3_DIV4,
 	CLK_SEL_PLL3_3,
 	CLK_DIV_PLL3_C,
 	CLK_PLL4,
@@ -517,3 +518,4 @@ const struct rzg2l_cpg_info r9a07g054_cpg_info = {
 	.num_resets = R9A07G054_STPAI_ARESETN + 1, /* Last reset ID + 1 */
 };
 #endif
+

@@ -25,6 +25,7 @@ properties:
     enum:
       - renesas,r9a07g044-cpg  # RZ/G2{L,LC}
       - renesas,r9a07g054-cpg  # RZ/V2L
+    const: renesas,r9a07g044-cpg  # RZ/G2{L,LC}
 
   reg:
     maxItems: 1

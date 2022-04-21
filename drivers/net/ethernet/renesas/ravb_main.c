@@ -673,6 +673,25 @@ static int ravb_dmac_init(struct net_device *ndev)
 	if (error)
 		return error;
 
+	return 0;
+}
+
+/* Device init function for Ethernet AVB */
+static int ravb_dmac_init(struct net_device *ndev)
+{
+	struct ravb_private *priv = netdev_priv(ndev);
+	const struct ravb_hw_info *info = priv->info;
+	int error;
+
+	/* Set CONFIG mode */
+	error = ravb_config(ndev);
+	if (error)
+		return error;
+
+	error = info->dmac_init(ndev);
+	if (error)
+		return error;
+
 	/* Setting the control will start the AVB-DMAC process. */
 	ravb_modify(ndev, CCC, CCC_OPC, CCC_OPC_OPERATION);
 
@@ -1263,7 +1282,6 @@ static int ravb_poll(struct napi_struct *napi, int budget)
 		entry = priv->cur_rx[q] % priv->num_rx_ring[q];
 		desc = &priv->gbeth_rx_ring[entry];
 	}
-
 	/* Processing RX Descriptor Ring */
 	/* Clear RX interrupt */
 	ravb_write(ndev, ~(mask | RIS0_RESERVED), RIS0);
@@ -1272,7 +1290,7 @@ static int ravb_poll(struct napi_struct *napi, int budget)
 			goto out;
 	}
 
-	/* Processing RX Descriptor Ring */
+	/* Processing TX Descriptor Ring */
 	spin_lock_irqsave(&priv->lock, flags);
 	/* Timestamp updated */
 	if (q == RAVB_NC)
@@ -2500,13 +2518,6 @@ static void ravb_set_config_mode(struct net_device *ndev)
 	}
 }
 
-static const struct soc_device_attribute ravb_delay_mode_quirk_match[] = {
-	{ .soc_id = "r8a774c0" },
-	{ .soc_id = "r8a77990" },
-	{ .soc_id = "r8a77995" },
-	{ /* sentinel */ }
-};
-
 /* Set tx and rx clock internal delay modes */
 static void ravb_parse_delay_mode(struct device_node *np, struct net_device *ndev)
 {
@@ -2537,12 +2548,8 @@ static void ravb_parse_delay_mode(struct device_node *np, struct net_device *nde
 
 	if (priv->phy_interface == PHY_INTERFACE_MODE_RGMII_ID ||
 	    priv->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID) {
-		if (!WARN(soc_device_match(ravb_delay_mode_quirk_match),
-			  "phy-mode %s requires TX clock internal delay mode which is not supported by this hardware revision. Please update device tree",
-			  phy_modes(priv->phy_interface))) {
-			priv->txcidm = 1;
-			priv->rgmii_override = 1;
-		}
+		priv->txcidm = 1;
+		priv->rgmii_override = 1;
 	}
 }
 
@@ -2552,10 +2559,10 @@ static void ravb_set_delay_mode(struct net_device *ndev)
 	u32 set = 0;
 
 	if (priv->rxcidm)
-		set |= APSR_DM_RDM;
+		set |= APSR_RDM;
 	if (priv->txcidm)
-		set |= APSR_DM_TDM;
-	ravb_modify(ndev, APSR, APSR_DM, set);
+		set |= APSR_TDM;
+	ravb_modify(ndev, APSR, APSR_RDM | APSR_TDM, set);
 }
 
 static int ravb_probe(struct platform_device *pdev)
@@ -2572,13 +2579,6 @@ static int ravb_probe(struct platform_device *pdev)
 	if (!np) {
 		dev_err(&pdev->dev,
 			"this driver is required to be instantiated from device tree\n");
-		return -EINVAL;
-	}
-
-	/* Get base address */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "invalid resource\n");
 		return -EINVAL;
 	}
 
@@ -2628,11 +2628,14 @@ static int ravb_probe(struct platform_device *pdev)
 		priv->num_rx_ring[RAVB_NC] = NC_RX_RING_SIZE;
 	}
 
-	priv->addr = devm_ioremap_resource(&pdev->dev, res);
+	priv->addr = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(priv->addr)) {
 		error = PTR_ERR(priv->addr);
 		goto out_release;
 	}
+
+	/* The Ether-specific entries in the device structure. */
+	ndev->base_addr = res->start;
 
 	spin_lock_init(&priv->lock);
 	INIT_WORK(&priv->work, ravb_tx_timeout_work);
@@ -2676,6 +2679,13 @@ static int ravb_probe(struct platform_device *pdev)
 		goto out_release;
 	}
 
+	priv->refclk = devm_clk_get_optional(&pdev->dev, "refclk");
+	if (IS_ERR(priv->refclk)) {
+		error = PTR_ERR(priv->refclk);
+		goto out_release;
+	}
+	clk_prepare_enable(priv->refclk);
+
 	ndev->max_mtu = info->rx_max_buf_size - (ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN);
 	ndev->min_mtu = ETH_MIN_MTU;
 
@@ -2697,7 +2707,7 @@ static int ravb_probe(struct platform_device *pdev)
 		/* Set GTI value */
 		error = ravb_set_gti(ndev);
 		if (error)
-			goto out_release;
+			goto out_disable_refclk;
 
 		/* Request GTI loading */
 		ravb_modify(ndev, GCCR, GCCR_LTI, GCCR_LTI);
@@ -2717,7 +2727,7 @@ static int ravb_probe(struct platform_device *pdev)
 			"Cannot allocate desc base address table (size %d bytes)\n",
 			priv->desc_bat_size);
 		error = -ENOMEM;
-		goto out_release;
+		goto out_disable_refclk;
 	}
 	for (q = RAVB_BE; q < DBAT_ENTRY_NUM; q++)
 		priv->desc_bat[q].die_dt = DT_EOS;
@@ -2780,6 +2790,8 @@ out_dma_free:
 	/* Stop PTP Clock driver */
 	if (info->ccc_gac)
 		ravb_ptp_stop(ndev);
+out_disable_refclk:
+	clk_disable_unprepare(priv->refclk);
 out_release:
 	free_netdev(ndev);
 
@@ -2798,6 +2810,8 @@ static int ravb_remove(struct platform_device *pdev)
 	/* Stop PTP Clock driver */
 	if (info->ccc_gac)
 		ravb_ptp_stop(ndev);
+
+	clk_disable_unprepare(priv->refclk);
 
 	dma_free_coherent(ndev->dev.parent, priv->desc_bat_size, priv->desc_bat,
 			  priv->desc_bat_dma);

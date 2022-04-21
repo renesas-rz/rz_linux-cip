@@ -38,7 +38,10 @@ properties:
   reg:
     maxItems: 1
 
-  interrupts: true
+  interrupts:
+    items:
+      - description: Channel interrupt
+      - description: Global interrupt
 
   clocks:
     maxItems: 3
@@ -52,7 +55,8 @@ properties:
   power-domains:
     maxItems: 1
 
-  resets: true
+  resets:
+    maxItems: 1
 
   renesas,no-can-fd:
     $ref: /schemas/types.yaml#/definitions/flag
