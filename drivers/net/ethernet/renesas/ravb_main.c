@@ -673,25 +673,6 @@ static int ravb_dmac_init(struct net_device *ndev)
 	if (error)
 		return error;
 
-	return 0;
-}
-
-/* Device init function for Ethernet AVB */
-static int ravb_dmac_init(struct net_device *ndev)
-{
-	struct ravb_private *priv = netdev_priv(ndev);
-	const struct ravb_hw_info *info = priv->info;
-	int error;
-
-	/* Set CONFIG mode */
-	error = ravb_config(ndev);
-	if (error)
-		return error;
-
-	error = info->dmac_init(ndev);
-	if (error)
-		return error;
-
 	/* Setting the control will start the AVB-DMAC process. */
 	ravb_modify(ndev, CCC, CCC_OPC, CCC_OPC_OPERATION);
 

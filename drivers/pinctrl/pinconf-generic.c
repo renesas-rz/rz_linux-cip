@@ -180,7 +180,6 @@ static const struct pinconf_generic_params dt_params[] = {
 	{ "output-disable", PIN_CONFIG_OUTPUT_ENABLE, 0 },
 	{ "output-enable", PIN_CONFIG_OUTPUT_ENABLE, 1 },
 	{ "output-high", PIN_CONFIG_OUTPUT, 1, },
-	{ "output-impedance-ohms", PIN_CONFIG_OUTPUT_IMPEDANCE_OHMS, 0 },
 	{ "output-low", PIN_CONFIG_OUTPUT, 0, },
 	{ "output-impedance-ohms", PIN_CONFIG_OUTPUT_IMPEDANCE_OHMS, 0 },
 	{ "power-source", PIN_CONFIG_POWER_SOURCE, 0 },
