@@ -75,7 +75,7 @@
 #endif
 };
 
-#if (SW_SCIF_CAN || SW_RSPI_CAN)
+#if (SW_SCIF_CAN || (SW_RSPI_CAN && !MTU3_PWM_SUPPORT))
 &canfd {
 	pinctrl-0 = <&can1_pins>;
 	/delete-node/ channel0;
@@ -183,10 +183,22 @@
 };
 #endif
 
-#if (!SW_RSPI_CAN)
+#if (!SW_RSPI_CAN && !MTU3_PWM_SUPPORT)
 &spi1 {
 	pinctrl-0 = <&spi1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+};
+#endif
+
+/*
+ * Enable output PWM waveform output at MTIOC3A as an example.
+ * To add other functions, please refer related documents.
+ */
+#if (MTU3_PWM_SUPPORT)
+&mtu3 {
+	pinctrl-0 = <&mtu3_pins>;
+	pinctrl-names = "default";
+	pwm_mode1 = <3 0>;
 };
 #endif

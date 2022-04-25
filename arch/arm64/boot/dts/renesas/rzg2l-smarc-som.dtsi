@@ -22,6 +22,14 @@
 
 #define POEGD_SUPPORT           1
 
+/*
+ * Select PWM support of MTU3 channel 3 (1: enable, 0: disable).
+ * Be noticed that MTIOC3 pins use PMOD0 pin1 to pin4 which are
+ * mixed with SPI1 pins, so this module must be disabled
+ * when turning on this configuration.
+ */
+#define MTU3_PWM_SUPPORT	0
+
 / {
 	aliases {
 		ethernet0 = &eth0;

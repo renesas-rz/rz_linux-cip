@@ -34,7 +34,8 @@
 	};
 #endif
 
-#if SW_RSPI_CAN
+#if (!MTU3_PWM_SUPPORT)
+#if (SW_RSPI_CAN)
 	/* SW8 should be at position 2->3 so that GPIO9_CAN1_STB line is activated */
 	can1-stb {
 		gpio-hog;
@@ -47,14 +48,22 @@
 		pinmux = <RZG2L_PORT_PINMUX(44, 0, 3)>, /* TxD */
 			 <RZG2L_PORT_PINMUX(44, 1, 3)>; /* RxD */
 	};
-#endif
-
+#else
 	spi1_pins: spi1 {
 		pinmux = <RZG2L_PORT_PINMUX(44, 0, 1)>,
 			 <RZG2L_PORT_PINMUX(44, 1, 1)>,
 			 <RZG2L_PORT_PINMUX(44, 2, 1)>,
 			 <RZG2L_PORT_PINMUX(44, 3, 1)>;
 	};
+#endif
+#else
+	mtu3_pins: mtu3 {
+		pinmux = <RZG2L_PORT_PINMUX(44, 0, 4)>, /* MTIOC3A */
+			 <RZG2L_PORT_PINMUX(44, 1, 4)>, /* MTIOC3B */
+			 <RZG2L_PORT_PINMUX(44, 2, 4)>, /* MTIOC3C */
+			 <RZG2L_PORT_PINMUX(44, 3, 4)>; /* MTIOC3D */
+	};
+#endif
 
 	sd1-pwr-en-hog {
 		gpio-hog;

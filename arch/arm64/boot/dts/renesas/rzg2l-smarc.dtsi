@@ -64,3 +64,15 @@
 	interrupt-parent = <&pinctrl>;
 	interrupts = <RZG2L_GPIO(2, 1) IRQ_TYPE_EDGE_FALLING>;
 };
+
+/*
+ * Enable output PWM waveform output at MTIOC3A as an example.
+ * To add other functions, please refer related documents.
+ */
+#if (MTU3_PWM_SUPPORT)
+&mtu3 {
+	pinctrl-0 = <&mtu3_pins>;
+	pinctrl-names = "default";
+	pwm_mode1 = <3 0>;
+};
+#endif
