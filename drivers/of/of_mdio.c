@@ -178,8 +178,8 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 				 child->name, addr);
 
 			rc = of_mdiobus_register_phy(mdio, child, addr);
-			if (rc)
-				continue;
+			if (!rc)
+				break;
 		}
 	}
 
