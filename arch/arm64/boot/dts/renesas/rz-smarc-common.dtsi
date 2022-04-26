@@ -279,17 +279,6 @@
 	status = "okay";
 };
 
-#if (!MTU3_PWM_SUPPORT)
-&spi1 {
-	pinctrl-0 = <&spi1_pins>;
-	pinctrl-names = "default";
-	dmas = <&dmac 0x2e99>, <&dmac 0x2e9a>;
-	dma-names = "tx", "rx";
-
-	status = "okay";
-};
-#endif
-
 &ssi0 {
 	pinctrl-0 = <&ssi0_pins>;
 	pinctrl-names = "default";
