@@ -114,6 +114,8 @@
 		serial0 = &scif0;
 		serial1 = &scif1;
 		serial2 = &scif2;
+		mmc0 = &sdhi0;
+		mmc1 = &sdhi1;
 #if (CAN_SUPPORT)
 		can0 = &canfd;
 		can1 = &canfd;
