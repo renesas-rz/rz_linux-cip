@@ -387,7 +387,7 @@ config NOMMU_INITIAL_TRIM_EXCESS
 
 config TRANSPARENT_HUGEPAGE
 	bool "Transparent Hugepage Support"
-	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE && !PREEMPT_RT
 	select COMPACTION
 	select XARRAY_MULTI
 	help
@@ -866,5 +866,8 @@ config RENESAS_MFIS_ECC
 	 This feature enable user to catch interrupt when an error in DRAM
 	 detected by ECC.
 	 The error detected can be single/multiple bits error.
+
+config KMAP_LOCAL
+	bool
 
 endmenu
