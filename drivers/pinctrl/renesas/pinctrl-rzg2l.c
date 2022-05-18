@@ -1881,11 +1881,11 @@ static struct rzg2l_pinctrl_data r9a07g043_data = {
 };
 
 static struct rzg2l_pinctrl_data r9a07g043f_data = {
-	.port_pins = rzg2l_gpio_names,
-	.port_pin_configs = rzg2l_gpio_configs,
-	.dedicated_pins = rzg2l_dedicated_pins,
-	.n_port_pins = ARRAY_SIZE(rzg2l_gpio_names),
-	.n_dedicated_pins = ARRAY_SIZE(rzg2l_dedicated_pins),
+	.port_pins = rzg2ul_gpio_names,
+	.port_pin_configs = rzg2ul_gpio_configs,
+	.dedicated_pins = rzg2ul_dedicated_pins,
+	.n_port_pins = ARRAY_SIZE(rzg2ul_gpio_names),
+	.n_dedicated_pins = ARRAY_SIZE(rzg2ul_dedicated_pins),
 	.pin_info = rzg2ul_pin_info,
 	.ngpioints = ARRAY_SIZE(rzg2ul_pin_info),
 	.irq_mask = true,
