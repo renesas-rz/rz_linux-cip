@@ -23,6 +23,7 @@ properties:
           - enum:
               - renesas,r9a07g044-wdt    # RZ/G2{L,LC}
               - renesas,r9a07g043-wdt    # RZ/G2UL
+              - renesas,r9a07g043f-wdt   # RZ/Five
           - const: renesas,rzg2l-wdt     # RZ/G2L
 
       - items:
