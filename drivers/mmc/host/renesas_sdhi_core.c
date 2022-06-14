@@ -35,6 +35,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinctrl-state.h>
 #include <linux/regulator/consumer.h>
+#include <linux/sys_soc.h>
 
 #include "renesas_sdhi.h"
 #include "tmio_mmc.h"
@@ -178,6 +179,7 @@ static void renesas_sdhi_clk_stop(struct tmio_mmc_host *host)
 static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
 				   unsigned int new_clock)
 {
+	struct renesas_sdhi *priv = host_to_priv(host);
 	u32 clk = 0, clock;
 
 	if (new_clock == 0) {
@@ -189,7 +191,7 @@ static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
 	 * set 400MHz to distinguish the CPG settings in HS400.
 	 */
 	if (host->mmc->ios.timing == MMC_TIMING_MMC_HS400 &&
-	    host->pdata->flags & TMIO_MMC_HAVE_4TAP_HS400 &&
+	    priv->quirks && priv->quirks->hs400_4taps &&
 	    new_clock == 200000000)
 		new_clock = 400000000;
 
@@ -371,8 +373,7 @@ static void renesas_sdhi_hs400_complete(struct tmio_mmc_host *host)
 		       sd_scc_read32(host, priv,
 				     SH_MOBILE_SDHI_SCC_DTCNTL));
 
-
-	if (host->pdata->flags & TMIO_MMC_HAVE_4TAP_HS400)
+	if (priv->quirks && priv->quirks->hs400_4taps)
 		sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TAPSET,
 			       host->tap_set / 2);
 
@@ -613,11 +614,25 @@ static void renesas_sdhi_enable_dma(struct tmio_mmc_host *host, bool enable)
 	renesas_sdhi_sdbuf_width(host, enable ? width : 16);
 }
 
+static const struct renesas_sdhi_quirks sdhi_quirks_4tap = {
+	.hs400_4taps = true,
+};
+
+static const struct soc_device_attribute sdhi_quirks_match[]  = {
+	{ .soc_id = "r8a774a1", .revision = "ES1.[012]",
+				.data = &sdhi_quirks_4tap },
+	{ .soc_id = "r8a7795",  .data = &sdhi_quirks_4tap },
+	{ .soc_id = "r8a7796",  .data = &sdhi_quirks_4tap },
+	{ /* sentinel */ }
+};
+
 int renesas_sdhi_probe(struct platform_device *pdev,
 		       const struct tmio_mmc_dma_ops *dma_ops)
 {
 	struct tmio_mmc_data *mmd = pdev->dev.platform_data;
+	const struct renesas_sdhi_quirks *quirks = NULL;
 	const struct renesas_sdhi_of_data *of_data;
+	const struct soc_device_attribute *attr;
 	struct tmio_mmc_data *mmc_data;
 	struct tmio_mmc_dma *dma_priv;
 	struct tmio_mmc_host *host;
@@ -628,6 +643,10 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 
 	of_data = of_device_get_match_data(&pdev->dev);
 
+	attr = soc_device_match(sdhi_quirks_match);
+	if (attr)
+		quirks = attr->data;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -EINVAL;
@@ -637,6 +656,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	if (!priv)
 		return -ENOMEM;
 
+	priv->quirks = quirks;
 	mmc_data = &priv->mmc_data;
 	dma_priv = &priv->dma_priv;
 
@@ -765,20 +785,23 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	     host->mmc->caps2 & (MMC_CAP2_HS200_1_8V_SDR |
 				 MMC_CAP2_HS400_1_8V))) {
 		const struct renesas_sdhi_scc *taps = of_data->taps;
+		bool use_4tap = priv->quirks && priv->quirks->hs400_4taps;
 		bool hit = false;
 
 		for (i = 0; i < of_data->taps_num; i++) {
 			if (taps[i].clk_rate == 0 ||
 			    taps[i].clk_rate == host->mmc->f_max) {
 				priv->scc_tappos = taps->tap;
-				priv->scc_tappos_hs400 = taps->tap_hs400;
+				priv->scc_tappos_hs400 = use_4tap ?
+							 taps->tap_hs400_4tap :
+							 taps->tap;
 				hit = true;
 				break;
 			}
 		}
 
 		if (!hit)
-			dev_warn(&host->pdev->dev, "Unknown clock rate for SDR104\n");
+			dev_warn(&host->pdev->dev, "Unknown clock rate for tuning\n");
 
 		host->init_tuning = renesas_sdhi_init_tuning;
 		host->prepare_tuning = renesas_sdhi_prepare_tuning;
