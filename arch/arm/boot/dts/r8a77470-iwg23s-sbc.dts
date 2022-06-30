@@ -422,6 +422,7 @@
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&vccq_sdhi2>;
 	bus-width = <4>;
+	sd-uhs-sdr50;
 	cd-gpios = <&gpio4 20 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
