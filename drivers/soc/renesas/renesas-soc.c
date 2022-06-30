@@ -448,7 +448,7 @@ static int __init renesas_soc_init(void)
 						   eslo);
 
 	/*FIXME: current RZG2UL family do not support product revision*/
-	if (strcmp(soc_dev_attr->family, fam_rzg2ul.name))
+	if (!strcmp(soc_dev_attr->family, fam_rzg2ul.name))
 		soc_dev_attr->revision = 0;
 
 	pr_info("Detected Renesas %s %s %s\n", soc_dev_attr->family,
