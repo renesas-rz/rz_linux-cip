@@ -984,7 +984,6 @@
 			power-domains = <&cpg_clocks>;
 			renesas,clk-rate = <97500000>;
 			renesas,mmc-scc-tapnum = <8>;
-			sd-uhs-sdr50;
 			status = "disabled";
 		};
 
