@@ -275,20 +275,6 @@ static const struct pwm_ops v2m_pwm_ops = {
        .owner = THIS_MODULE,
 };
 
-static irqreturn_t v2m_pwm_interrupt(int irq, void *data)
-{
-       struct v2m_pwm_chip *rp = data;
-       u32 value;
-
-       value = v2m_pwm_read(rp, V2M_PWMINT);
-       if (value & V2M_PWMINT_PWMIC) {
-               v2m_pwm_update(rp, V2M_PWMINT_PWMIC, V2M_PWMINT_PWMIC, V2M_PWMINT);
-               wait_time(rp, 5, 5); //leave a write interval of 5 * PCLK + 5 * PWM_CLK
-       }
-
-       return IRQ_HANDLED;
-}
-
 static int v2m_pwm_probe(struct platform_device *pdev)
 {
        struct v2m_pwm_chip *v2m_pwm;
@@ -320,12 +306,6 @@ static int v2m_pwm_probe(struct platform_device *pdev)
        if (irq < 0) {
                dev_err(&pdev->dev, "Failed to obtain IRQ\n");
                return irq;
-       }
-
-       ret = devm_request_irq(&pdev->dev, irq, v2m_pwm_interrupt, 0, pdev->name, v2m_pwm);
-       if (ret < 0) {
-               dev_err(&pdev->dev, "Failed to request IRQ\n");
-               return ret;
        }
 
        platform_set_drvdata(pdev, v2m_pwm);
