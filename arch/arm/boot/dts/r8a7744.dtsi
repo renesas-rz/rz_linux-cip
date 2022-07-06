@@ -1539,7 +1539,6 @@
 			dma-names = "tx", "rx", "tx", "rx";
 			renesas,clk-rate = <97500000>;
 			renesas,mmc-scc-tapnum = <8>;
-			sd-uhs-sdr50;
 			power-domains = <&cpg_clocks>;
 			status = "disabled";
 		};
