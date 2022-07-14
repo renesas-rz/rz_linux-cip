@@ -55,6 +55,7 @@ enum clk_ids {
 	CLK_PLL2_SDHI_266,
 	CLK_SD0_DIV4,
 	CLK_SD1_DIV4,
+	CLK_SEL_GPU2,
 
 	/* Module Clocks */
 	MOD_CLK_BASE,
@@ -111,6 +112,7 @@ static const char * const sel_pll3_3[] = { ".pll3_533", ".pll3_400" };
 static const char * const sel_pll5_4[] = { ".pll5", ".pll5_fout1ph0" };
 static const char * const sel_pll6_2[]	= { ".pll6_250", ".pll5_250" };
 static const char * const sel_shdi[] = { ".clk_533", ".clk_400", ".clk_266" };
+static const char * const sel_gpu2[] = { ".pll6", ".pll3_div2_2" };
 
 static const struct cpg_core_clk r9a07g044_core_clks[] __initconst = {
 	/* External Clock Inputs */
@@ -134,6 +136,8 @@ static const struct cpg_core_clk r9a07g044_core_clks[] __initconst = {
 		sel_pll5_4, ARRAY_SIZE(sel_pll5_4), 0, CLK_MUX_HIWORD_MASK),
 
 	DEF_FIXED(".pll6", CLK_PLL6, CLK_EXTAL, 125, 6),
+	DEF_MUX(".sel_gpu2", CLK_SEL_GPU2, SEL_GPU2,
+		sel_gpu2, ARRAY_SIZE(sel_gpu2), 0, CLK_MUX_READ_ONLY),
 
 	DEF_FIXED(".pll2_div2", CLK_PLL2_DIV2, CLK_PLL2, 1, 2),
 	DEF_FIXED(".clk_800", CLK_PLL2_800, CLK_PLL2, 1, 2),
@@ -188,6 +192,8 @@ static const struct cpg_core_clk r9a07g044_core_clks[] __initconst = {
 		   sel_shdi, ARRAY_SIZE(sel_shdi)),
 	DEF_FIXED("SD0_DIV4", CLK_SD0_DIV4, R9A07G044_CLK_SD0, 1, 4),
 	DEF_FIXED("SD1_DIV4", CLK_SD1_DIV4, R9A07G044_CLK_SD1, 1, 4),
+	DEF_DIV("G", R9A07G044_CLK_G, CLK_SEL_GPU2, DIVGPU, dtable_1_8,
+		CLK_DIVIDER_HIWORD_MASK),
 };
 
 static struct rzg2l_mod_clk r9a07g044_mod_clks[] = {
