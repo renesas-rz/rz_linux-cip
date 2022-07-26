@@ -194,7 +194,7 @@ static const int rzg2l_pin_info[] = {
 	RZG2L_PIN_INFO(47, 0), RZG2L_PIN_INFO(47, 1), RZG2L_PIN_INFO(47, 2),
 	RZG2L_PIN_INFO(47, 3),
 	RZG2L_PIN_INFO(48, 0), RZG2L_PIN_INFO(48, 1), RZG2L_PIN_INFO(48, 2),
-	RZG2L_PIN_INFO(48, 3), RZG2L_PIN_INFO(48, 3),
+	RZG2L_PIN_INFO(48, 3), RZG2L_PIN_INFO(48, 4),
 };
 
 static const int rzg2ul_pin_info[] = {
