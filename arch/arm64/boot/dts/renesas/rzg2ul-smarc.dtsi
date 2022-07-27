@@ -19,6 +19,15 @@
 #define	SW_SW0_DEV_SEL	1
 #define	SW_ET0_EN_N	1
 
+/*
+ * MTU3 macros are created to support setting pinctrl and properties in order
+ * to use MTU3 functions.
+ * - MTU3_PWM_SUPPORT: Support PWM of MTU3. PWM mode 1 of MTIOC2A will be selected
+ *   while modules whose pins are mixed with pins of MTU3 channel2 will be disabled
+ *   due to conflict.
+ */
+#define MTU3_PWM_SUPPORT	0
+
 / {
 	aliases {
 		i2c0 = &i2c0;
@@ -227,7 +236,7 @@
 	status = "okay";
 };
 
-#if !(SW_ET0_EN_N)
+#if (!SW_ET0_EN_N && !MTU3_PWM_SUPPORT)
 &eth0 {
 	pinctrl-0 = <&ether0_pins>;
 	pinctrl-names = "default";
@@ -421,7 +430,7 @@
 	};
 #endif
 
-#if !(SW_ET0_EN_N)
+#if (!SW_ET0_EN_N && !MTU3_PWM_SUPPORT)
 	ether0_pins: eth0 {
 		pinmux = <RZG2L_PORT_PINMUX(4, 5, 1)>, /* ET0_LINKSTA */
 			 <RZG2L_PORT_PINMUX(4, 3, 1)>, /* ET0_MDC */
@@ -591,7 +600,7 @@
 			 <RZG2L_PORT_PINMUX(6, 0, 1)>; /* OVC */
 	};
 
-#if (SW_ET0_EN_N)
+#if (SW_ET0_EN_N && !MTU3_PWM_SUPPORT)
 	spi1_pins: rspi1 {
 		pinmux = <RZG2L_PORT_PINMUX(4, 0, 2)>, /* CK */
 			 <RZG2L_PORT_PINMUX(4, 1, 2)>, /* MOSI */
@@ -644,6 +653,12 @@
 			pinmux = <RZG2L_PORT_PINMUX(11, 3, 6)>; /* CLK */
 		};
 	};
+
+#if MTU3_PWM_SUPPORT
+	mtu3_pins: mtu3 {
+		pinmux = <RZG2L_PORT_PINMUX(4, 0, 4)>; /* MTIOC2A */
+	};
+#endif
 };
 
 &sbc {
@@ -801,9 +816,16 @@
 };
 
 &mtu3 {
+#if MTU3_PWM_SUPPORT
+	pinctrl-0 = <&mtu3_pins>;
+	pinctrl-names = "default";
+
+	pwm_mode1 = <2 0>;
+#endif
 	status = "okay";
 };
 
+#if (!MTU3_PWM_SUPPORT)
 &spi1 {
 #if (SW_ET0_EN_N)
 	pinctrl-0 = <&spi1_pins>;
@@ -813,3 +835,4 @@
 #endif
 	status = "okay";
 };
+#endif
