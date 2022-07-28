@@ -129,6 +129,13 @@
 #define MTU3_PHASE_COUNTING_SUPPORT		0
 #define MTU3_32BIT_PHASE_COUNTING_SELECT	0
 
+/*
+ * POE3_SUPPORT is used to enable POE3 to control Hi-Z state of complementary PWM
+ * signals at MTIOC3B-MTIOC3D. Note: This macro must be enabled along with macros
+ * MTU3_PWM_SUPPORT and MTU3_PWM_COMPLEMENTARY_SELECT to fully take effect.
+ */
+#define POE3_SUPPORT				0
+
 / {
 	aliases {
 		serial0 = &scif0;
@@ -1054,6 +1061,16 @@
 
 	status = "okay";
 };
+
+#if (MTU3_PWM_SUPPORT && MTU3_PWM_COMPLEMENTARY_SELECT && POE3_SUPPORT)
+&poe3 {
+	status = "okay";
+
+	mtu3_ch34 {
+		mtu3_outputs = <0>; /* MTIOC3B-MTIOC3D */
+	};
+};
+#endif
 
 &ohci0 {
 	dr_mode = "otg";
