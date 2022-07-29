@@ -61,6 +61,11 @@ static const struct renesas_family fam_rzg2l __initconst __maybe_unused = {
 	.name	= "RZ/G2L",
 };
 
+static const struct renesas_family fam_rzg2ul __initconst __maybe_unused = {
+	.name	= "RZ/G2UL",
+	.reg	= 0x11020a04,           /* DEVID (Device ID Register) */
+};
+
 static const struct renesas_family fam_rzv2l __initconst __maybe_unused = {
 	.name	= "RZ/V2L",
 };
@@ -143,6 +148,11 @@ static const struct renesas_soc soc_rz_g2h __initconst __maybe_unused = {
 static const struct renesas_soc soc_rz_g2l __initconst __maybe_unused = {
 	.family = &fam_rzg2l,
 	.id     = 0x841c447,
+};
+
+static const struct renesas_soc soc_rz_g2ul __initconst __maybe_unused = {
+	.family = &fam_rzg2ul,
+	.id	= 0x8450447,
 };
 
 static const struct renesas_soc soc_rz_v2l __initconst __maybe_unused = {
@@ -321,6 +331,9 @@ static const struct of_device_id renesas_socs[] __initconst = {
 #ifdef CONFIG_ARCH_R8A779A0
 	{ .compatible = "renesas,r8a779a0",	.data = &soc_rcar_v3u },
 #endif
+#ifdef CONFIG_ARCH_R9A07G043
+	{ .compatible = "renesas,r9a07g043",	.data = &soc_rz_g2ul },
+#endif
 #if defined(CONFIG_ARCH_R9A07G044)
 	{ .compatible = "renesas,r9a07g044",	.data = &soc_rz_g2l },
 #endif
@@ -440,6 +453,10 @@ static int __init renesas_soc_init(void)
 			goto free_soc_dev_attr;
 		}
 	}
+
+	/* FIXME: current RZG2UL family do not support product revision */
+	if (!strcmp(soc_dev_attr->family, fam_rzg2ul.name))
+		soc_dev_attr->revision = 0;
 
 	pr_info("Detected Renesas %s %s %s%s\n", soc_dev_attr->family,
 		soc_dev_attr->soc_id, rev_prefix, soc_dev_attr->revision ?: "");
