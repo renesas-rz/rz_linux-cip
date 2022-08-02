@@ -249,6 +249,7 @@ struct spi_ops {
 	u16 flags;
 	u16 fifo_size;
 	u8 num_hw_ss;
+	bool need_dmar_clr;
 };
 
 static void rspi_set_rate(struct rspi_data *rspi)
@@ -616,6 +617,12 @@ static int rspi_dma_transfer(struct rspi_data *rspi, struct sg_table *tx,
 					       rspi->dma_callbacked, HZ);
 	if (ret > 0 && rspi->dma_callbacked) {
 		ret = 0;
+		if (rspi->ops->need_dmar_clr) {
+			if (tx)
+				dmaengine_synchronize(rspi->ctlr->dma_tx);
+			if (rx)
+				dmaengine_synchronize(rspi->ctlr->dma_rx);
+		}
 	} else {
 		if (!ret) {
 			dev_err(&rspi->ctlr->dev, "DMA timeout\n");
@@ -680,7 +687,7 @@ static void qspi_receive_init(const struct rspi_data *rspi)
 static bool __rspi_can_dma(const struct rspi_data *rspi,
 			   const struct spi_transfer *xfer)
 {
-	return xfer->len > 0;
+	return xfer->len > rspi->ops->fifo_size;
 }
 
 static bool rspi_can_dma(struct spi_controller *ctlr, struct spi_device *spi,
@@ -1200,6 +1207,7 @@ static const struct spi_ops rspi_rz_ops = {
 	.flags =		SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX,
 	.fifo_size =		8,	/* 8 for TX, 32 for RX */
 	.num_hw_ss =		1,
+	.need_dmar_clr =	true,
 };
 
 static const struct spi_ops qspi_ops = {
