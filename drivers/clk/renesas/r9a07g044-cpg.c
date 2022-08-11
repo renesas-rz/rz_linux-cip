@@ -367,7 +367,7 @@ static const struct {
 		DEF_MOD("cru_sysclk",	R9A07G044_CRU_SYSCLK, CLK_PLL3_533_DIV4,
 					0x564, 0, 0),
 		DEF_MOD("cru_vclk",	R9A07G044_CRU_VCLK, R9A07G044_CLK_M2,
-					0x564, 1, MSTOP(PERI_VIDEO_MSTOP, BIT(3))),
+					0x564, 1, 0),
 		DEF_MOD("cru_pclk",	R9A07G044_CRU_PCLK, R9A07G044_CLK_ZT,
 					0x564, 2, 0),
 		DEF_MOD("cru_aclk",	R9A07G044_CRU_ACLK, R9A07G044_CLK_M0,
