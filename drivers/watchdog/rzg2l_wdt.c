@@ -16,7 +16,6 @@
 #include <linux/reset.h>
 #include <linux/units.h>
 #include <linux/watchdog.h>
-#include <asm/system_misc.h>
 
 #define WDTCNT		0x00
 #define WDTSET		0x04
@@ -35,8 +34,6 @@
 #define WDTSET_COUNTER_VAL(f)		((f) << 20)
 
 #define F2CYCLE_NSEC(f)			(1000000000 / (f))
-
-extern void (*arm_pm_restart)(int reboot_mode, const char *cmd);
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
@@ -249,16 +246,6 @@ static int rzg2l_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_nowayout(&priv->wdev, nowayout);
 	watchdog_stop_on_unregister(&priv->wdev);
-
-	/*
-	 * TODO:
-	 * Reboot code is specific controlled by PSCI for ARM64.
-	 * However, we do not support reboot code in TF-A currently.
-	 * Will update when TF-A support reboot API.
-	 */
-
-	arm_pm_restart = NULL;
-	watchdog_set_restart_priority(&priv->wdev, 0);
 
 	ret = watchdog_init_timeout(&priv->wdev, 0, dev);
 	if (ret)
