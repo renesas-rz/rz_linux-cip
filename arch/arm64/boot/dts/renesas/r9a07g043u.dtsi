@@ -12,6 +12,13 @@
 #include "r9a07g043.dtsi"
 
 / {
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
