@@ -67,7 +67,7 @@
 };
 
 &i2c0 {
-	ov5640@0 {
+	ov5640@3c {
 		compatible = "ovti,ov5640";
 		reg = <0x3c>;
 		remote = <&vin0>;
@@ -80,7 +80,7 @@
 		};
 	};
 
-	ov7725@0 {
+	ov7725@21 {
 		compatible = "ov772x";
 		reg = <0x21>;
 		remote = <&vin0>;
@@ -108,7 +108,7 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	ov5640@1 {
+	ov5640@3c {
 		compatible = "ovti,ov5640";
 		reg = <0x3c>;
 		remote = <&vin1>;
@@ -121,7 +121,7 @@
 		};
 	};
 
-	ov7725@1 {
+	ov7725@21 {
 		compatible = "ov772x";
 		reg = <0x21>;
 		remote = <&vin1>;
@@ -143,7 +143,7 @@
 };
 
 &i2c2 {
-	ov5640@2 {
+	ov5640@3c {
 		compatible = "ovti,ov5640";
 		reg = <0x3c>;
 		remote = <&vin2>;
@@ -156,7 +156,7 @@
 		};
 	};
 
-	ov7725@2 {
+	ov7725@21 {
 		compatible = "ov772x";
 		reg = <0x21>;
 		remote = <&vin2>;
@@ -184,7 +184,7 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	ov5640@3 {
+	ov5640@3c {
 		compatible = "ovti,ov5640";
 		reg = <0x3c>;
 		remote = <&vin3>;
@@ -197,7 +197,7 @@
 		};
 	};
 
-	ov7725@3 {
+	ov7725@21 {
 		compatible = "ov772x";
 		reg = <0x21>;
 		remote = <&vin3>;
