@@ -72,7 +72,8 @@ const struct soc_device_attribute rcar_sysc_quirks_match[] __initconst = {
 	{
 		.soc_id = "r8a774a1", .revision = "ES1.*",
 		.data = (void *)(BIT(R8A774A1_PD_A3VC)
-			| BIT(R8A774A1_PD_A2VC0) | BIT(R8A774A1_PD_A2VC1),
+			| BIT(R8A774A1_PD_A2VC0) | BIT(R8A774A1_PD_A2VC1)
+			| BIT(R8A774A1_PD_3DG_A) | BIT(R8A774A1_PD_3DG_B)),
 	},
 	{ /* sentinel */ }
 };
