@@ -171,6 +171,8 @@ static const struct cpg_core_clk r9a09g057_core_clks[] __initconst = {
 };
 
 static struct rzg2l_mod_clk r9a09g057_mod_clks[] = {
+	DEF_MOD("icu",			R9A09G057_ICU_PCLK_I, CLK_PLLCM33_DIV16,
+					0x600, 5, 0),
 	DEF_MOD("gic",			R9A09G057_GIC_GICCLK, CLK_PLLDTY_ACPU_DIV4,
 					0x604, 3, 0),
 	DEF_MOD("rsci0_pclk",		R9A09G057_RSCI0_PCLK, CLK_PLLCM33_DIV16,
@@ -326,6 +328,7 @@ static struct rzg2l_mod_clk r9a09g057_mod_clks[] = {
 };
 
 static struct rzg2l_reset r9a09g057_resets[] = {
+	DEF_RST(R9A09G057_ICU_PRESETN,		0x90C, 6),
 	DEF_RST(R9A09G057_GIC_GICRESET_N,	0x90C, 8),
 	DEF_RST(R9A09G057_GIC_DBG_GICRESET_N,	0x90C, 9),
 	DEF_RST(R9A09G057_RSCI0_PRESETN,	0x920, 1),
@@ -359,6 +362,7 @@ static struct rzg2l_reset r9a09g057_resets[] = {
 };
 
 static const unsigned int r9a09g057_crit_mod_clks[] __initconst = {
+	MOD_CLK_BASE + R9A09G057_ICU_PCLK_I,
 	MOD_CLK_BASE + R9A09G057_GIC_GICCLK,
 };
 
