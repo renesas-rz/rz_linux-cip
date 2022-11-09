@@ -68,8 +68,8 @@
  * n indicates number of pins in the port, a is the register index
  * and f is pin configuration capabilities supported.
  */
-#define RZG2L_GPIO_PORT_PACK(n, a, f)	(((n) << 28) | ((a) << 20) | (f))
-#define RZG2L_GPIO_PORT_GET_PINCNT(x)	(((x) & GENMASK(30, 28)) >> 28)
+#define RZG2L_GPIO_PORT_PACK(n, a, f)	(((n) << 27) | ((a) << 20) | (f))
+#define RZG2L_GPIO_PORT_GET_PINCNT(x)	(((x) & GENMASK(30, 27)) >> 27)
 #define RZG2L_GPIO_PORT_GET_INDEX(x)	(((x) & GENMASK(26, 20)) >> 20)
 #define RZG2L_GPIO_PORT_GET_CFGS(x)	((x) & GENMASK(19, 0))
 
@@ -111,7 +111,7 @@
 #define PM_MASK			0x03
 #define PVDD_MASK		0x01
 #define ETH_PVDD_MASK		0x03
-#define PFC_MASK		0x07
+#define PFC_MASK		0x0F
 #define IEN_MASK		0x01
 #define SR_MASK			0x01
 #define IOLH_MASK		0x03
@@ -125,9 +125,11 @@
 
 /* Hardware Registers support GPIO interrupt in IA55 Module */
 #define TSCR		0x0 /* TINT Interrupt Status Control Register */
-#define TITSR0		0x4 /* TINT detection method selection register 0 */
-#define TITSR1		0x8 /* TINT detection method selection register 1 */
+#define TITSR0(n)	(0x4 + (n) * 4) /* TINT detection method selection register 0 */
+#define TITSR1(n)	(0x8 + (n) * 4) /* TINT detection method selection register 1 */
 #define TSSR(n)		(0x10 + (n) * 4) /* TINT source selection register */
+/* Only for RZ/V2H */
+#define TSCLR		0x4 /* TINT Interrupt Clear Status Register */
 
 #define TMSK		0x0 /* TINT interrupt mask control register */
 
@@ -237,6 +239,41 @@ static const int rzg2ul_pin_info[] = {
 	RZG2L_PIN_INFO(18, 3), RZG2L_PIN_INFO(18, 4), RZG2L_PIN_INFO(18, 5),
 };
 
+static const int rzv2h_pin_info[] = {
+	RZG2L_PIN_INFO(0,  0), RZG2L_PIN_INFO(0,  1), RZG2L_PIN_INFO(0,  2),
+	RZG2L_PIN_INFO(0,  3), RZG2L_PIN_INFO(0,  4), RZG2L_PIN_INFO(0,  5),
+	RZG2L_PIN_INFO(0,  6), RZG2L_PIN_INFO(0,  7),
+	RZG2L_PIN_INFO(1,  0), RZG2L_PIN_INFO(1,  1), RZG2L_PIN_INFO(1,  2),
+	RZG2L_PIN_INFO(1,  3), RZG2L_PIN_INFO(1,  4), RZG2L_PIN_INFO(1,  5),
+	RZG2L_PIN_INFO(2,  0), RZG2L_PIN_INFO(2,  1),
+	RZG2L_PIN_INFO(3,  0), RZG2L_PIN_INFO(3,  1), RZG2L_PIN_INFO(3,  2),
+	RZG2L_PIN_INFO(3,  3), RZG2L_PIN_INFO(3,  4), RZG2L_PIN_INFO(3,  5),
+	RZG2L_PIN_INFO(3,  6), RZG2L_PIN_INFO(3,  7),
+	RZG2L_PIN_INFO(4,  0), RZG2L_PIN_INFO(4,  1), RZG2L_PIN_INFO(4,  2),
+	RZG2L_PIN_INFO(4,  3), RZG2L_PIN_INFO(4,  4), RZG2L_PIN_INFO(4,  5),
+	RZG2L_PIN_INFO(4,  6), RZG2L_PIN_INFO(4,  7),
+	RZG2L_PIN_INFO(5,  0), RZG2L_PIN_INFO(5,  1), RZG2L_PIN_INFO(5,  2),
+	RZG2L_PIN_INFO(5,  3), RZG2L_PIN_INFO(5,  4), RZG2L_PIN_INFO(5,  5),
+	RZG2L_PIN_INFO(5,  6), RZG2L_PIN_INFO(5,  7),
+	RZG2L_PIN_INFO(6,  0), RZG2L_PIN_INFO(6,  1), RZG2L_PIN_INFO(6,  2),
+	RZG2L_PIN_INFO(6,  3), RZG2L_PIN_INFO(6,  4), RZG2L_PIN_INFO(6,  5),
+	RZG2L_PIN_INFO(6,  6), RZG2L_PIN_INFO(6,  7),
+	RZG2L_PIN_INFO(7,  0), RZG2L_PIN_INFO(7,  1), RZG2L_PIN_INFO(7,  2),
+	RZG2L_PIN_INFO(7,  3), RZG2L_PIN_INFO(7,  4), RZG2L_PIN_INFO(7,  5),
+	RZG2L_PIN_INFO(7,  6), RZG2L_PIN_INFO(7,  7),
+	RZG2L_PIN_INFO(8,  0), RZG2L_PIN_INFO(8,  1), RZG2L_PIN_INFO(8,  2),
+	RZG2L_PIN_INFO(8,  3), RZG2L_PIN_INFO(8,  4), RZG2L_PIN_INFO(8,  5),
+	RZG2L_PIN_INFO(8,  6), RZG2L_PIN_INFO(8,  7),
+	RZG2L_PIN_INFO(9,  0), RZG2L_PIN_INFO(9,  1), RZG2L_PIN_INFO(9,  2),
+	RZG2L_PIN_INFO(9,  3), RZG2L_PIN_INFO(9,  4), RZG2L_PIN_INFO(9,  5),
+	RZG2L_PIN_INFO(9,  6), RZG2L_PIN_INFO(9,  7),
+	RZG2L_PIN_INFO(10, 0), RZG2L_PIN_INFO(10, 1), RZG2L_PIN_INFO(10, 2),
+	RZG2L_PIN_INFO(10, 3), RZG2L_PIN_INFO(10, 4), RZG2L_PIN_INFO(10, 5),
+	RZG2L_PIN_INFO(10, 6), RZG2L_PIN_INFO(10, 7),
+	RZG2L_PIN_INFO(11, 0), RZG2L_PIN_INFO(11, 1), RZG2L_PIN_INFO(11, 2),
+	RZG2L_PIN_INFO(11, 3), RZG2L_PIN_INFO(11, 4), RZG2L_PIN_INFO(11, 5),
+};
+
 struct rzg2l_dedicated_configs {
 	const char *name;
 	u32 config;
@@ -251,6 +288,8 @@ struct rzg2l_pinctrl_data {
 	const unsigned int *pin_info;
 	unsigned int ngpioints;
 	bool irq_mask;
+	u32 extended_reg_offset;
+	bool have_clrirq_reg;
 };
 
 struct rzg2l_pinctrl {
@@ -291,6 +330,8 @@ static void rzg2l_pinctrl_set_pfc_mode(struct rzg2l_pinctrl *pctrl,
 	u32 reg;
 
 	spin_lock_irqsave(&pctrl->lock, flags);
+
+	port += pctrl->data->extended_reg_offset;
 
 	/* Set pin to 'Non-use (Hi-Z input protection)'  */
 	reg = readw(pctrl->base + PM(port));
@@ -1016,6 +1057,8 @@ static void rzg2l_gpio_irq_shutdown(struct irq_data *d)
 
 	spin_lock_irqsave(&pctrl->lock, flags);
 
+	port += pctrl->data->extended_reg_offset;
+
 	reg64 = readq(pctrl->base + ISEL(port));
 	reg64 &= ~BIT(bit * 8);
 	writeq(reg64, pctrl->base + ISEL(port));
@@ -1100,11 +1143,13 @@ static void rzg2l_gpio_irq_unmask(struct irq_data *d)
 		u32 irq_type;
 
 		if (tint_slot > 15) {
-			reg32 = readl(pctrl->base_tint + TITSR1);
+			reg32 = readl(pctrl->base_tint +
+				      TITSR1(pctrl->data->have_clrirq_reg));
 			reg32 = reg32 >> ((tint_slot - 16) * 2);
 			irq_type = reg32 & IRQ_MASK;
 		} else {
-			reg32 = readl(pctrl->base_tint + TITSR0);
+			reg32 = readl(pctrl->base_tint +
+				      TITSR0(pctrl->data->have_clrirq_reg));
 			reg32 = reg32 >> (tint_slot * 2);
 			irq_type = reg32 & IRQ_MASK;
 		}
@@ -1115,8 +1160,14 @@ static void rzg2l_gpio_irq_unmask(struct irq_data *d)
 
 		/* Clear Interrupt status bit to avoid unexpected triggering */
 		if ((irq_type == RISING_EDGE) || (irq_type == FALLING_EDGE)) {
-			reg32 = readl(pctrl->base_tint + TSCR);
-			writel(reg32 & ~BIT(tint_slot), pctrl->base_tint + TSCR);
+			if(pctrl->data->have_clrirq_reg) {
+				writel(BIT(tint_slot),
+				       pctrl->base_tint + TSCLR);
+			} else {
+				reg32 = readl(pctrl->base_tint + TSCR);
+				writel(reg32 & ~BIT(tint_slot),
+				       pctrl->base_tint + TSCR);
+			}
 		}
 	}
 
@@ -1173,6 +1224,8 @@ static int rzg2l_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 
 	spin_lock_irqsave(&pctrl->lock, flags);
 
+	port += pctrl->data->extended_reg_offset;
+
 	/* Select GPIO mode in PMC Register before enabling interrupt mode */
 	reg8 = readb(pctrl->base + PMC(port));
 	reg8 &= ~BIT(bit);
@@ -1186,15 +1239,19 @@ static int rzg2l_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	pctrl->tint[tint_slot] = BIT(16) | hw_irq;
 
 	if (tint_slot > 15) {
-		reg32 = readl(pctrl->base_tint + TITSR1);
+		reg32 = readl(pctrl->base_tint +
+			      TITSR1(pctrl->data->have_clrirq_reg));
 		reg32 &= ~(IRQ_MASK << ((tint_slot - 16) * 2));
 		reg32 |= irq_type << ((tint_slot - 16) * 2);
-		writel(reg32, pctrl->base_tint + TITSR1);
+		writel(reg32, pctrl->base_tint +
+			      TITSR1(pctrl->data->have_clrirq_reg));
 	} else {
-		reg32 = readl(pctrl->base_tint + TITSR0);
+		reg32 = readl(pctrl->base_tint +
+			      TITSR0(pctrl->data->have_clrirq_reg));
 		reg32 &= ~(IRQ_MASK << (tint_slot * 2));
 		reg32 |= irq_type << (tint_slot * 2);
-		writel(reg32, pctrl->base_tint + TITSR0);
+		writel(reg32, pctrl->base_tint +
+			      TITSR0(pctrl->data->have_clrirq_reg));
 	}
 
 	reg32 = readl(pctrl->base_tint + TSSR(tint_slot / 4));
@@ -1242,8 +1299,12 @@ static irqreturn_t rzg2l_pinctrl_irq_handler(int irq, void *dev_id)
 	unsigned int offset = irq - pctrl->irq_start;
 	u32 reg32;
 
-	reg32 = readl(pctrl->base_tint + TSCR);
-	writel(reg32 & ~BIT(offset), pctrl->base_tint + TSCR);
+	if (pctrl->data->have_clrirq_reg) {
+		writel(BIT(offset), pctrl->base_tint + TSCLR);
+	} else {
+		reg32 = readl(pctrl->base_tint + TSCR);
+		writel(reg32 & ~BIT(offset), pctrl->base_tint + TSCR);
+	}
 
 	generic_handle_irq(irq_find_mapping(pctrl->gpio_chip.irq.domain,
 					    pctrl->tint[offset] & ~BIT(16)));
@@ -1266,6 +1327,8 @@ static int rzg2l_gpio_request(struct gpio_chip *chip, unsigned int offset)
 
 	spin_lock_irqsave(&pctrl->lock, flags);
 
+	port += pctrl->data->extended_reg_offset;
+
 	/* Select GPIO mode in PMC Register */
 	reg8 = readb(pctrl->base + PMC(port));
 	reg8 &= ~BIT(bit);
@@ -1284,6 +1347,8 @@ static void rzg2l_gpio_set_direction(struct rzg2l_pinctrl *pctrl, u32 port,
 
 	spin_lock_irqsave(&pctrl->lock, flags);
 
+	port += pctrl->data->extended_reg_offset;
+
 	reg16 = readw(pctrl->base + PM(port));
 	reg16 &= ~(PM_MASK << (bit * 2));
 
@@ -1298,6 +1363,8 @@ static int rzg2l_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
 	u32 port = RZG2L_PIN_ID_TO_PORT(offset);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(offset);
+
+	port += pctrl->data->extended_reg_offset;
 
 	if (!(readb(pctrl->base + PMC(port)) & BIT(bit))) {
 		u16 reg16;
@@ -1334,6 +1401,8 @@ static void rzg2l_gpio_set(struct gpio_chip *chip, unsigned int offset,
 
 	spin_lock_irqsave(&pctrl->lock, flags);
 
+	port += pctrl->data->extended_reg_offset;
+
 	reg8 = readb(pctrl->base + P(port));
 
 	if (value)
@@ -1363,6 +1432,8 @@ static int rzg2l_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	u32 port = RZG2L_PIN_ID_TO_PORT(offset);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(offset);
 	u16 reg16;
+
+	port += pctrl->data->extended_reg_offset;
 
 	reg16 = readw(pctrl->base + PM(port));
 	reg16 = (reg16 >> (bit * 2)) & PM_MASK;
@@ -1438,6 +1509,21 @@ static const char * const rzg2l_gpio_names[] = {
 	"P48_0", "P48_1", "P48_2", "P48_3", "P48_4", "P48_5", "P48_6", "P48_7",
 };
 
+static const char * const rzv2h_gpio_names[] = {
+	"P0_0", "P0_1", "P0_2", "P0_3", "P0_4", "P0_5", "P0_6", "P0_7",
+	"P1_0", "P1_1", "P1_2", "P1_3", "P1_4", "P1_5", "P1_6", "P1_7",
+	"P2_0", "P2_1", "P2_2", "P2_3", "P2_4", "P2_5", "P2_6", "P2_7",
+	"P3_0", "P3_1", "P3_2", "P3_3", "P3_4", "P3_5", "P3_6", "P3_7",
+	"P4_0", "P4_1", "P4_2", "P4_3", "P4_4", "P4_5", "P4_6", "P4_7",
+	"P5_0", "P5_1", "P5_2", "P5_3", "P5_4", "P5_5", "P5_6", "P5_7",
+	"P6_0", "P6_1", "P6_2", "P6_3", "P6_4", "P6_5", "P6_6", "P6_7",
+	"P7_0", "P7_1", "P7_2", "P7_3", "P7_4", "P7_5", "P7_6", "P7_7",
+	"P8_0", "P8_1", "P8_2", "P8_3", "P8_4", "P8_5", "P8_6", "P8_7",
+	"P9_0", "P9_1", "P9_2", "P9_3", "P9_4", "P9_5", "P9_6", "P9_7",
+	"PA_0", "PA_1", "PA_2", "PA_3", "PA_4", "PA_5", "PA_6", "PA_7",
+	"PB_0", "PB_1", "PB_2", "PB_3", "PB_4", "PB_5", "PB_6", "PB_7",
+};
+
 static const u32 rzg2l_gpio_configs[] = {
 	RZG2L_GPIO_PORT_PACK(2, 0x10, RZG2L_MPXED_PIN_FUNCS),
 	RZG2L_GPIO_PORT_PACK(2, 0x11, RZG2L_MPXED_PIN_FUNCS),
@@ -1510,6 +1596,21 @@ static const u32 r9a07g043_gpio_configs[] = {
 	RZG2L_GPIO_PORT_PACK(2, 0x20, RZG2L_MPXED_PIN_FUNCS),
 	RZG2L_GPIO_PORT_PACK(4, 0x21, RZG2L_MPXED_PIN_FUNCS),
 	RZG2L_GPIO_PORT_PACK(6, 0x22, RZG2L_MPXED_PIN_FUNCS),
+};
+
+static const u32 r9a09g057_gpio_configs[] = {
+	RZG2L_GPIO_PORT_PACK(8, 0x0, RZG2L_MPXED_PIN_FUNCS),
+	RZG2L_GPIO_PORT_PACK(6, 0x1, RZG2L_MPXED_PIN_FUNCS),
+	RZG2L_GPIO_PORT_PACK(2, 0x2, RZG2L_MPXED_PIN_FUNCS),
+	RZG2L_GPIO_PORT_PACK(8, 0x3, RZG2L_MPXED_PIN_FUNCS),
+	RZG2L_GPIO_PORT_PACK(8, 0x4, RZG2L_MPXED_PIN_FUNCS),
+	RZG2L_GPIO_PORT_PACK(8, 0x5, RZG2L_MPXED_PIN_FUNCS),
+	RZG2L_GPIO_PORT_PACK(8, 0x6, RZG2L_MPXED_PIN_FUNCS),
+	RZG2L_GPIO_PORT_PACK(8, 0x7, RZG2L_MPXED_PIN_FUNCS),
+	RZG2L_GPIO_PORT_PACK(8, 0x8, RZG2L_MPXED_PIN_FUNCS),
+	RZG2L_GPIO_PORT_PACK(8, 0x9, RZG2L_MPXED_PIN_FUNCS),
+	RZG2L_GPIO_PORT_PACK(8, 0xa, RZG2L_MPXED_PIN_FUNCS),
+	RZG2L_GPIO_PORT_PACK(6, 0xb, RZG2L_MPXED_PIN_FUNCS),
 };
 
 static struct {
@@ -1596,6 +1697,165 @@ static struct {
 		{ "QSPI1_SSL", RZG2L_SINGLE_PIN_PACK(0xb, 5,
 		 (PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_IO_VMC_QSPI)) },
 	}
+};
+
+static struct rzg2l_dedicated_configs rzv2h_pins[] = {
+	{ "NMI", RZG2L_SINGLE_PIN_PACK(0x1, 0,
+	 (PIN_CFG_FILONOFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL)) },
+	{ "TMS/SWDIO", RZG2L_SINGLE_PIN_PACK(0x3, 0,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_IEN)) },
+	{ "TDO", RZG2L_SINGLE_PIN_PACK(0x3, 2,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR)) },
+	{ "WDTUDF_CA", RZG2L_SINGLE_PIN_PACK(0x5, 0,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "WDTUDF_CM", RZG2L_SINGLE_PIN_PACK(0x5, 1,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "SCIF_RXD", RZG2L_SINGLE_PIN_PACK(0x6, 0,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "SCIF_TXD", RZG2L_SINGLE_PIN_PACK(0x6, 1,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "XSPI0_CKP", RZG2L_SINGLE_PIN_PACK(0x7, 0,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "XSPI0_CKN", RZG2L_SINGLE_PIN_PACK(0x7, 1,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "XSPI0_CS0_N", RZG2L_SINGLE_PIN_PACK(0x7, 2,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "XSPI0_DS", RZG2L_SINGLE_PIN_PACK(0x7, 3,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "XSPI0_RESET0_N", RZG2L_SINGLE_PIN_PACK(0x7, 4,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "XSPI0_RSTO0_N", RZG2L_SINGLE_PIN_PACK(0x7, 5,
+	 (PIN_CFG_PUPD)) },
+	{ "XSPI0_INT0_N", RZG2L_SINGLE_PIN_PACK(0x7, 6,
+	 (PIN_CFG_PUPD)) },
+	{ "XSPI0_ECS0_N", RZG2L_SINGLE_PIN_PACK(0x7, 7,
+	 (PIN_CFG_PUPD)) },
+	{ "XSPI0_IO0", RZG2L_SINGLE_PIN_PACK(0x8, 0,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "XSPI0_IO1", RZG2L_SINGLE_PIN_PACK(0x8, 1,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "XSPI0_IO2", RZG2L_SINGLE_PIN_PACK(0x8, 2,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "XSPI0_IO3", RZG2L_SINGLE_PIN_PACK(0x8, 3,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "XSPI0_IO4", RZG2L_SINGLE_PIN_PACK(0x8, 4,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "XSPI0_IO5", RZG2L_SINGLE_PIN_PACK(0x8, 5,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "XSPI0_IO6", RZG2L_SINGLE_PIN_PACK(0x8, 6,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "XSPI0_IO7", RZG2L_SINGLE_PIN_PACK(0x8, 7,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "QSD0_CLK", RZG2L_SINGLE_PIN_PACK(0x9, 0,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR)) },
+	{ "QSD0_CMD", RZG2L_SINGLE_PIN_PACK(0x9, 1,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR)) },
+	{ "QSD0_RSTN", RZG2L_SINGLE_PIN_PACK(0x9, 2,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_IEN | PIN_CFG_PUPD)) },
+	{ "QSD0_DAT0", RZG2L_SINGLE_PIN_PACK(0xa, 0,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_IEN | PIN_CFG_PUPD)) },
+	{ "QSD0_DAT1", RZG2L_SINGLE_PIN_PACK(0xa, 1,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_IEN | PIN_CFG_PUPD)) },
+	{ "QSD0_DAT2", RZG2L_SINGLE_PIN_PACK(0xa, 2,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_IEN | PIN_CFG_PUPD)) },
+	{ "QSD0_DAT3", RZG2L_SINGLE_PIN_PACK(0xa, 3,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_IEN | PIN_CFG_PUPD)) },
+	{ "QSD0_DAT4", RZG2L_SINGLE_PIN_PACK(0xa, 4,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_IEN | PIN_CFG_PUPD)) },
+	{ "QSD0_DAT5", RZG2L_SINGLE_PIN_PACK(0xa, 5,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_IEN | PIN_CFG_PUPD)) },
+	{ "QSD0_DAT6", RZG2L_SINGLE_PIN_PACK(0xa, 6,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_IEN | PIN_CFG_PUPD)) },
+	{ "QSD0_DAT7", RZG2L_SINGLE_PIN_PACK(0xa, 7,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_IEN | PIN_CFG_PUPD)) },
+	{ "QSD1_CLK", RZG2L_SINGLE_PIN_PACK(0xb, 0,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR)) },
+	{ "QSD1_CMD", RZG2L_SINGLE_PIN_PACK(0xb, 1,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_IEN | PIN_CFG_PUPD)) },
+	{ "QSD1_DAT0", RZG2L_SINGLE_PIN_PACK(0xc, 0,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_IEN | PIN_CFG_PUPD)) },
+	{ "QSD1_DAT1", RZG2L_SINGLE_PIN_PACK(0xc, 1,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_IEN | PIN_CFG_PUPD)) },
+	{ "QSD1_DAT2", RZG2L_SINGLE_PIN_PACK(0xc, 2,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_IEN | PIN_CFG_PUPD)) },
+	{ "QSD1_DAT3", RZG2L_SINGLE_PIN_PACK(0xc, 3,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_IEN | PIN_CFG_PUPD)) },
+	{ "PCIE0_RSTOUTB", RZG2L_SINGLE_PIN_PACK(0xe, 0,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR)) },
+	{ "PCIE1_RSTOUTB", RZG2L_SINGLE_PIN_PACK(0xe, 1,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR)) },
+	{ "ET0_MDIO", RZG2L_SINGLE_PIN_PACK(0xf, 0,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_IEN | PIN_CFG_PUPD)) },
+	{ "ET0_MDC", RZG2L_SINGLE_PIN_PACK(0xf, 1,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "ET0_RX_CTL_RX_DV", RZG2L_SINGLE_PIN_PACK(0x10, 0,
+	 (PIN_CFG_PUPD)) },
+	{ "ET0_TX_CTL_TX_EN", RZG2L_SINGLE_PIN_PACK(0x10, 1,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "ET0_TX_ER", RZG2L_SINGLE_PIN_PACK(0x10, 2,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "ET0_RX_ER", RZG2L_SINGLE_PIN_PACK(0x10, 3,
+	 (PIN_CFG_PUPD)) },
+	{ "ET0_RXC_RX_CLK", RZG2L_SINGLE_PIN_PACK(0x10, 4,
+	 (PIN_CFG_PUPD)) },
+	{ "ET0_TXC_TX_CLK", RZG2L_SINGLE_PIN_PACK(0x10, 5,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "ET0_CRS", RZG2L_SINGLE_PIN_PACK(0x10, 6,
+	 (PIN_CFG_PUPD)) },
+	{ "ET0_COL", RZG2L_SINGLE_PIN_PACK(0x10, 7,
+	 (PIN_CFG_PUPD)) },
+	{ "ET0_TXD0", RZG2L_SINGLE_PIN_PACK(0x11, 0,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "ET0_TXD1", RZG2L_SINGLE_PIN_PACK(0x11, 1,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "ET0_TXD2", RZG2L_SINGLE_PIN_PACK(0x11, 2,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "ET0_TXD3", RZG2L_SINGLE_PIN_PACK(0x11, 3,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "ET0_RXD0", RZG2L_SINGLE_PIN_PACK(0x11, 4,
+	 (PIN_CFG_PUPD)) },
+	{ "ET0_RXD1", RZG2L_SINGLE_PIN_PACK(0x11, 5,
+	 (PIN_CFG_PUPD)) },
+	{ "ET0_RXD2", RZG2L_SINGLE_PIN_PACK(0x11, 6,
+	 (PIN_CFG_PUPD)) },
+	{ "ET0_RXD3", RZG2L_SINGLE_PIN_PACK(0x11, 7,
+	 (PIN_CFG_PUPD)) },
+	{ "ET1_MDIO", RZG2L_SINGLE_PIN_PACK(0x12, 0,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_SR | PIN_CFG_IEN| PIN_CFG_PUPD)) },
+	{ "ET1_MDC", RZG2L_SINGLE_PIN_PACK(0x12, 1,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "ET1_RX_CTL_RX_DV", RZG2L_SINGLE_PIN_PACK(0x13, 0,
+	 (PIN_CFG_PUPD)) },
+	{ "ET1_TX_CTL_TX_EN", RZG2L_SINGLE_PIN_PACK(0x13, 1,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "ET1_TX_ER", RZG2L_SINGLE_PIN_PACK(0x13, 2,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "ET1_RX_ER", RZG2L_SINGLE_PIN_PACK(0x13, 3,
+	 (PIN_CFG_PUPD)) },
+	{ "ET1_RXC_RX_CLK", RZG2L_SINGLE_PIN_PACK(0x13, 4,
+	 (PIN_CFG_PUPD)) },
+	{ "ET1_TXC_TX_CLK", RZG2L_SINGLE_PIN_PACK(0x13, 5,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "ET1_CRS", RZG2L_SINGLE_PIN_PACK(0x13, 6,
+	 (PIN_CFG_PUPD)) },
+	{ "ET1_COL", RZG2L_SINGLE_PIN_PACK(0x13, 7,
+	 (PIN_CFG_PUPD)) },
+	{ "ET1_TXD0", RZG2L_SINGLE_PIN_PACK(0x14, 0,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "ET1_TXD1", RZG2L_SINGLE_PIN_PACK(0x14, 1,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "ET1_TXD2", RZG2L_SINGLE_PIN_PACK(0x14, 2,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "ET1_TXD3", RZG2L_SINGLE_PIN_PACK(0x14, 3,
+	 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_PUPD)) },
+	{ "ET1_RXD0", RZG2L_SINGLE_PIN_PACK(0x14, 4,
+	 (PIN_CFG_PUPD)) },
+	{ "ET1_RXD1", RZG2L_SINGLE_PIN_PACK(0x14, 5,
+	 (PIN_CFG_PUPD)) },
+	{ "ET1_RXD2", RZG2L_SINGLE_PIN_PACK(0x14, 6,
+	 (PIN_CFG_PUPD)) },
+	{ "ET1_RXD3", RZG2L_SINGLE_PIN_PACK(0x14, 7,
+	 (PIN_CFG_PUPD)) },
 };
 
 static int rzg2l_gpio_register(struct rzg2l_pinctrl *pctrl)
@@ -1876,6 +2136,8 @@ static struct rzg2l_pinctrl_data r9a07g043_data = {
 	.pin_info = rzg2ul_pin_info,
 	.ngpioints = ARRAY_SIZE(rzg2ul_pin_info),
 	.irq_mask = false,
+	.extended_reg_offset = 0,
+	.have_clrirq_reg = false,
 };
 
 static struct rzg2l_pinctrl_data r9a07g043f_data = {
@@ -1887,6 +2149,8 @@ static struct rzg2l_pinctrl_data r9a07g043f_data = {
 	.pin_info = rzg2ul_pin_info,
 	.ngpioints = ARRAY_SIZE(rzg2ul_pin_info),
 	.irq_mask = true,
+	.extended_reg_offset = 0,
+	.have_clrirq_reg = false,
 };
 
 static struct rzg2l_pinctrl_data r9a07g044_data = {
@@ -1899,6 +2163,21 @@ static struct rzg2l_pinctrl_data r9a07g044_data = {
 	.pin_info = rzg2l_pin_info,
 	.ngpioints = ARRAY_SIZE(rzg2l_pin_info),
 	.irq_mask = false,
+	.extended_reg_offset = 0,
+	.have_clrirq_reg = false,
+};
+
+static struct rzg2l_pinctrl_data r9a09g057_data = {
+	.port_pins = rzv2h_gpio_names,
+	.port_pin_configs = r9a09g057_gpio_configs,
+	.dedicated_pins = rzv2h_pins,
+	.n_port_pins = ARRAY_SIZE(rzv2h_gpio_names),
+	.n_dedicated_pins = ARRAY_SIZE(rzv2h_pins),
+	.pin_info = rzv2h_pin_info,
+	.ngpioints = ARRAY_SIZE(rzv2h_pin_info),
+	.irq_mask = false,
+	.extended_reg_offset = 0x10,
+	.have_clrirq_reg = true,
 };
 
 static const struct of_device_id rzg2l_pinctrl_of_table[] = {
@@ -1913,6 +2192,10 @@ static const struct of_device_id rzg2l_pinctrl_of_table[] = {
 	{
 		.compatible = "renesas,r9a07g044-pinctrl",
 		.data = &r9a07g044_data,
+	},
+	{
+		.compatible = "renesas,r9a09g057-pinctrl",
+		.data = &r9a09g057_data,
 	},
 	{ /* sentinel */ }
 };
