@@ -2019,7 +2019,7 @@ static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(pctrl->base))
 		return PTR_ERR(pctrl->base);
 
-	pctrl->clk = devm_clk_get(pctrl->dev, NULL);
+	pctrl->clk = devm_clk_get_optional(pctrl->dev, NULL);
 	if (IS_ERR(pctrl->clk)) {
 		ret = PTR_ERR(pctrl->clk);
 		dev_err(pctrl->dev, "failed to get GPIO clk : %i\n", ret);
@@ -2074,20 +2074,22 @@ static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pctrl);
 
-	ret = clk_prepare_enable(pctrl->clk);
-	if (ret) {
-		dev_err(pctrl->dev, "failed to enable GPIO clk: %i\n", ret);
-		return ret;
-	}
+	if (pctrl->clk) {
+		ret = clk_prepare_enable(pctrl->clk);
+		if (ret) {
+			dev_err(pctrl->dev, "failed to enable GPIO clk: %i\n", ret);
+			return ret;
+		}
 
-	ret = devm_add_action_or_reset(&pdev->dev, rzg2l_pinctrl_clk_disable,
-				       pctrl->clk);
-	if (ret) {
-		dev_err(pctrl->dev,
-			"failed to register GPIO clk disable action, %i\n",
-			ret);
-		return ret;
-	}
+		ret = devm_add_action_or_reset(&pdev->dev, rzg2l_pinctrl_clk_disable,
+					       pctrl->clk);
+		if (ret) {
+			dev_err(pctrl->dev,
+				"failed to register GPIO clk disable action, %i\n",
+				ret);
+			return ret;
+		}
+	};
 
 	ret = rzg2l_pinctrl_register(pctrl);
 	if (ret)
