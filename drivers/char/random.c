@@ -184,8 +184,8 @@ static void __cold process_random_ready_list(void)
 
 #define warn_unseeded_randomness() \
 	if (IS_ENABLED(CONFIG_WARN_ALL_UNSEEDED_RANDOM) && !crng_ready()) \
-		pr_notice("%s called from %pS with crng_init=%d\n", \
-			  __func__, (void *)_RET_IP_, crng_init)
+		printk_deferred(KERN_NOTICE "random: %s called from %pS with crng_init=%d\n", \
+				__func__, (void *)_RET_IP_, crng_init)
 
 
 /*********************************************************************
@@ -230,12 +230,13 @@ static struct {
 struct crng {
 	u8 key[CHACHA20_KEY_SIZE];
 	unsigned long generation;
+	struct local_irq_lock lock;
 };
 
 static DEFINE_PER_CPU(struct crng, crngs) = {
-	.generation = ULONG_MAX
+	.generation = ULONG_MAX,
+	.lock =  INIT_LOCAL_LOCK(crngs.lock),
 };
-DEFINE_LOCAL_IRQ_LOCK(crngs_lock);
 
 /* Used by crng_reseed() and crng_make_state() to extract a new seed from the input pool. */
 static void extract_entropy(void *buf, size_t len);
@@ -364,7 +365,7 @@ static void crng_make_state(u32 chacha_state[CHACHA20_BLOCK_SIZE / sizeof(u32)],
 	if (unlikely(crng_has_old_seed()))
 		crng_reseed();
 
-	local_lock_irqsave(crngs_lock, flags);
+	local_lock_irqsave(crngs.lock, flags);
 	crng = raw_cpu_ptr(&crngs);
 
 	/*
@@ -389,7 +390,7 @@ static void crng_make_state(u32 chacha_state[CHACHA20_BLOCK_SIZE / sizeof(u32)],
 	 * should wind up here immediately.
 	 */
 	crng_fast_key_erasure(crng->key, chacha_state, random_data, random_data_len);
-	local_unlock_irqrestore(crngs_lock, flags);
+	local_unlock_irqrestore(crngs.lock, flags);
 }
 
 static void _get_random_bytes(void *buf, size_t len)
@@ -507,14 +508,15 @@ struct batch_ ##type {								\
 	 * formula of (integer_blocks + 0.5) * CHACHA20_BLOCK_SIZE.		\
 	 */									\
 	type entropy[CHACHA20_BLOCK_SIZE * 3 / (2 * sizeof(type))];		\
+	struct local_irq_lock lock;						\
 	unsigned long generation;						\
 	unsigned int position;							\
 };										\
 										\
 static DEFINE_PER_CPU(struct batch_ ##type, batched_entropy_ ##type) = {	\
+	.lock = INIT_LOCAL_LOCK(batched_entropy_ ##type.lock),			\
 	.position = UINT_MAX							\
 };										\
-static DEFINE_LOCAL_IRQ_LOCK(batched_entropy_lock_ ##type);			\
 										\
 type get_random_ ##type(void)							\
 {										\
@@ -530,7 +532,7 @@ type get_random_ ##type(void)							\
 		return ret;							\
 	}									\
 										\
-	local_lock_irqsave(batched_entropy_lock_ ##type, flags);		\
+	local_lock_irqsave(batched_entropy_ ##type.lock, flags);		\
 	batch = raw_cpu_ptr(&batched_entropy_##type);				\
 										\
 	next_gen = READ_ONCE(base_crng.generation);				\
@@ -544,7 +546,7 @@ type get_random_ ##type(void)							\
 	ret = batch->entropy[batch->position];					\
 	batch->entropy[batch->position] = 0;					\
 	++batch->position;							\
-	local_unlock_irqrestore(batched_entropy_lock_ ##type, flags);		\
+	local_unlock_irqrestore(batched_entropy_ ##type.lock, flags);		\
 	return ret;								\
 }										\
 EXPORT_SYMBOL(get_random_ ##type);
