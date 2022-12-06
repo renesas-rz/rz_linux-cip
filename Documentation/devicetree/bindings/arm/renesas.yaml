@@ -341,6 +341,17 @@ properties:
               - renesas,r9a07g054l2 # Dual Cortex-A55 RZ/V2L
           - const: renesas,r9a07g054
 
+      - description: RZ/G3S (R9A08G045)
+        items:
+          - enum:
+              - renesas,r9a08g045s31-dev # Dev EVK (r9a08g045s31 based)
+          - enum:
+              - renesas,r9a08g045s31 # Basic 13mm single Cortex-A55 RZ/G3S
+              - renesas,r9a08g045s35 # 13mm single Cortex-A55 RZ/G3S with Security IP
+              - renesas,r9a08g045s33 # 14mm single Cortex-A55 RZ/G3S with PCIe module
+              - renesas,r9a08g045s37 # 14mm single Cortex-A55 RZ/G3S with PCIe module and Security IP
+          - const: renesas,r9a08g045
+
 additionalProperties: true
 
 ...
