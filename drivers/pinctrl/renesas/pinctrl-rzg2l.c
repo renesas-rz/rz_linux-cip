@@ -18,6 +18,7 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/spinlock.h>
+#include <linux/sys_soc.h>
 
 #include <dt-bindings/pinctrl/rzg2l-pinctrl.h>
 
@@ -51,9 +52,31 @@
 #define PIN_CFG_FILONOFF		BIT(10)
 #define PIN_CFG_FILNUM			BIT(11)
 #define PIN_CFG_FILCLKSEL		BIT(12)
+#define PIN_CFG_IOLHM_A			BIT(13)
+#define PIN_CFG_IOLHM_B			BIT(14)
+#define PIN_CFG_IOLHM_C			BIT(15)
+#define PIN_CFG_IO_VMC_XSPI		BIT(16)
 
 #define RZG2L_MPXED_PIN_FUNCS		(PIN_CFG_IOLH_A | \
 					 PIN_CFG_SR | \
+					 PIN_CFG_PUPD | \
+					 PIN_CFG_FILONOFF | \
+					 PIN_CFG_FILNUM | \
+					 PIN_CFG_FILCLKSEL)
+
+#define RZG3S_MPXED_PIN_FUNCS_A		(PIN_CFG_IOLHM_A | \
+					 PIN_CFG_PUPD | \
+					 PIN_CFG_FILONOFF | \
+					 PIN_CFG_FILNUM | \
+					 PIN_CFG_FILCLKSEL)
+
+#define RZG3S_MPXED_PIN_FUNCS_B		(PIN_CFG_IOLHM_B | \
+					 PIN_CFG_PUPD | \
+					 PIN_CFG_FILONOFF | \
+					 PIN_CFG_FILNUM | \
+					 PIN_CFG_FILCLKSEL)
+
+#define RZG3S_MPXED_PIN_FUNCS_C		(PIN_CFG_IOLHM_C | \
 					 PIN_CFG_PUPD | \
 					 PIN_CFG_FILONOFF | \
 					 PIN_CFG_FILNUM | \
@@ -95,9 +118,15 @@
 #define IEN(n)			(0x1800 + (n) * 8)
 #define ISEL(n)			(0x2C00 + 0x80 + (n) * 8)
 #define PWPR			(0x3014)
+#define PWPR_G3S		(0x3000)
 #define SD_CH(n)		(0x3000 + (n) * 4)
+#define SD_CH_G3S(n)		(0x3004 + (n) * 4)
 #define QSPI			(0x3008)
+#define XSPI			(0x300C)
 #define ETH_CH(n)		(0x300C + (n) * 4)
+#define ETH_CH_G3S(n)		(0x3010 + (n) * 4)
+#define I3C			(0x301C)
+#define XSPI_OCTA		(0x3020)
 
 #define PVDD_1800		1	/* I/O domain voltage <= 1.8V */
 #define PVDD_3300		0	/* I/O domain voltage >= 3.3V */
@@ -140,6 +169,12 @@
 #define TINT_MAX       32	/* Maximum 32 Interrupts can be supported */
 
 #define RZG2L_PIN_INFO(p, b)	(((p) << 16) | (b))
+
+static const struct soc_device_attribute rzg3s_match[] = {
+	{ .family = "RZ/G3S" },
+	{ /* sentinel*/ }
+};
+
 static const int rzg2l_pin_info[] = {
 	RZG2L_PIN_INFO(0,  0), RZG2L_PIN_INFO(0,  1),
 	RZG2L_PIN_INFO(1,  0), RZG2L_PIN_INFO(1,  1),
@@ -237,6 +272,44 @@ static const int rzg2ul_pin_info[] = {
 	RZG2L_PIN_INFO(18, 3), RZG2L_PIN_INFO(18, 4), RZG2L_PIN_INFO(18, 5),
 };
 
+static const int rzg3s_pin_info[] = {
+	RZG2L_PIN_INFO(0,  0), RZG2L_PIN_INFO(0,  1), RZG2L_PIN_INFO(0,  2),
+	RZG2L_PIN_INFO(0,  3),
+	RZG2L_PIN_INFO(1,  0), RZG2L_PIN_INFO(1,  1), RZG2L_PIN_INFO(1,  2),
+	RZG2L_PIN_INFO(1,  3), RZG2L_PIN_INFO(1,  4),
+	RZG2L_PIN_INFO(2,  0), RZG2L_PIN_INFO(2,  1), RZG2L_PIN_INFO(2,  2),
+	RZG2L_PIN_INFO(2,  3),
+	RZG2L_PIN_INFO(3,  0), RZG2L_PIN_INFO(3,  1), RZG2L_PIN_INFO(3,  2),
+	RZG2L_PIN_INFO(3,  3),
+	RZG2L_PIN_INFO(4,  0), RZG2L_PIN_INFO(4,  1), RZG2L_PIN_INFO(4,  2),
+	RZG2L_PIN_INFO(4,  3), RZG2L_PIN_INFO(4,  4), RZG2L_PIN_INFO(4,  5),
+	RZG2L_PIN_INFO(5,  0), RZG2L_PIN_INFO(5,  1), RZG2L_PIN_INFO(5,  2),
+	RZG2L_PIN_INFO(5,  3), RZG2L_PIN_INFO(5,  4),
+	RZG2L_PIN_INFO(6,  0), RZG2L_PIN_INFO(6,  1), RZG2L_PIN_INFO(6,  2),
+	RZG2L_PIN_INFO(6,  3), RZG2L_PIN_INFO(6,  4),
+	RZG2L_PIN_INFO(7,  0), RZG2L_PIN_INFO(7,  1), RZG2L_PIN_INFO(7,  2),
+	RZG2L_PIN_INFO(7,  3), RZG2L_PIN_INFO(7,  4),
+	RZG2L_PIN_INFO(8,  0), RZG2L_PIN_INFO(8,  1), RZG2L_PIN_INFO(8,  2),
+	RZG2L_PIN_INFO(8,  3), RZG2L_PIN_INFO(8,  4),
+	RZG2L_PIN_INFO(9,  0), RZG2L_PIN_INFO(9,  1), RZG2L_PIN_INFO(9,  2),
+	RZG2L_PIN_INFO(9,  3),
+	RZG2L_PIN_INFO(10, 0), RZG2L_PIN_INFO(10, 1), RZG2L_PIN_INFO(10, 2),
+	RZG2L_PIN_INFO(10, 3), RZG2L_PIN_INFO(10, 4),
+	RZG2L_PIN_INFO(11, 0), RZG2L_PIN_INFO(11, 1), RZG2L_PIN_INFO(11, 2),
+	RZG2L_PIN_INFO(11, 3),
+	RZG2L_PIN_INFO(12, 0), RZG2L_PIN_INFO(12, 1),
+	RZG2L_PIN_INFO(13, 0), RZG2L_PIN_INFO(13, 1), RZG2L_PIN_INFO(13, 2),
+	RZG2L_PIN_INFO(13, 3), RZG2L_PIN_INFO(13, 4),
+	RZG2L_PIN_INFO(14, 0), RZG2L_PIN_INFO(14, 1), RZG2L_PIN_INFO(14, 2),
+	RZG2L_PIN_INFO(15, 0), RZG2L_PIN_INFO(15, 1), RZG2L_PIN_INFO(15, 2),
+	RZG2L_PIN_INFO(15, 3),
+	RZG2L_PIN_INFO(16, 0), RZG2L_PIN_INFO(16, 1),
+	RZG2L_PIN_INFO(17, 0), RZG2L_PIN_INFO(17, 1), RZG2L_PIN_INFO(17, 2),
+	RZG2L_PIN_INFO(17, 3),
+	RZG2L_PIN_INFO(18, 0), RZG2L_PIN_INFO(18, 1), RZG2L_PIN_INFO(18, 2),
+	RZG2L_PIN_INFO(18, 3), RZG2L_PIN_INFO(18, 4), RZG2L_PIN_INFO(18, 5),
+};
+
 struct rzg2l_dedicated_configs {
 	const char *name;
 	u32 config;
@@ -284,6 +357,33 @@ struct rzg2l_pinctrl {
 static const unsigned int iolh_groupa_mA[] = { 2, 4, 8, 12 };
 static const unsigned int iolh_groupb_oi[] = { 100, 66, 50, 33 };
 
+/* specific RZ/G3S port IDs with offset starting from 0x20 */
+static const unsigned int port_id_g3s[] = {
+	0, 5, 6, 11, 12, 13, 14, 15, 16, 17, 18,
+	1, 2, 3, 4, 7, 8, 9, 10
+};
+
+static int rzg3s_find_port_index(unsigned int port)
+{
+	int idx = 0;
+
+	for (idx = 0; idx < ARRAY_SIZE(port_id_g3s); idx++)
+		if(port_id_g3s[idx] == port)
+			break;
+
+	return idx;
+}
+
+static int rzg3s_find_port_offset(unsigned int port)
+{
+	int idx = rzg3s_find_port_index(port);
+
+	if (idx > 10)
+		return (idx + 0x15);
+
+	return (idx + 0x10);
+}
+
 static void rzg2l_pinctrl_set_pfc_mode(struct rzg2l_pinctrl *pctrl,
 				       u8 port, u8 pin, u8 func)
 {
@@ -302,17 +402,34 @@ static void rzg2l_pinctrl_set_pfc_mode(struct rzg2l_pinctrl *pctrl,
 	writeb(reg & ~BIT(pin), pctrl->base + PMC(port));
 
 	/* Set the PWPR register to allow PFC register to write */
-	writel(0x0, pctrl->base + PWPR);        /* B0WI=0, PFCWE=0 */
-	writel(PWPR_PFCWE, pctrl->base + PWPR);  /* B0WI=0, PFCWE=1 */
+	if (soc_device_match(rzg3s_match)) {
+		writel(0x0, pctrl->base + PWPR_G3S);        /* B0WI=0, PFCWE=0 */
+		writel(PWPR_PFCWE, pctrl->base + PWPR_G3S);  /* B0WI=0, PFCWE=1 */
+	}
+	else {
+		writel(0x0, pctrl->base + PWPR);        /* B0WI=0, PFCWE=0 */
+		writel(PWPR_PFCWE, pctrl->base + PWPR);  /* B0WI=0, PFCWE=1 */
+	}
 
 	/* Select Pin function mode with PFC register */
 	reg = readl(pctrl->base + PFC(port));
 	reg &= ~(PFC_MASK << (pin * 4));
-	writel(reg | (func << (pin * 4)), pctrl->base + PFC(port));
+	if (soc_device_match(rzg3s_match)) {
+		writel(reg | ((func - 1) << (pin * 4)), pctrl->base + PFC(port));
+	}
+	else {
+		writel(reg | (func << (pin * 4)), pctrl->base + PFC(port));
+	}
 
 	/* Set the PWPR register to be write-protected */
-	writel(0x0, pctrl->base + PWPR);        /* B0WI=0, PFCWE=0 */
-	writel(PWPR_B0WI, pctrl->base + PWPR);  /* B0WI=1, PFCWE=0 */
+	if (soc_device_match(rzg3s_match)) {
+		writel(0x0, pctrl->base + PWPR_G3S);        /* B0WI=0, PFCWE=0 */
+		writel(PWPR_B0WI, pctrl->base + PWPR_G3S);  /* B0WI=1, PFCWE=0 */
+	}
+	else {
+		writel(0x0, pctrl->base + PWPR);        /* B0WI=0, PFCWE=0 */
+		writel(PWPR_B0WI, pctrl->base + PWPR);  /* B0WI=1, PFCWE=0 */
+	}
 
 	/* Switch to Peripheral pin function with PMC register */
 	reg = readb(pctrl->base + PMC(port));
@@ -342,11 +459,20 @@ static int rzg2l_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 	pins = group->pins;
 
 	for (i = 0; i < group->num_pins; i++) {
-		dev_dbg(pctrl->dev, "port:%u pin: %u PSEL:%u\n",
-			RZG2L_PIN_ID_TO_PORT(pins[i]), RZG2L_PIN_ID_TO_PIN(pins[i]),
-			psel_val[i]);
-		rzg2l_pinctrl_set_pfc_mode(pctrl, RZG2L_PIN_ID_TO_PORT(pins[i]),
-					   RZG2L_PIN_ID_TO_PIN(pins[i]), psel_val[i]);
+		if (soc_device_match(rzg3s_match)) {
+			dev_dbg(pctrl->dev, "port:%u pin: %u PSEL:%u\n",
+				rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(pins[i])), RZG2L_PIN_ID_TO_PIN(pins[i]),
+				psel_val[i]);
+			rzg2l_pinctrl_set_pfc_mode(pctrl, rzg3s_find_port_offset(RZG2L_PIN_ID_TO_PORT(pins[i])),
+						   RZG2L_PIN_ID_TO_PIN(pins[i]), psel_val[i]);
+		}
+		else {
+			dev_dbg(pctrl->dev, "port:%u pin: %u PSEL:%u\n",
+				RZG2L_PIN_ID_TO_PORT(pins[i]), RZG2L_PIN_ID_TO_PIN(pins[i]),
+				psel_val[i]);
+			rzg2l_pinctrl_set_pfc_mode(pctrl, RZG2L_PIN_ID_TO_PORT(pins[i]),
+						   RZG2L_PIN_ID_TO_PIN(pins[i]), psel_val[i]);
+		}
 	}
 
 	return 0;
@@ -657,12 +783,24 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 		cfg = RZG2L_SINGLE_PIN_GET_CFGS(*pin_data);
 		bit = RZG2L_SINGLE_PIN_GET_BIT(*pin_data);
 	} else {
+
+		int _pin_g3s = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(_pin)) * 8 + RZG2L_PIN_ID_TO_PIN(_pin);
+		const struct pinctrl_pin_desc *pin_g3s = &pctrl->desc.pins[_pin_g3s];
+		pin_data = pin_g3s->drv_data;
+
 		cfg = RZG2L_GPIO_PORT_GET_CFGS(*pin_data);
-		port_offset = RZG2L_PIN_ID_TO_PORT_OFFSET(_pin);
+		if (soc_device_match(rzg3s_match))
+			port_offset = rzg3s_find_port_offset(RZG2L_PIN_ID_TO_PORT(_pin)) + 0x10;  /* RZ/G3S starts from 0x20 */
+		else
+			port_offset = RZG2L_PIN_ID_TO_PORT_OFFSET(_pin);
 		bit = RZG2L_PIN_ID_TO_PIN(_pin);
 
-		if (rzg2l_validate_gpio_pin(pctrl, *pin_data, RZG2L_PIN_ID_TO_PORT(_pin), bit))
-			return -EINVAL;
+		if (soc_device_match(rzg3s_match))
+			if (rzg2l_validate_gpio_pin(pctrl, *pin_data, rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(_pin)), bit))
+				return -EINVAL;
+		else
+			if (rzg2l_validate_gpio_pin(pctrl, *pin_data, RZG2L_PIN_ID_TO_PORT(_pin), bit))
+				return -EINVAL;
 	}
 
 	switch (param) {
@@ -678,15 +816,29 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 		u32 pwr_reg = 0x0;
 
 		if (cfg & PIN_CFG_IO_VMC_SD0)
-			pwr_reg = SD_CH(0);
+			if (soc_device_match(rzg3s_match))
+				pwr_reg = SD_CH_G3S(0);
+			else
+				pwr_reg = SD_CH(0);
 		else if (cfg & PIN_CFG_IO_VMC_SD1)
-			pwr_reg = SD_CH(1);
+			if (soc_device_match(rzg3s_match))
+				pwr_reg = SD_CH_G3S(1);
+			else
+				pwr_reg = SD_CH(1);
 		else if (cfg & PIN_CFG_IO_VMC_QSPI)
 			pwr_reg = QSPI;
+		else if (cfg & PIN_CFG_IO_VMC_XSPI)
+			pwr_reg = XSPI;
 		else if (cfg & PIN_CFG_IO_VMC_ETH0)
-			pwr_reg = ETH_CH(0);
+			if (soc_device_match(rzg3s_match))
+				pwr_reg = ETH_CH_G3S(0);
+			else
+				pwr_reg = ETH_CH(0);
 		else if (cfg & PIN_CFG_IO_VMC_ETH1)
-			pwr_reg = ETH_CH(1);
+			if (soc_device_match(rzg3s_match))
+				pwr_reg = ETH_CH_G3S(1);
+			else
+				pwr_reg = ETH_CH(1);
 		else
 			return -EINVAL;
 
@@ -767,12 +919,23 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 		cfg = RZG2L_SINGLE_PIN_GET_CFGS(*pin_data);
 		bit = RZG2L_SINGLE_PIN_GET_BIT(*pin_data);
 	} else {
+		int _pin_g3s = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(_pin)) * 8 + RZG2L_PIN_ID_TO_PIN(_pin);
+		const struct pinctrl_pin_desc *pin_g3s = &pctrl->desc.pins[_pin_g3s];
+		pin_data = pin_g3s->drv_data;
+
 		cfg = RZG2L_GPIO_PORT_GET_CFGS(*pin_data);
-		port_offset = RZG2L_PIN_ID_TO_PORT_OFFSET(_pin);
+		if (soc_device_match(rzg3s_match))
+			port_offset = rzg3s_find_port_offset(RZG2L_PIN_ID_TO_PORT(_pin)) + 0x10; /* RZ/G3S starts from 0x20 */
+		else
+			port_offset = RZG2L_PIN_ID_TO_PORT_OFFSET(_pin);
 		bit = RZG2L_PIN_ID_TO_PIN(_pin);
 
-		if (rzg2l_validate_gpio_pin(pctrl, *pin_data, RZG2L_PIN_ID_TO_PORT(_pin), bit))
-			return -EINVAL;
+		if (soc_device_match(rzg3s_match))
+			if (rzg2l_validate_gpio_pin(pctrl, *pin_data, rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(_pin)), bit))
+				return -EINVAL;
+		else
+			if (rzg2l_validate_gpio_pin(pctrl, *pin_data, RZG2L_PIN_ID_TO_PORT(_pin), bit))
+				return -EINVAL;
 	}
 
 	for (i = 0; i < num_configs; i++) {
@@ -798,15 +961,29 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 					return -EINVAL;
 
 			if (cfg & PIN_CFG_IO_VMC_SD0)
-				pwr_reg = SD_CH(0);
+				if (soc_device_match(rzg3s_match))
+					pwr_reg = SD_CH_G3S(0);
+				else
+					pwr_reg = SD_CH(0);
 			else if (cfg & PIN_CFG_IO_VMC_SD1)
-				pwr_reg = SD_CH(1);
+				if (soc_device_match(rzg3s_match))
+					pwr_reg = SD_CH_G3S(1);
+				else
+					pwr_reg = SD_CH(1);
 			else if (cfg & PIN_CFG_IO_VMC_QSPI)
 				pwr_reg = QSPI;
+			else if (cfg & PIN_CFG_IO_VMC_XSPI)
+				pwr_reg = XSPI;
 			else if (cfg & PIN_CFG_IO_VMC_ETH0)
-				pwr_reg = ETH_CH(0);
+				if (soc_device_match(rzg3s_match))
+					pwr_reg = ETH_CH_G3S(0);
+				else
+					pwr_reg = ETH_CH(0);
 			else if (cfg & PIN_CFG_IO_VMC_ETH1)
-				pwr_reg = ETH_CH(1);
+				if (soc_device_match(rzg3s_match))
+					pwr_reg = ETH_CH_G3S(1);
+				else
+					pwr_reg = ETH_CH(1);
 			else
 				return -EINVAL;
 
@@ -998,7 +1175,11 @@ static void rzg2l_gpio_irq_shutdown(struct irq_data *d)
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
 	int hw_irq = irqd_to_hwirq(d);
-	u32 port = RZG2L_PIN_ID_TO_PORT(hw_irq);
+	u32 port;
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(hw_irq));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(hw_irq);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(hw_irq);
 	u32 gpioint;
 	u32 tint_slot;
@@ -1013,6 +1194,11 @@ static void rzg2l_gpio_irq_shutdown(struct irq_data *d)
 	tint_slot = rzg2l_gpio_irq_check_tint_slot(pctrl, hw_irq);
 	if (tint_slot ==  TINT_MAX)
 		return;
+
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_offset(RZG2L_PIN_ID_TO_PORT(hw_irq));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(hw_irq);
 
 	spin_lock_irqsave(&pctrl->lock, flags);
 
@@ -1040,7 +1226,11 @@ static void rzg2l_gpio_irq_mask(struct irq_data *d)
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
 	int hw_irq = irqd_to_hwirq(d);
-	u32 port = RZG2L_PIN_ID_TO_PORT(hw_irq);
+	u32 port;
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(hw_irq));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(hw_irq);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(hw_irq);
 	u32 gpioint;
 	u32 tint_slot;
@@ -1075,7 +1265,11 @@ static void rzg2l_gpio_irq_unmask(struct irq_data *d)
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
 	int hw_irq = irqd_to_hwirq(d);
-	u32 port = RZG2L_PIN_ID_TO_PORT(hw_irq);
+	u32 port;
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(hw_irq));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(hw_irq);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(hw_irq);
 	u32 gpioint;
 	u32 tint_slot;
@@ -1128,7 +1322,11 @@ static int rzg2l_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
 	int hw_irq = irqd_to_hwirq(d);
-	u32 port = RZG2L_PIN_ID_TO_PORT(hw_irq);
+	u32 port;
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(hw_irq));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(hw_irq);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(hw_irq);
 	u32 gpioint;
 	u32 tint_slot;
@@ -1148,6 +1346,10 @@ static int rzg2l_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		if (tint_slot ==  TINT_MAX)
 			return -EINVAL;
 	}
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_offset(RZG2L_PIN_ID_TO_PORT(hw_irq));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(hw_irq);
 
 	switch (type & IRQ_TYPE_SENSE_MASK) {
 	/*
@@ -1254,7 +1456,11 @@ static irqreturn_t rzg2l_pinctrl_irq_handler(int irq, void *dev_id)
 static int rzg2l_gpio_request(struct gpio_chip *chip, unsigned int offset)
 {
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
-	u32 port = RZG2L_PIN_ID_TO_PORT(offset);
+	u32 port;
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(offset));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(offset);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(offset);
 	unsigned long flags;
 	u8 reg8;
@@ -1263,6 +1469,11 @@ static int rzg2l_gpio_request(struct gpio_chip *chip, unsigned int offset)
 	ret = pinctrl_gpio_request(chip->base + offset);
 	if (ret)
 		return ret;
+
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_offset(RZG2L_PIN_ID_TO_PORT(offset));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(offset);
 
 	spin_lock_irqsave(&pctrl->lock, flags);
 
@@ -1282,6 +1493,9 @@ static void rzg2l_gpio_set_direction(struct rzg2l_pinctrl *pctrl, u32 port,
 	unsigned long flags;
 	u16 reg16;
 
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_offset(port);
+
 	spin_lock_irqsave(&pctrl->lock, flags);
 
 	reg16 = readw(pctrl->base + PM(port));
@@ -1296,8 +1510,15 @@ static void rzg2l_gpio_set_direction(struct rzg2l_pinctrl *pctrl, u32 port,
 static int rzg2l_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
-	u32 port = RZG2L_PIN_ID_TO_PORT(offset);
+	u32 port;
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(offset));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(offset);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(offset);
+
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_offset(RZG2L_PIN_ID_TO_PORT(offset));
 
 	if (!(readb(pctrl->base + PMC(port)) & BIT(bit))) {
 		u16 reg16;
@@ -1315,7 +1536,11 @@ static int rzg2l_gpio_direction_input(struct gpio_chip *chip,
 				      unsigned int offset)
 {
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
-	u32 port = RZG2L_PIN_ID_TO_PORT(offset);
+	u32 port;
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(offset));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(offset);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(offset);
 
 	rzg2l_gpio_set_direction(pctrl, port, bit, false);
@@ -1327,10 +1552,19 @@ static void rzg2l_gpio_set(struct gpio_chip *chip, unsigned int offset,
 			   int value)
 {
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
-	u32 port = RZG2L_PIN_ID_TO_PORT(offset);
+	u32 port;
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(offset));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(offset);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(offset);
 	unsigned long flags;
 	u8 reg8;
+
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_offset(RZG2L_PIN_ID_TO_PORT(offset));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(offset);
 
 	spin_lock_irqsave(&pctrl->lock, flags);
 
@@ -1348,7 +1582,11 @@ static int rzg2l_gpio_direction_output(struct gpio_chip *chip,
 				       unsigned int offset, int value)
 {
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
-	u32 port = RZG2L_PIN_ID_TO_PORT(offset);
+	u32 port;
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(offset));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(offset);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(offset);
 
 	rzg2l_gpio_set(chip, offset, value);
@@ -1360,9 +1598,18 @@ static int rzg2l_gpio_direction_output(struct gpio_chip *chip,
 static int rzg2l_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
-	u32 port = RZG2L_PIN_ID_TO_PORT(offset);
+	u32 port;
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(offset));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(offset);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(offset);
 	u16 reg16;
+
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_offset(RZG2L_PIN_ID_TO_PORT(offset));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(offset);
 
 	reg16 = readw(pctrl->base + PM(port));
 	reg16 = (reg16 >> (bit * 2)) & PM_MASK;
@@ -1512,6 +1759,28 @@ static const u32 r9a07g043_gpio_configs[] = {
 	RZG2L_GPIO_PORT_PACK(6, 0x22, RZG2L_MPXED_PIN_FUNCS),
 };
 
+static const u32 r9a08g045_gpio_configs[] = {
+	RZG2L_GPIO_PORT_PACK(4, 0x20, RZG3S_MPXED_PIN_FUNCS_A),				/* P0  */
+	RZG2L_GPIO_PORT_PACK(5, 0x21, RZG3S_MPXED_PIN_FUNCS_A),				/* P5  */
+	RZG2L_GPIO_PORT_PACK(5, 0x22, RZG3S_MPXED_PIN_FUNCS_A),				/* P6  */
+	RZG2L_GPIO_PORT_PACK(4, 0x23, RZG3S_MPXED_PIN_FUNCS_B),				/* P11  */
+	RZG2L_GPIO_PORT_PACK(2, 0x24, RZG3S_MPXED_PIN_FUNCS_B),				/* P12  */
+	RZG2L_GPIO_PORT_PACK(5, 0x25, RZG3S_MPXED_PIN_FUNCS_A),				/* P13  */
+	RZG2L_GPIO_PORT_PACK(3, 0x26, RZG3S_MPXED_PIN_FUNCS_A),				/* P14  */
+	RZG2L_GPIO_PORT_PACK(4, 0x27, RZG3S_MPXED_PIN_FUNCS_A),				/* P15  */
+	RZG2L_GPIO_PORT_PACK(2, 0x28, RZG3S_MPXED_PIN_FUNCS_A),				/* P16  */
+	RZG2L_GPIO_PORT_PACK(4, 0x29, RZG3S_MPXED_PIN_FUNCS_A),				/* P17  */
+	RZG2L_GPIO_PORT_PACK(6, 0x2a, RZG3S_MPXED_PIN_FUNCS_A),				/* P18 */
+	RZG2L_GPIO_PORT_PACK(5, 0x30, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IO_VMC_ETH0)),	/* P1 */
+	RZG2L_GPIO_PORT_PACK(4, 0x31, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IO_VMC_ETH0)),	/* P2 */
+	RZG2L_GPIO_PORT_PACK(4, 0x32, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IO_VMC_ETH0)),	/* P3 */
+	RZG2L_GPIO_PORT_PACK(6, 0x33, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IO_VMC_ETH0)),	/* P4 */
+	RZG2L_GPIO_PORT_PACK(5, 0x34, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IO_VMC_ETH1)),	/* P7 */
+	RZG2L_GPIO_PORT_PACK(5, 0x35, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IO_VMC_ETH1)),	/* P8 */
+	RZG2L_GPIO_PORT_PACK(4, 0x36, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IO_VMC_ETH1)),	/* P9 */
+	RZG2L_GPIO_PORT_PACK(5, 0x37, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IO_VMC_ETH1)),	/* P10 */
+};
+
 static struct {
 	struct rzg2l_dedicated_configs common[35];
 	struct rzg2l_dedicated_configs rzg2l_pins[7];
@@ -1596,6 +1865,89 @@ static struct {
 		{ "QSPI1_SSL", RZG2L_SINGLE_PIN_PACK(0xb, 5,
 		 (PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_IO_VMC_QSPI)) },
 	}
+};
+
+struct rzg2l_dedicated_configs rzg3s_dedicated_pins[] = {
+		{ "NMI", RZG2L_SINGLE_PIN_PACK(0x0, 0,
+		 (PIN_CFG_FILONOFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL)) },
+		{ "TMS/SWDIO", RZG2L_SINGLE_PIN_PACK(0x1, 0,
+		 (PIN_CFG_IOLHM_A | PIN_CFG_IEN)) },
+		{ "TDO", RZG2L_SINGLE_PIN_PACK(0x1, 1,
+		 (PIN_CFG_IOLHM_A | PIN_CFG_IEN)) },
+		{ "AUDIO_CLK1", RZG2L_SINGLE_PIN_PACK(0x2, 0, PIN_CFG_IEN) },
+		{ "AUDIO_CLK2", RZG2L_SINGLE_PIN_PACK(0x2, 1, PIN_CFG_IEN) },
+		{ "SD0_CLK", RZG2L_SINGLE_PIN_PACK(0x10, 0,
+		 (PIN_CFG_IOLHM_B | PIN_CFG_IO_VMC_SD0)) },
+		{ "SD0_CMD", RZG2L_SINGLE_PIN_PACK(0x10, 1,
+		 (PIN_CFG_IOLHM_B | PIN_CFG_IEN | PIN_CFG_IO_VMC_SD0)) },
+		{ "SD0_RST#", RZG2L_SINGLE_PIN_PACK(0x10, 2,
+		 (PIN_CFG_IOLHM_B | PIN_CFG_IO_VMC_SD0)) },
+		{ "SD0_DATA0", RZG2L_SINGLE_PIN_PACK(0x11, 0,
+		 (PIN_CFG_IOLHM_B | PIN_CFG_IEN | PIN_CFG_IO_VMC_SD0)) },
+		{ "SD0_DATA1", RZG2L_SINGLE_PIN_PACK(0x11, 1,
+		 (PIN_CFG_IOLHM_B | PIN_CFG_IEN | PIN_CFG_IO_VMC_SD0)) },
+		{ "SD0_DATA2", RZG2L_SINGLE_PIN_PACK(0x11, 2,
+		 (PIN_CFG_IOLHM_B | PIN_CFG_IEN | PIN_CFG_IO_VMC_SD0)) },
+		{ "SD0_DATA3", RZG2L_SINGLE_PIN_PACK(0x11, 3,
+		 (PIN_CFG_IOLHM_B | PIN_CFG_IEN | PIN_CFG_IO_VMC_SD0)) },
+		{ "SD0_DATA4", RZG2L_SINGLE_PIN_PACK(0x11, 4,
+		 (PIN_CFG_IOLHM_B | PIN_CFG_IEN | PIN_CFG_IO_VMC_SD0)) },
+		{ "SD0_DATA5", RZG2L_SINGLE_PIN_PACK(0x11, 5,
+		 (PIN_CFG_IOLHM_B | PIN_CFG_IEN | PIN_CFG_IO_VMC_SD0)) },
+		{ "SD0_DATA6", RZG2L_SINGLE_PIN_PACK(0x11, 6,
+		 (PIN_CFG_IOLHM_B | PIN_CFG_IEN | PIN_CFG_IO_VMC_SD0)) },
+		{ "SD0_DATA7", RZG2L_SINGLE_PIN_PACK(0x11, 7,
+		 (PIN_CFG_IOLHM_B | PIN_CFG_IEN | PIN_CFG_IO_VMC_SD0)) },
+		{ "SD1_CLK", RZG2L_SINGLE_PIN_PACK(0x12, 0,
+		 (PIN_CFG_IOLHM_B | PIN_CFG_IO_VMC_SD1)) },
+		{ "SD1_CMD", RZG2L_SINGLE_PIN_PACK(0x12, 1,
+		 (PIN_CFG_IOLHM_B | PIN_CFG_IEN | PIN_CFG_IO_VMC_SD1)) },
+		{ "SD1_DATA0", RZG2L_SINGLE_PIN_PACK(0x13, 0,
+		 (PIN_CFG_IOLHM_B | PIN_CFG_IEN | PIN_CFG_IO_VMC_SD1)) },
+		{ "SD1_DATA1", RZG2L_SINGLE_PIN_PACK(0x13, 1,
+		 (PIN_CFG_IOLHM_B | PIN_CFG_IEN | PIN_CFG_IO_VMC_SD1)) },
+		{ "SD1_DATA2", RZG2L_SINGLE_PIN_PACK(0x13, 2,
+		 (PIN_CFG_IOLHM_B | PIN_CFG_IEN | PIN_CFG_IO_VMC_SD1)) },
+		{ "SD1_DATA3", RZG2L_SINGLE_PIN_PACK(0x13, 3,
+		 (PIN_CFG_IOLHM_B | PIN_CFG_IEN | PIN_CFG_IO_VMC_SD1)) },
+		{ "XSPI_SPCLK", RZG2L_SINGLE_PIN_PACK(0x4, 0,
+		 (PIN_CFG_IOLHM_C | PIN_CFG_IO_VMC_QSPI)) },
+		{ "XSPI_RESET#", RZG2L_SINGLE_PIN_PACK(0x4, 1,
+		 (PIN_CFG_IOLHM_C | PIN_CFG_IO_VMC_QSPI)) },
+		{ "XSPI_WP#", RZG2L_SINGLE_PIN_PACK(0x4, 2,
+		 (PIN_CFG_IOLHM_C | PIN_CFG_IO_VMC_QSPI)) },
+		{ "XSPI_DS", RZG2L_SINGLE_PIN_PACK(0x4, 3,
+		 (PIN_CFG_IOLHM_C | PIN_CFG_IO_VMC_QSPI)) },
+		{ "XSPI_CS0#", RZG2L_SINGLE_PIN_PACK(0x4, 4,
+		 (PIN_CFG_IOLHM_C | PIN_CFG_IO_VMC_QSPI)) },
+		{ "XSPI_CS1#", RZG2L_SINGLE_PIN_PACK(0x4, 5,
+		 (PIN_CFG_IOLHM_C | PIN_CFG_IO_VMC_QSPI)) },
+		{ "XSPI_IO0", RZG2L_SINGLE_PIN_PACK(0x5, 0,
+		 (PIN_CFG_IOLHM_C | PIN_CFG_IO_VMC_QSPI)) },
+		{ "XSPI_IO1", RZG2L_SINGLE_PIN_PACK(0x5, 1,
+		 (PIN_CFG_IOLHM_C | PIN_CFG_IO_VMC_QSPI)) },
+		{ "XSPI_IO2", RZG2L_SINGLE_PIN_PACK(0x5, 2,
+		 (PIN_CFG_IOLHM_C | PIN_CFG_IO_VMC_QSPI)) },
+		{ "XSPI_IO3", RZG2L_SINGLE_PIN_PACK(0x5, 3,
+		 (PIN_CFG_IOLHM_C | PIN_CFG_IO_VMC_QSPI)) },
+		{ "XSPI_IO4", RZG2L_SINGLE_PIN_PACK(0x5, 4,
+		 (PIN_CFG_IOLHM_C | PIN_CFG_IO_VMC_QSPI)) },
+		{ "XSPI_IO5", RZG2L_SINGLE_PIN_PACK(0x5, 5,
+		 (PIN_CFG_IOLHM_C | PIN_CFG_IO_VMC_QSPI)) },
+		{ "XSPI_IO6", RZG2L_SINGLE_PIN_PACK(0x5, 6,
+		 (PIN_CFG_IOLHM_C | PIN_CFG_IO_VMC_QSPI)) },
+		{ "XSPI_IO7", RZG2L_SINGLE_PIN_PACK(0x5, 7,
+		 (PIN_CFG_IOLHM_C | PIN_CFG_IO_VMC_QSPI)) },
+		{ "WDTOVF_PERROUT#", RZG2L_SINGLE_PIN_PACK(0x6, 0, (PIN_CFG_IOLHM_A)) },
+		{ "I3C_SDA", RZG2L_SINGLE_PIN_PACK(0x9, 0, PIN_CFG_IEN) },
+		{ "I3C_SCL", RZG2L_SINGLE_PIN_PACK(0x9, 1, PIN_CFG_IEN) },
+		{ "SD2_CMD", RZG2L_SINGLE_PIN_PACK(0x23, 1, PIN_CFG_IEN) },
+		{ "SD2_DATA0", RZG2L_SINGLE_PIN_PACK(0x23, 2, PIN_CFG_IEN) },
+		{ "SD2_DATA1", RZG2L_SINGLE_PIN_PACK(0x23, 3, PIN_CFG_IEN) },
+		{ "SD2_DATA2", RZG2L_SINGLE_PIN_PACK(0x24, 0, PIN_CFG_IEN) },
+		{ "SD2_DATA3", RZG2L_SINGLE_PIN_PACK(0x24, 1, PIN_CFG_IEN) },
+		{ "ET0_TXC/TX_CLK", RZG2L_SINGLE_PIN_PACK(0x30, 0, PIN_CFG_IEN) },
+		{ "ET1_TXC/TX_CLK", RZG2L_SINGLE_PIN_PACK(0x34, 0, PIN_CFG_IEN) },
 };
 
 static int rzg2l_gpio_register(struct rzg2l_pinctrl *pctrl)
@@ -1901,6 +2253,17 @@ static struct rzg2l_pinctrl_data r9a07g044_data = {
 	.irq_mask = false,
 };
 
+static struct rzg2l_pinctrl_data r9a08g045_data = {
+	.port_pins = rzg2l_gpio_names,
+	.port_pin_configs = r9a08g045_gpio_configs,
+	.dedicated_pins = rzg3s_dedicated_pins,
+	.n_port_pins = ARRAY_SIZE(r9a08g045_gpio_configs) * RZG2L_PINS_PER_PORT,
+	.n_dedicated_pins = ARRAY_SIZE(rzg3s_dedicated_pins),
+	.pin_info = rzg3s_pin_info,
+	.ngpioints = ARRAY_SIZE(rzg3s_pin_info),
+	.irq_mask = false,
+};
+
 static const struct of_device_id rzg2l_pinctrl_of_table[] = {
 	{
 		.compatible = "renesas,r9a07g043-pinctrl",
@@ -1913,6 +2276,10 @@ static const struct of_device_id rzg2l_pinctrl_of_table[] = {
 	{
 		.compatible = "renesas,r9a07g044-pinctrl",
 		.data = &r9a07g044_data,
+	},
+	{
+		.compatible = "renesas,r9a08g045-pinctrl",
+		.data = &r9a08g045_data,
 	},
 	{ /* sentinel */ }
 };
