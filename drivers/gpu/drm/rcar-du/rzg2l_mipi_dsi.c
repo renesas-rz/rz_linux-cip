@@ -35,19 +35,6 @@
 
 #define RZ_G2L_MIPI_DSI_MAX_DATA_LANES	4
 
-/* D-PHY Timing Setting Values for over 360 Mbps Transmission Rate */
-#define DPHY_TIMING_T_INIT		79801
-#define DPHY_TIMING_TCLK_PREPARE	8
-#define DPHY_TIMING_THS_PREPARE		9
-#define DPHY_TIMING_TCLK_ZERO		33
-#define DPHY_TIMING_TCLK_PRE		4
-#define DPHY_TIMING_TCLK_POST		35
-#define DPHY_TIMING_TCLK_TRAIL		7
-#define DPHY_TIMING_THS_ZERO		16
-#define DPHY_TIMING_THS_TRAIL		9
-#define DPHY_TIMING_THS_EXIT		13
-#define DPHY_TIMING_TLPX		6
-
 struct rzg2l_mipi_dsi {
 	struct device *dev;
 	void __iomem *link_mmio;
@@ -165,38 +152,38 @@ static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *mipi_dsi)
 	mipi_dsi->hsfreq = (mode->clock * bpp * 8) / (8 * mipi_dsi->lanes);
 
 	/* Initializing DPHY before accessing LINK */
-	/* All DSI global operation timings are set with recommended setting */
-	timings.tclk_miss = 0;
-	timings.t_init = DPHY_TIMING_T_INIT;
-	timings.ths_prepare = DPHY_TIMING_THS_PREPARE;
-	timings.tclk_prepare = DPHY_TIMING_TCLK_PREPARE;
-	timings.ths_settle = 0;
-	timings.tclk_settle = 0;
-	timings.tclk_trail = DPHY_TIMING_TCLK_TRAIL;
-	timings.tclk_post = DPHY_TIMING_TCLK_POST;
-	timings.tclk_pre = DPHY_TIMING_TCLK_PRE;
-	timings.tclk_zero = DPHY_TIMING_TCLK_ZERO;
-	timings.tlpx = DPHY_TIMING_TLPX;
-	timings.ths_exit = DPHY_TIMING_THS_EXIT;
-	timings.ths_trail = DPHY_TIMING_THS_TRAIL;
-	timings.ths_zero = DPHY_TIMING_THS_ZERO;
 
-	if (mipi_dsi->hsfreq <= 125000) {
-		timings.ths_prepare = (mipi_dsi->hsfreq > 80000) ? 12 : 13;
-		timings.tclk_pre = (mipi_dsi->hsfreq > 80000) ? 15 : 24;
-		timings.tclk_post = 94;
+	/* All DSI global operation timings are set with recommended setting */
+	if (mipi_dsi->hsfreq > 250000) {
+		timings.tclk_miss = 1;
+		timings.t_init = 79801;
+		timings.tclk_prepare = 8;
+		timings.tclk_settle = 9;
+		timings.tclk_trail = 7;
+		timings.tclk_post = 35;
+		timings.tclk_pre = 4;
+		timings.tclk_zero = 33;
+		timings.tlpx = 6;
+		timings.ths_prepare = 9;
+		timings.ths_settle = 9;
+		timings.ths_exit = 13;
+		timings.ths_trail = 9;
+		timings.ths_zero = 16;
+	} else {
+		timings.tclk_miss = 1;
+		timings.t_init = 79801;
+		timings.tclk_prepare = 8;
+		timings.tclk_settle = 9;
 		timings.tclk_trail = 10;
-		timings.ths_zero = 23;
-		timings.ths_trail = 17;
-	} else if (mipi_dsi->hsfreq <= 250000) {
-		timings.ths_prepare = 12;
+		timings.tclk_post = 94;
 		timings.tclk_pre = 13;
-		timings.tclk_post = 94;
-		timings.tclk_trail = 10;
+		timings.tclk_zero = 33;
+		timings.tlpx = 6;
+		timings.ths_prepare = 12;
+		timings.ths_settle = 9;
+		timings.ths_exit = 13;
+		timings.ths_trail = 17;
 		timings.ths_zero = 23;
-		timings.ths_trail = 16;
-	} else if (mipi_dsi->hsfreq <= 360000) {
-		timings.ths_prepare = 10;
 	}
 
 	dphytim0 = DSIDPHYTIM0_TCLK_MISS(timings.tclk_miss) |
