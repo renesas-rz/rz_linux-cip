@@ -82,7 +82,7 @@
 #define DPHY_TIMING_T_INIT		79801
 #define DPHY_TIMING_TCLK_MISS		4
 #define DPHY_TIMING_TCLK_SETTLE		18
-#define DPHY_TIMING_THS_SETTLE		12
+#define DPHY_TIMING_THS_SETTLE		18
 #define DPHY_TIMING_TCLK_PREPARE	10
 #define DPHY_TIMING_THS_PREPARE		10
 
@@ -228,14 +228,19 @@ static int rzg2l_csi2_dphy_setting(struct rzg2l_csi2 *priv, bool on)
 
 		/* Set DPHY timing parameters */
 		if (priv->hsfreq <= 80) {
-			dphy_timing.ths_settle = 10;
-			dphy_timing.tclk_prepare = 9;
-			dphy_timing.ths_prepare = 9;
+			dphy_timing.tclk_settle = 23;
+			dphy_timing.ths_settle = 31;
+			dphy_timing.ths_prepare = 19;
 		} else if (priv->hsfreq <= 125) {
-			dphy_timing.ths_settle = 11;
-			dphy_timing.ths_prepare = 9;
+			dphy_timing.tclk_settle = 23;
+			dphy_timing.ths_settle = 28;
+			dphy_timing.ths_prepare = 19;
 		} else if (priv->hsfreq <= 250) {
-			dphy_timing.ths_prepare = 10;
+			dphy_timing.tclk_settle = 23;
+			dphy_timing.ths_settle = 22;
+			dphy_timing.ths_prepare = 16;
+		} else if (priv->hsfreq <= 360) {
+			dphy_timing.ths_settle = 19;
 		}
 
 		dphytim0 = CSIDPHYTIM0_TCLK_MISS(dphy_timing.tclk_miss) |
