@@ -37,3 +37,11 @@
 &extal_clk {
 	clock-frequency = <24000000>;
 };
+
+&ostm0 {
+	status = "okay";
+};
+
+&ostm1 {
+	status = "okay";
+};
