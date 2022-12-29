@@ -11,8 +11,12 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-       model = "Renesas Development EVK based on r9a09g057h4";
-       compatible = "renesas,r9a09g057h4-dev", "renesas,r9a09g057h4", "renesas,r9a09g057";
+	model = "Renesas Development EVK based on r9a09g057h4";
+	compatible = "renesas,r9a09g057h4-dev", "renesas,r9a09g057h4", "renesas,r9a09g057";
+
+	aliases {
+		serial0 = &scif0;
+	};
 
 	memory@48000000 {
 		device_type = "memory";
@@ -34,6 +38,12 @@
 	};
 };
 
+&pinctrl {
+	scif0_pins: scif0 {
+		pins =  "SCIF_RXD", "SCIF_TXD";
+	};
+};
+
 &extal_clk {
 	clock-frequency = <24000000>;
 };
@@ -43,5 +53,12 @@
 };
 
 &ostm1 {
+	status = "okay";
+};
+
+&scif0 {
+	pinctrl-0 = <&scif0_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 };
