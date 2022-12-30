@@ -10,12 +10,23 @@
 #include <dt-bindings/pinctrl/rzg2l-pinctrl.h>
 #include <dt-bindings/gpio/gpio.h>
 
+/*
+ * Jumper setting
+ *
+ * Please change the jumper setting corresponding to below Macros:
+ *
+ * SW2 (SEL_SD0): 1: eMMC (default);	0: SD
+ */
+
+#define SW2	1
+
 / {
 	model = "Renesas Development EVK based on r9a09g057h4";
 	compatible = "renesas,r9a09g057h4-dev", "renesas,r9a09g057h4", "renesas,r9a09g057";
 
 	aliases {
 		serial0 = &scif0;
+		mmc0 = &sdhi0;
 	};
 
 	memory@48000000 {
@@ -36,12 +47,83 @@
 			reg = <0x0 0x58000000 0x0 0x10000000>;
 		};
 	};
+
+	reg_1p8v: regulator0 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "fixed-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	reg_3p3v: regulator1 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vccq_sdhi0: regulator-vccq-sdhi0 {
+		compatible = "regulator-gpio";
+
+		regulator-name = "SDHI0 VccQ";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpios = <&pinctrl RZG2L_GPIO(10, 0) GPIO_ACTIVE_HIGH>;
+
+		gpios-states = <1>;
+		states = <3300000 0 1800000 1>;
+	};
 };
 
 &pinctrl {
 	scif0_pins: scif0 {
 		pins =  "SCIF_RXD", "SCIF_TXD";
 	};
+
+	sd0_pwr_en {
+		gpio-hog;
+		gpios = <RZG2L_GPIO(10, 1) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "sd0_pwr_en";
+	};
+
+#if (SW12)
+	/* Support pinctrl for MMC function of SDHI0*/
+	sdhi0_pins: sd0 {
+		sd0_data {
+			pins =	"QSD0_DATA0", "QSD0_DATA1", "QSD0_DATA2",
+				"QSD0_DATA3", "QSD0_DATA4", "QSD0_DATA5",
+				"QSD0_DATA6", "QSD0_DATA7";
+		};
+
+		sd0_ctrl {
+			pins =	"QSD0_CLK", "QSD0_CMD", "QSD0_RST_N";
+		};
+	};
+#else
+        /* Support pinctrl for SD function of SDHI0 */
+        sdhi0_pins: sd0 {
+		sd0_data {
+			pins =	"QSD0_DATA0", "QSD0_DATA1", "QSD0_DATA2",
+				"QSD0_DATA3";
+		};
+
+		sd0_ctrl {
+			pins = "QSD0_CLK", "QSD0_CMD";
+		};
+
+		sd0_mux {
+			pinmux = <RZG2L_PORT_PINMUX(9, 4, 15)>; /* SD0_CD */
+		};
+	};
+#endif
 };
 
 &extal_clk {
@@ -62,3 +144,31 @@
 
 	status = "okay";
 };
+
+#if (SW12)
+&sdhi0 {
+	pinctrl-0 = <&sdhi0_pins>;
+	pinctrl-names = "default";
+
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_1p8v>;
+	bus-width = <8>;
+	mmc-hs200-1_8v;
+	non-removable;
+	fixed-emmc-driver-type = <1>;
+	status = "okay";
+};
+#else
+&sdhi0 {
+	pinctrl-0 = <&sdhi0_pins>;
+	pinctrl-names = "default";
+
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&vccq_sdhi0>;
+
+	bus-width = <4>;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	status = "okay";
+};
+#endif
