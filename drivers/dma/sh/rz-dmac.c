@@ -20,6 +20,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
@@ -92,6 +93,7 @@ struct rz_dmac_chan {
 struct rz_dmac {
 	struct dma_device engine;
 	struct device *dev;
+	struct reset_control *rstc;
 	void __iomem *base;
 	void __iomem *ext_base;
 
@@ -890,6 +892,15 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	/* Initialize the channels. */
 	INIT_LIST_HEAD(&dmac->engine.channels);
 
+	dmac->rstc = devm_reset_control_array_get_exclusive(&pdev->dev);
+	if (IS_ERR(dmac->rstc))
+		return dev_err_probe(&pdev->dev, PTR_ERR(dmac->rstc),
+				     "failed to get reset\n");
+
+	ret = reset_control_deassert(dmac->rstc);
+	if (ret)
+		return ret;
+
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_resume_and_get(&pdev->dev);
 	if (ret < 0) {
@@ -936,6 +947,7 @@ static int rz_dmac_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "unable to register\n");
 		goto dma_register_err;
 	}
+
 	return 0;
 
 dma_register_err:
@@ -975,6 +987,7 @@ static int rz_dmac_remove(struct platform_device *pdev)
 	dma_async_device_unregister(&dmac->engine);
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+	reset_control_assert(dmac->rstc);
 
 	return 0;
 }
