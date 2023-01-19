@@ -133,6 +133,9 @@
 #define ETH_PVDD_2500		BIT(1)	/* Ether I/O voltage 2.5V */
 #define ETH_PVDD_1800		BIT(0)	/* Ether I/O voltage 1.8V */
 #define ETH_PVDD_3300		0	/* Ether I/O voltage 3.3V */
+#define XSPI_PVDD_2500		BIT(1)	/* xSPI I/O voltage 2.5V */
+#define XSPI_PVDD_1800		BIT(0)	/* xSPI I/O voltage 1.8V */
+#define XSPI_PVDD_3300		0	/* xSPI I/O voltage 3.3V */
 
 #define PWPR_B0WI		BIT(7)	/* Bit Write Disable */
 #define PWPR_PFCWE		BIT(6)	/* PFC Register Write Enable */
@@ -144,6 +147,7 @@
 #define IEN_MASK		0x01
 #define SR_MASK			0x01
 #define IOLH_MASK		0x03
+#define XSPI_PVDD_MASK	0x03
 
 #define PM_INPUT		0x1
 #define PM_OUTPUT		0x2
@@ -849,9 +853,15 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 			arg = arg ?
 			      ((arg == ETH_PVDD_1800) ? 1800 : 2500) :
 			      3300;
+		} else if (cfg & PIN_CFG_IO_VMC_XSPI) {
+			arg = (readl(addr) & XSPI_PVDD_MASK);
+			arg = arg ?
+			      ((arg == XSPI_PVDD_1800) ? 1800 : 2500) :
+			      3300;
 		} else {
 			arg = (readl(addr) & PVDD_MASK) ? 1800 : 3300;
 		}
+
 		spin_unlock_irqrestore(&pctrl->lock, flags);
 		break;
 	}
@@ -957,7 +967,7 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 			u32 pwr_reg = 0x0;
 
 			if (mV != 1800 && mV != 3300)
-				if (!((mV == 2500) && (cfg & PIN_CFG_IO_VMC_ETH)))
+				if (!((mV == 2500) && (cfg & PIN_CFG_IO_VMC_ETH || cfg & PIN_CFG_IO_VMC_XSPI)))
 					return -EINVAL;
 
 			if (cfg & PIN_CFG_IO_VMC_SD0)
@@ -993,6 +1003,10 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 				writel((mV == 3300) ? ETH_PVDD_3300 :
 				      ((mV == 2500) ? ETH_PVDD_2500 :
 						      ETH_PVDD_1800), addr);
+			else if (cfg & PIN_CFG_IO_VMC_XSPI)
+				writel((mV == 3300) ? XSPI_PVDD_3300 :
+				      ((mV == 2500) ? XSPI_PVDD_2500 :
+						      XSPI_PVDD_1800), addr);
 			else
 				writel((mV == 1800) ? PVDD_1800 :
 						      PVDD_3300, addr);
