@@ -778,6 +778,7 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 	u32 port_offset;
 	u32 cfg = 0;
 	u8 bit = 0;
+	int ret = 0;
 
 	if (!pin_data)
 		return -EINVAL;
@@ -787,7 +788,6 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 		cfg = RZG2L_SINGLE_PIN_GET_CFGS(*pin_data);
 		bit = RZG2L_SINGLE_PIN_GET_BIT(*pin_data);
 	} else {
-
 		int _pin_g3s = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(_pin)) * 8 + RZG2L_PIN_ID_TO_PIN(_pin);
 		const struct pinctrl_pin_desc *pin_g3s = &pctrl->desc.pins[_pin_g3s];
 		pin_data = pin_g3s->drv_data;
@@ -800,11 +800,12 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 		bit = RZG2L_PIN_ID_TO_PIN(_pin);
 
 		if (soc_device_match(rzg3s_match))
-			if (rzg2l_validate_gpio_pin(pctrl, *pin_data, rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(_pin)), bit))
-				return -EINVAL;
+			ret = rzg2l_validate_gpio_pin(pctrl, *pin_data, rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(_pin)), bit);
 		else
-			if (rzg2l_validate_gpio_pin(pctrl, *pin_data, RZG2L_PIN_ID_TO_PORT(_pin), bit))
-				return -EINVAL;
+			ret = rzg2l_validate_gpio_pin(pctrl, *pin_data, RZG2L_PIN_ID_TO_PORT(_pin), bit);
+
+		if(ret)
+			return -EINVAL;
 	}
 
 	switch (param) {
@@ -920,6 +921,7 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 	unsigned int i;
 	u32 cfg = 0;
 	u8 bit = 0;
+	int ret = 0;
 
 	if (!pin_data)
 		return -EINVAL;
@@ -941,11 +943,12 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 		bit = RZG2L_PIN_ID_TO_PIN(_pin);
 
 		if (soc_device_match(rzg3s_match))
-			if (rzg2l_validate_gpio_pin(pctrl, *pin_data, rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(_pin)), bit))
-				return -EINVAL;
+			ret = rzg2l_validate_gpio_pin(pctrl, *pin_data, rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(_pin)), bit);
 		else
-			if (rzg2l_validate_gpio_pin(pctrl, *pin_data, RZG2L_PIN_ID_TO_PORT(_pin), bit))
-				return -EINVAL;
+			ret = rzg2l_validate_gpio_pin(pctrl, *pin_data, RZG2L_PIN_ID_TO_PORT(_pin), bit);
+
+		if(ret)
+			return -EINVAL;
 	}
 
 	for (i = 0; i < num_configs; i++) {
