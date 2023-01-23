@@ -46,18 +46,22 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
+#include <linux/sys_soc.h>
 
-#define RIIC_ICCR1	0x00
-#define RIIC_ICCR2	0x04
-#define RIIC_ICMR1	0x08
-#define RIIC_ICMR3	0x10
-#define RIIC_ICSER	0x18
-#define RIIC_ICIER	0x1c
-#define RIIC_ICSR2	0x24
-#define RIIC_ICBRL	0x34
-#define RIIC_ICBRH	0x38
-#define RIIC_ICDRT	0x3c
-#define RIIC_ICDRR	0x40
+#define REGSET_RZG2L	0
+#define REGSET_RZG3S	1
+
+#define RIIC_ICCR1	0
+#define RIIC_ICCR2	1
+#define RIIC_ICMR1	2
+#define RIIC_ICMR3	3
+#define RIIC_ICSER	4
+#define RIIC_ICIER	5
+#define RIIC_ICSR2	6
+#define RIIC_ICBRL	7
+#define RIIC_ICBRH	8
+#define RIIC_ICDRT	9
+#define RIIC_ICDRR	10
 
 #define ICCR1_ICE	0x80
 #define ICCR1_IICRST	0x40
@@ -98,12 +102,50 @@ struct riic_dev {
 	struct completion msg_done;
 	struct i2c_adapter adapter;
 	struct clk *clk;
+	int regset;
 };
 
 struct riic_irq_desc {
 	int res_num;
 	irq_handler_t isr;
 	char *name;
+};
+
+static const struct soc_device_attribute rzg3s_match[] = {
+	{ .family = "RZ/G3S" },
+	{ /* sentinel*/ }
+};
+
+const u8 reg_offset[2][11] =
+{
+	{
+		/* REGSET_RZG2L	*/
+		/* RIIC_ICCR1	*/	0x00,
+		/* RIIC_ICCR2	*/	0x04,
+		/* RIIC_ICMR1	*/	0x08,
+		/* RIIC_ICMR3	*/	0x10,
+		/* RIIC_ICSER	*/	0x18,
+		/* RIIC_ICIER	*/	0x1c,
+		/* RIIC_ICSR2	*/	0x24,
+		/* RIIC_ICBRL	*/	0x34,
+		/* RIIC_ICBRH	*/	0x38,
+		/* RIIC_ICDRT	*/	0x3c,
+		/* RIIC_ICDRR	*/	0x40
+	},
+	{
+		/* REGSET_RZG3S	*/
+		/* RIIC_ICCR1	*/	0x00,
+		/* RIIC_ICCR2	*/	0x01,
+		/* RIIC_ICMR1	*/	0x02,
+		/* RIIC_ICMR3	*/	0x04,
+		/* RIIC_ICSER	*/	0x06,
+		/* RIIC_ICIER	*/	0x07,
+		/* RIIC_ICSR2	*/	0x09,
+		/* RIIC_ICBRL	*/	0x10,
+		/* RIIC_ICBRH	*/	0x11,
+		/* RIIC_ICDRT	*/	0x12,
+		/* RIIC_ICDRR	*/	0x13
+	}
 };
 
 static inline void riic_clear_set_bit(struct riic_dev *riic, u8 clear, u8 set, u8 reg)
@@ -120,7 +162,7 @@ static int riic_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	pm_runtime_get_sync(adap->dev.parent);
 
-	if (readb(riic->base + RIIC_ICCR2) & ICCR2_BBSY) {
+	if (readb(riic->base + reg_offset[riic->regset][RIIC_ICCR2]) & ICCR2_BBSY) {
 		riic->err = -EBUSY;
 		goto out;
 	}
@@ -128,7 +170,7 @@ static int riic_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	reinit_completion(&riic->msg_done);
 	riic->err = 0;
 
-	writeb(0, riic->base + RIIC_ICSR2);
+	writeb(0, riic->base + reg_offset[riic->regset][RIIC_ICSR2]);
 
 	for (i = 0, start_bit = ICCR2_ST; i < num; i++) {
 		riic->bytes_left = RIIC_INIT_MSG;
@@ -136,9 +178,9 @@ static int riic_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 		riic->msg = &msgs[i];
 		riic->is_last = (i == num - 1);
 
-		writeb(ICIER_NAKIE | ICIER_TIE, riic->base + RIIC_ICIER);
+		writeb(ICIER_NAKIE | ICIER_TIE, riic->base + reg_offset[riic->regset][RIIC_ICIER]);
 
-		writeb(start_bit, riic->base + RIIC_ICCR2);
+		writeb(start_bit, riic->base + reg_offset[riic->regset][RIIC_ICCR2]);
 
 		time_left = wait_for_completion_timeout(&riic->msg_done, riic->adapter.timeout);
 		if (time_left == 0)
@@ -167,7 +209,7 @@ static irqreturn_t riic_tdre_isr(int irq, void *data)
 	if (riic->bytes_left == RIIC_INIT_MSG) {
 		if (riic->msg->flags & I2C_M_RD)
 			/* On read, switch over to receive interrupt */
-			riic_clear_set_bit(riic, ICIER_TIE, ICIER_RIE, RIIC_ICIER);
+			riic_clear_set_bit(riic, ICIER_TIE, ICIER_RIE, reg_offset[riic->regset][RIIC_ICIER]);
 		else
 			/* On write, initialize length */
 			riic->bytes_left = riic->msg->len;
@@ -185,14 +227,14 @@ static irqreturn_t riic_tdre_isr(int irq, void *data)
 	 * 0 length then)
 	 */
 	if (riic->bytes_left == 0)
-		riic_clear_set_bit(riic, ICIER_TIE, ICIER_TEIE, RIIC_ICIER);
+		riic_clear_set_bit(riic, ICIER_TIE, ICIER_TEIE, reg_offset[riic->regset][RIIC_ICIER]);
 
 	/*
 	 * This acks the TIE interrupt. We get another TIE immediately if our
 	 * value could be moved to the shadow shift register right away. So
 	 * this must be after updates to ICIER (where we want to disable TIE)!
 	 */
-	writeb(val, riic->base + RIIC_ICDRT);
+	writeb(val, riic->base + reg_offset[riic->regset][RIIC_ICDRT]);
 
 	return IRQ_HANDLED;
 }
@@ -201,21 +243,21 @@ static irqreturn_t riic_tend_isr(int irq, void *data)
 {
 	struct riic_dev *riic = data;
 
-	if (readb(riic->base + RIIC_ICSR2) & ICSR2_NACKF) {
+	if (readb(riic->base + reg_offset[riic->regset][RIIC_ICSR2]) & ICSR2_NACKF) {
 		/* We got a NACKIE */
-		readb(riic->base + RIIC_ICDRR);	/* dummy read */
-		riic_clear_set_bit(riic, ICSR2_NACKF, 0, RIIC_ICSR2);
+		readb(riic->base + reg_offset[riic->regset][RIIC_ICDRR]);	/* dummy read */
+		riic_clear_set_bit(riic, ICSR2_NACKF, 0, reg_offset[riic->regset][RIIC_ICSR2]);
 		riic->err = -ENXIO;
 	} else if (riic->bytes_left) {
 		return IRQ_NONE;
 	}
 
 	if (riic->is_last || riic->err) {
-		riic_clear_set_bit(riic, ICIER_TEIE, ICIER_SPIE, RIIC_ICIER);
-		writeb(ICCR2_SP, riic->base + RIIC_ICCR2);
+		riic_clear_set_bit(riic, ICIER_TEIE, ICIER_SPIE, reg_offset[riic->regset][RIIC_ICIER]);
+		writeb(ICCR2_SP, riic->base + reg_offset[riic->regset][RIIC_ICCR2]);
 	} else {
 		/* Transfer is complete, but do not send STOP */
-		riic_clear_set_bit(riic, ICIER_TEIE, 0, RIIC_ICIER);
+		riic_clear_set_bit(riic, ICIER_TEIE, 0, reg_offset[riic->regset][RIIC_ICIER]);
 		complete(&riic->msg_done);
 	}
 
@@ -231,25 +273,25 @@ static irqreturn_t riic_rdrf_isr(int irq, void *data)
 
 	if (riic->bytes_left == RIIC_INIT_MSG) {
 		riic->bytes_left = riic->msg->len;
-		readb(riic->base + RIIC_ICDRR);	/* dummy read */
+		readb(riic->base + reg_offset[riic->regset][RIIC_ICDRR]);	/* dummy read */
 		return IRQ_HANDLED;
 	}
 
 	if (riic->bytes_left == 1) {
 		/* STOP must come before we set ACKBT! */
 		if (riic->is_last) {
-			riic_clear_set_bit(riic, 0, ICIER_SPIE, RIIC_ICIER);
-			writeb(ICCR2_SP, riic->base + RIIC_ICCR2);
+			riic_clear_set_bit(riic, 0, ICIER_SPIE, reg_offset[riic->regset][RIIC_ICIER]);
+			writeb(ICCR2_SP, riic->base + reg_offset[riic->regset][RIIC_ICCR2]);
 		}
 
-		riic_clear_set_bit(riic, 0, ICMR3_ACKBT, RIIC_ICMR3);
+		riic_clear_set_bit(riic, 0, ICMR3_ACKBT, reg_offset[riic->regset][RIIC_ICMR3]);
 
 	} else {
-		riic_clear_set_bit(riic, ICMR3_ACKBT, 0, RIIC_ICMR3);
+		riic_clear_set_bit(riic, ICMR3_ACKBT, 0, reg_offset[riic->regset][RIIC_ICMR3]);
 	}
 
 	/* Reading acks the RIE interrupt */
-	*riic->buf = readb(riic->base + RIIC_ICDRR);
+	*riic->buf = readb(riic->base + reg_offset[riic->regset][RIIC_ICDRR]);
 	riic->buf++;
 	riic->bytes_left--;
 
@@ -261,10 +303,10 @@ static irqreturn_t riic_stop_isr(int irq, void *data)
 	struct riic_dev *riic = data;
 
 	/* read back registers to confirm writes have fully propagated */
-	writeb(0, riic->base + RIIC_ICSR2);
-	readb(riic->base + RIIC_ICSR2);
-	writeb(0, riic->base + RIIC_ICIER);
-	readb(riic->base + RIIC_ICIER);
+	writeb(0, riic->base + reg_offset[riic->regset][RIIC_ICSR2]);
+	readb(riic->base + reg_offset[riic->regset][RIIC_ICSR2]);
+	writeb(0, riic->base + reg_offset[riic->regset][RIIC_ICIER]);
+	readb(riic->base + reg_offset[riic->regset][RIIC_ICIER]);
 
 	complete(&riic->msg_done);
 
@@ -370,17 +412,17 @@ static int riic_init_hw(struct riic_dev *riic, struct i2c_timings *t)
 		 t->scl_rise_ns / (1000000000 / rate), cks, brl, brh);
 
 	/* Changing the order of accessing IICRST and ICE may break things! */
-	writeb(ICCR1_IICRST | ICCR1_SOWP, riic->base + RIIC_ICCR1);
-	riic_clear_set_bit(riic, 0, ICCR1_ICE, RIIC_ICCR1);
+	writeb(ICCR1_IICRST | ICCR1_SOWP, riic->base + reg_offset[riic->regset][RIIC_ICCR1]);
+	riic_clear_set_bit(riic, 0, ICCR1_ICE, reg_offset[riic->regset][RIIC_ICCR1]);
 
-	writeb(ICMR1_CKS(cks), riic->base + RIIC_ICMR1);
-	writeb(brh | ICBR_RESERVED, riic->base + RIIC_ICBRH);
-	writeb(brl | ICBR_RESERVED, riic->base + RIIC_ICBRL);
+	writeb(ICMR1_CKS(cks), riic->base + reg_offset[riic->regset][RIIC_ICMR1]);
+	writeb(brh | ICBR_RESERVED, riic->base + reg_offset[riic->regset][RIIC_ICBRH]);
+	writeb(brl | ICBR_RESERVED, riic->base + reg_offset[riic->regset][RIIC_ICBRL]);
 
-	writeb(0, riic->base + RIIC_ICSER);
-	writeb(ICMR3_ACKWP | ICMR3_RDRFS, riic->base + RIIC_ICMR3);
+	writeb(0, riic->base + reg_offset[riic->regset][RIIC_ICSER]);
+	writeb(ICMR3_ACKWP | ICMR3_RDRFS, riic->base + reg_offset[riic->regset][RIIC_ICMR3]);
 
-	riic_clear_set_bit(riic, ICCR1_IICRST, 0, RIIC_ICCR1);
+	riic_clear_set_bit(riic, ICCR1_IICRST, 0, reg_offset[riic->regset][RIIC_ICCR1]);
 
 out:
 	pm_runtime_put(riic->adapter.dev.parent);
@@ -422,6 +464,12 @@ static int riic_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(riic->clk)) {
 		dev_err(&pdev->dev, "missing controller clock");
 		return PTR_ERR(riic->clk);
+	}
+
+	if (soc_device_match(rzg3s_match)) {
+		riic->regset = REGSET_RZG3S;
+	} else {
+		riic->regset = REGSET_RZG2L;
 	}
 
 	rstc = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
@@ -490,7 +538,7 @@ static int riic_i2c_remove(struct platform_device *pdev)
 	struct riic_dev *riic = platform_get_drvdata(pdev);
 
 	pm_runtime_get_sync(&pdev->dev);
-	writeb(0, riic->base + RIIC_ICIER);
+	writeb(0, riic->base + reg_offset[riic->regset][RIIC_ICIER]);
 	pm_runtime_put(&pdev->dev);
 	i2c_del_adapter(&riic->adapter);
 	pm_runtime_disable(&pdev->dev);
