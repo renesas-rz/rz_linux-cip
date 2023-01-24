@@ -77,6 +77,7 @@ struct sd_hw_data {
  * @num_resets: Number of Module Resets in info->resets[]
  * @last_dt_core_clk: ID of the last Core Clock exported to DT
  * @info: Pointer to platform data
+ * @is_rzg3s: to check rz/g3s soc
  */
 struct rzg2l_cpg_priv {
 	struct reset_controller_dev rcdev;
@@ -91,6 +92,7 @@ struct rzg2l_cpg_priv {
 	unsigned int last_dt_core_clk;
 
 	const struct rzg2l_cpg_info *info;
+	bool is_rzg3s;
 };
 
 static void rzg2l_cpg_del_clk_provider(void *data)
@@ -375,6 +377,59 @@ static int rzg2l_cpg_sd_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 	return 0;
 }
 
+static int rzg3s_cpg_sd_clk_mux_set_parent(struct clk_hw *hw, u8 index)
+{
+	struct sd_hw_data *hwdata = to_sd_hw_data(hw);
+	struct rzg2l_cpg_priv *priv = hwdata->priv;
+	u32 off = GET_REG_OFFSET(hwdata->conf);
+	u32 shift = GET_SHIFT(hwdata->conf);
+	const u32 clk_src_800 = 0;
+	u32 bitmask;
+	u32 msk, val;
+	int ret;
+
+	/*
+	 * As per the HW manual, when we set 800 MHz clk, we need to set 1/2 in
+	 * in the CPG_SDHI_DDIV. When 1 is written to the SEL_SDHI{0,1,2}_WEN bit
+	 * placed in the upper 16 bits of this register, the clock switching
+	 * control begins even if the settings in the lower bits are not changed. 
+	 * Check the status monitor register and wait until the switching is 
+	 * completed. The clock will temporarily stop at the timing of switching.
+	 */
+	bitmask = (GENMASK(GET_WIDTH(hwdata->conf) - 1, 0) << shift) << 16;
+	if (index == clk_src_800) {
+		writel(BIT(shift) << 16 | BIT(shift), priv->base + 0x218);
+		writel(bitmask | (index << shift), priv->base + off);
+	} else {
+		writel(bitmask | ((index + 1) << shift), priv->base + off);
+	}
+
+
+	switch (off) {
+	case 0:
+		msk = CPG_RZG3S_CLKSELSTATUS_SELSDHI0_STS;
+	break;
+	case 4:
+		msk = CPG_RZG3S_CLKSELSTATUS_SELSDHI1_STS;
+	break;
+	case 8:
+		msk = CPG_RZG3S_CLKSELSTATUS_SELSDHI2_STS;
+	break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = readl_poll_timeout(priv->base + CPG_RZG3S_CLKSELSTATUS, val,
+					 !(val & msk), 100,
+					 CPG_SDHI_CLK_SWITCH_STATUS_TIMEOUT_US);
+	if (ret) {
+		dev_err(priv->dev, "failed to switch clk source\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static u8 rzg2l_cpg_sd_clk_mux_get_parent(struct clk_hw *hw)
 {
 	struct sd_hw_data *hwdata = to_sd_hw_data(hw);
@@ -393,10 +448,37 @@ static u8 rzg2l_cpg_sd_clk_mux_get_parent(struct clk_hw *hw)
 	return val;
 }
 
+static u8 rzg3s_cpg_sd_clk_mux_get_parent(struct clk_hw *hw)
+{
+	struct sd_hw_data *hwdata = to_sd_hw_data(hw);
+	struct rzg2l_cpg_priv *priv = hwdata->priv;
+	u32 val = readl(priv->base + GET_REG_OFFSET(hwdata->conf));
+
+	val >>= GET_SHIFT(hwdata->conf);
+	val &= GENMASK(GET_WIDTH(hwdata->conf) - 1, 0);
+	if (val) {
+		if (val == 1) {
+			/* Prohibited clk source, change it to 266 MHz(reset value) */
+			rzg2l_cpg_sd_clk_mux_set_parent(hw, 2);
+			val = 3;
+		}
+
+		val--;
+	}
+
+	return val;
+}
+
 static const struct clk_ops rzg2l_cpg_sd_clk_mux_ops = {
 	.determine_rate = rzg2l_cpg_sd_clk_mux_determine_rate,
 	.set_parent	= rzg2l_cpg_sd_clk_mux_set_parent,
 	.get_parent	= rzg2l_cpg_sd_clk_mux_get_parent,
+};
+
+static const struct clk_ops rzg3s_cpg_sd_clk_mux_ops = {
+	.determine_rate = rzg2l_cpg_sd_clk_mux_determine_rate,
+	.set_parent	= rzg3s_cpg_sd_clk_mux_set_parent,
+	.get_parent	= rzg3s_cpg_sd_clk_mux_get_parent,
 };
 
 static struct clk * __init
@@ -430,7 +512,10 @@ rzg2l_cpg_sd_mux_clk_register(const struct cpg_core_clk *core,
 		return ERR_PTR(-ENODEV);
 	}
 
-	init.ops = &rzg2l_cpg_sd_clk_mux_ops;
+	if (priv->is_rzg3s)
+		init.ops = &rzg3s_cpg_sd_clk_mux_ops;
+	else
+		init.ops = &rzg2l_cpg_sd_clk_mux_ops;
 	init.flags = 0;
 	init.num_parents = core->num_parents;
 	init.parent_names = core->parent_names;
@@ -1127,6 +1212,9 @@ static int __init rzg2l_cpg_probe(struct platform_device *pdev)
 	priv->num_mod_clks = info->num_hw_mod_clks;
 	priv->num_resets = info->num_resets;
 	priv->last_dt_core_clk = info->last_dt_core_clk;
+
+	if (of_device_is_compatible(dev->of_node, "renesas,r9a08g045-cpg"))
+		priv->is_rzg3s = true;
 
 	for (i = 0; i < nclks; i++)
 		clks[i] = ERR_PTR(-ENOENT);

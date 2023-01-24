@@ -114,7 +114,7 @@ static const struct clk_div_table dtable_1_32[] = {
 };
 
 /* Mux clock tables */
-static const char * const sel_sdhi[] = { ".pll2_div6", ".pll2_div2", ".pll6" };
+static const char * const sel_sdhi[] = { ".pll2_div2", ".pll6", ".pll2_div6" };
 static const char * const sel_spi_octa[] = { ".pll3_div2_2", ".pll3_div6", ".pll6_div2" };
 static const char * const sel_pll4[] = { ".osc_div1000", ".pll4" };
 
