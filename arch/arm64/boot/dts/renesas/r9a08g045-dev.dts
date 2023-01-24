@@ -273,6 +273,7 @@
 	mmc-hs200-1_8v;
 	non-removable;
 	fixed-emmc-driver-type = <1>;
+	max-frequency = <125000000>;
 	status = "okay";
 };
 
@@ -284,8 +285,10 @@
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&vccq_sdhi1>;
 	bus-width = <4>;
+
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
+	max-frequency = <125000000>;
 	status = "okay";
 };
 
