@@ -172,6 +172,7 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 		}
 	}
 
+	udelay(10000);
 	clk_set_rate(priv->clk, best_freq);
 
 	return clk_get_rate(priv->clk);
