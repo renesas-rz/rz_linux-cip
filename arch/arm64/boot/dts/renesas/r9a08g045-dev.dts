@@ -18,6 +18,8 @@
 
 	aliases {
 		serial0 = &scif0;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
 		ethernet0 = &eth0;
 		ethernet1 = &eth1;
 		mmc0 = &sdhi0;
@@ -402,4 +404,12 @@
 &wdt0 {
 	status = "okay";
 	timeout-sec = <60>;
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
 };
