@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
+#include <linux/sys_soc.h>
 
 #define DRIVER_NAME		"rzg2l-adc"
 
@@ -32,19 +33,25 @@
 #define RZG2L_ADM1_BS			BIT(4)
 #define RZG2L_ADM1_EGA_MASK		GENMASK(13, 12)
 #define RZG2L_ADM2_CHSEL_MASK		GENMASK(7, 0)
+#define RZG3S_ADM2_CHSEL_MASK		GENMASK(8, 0)
+
 #define RZG2L_ADM3_ADIL_MASK		GENMASK(31, 24)
 #define RZG2L_ADM3_ADCMP_MASK		GENMASK(23, 16)
 #define RZG2L_ADM3_ADCMP_E		FIELD_PREP(RZG2L_ADM3_ADCMP_MASK, 0xe)
+#define RZG3S_ADM3_ADCMP_E		FIELD_PREP(RZG2L_ADM3_ADCMP_MASK, 0x1d)
 #define RZG2L_ADM3_ADSMP_MASK		GENMASK(15, 0)
+#define RZG3S_ADM3_ADSMP_MASK		GENMASK(7, 0)
 
 #define RZG2L_ADINT			0x20
 #define RZG2L_ADINT_INTEN_MASK		GENMASK(7, 0)
+#define RZG3S_ADINT_INTEN_MASK		GENMASK(11, 0)
 #define RZG2L_ADINT_CSEEN		BIT(16)
 #define RZG2L_ADINT_INTS		BIT(31)
 
 #define RZG2L_ADSTS			0x24
 #define RZG2L_ADSTS_CSEST		BIT(16)
 #define RZG2L_ADSTS_INTST_MASK		GENMASK(7, 0)
+#define RZG3S_ADSTS_INTST_MASK		GENMASK(8, 0)
 
 #define RZG2L_ADIVC			0x28
 #define RZG2L_ADIVC_DIVADC_MASK		GENMASK(8, 0)
@@ -56,6 +63,7 @@
 #define RZG2L_ADCR_AD_MASK		GENMASK(11, 0)
 
 #define RZG2L_ADSMP_DEFAULT_SAMPLING	0x578
+#define RZG3S_ADSMP_DEFAULT_SAMPLING	0x7F
 
 #define RZG2L_ADC_MAX_CHANNELS		8
 #define RZG2L_ADC_CHN_MASK		0x7
@@ -87,6 +95,11 @@ static const char * const rzg2l_adc_channel_name[] = {
 	"adc5",
 	"adc6",
 	"adc7",
+};
+
+static const struct soc_device_attribute rzg3s_match[] = {
+	{ .family = "RZ/G3S" },
+	{ /* sentinel*/ }
 };
 
 static unsigned int rzg2l_adc_readl(struct rzg2l_adc *adc, u32 reg)
@@ -168,7 +181,11 @@ static int rzg2l_adc_conversion_setup(struct rzg2l_adc *adc, u8 ch)
 
 	/* Select analog input channel subjected to conversion. */
 	reg = rzg2l_adc_readl(adc, RZG2L_ADM(2));
-	reg &= ~RZG2L_ADM2_CHSEL_MASK;
+	if (soc_device_match(rzg3s_match)) {
+		reg &= ~RZG3S_ADM2_CHSEL_MASK;
+	} else {
+		reg &= ~RZG2L_ADM2_CHSEL_MASK;
+	}
 	reg |= BIT(ch);
 	rzg2l_adc_writel(adc, RZG2L_ADM(2), reg);
 
@@ -180,7 +197,11 @@ static int rzg2l_adc_conversion_setup(struct rzg2l_adc *adc, u8 ch)
 	 */
 	reg = rzg2l_adc_readl(adc, RZG2L_ADINT);
 	reg &= ~RZG2L_ADINT_INTS;
-	reg &= ~RZG2L_ADINT_INTEN_MASK;
+	if (soc_device_match(rzg3s_match)) {
+		reg &= ~RZG3S_ADINT_INTEN_MASK;
+	} else {
+		reg &= ~RZG2L_ADINT_INTEN_MASK;
+	}
 	reg |= (RZG2L_ADINT_CSEEN | BIT(ch));
 	rzg2l_adc_writel(adc, RZG2L_ADINT, reg);
 
@@ -216,8 +237,13 @@ static int rzg2l_adc_conversion(struct iio_dev *indio_dev, struct rzg2l_adc *adc
 	rzg2l_adc_start_stop(adc, true);
 
 	if (!wait_for_completion_timeout(&adc->completion, RZG2L_ADC_TIMEOUT)) {
-		rzg2l_adc_writel(adc, RZG2L_ADINT,
-				 rzg2l_adc_readl(adc, RZG2L_ADINT) & ~RZG2L_ADINT_INTEN_MASK);
+		if (soc_device_match(rzg3s_match)) {
+			rzg2l_adc_writel(adc, RZG2L_ADINT,
+					 rzg2l_adc_readl(adc, RZG2L_ADINT) & ~RZG3S_ADINT_INTEN_MASK);
+		} else {
+			rzg2l_adc_writel(adc, RZG2L_ADINT,
+					 rzg2l_adc_readl(adc, RZG2L_ADINT) & ~RZG2L_ADINT_INTEN_MASK);
+		}
 		rzg2l_adc_start_stop(adc, false);
 		rzg2l_adc_set_power(indio_dev, false);
 		return -ETIMEDOUT;
@@ -275,7 +301,11 @@ static irqreturn_t rzg2l_adc_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	intst = reg & RZG2L_ADSTS_INTST_MASK;
+	if (soc_device_match(rzg3s_match)) {
+		intst = reg & RZG3S_ADSTS_INTST_MASK;
+	} else {
+		intst = reg & RZG2L_ADSTS_INTST_MASK;
+	}
 	if (!intst)
 		return IRQ_NONE;
 
@@ -372,11 +402,13 @@ static int rzg2l_adc_hw_init(struct rzg2l_adc *adc)
 		usleep_range(100, 200);
 	}
 
-	/* Only division by 4 can be set */
-	reg = rzg2l_adc_readl(adc, RZG2L_ADIVC);
-	reg &= ~RZG2L_ADIVC_DIVADC_MASK;
-	reg |= RZG2L_ADIVC_DIVADC_4;
-	rzg2l_adc_writel(adc, RZG2L_ADIVC, reg);
+	if (!soc_device_match(rzg3s_match)) {
+		/* Only division by 4 can be set */
+		reg = rzg2l_adc_readl(adc, RZG2L_ADIVC);
+		reg &= ~RZG2L_ADIVC_DIVADC_MASK;
+		reg |= RZG2L_ADIVC_DIVADC_4;
+		rzg2l_adc_writel(adc, RZG2L_ADIVC, reg);
+	}
 
 	/*
 	 * Setup AMD3
@@ -387,8 +419,13 @@ static int rzg2l_adc_hw_init(struct rzg2l_adc *adc)
 	reg = rzg2l_adc_readl(adc, RZG2L_ADM(3));
 	reg &= ~RZG2L_ADM3_ADIL_MASK;
 	reg &= ~RZG2L_ADM3_ADCMP_MASK;
-	reg &= ~RZG2L_ADM3_ADSMP_MASK;
-	reg |= (RZG2L_ADM3_ADCMP_E | RZG2L_ADSMP_DEFAULT_SAMPLING);
+	if (soc_device_match(rzg3s_match)) {
+		reg &= ~RZG3S_ADM3_ADSMP_MASK;
+		reg |= (RZG3S_ADM3_ADCMP_E | RZG3S_ADSMP_DEFAULT_SAMPLING);
+	} else {
+		reg &= ~RZG2L_ADM3_ADSMP_MASK;
+		reg |= (RZG2L_ADM3_ADCMP_E | RZG2L_ADSMP_DEFAULT_SAMPLING);
+	}
 	rzg2l_adc_writel(adc, RZG2L_ADM(3), reg);
 
 exit_hw_init:
