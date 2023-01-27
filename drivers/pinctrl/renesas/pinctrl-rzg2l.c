@@ -7,6 +7,7 @@
 
 #include <linux/bitops.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/gpio/driver.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
@@ -1013,6 +1014,7 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 			else
 				writel((mV == 1800) ? PVDD_1800 :
 						      PVDD_3300, addr);
+			udelay(1000);
 			spin_unlock_irqrestore(&pctrl->lock, flags);
 			break;
 		}
