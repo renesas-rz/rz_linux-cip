@@ -398,10 +398,11 @@ static int rzg3s_cpg_sd_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 	 */
 	bitmask = (GENMASK(GET_WIDTH(hwdata->conf) - 1, 0) << shift) << 16;
 	if (index == clk_src_800) {
-		writel(BIT(shift) << 16 | BIT(shift), priv->base + 0x218);
+		writel(BIT(shift) << 16 | BIT(shift), priv->base + CPG_RZG3S_SDHI_DDIV);
 		writel(bitmask | (index << shift), priv->base + off);
 	} else {
 		writel(bitmask | ((index + 1) << shift), priv->base + off);
+		writel(BIT(shift) << 16, priv->base + CPG_RZG3S_SDHI_DDIV);
 	}
 
 
@@ -416,6 +417,7 @@ static int rzg3s_cpg_sd_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 		msk = CPG_RZG3S_CLKSELSTATUS_SELSDHI2_STS;
 	break;
 	default:
+		dev_err(priv->dev, "wrong clk source status mask\n");
 		return -EINVAL;
 	}
 
@@ -424,6 +426,29 @@ static int rzg3s_cpg_sd_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 					 CPG_SDHI_CLK_SWITCH_STATUS_TIMEOUT_US);
 	if (ret) {
 		dev_err(priv->dev, "failed to switch clk source\n");
+		return ret;
+	}
+
+	switch (shift) {
+	case 0:
+		msk = CPG_RZG3S_CLKDIVSTATUS_DIVSDHI0_STS;
+	break;
+	case 4:
+		msk = CPG_RZG3S_CLKDIVSTATUS_DIVSDHI1_STS;
+	break;
+	case 8:
+		msk = CPG_RZG3S_CLKDIVSTATUS_DIVSDHI2_STS;
+	break;
+	default:
+		dev_err(priv->dev, "wrong clk divisor mask\n");
+		return -EINVAL;
+	}
+
+	ret = readl_poll_timeout(priv->base + CPG_RZG3S_CLKDIVSTATUS, val,
+					 !(val & msk), 100,
+					 CPG_SDHI_CLK_SWITCH_STATUS_TIMEOUT_US);
+	if (ret) {
+		dev_err(priv->dev, "failed to switch clk divisor\n");
 		return ret;
 	}
 
