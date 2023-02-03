@@ -94,8 +94,8 @@
 /* Clock selection only for RZ/V2H */
 #define SSEL0_SELCTL2	SEL_PLL_PACK(CPG_SSEL0, 8, 1)
 #define SSEL0_SELCTL3	SEL_PLL_PACK(CPG_SSEL0, 12, 1)
-#define SSEL1_SELCTL0	SEL_PLL_PACK(CPG_SSEL0, 0, 1)
-#define SSEL1_SELCTL1	SEL_PLL_PACK(CPG_SSEL0, 4, 1)
+#define SSEL1_SELCTL0	SEL_PLL_PACK(CPG_SSEL1, 0, 1)
+#define SSEL1_SELCTL1	SEL_PLL_PACK(CPG_SSEL1, 4, 1)
 
 #define MSTOP(off, bit)	((off & 0xffff) << 16 | bit)
 #define MSTOP_OFF(val)	((val >> 16) & 0xffff)
