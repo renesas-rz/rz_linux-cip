@@ -59,6 +59,9 @@ enum clk_ids {
 	CLK_PLLCM33_DIV5,
 	CLK_PLLCM33_DIV16,
 	CLK_PLLCM33_DIV32,
+	CLK_PLLCM33_ADC_PCLK,
+	CLK_PLLCM33_ADC_PCLK_DIV2,
+	CLK_PLLCM33_ADC_ADCLK,
 	CLK_PLLCLN,
 	CLK_PLLCLN_DIV2,
 	CLK_PLLCLN_DIV4,
@@ -91,6 +94,14 @@ enum clk_ids {
 	MOD_CLK_BASE,
 };
 
+static const struct clk_div_table dtable_2_16[] = {
+	{0, 2},
+	{1, 4},
+	{2, 8},
+	{3, 16},
+	{0, 0},
+};
+
 static const struct clk_div_table dtable_2_64[] = {
 	{0, 2},
 	{1, 4},
@@ -104,6 +115,13 @@ static const struct clk_div_table dtable_2_100[] = {
 	{0, 2},
 	{1, 10},
 	{2, 100},
+	{0, 0},
+};
+
+static const struct clk_div_table dtable_8_10[] = {
+	{0, 8},
+	{1, 10},
+	{0, 0},
 };
 
 /* Mux clock tables */
@@ -134,6 +152,11 @@ static const struct cpg_core_clk r9a09g057_core_clks[] __initconst = {
 	DEF_FIXED(".pllcm33_div5", CLK_PLLCM33_DIV5, CLK_PLLCM33, 1, 5),
 	DEF_FIXED(".pllcm33_div16", CLK_PLLCM33_DIV16, CLK_PLLCM33, 1, 16),
 	DEF_FIXED(".pllcm33_div32", CLK_PLLCM33_DIV32, CLK_PLLCM33, 1, 32),
+	DEF_DIV(".pllcm33_adc_pclk", CLK_PLLCM33_ADC_PCLK, CLK_PLLCM33_DIV2,
+		CSDIV1_DIVCTL0, dtable_8_10, CLK_DIVIDER_HIWORD_MASK),
+	DEF_FIXED(".pllcm33_adc_pclk_div2", CLK_PLLCM33_ADC_PCLK_DIV2, CLK_PLLCM33_ADC_PCLK, 1, 2),
+	DEF_DIV(".pllcm33_adc_adclk", CLK_PLLCM33_ADC_ADCLK, CLK_PLLCM33_ADC_PCLK,
+		CSDIV1_DIVCTL1, dtable_2_16, CLK_DIVIDER_HIWORD_MASK),
 	DEF_SAMPLL(".pllcln", CLK_PLLCLN, CLK_EXTAL, RZ_V2H_PLL_CONF(PLLCLN)),
 	DEF_FIXED(".pllcln_div2", CLK_PLLCLN_DIV2, CLK_PLLCLN, 1, 2),
 	DEF_FIXED(".pllcln_div4", CLK_PLLCLN_DIV4, CLK_PLLCLN, 1, 4),
@@ -361,6 +384,10 @@ static struct rzg2l_mod_clk r9a09g057_mod_clks[] = {
 					0x630, 2, 0),
 	DEF_MOD("gbeth1_aclk_i",	R9A09G057_GBETH1_ACLK_I, CLK_PLLDTY_DIV8,
 					0x630, 3, 0),
+	DEF_MOD("adc_pclk",		R9A09G057_ADC_PCLK, CLK_PLLCM33_ADC_PCLK_DIV2,
+					0x640, 7, 0),
+	DEF_MOD("adc_adclk",		R9A09G057_ADC_ADCLK, CLK_PLLCM33_ADC_ADCLK,
+					0x640, 8, 0),
 };
 
 static struct rzg2l_reset r9a09g057_resets[] = {
@@ -411,6 +438,7 @@ static struct rzg2l_reset r9a09g057_resets[] = {
 	DEF_RST(R9A09G057_USB2_PRESETN,		0x928, 15),
 	DEF_RST(R9A09G057_GBETH0_ARESETN_I,	0x92C,  0),
 	DEF_RST(R9A09G057_GBETH1_ARESETN_I,	0x92C,  1),
+	DEF_RST(R9A09G057_ADC_ADRST_N,		0x93C,  6),
 };
 
 static const unsigned int r9a09g057_crit_mod_clks[] __initconst = {
