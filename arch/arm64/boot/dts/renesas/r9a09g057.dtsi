@@ -53,6 +53,30 @@
 		clock-frequency = <0>;
 	};
 
+	/* audio_clka clock input */
+	audio_clka: audio_clka {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		/* This value must be overridden by the board */
+		clock-frequency = <0>;
+	};
+
+	/* audio_clkb clock input */
+	audio_clkb: audio_clkb {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		/* This value must be overridden by the board */
+		clock-frequency = <0>;
+	};
+
+	/* audio_clkc clock input */
+	audio_clkc: audio_clkc {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		/* This value must be overridden by the board */
+		clock-frequency = <0>;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -130,10 +154,12 @@
 			reg = <0 0x10420000 0 0x10000>;
 			clocks = <&extal_clk>,
 				 <&et0_txc_tx_clk>, <&et0_rxc_rx_clk>,
-				 <&et1_txc_tx_clk>, <&et1_rxc_rx_clk>;
+				 <&et1_txc_tx_clk>, <&et1_rxc_rx_clk>,
+				 <&audio_clka>, <&audio_clkb>, <&audio_clkc>;
 			clock-names = "extal",
 				      "et0_txc_tx_clk", "et0_rxc_rx_clk",
-				      "et1_txc_tx_clk", "et1_rxc_rx_clk";
+				      "et1_txc_tx_clk", "et1_rxc_rx_clk",
+				      "audio_clka", "audio_clkb", "audio_clkc";
 			#clock-cells = <2>;
 			#reset-cells = <1>;
 			#power-domain-cells = <0>;
