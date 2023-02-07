@@ -94,6 +94,9 @@ enum clk_ids {
 	CLK_SMUX2_GBE0_RXCLK,
 	CLK_SMUX2_GBE1_TXCLK,
 	CLK_SMUX2_GBE1_RXCLK,
+	CLK_PLLETH_LPCLK,
+	CLK_PLLDSI,
+	CLK_PLLDSI_SDIV2,
 
 	/* Module Clocks */
 	MOD_CLK_BASE,
@@ -105,6 +108,26 @@ static const struct clk_div_table dtable_2_16[] = {
 	{2, 8},
 	{3, 16},
 	{0, 0},
+};
+
+static const struct clk_div_table dtable_2_32[] = {
+	{ 0,  2},
+	{ 1,  4},
+	{ 2,  6},
+	{ 3,  8},
+	{ 4, 10},
+	{ 5, 12},
+	{ 6, 14},
+	{ 7, 16},
+	{ 8, 18},
+	{ 9, 20},
+	{10, 22},
+	{11, 24},
+	{12, 26},
+	{13, 28},
+	{14, 30},
+	{15, 32},
+	{ 0,  0},
 };
 
 static const struct clk_div_table dtable_2_64[] = {
@@ -129,6 +152,13 @@ static const struct clk_div_table dtable_8_10[] = {
 	{0, 0},
 };
 
+static const struct clk_div_table dtable_16_128[] = {
+	{0,  16},
+	{1,  32},
+	{2,  64},
+	{3, 128},
+	{0,   0},
+};
 /* Mux clock tables */
 static const char * const smux2_xspi_clk0[] = { ".pllcm33_div3", ".pllcm33_div4" };
 static const char * const smux2_xspi_clk1[] = { ".smux2_xspi_clk0", ".pllcm33_div5" };
@@ -207,6 +237,11 @@ static const struct cpg_core_clk r9a09g057_core_clks[] __initconst = {
 		smux2_gbe1_txclk, ARRAY_SIZE(smux2_gbe0_txclk), 0, CLK_MUX_HIWORD_MASK),
 	DEF_MUX(".smux2_gbe1_rxclk", CLK_SMUX2_GBE1_RXCLK, SSEL1_SELCTL1,
 		smux2_gbe1_rxclk, ARRAY_SIZE(smux2_gbe0_rxclk), 0, CLK_MUX_HIWORD_MASK),
+	DEF_DIV(".plleth_lpclk", CLK_PLLETH_LPCLK, CLK_PLLETH_DIV4,
+		CSDIV0_DIVCTL2, dtable_16_128, CLK_DIVIDER_HIWORD_MASK),
+	DEF_SAMPLL(".plldsi", CLK_PLLDSI, CLK_EXTAL, RZ_V2H_PLL_CONF(PLLDSI)),
+	DEF_DIV(".plldsi_sdiv2", CLK_PLLDSI_SDIV2, CLK_PLLDSI,
+		CSDIV1_DIVCTL2, dtable_2_32, CLK_DIVIDER_HIWORD_MASK),
 };
 
 static struct rzg2l_mod_clk r9a09g057_mod_clks[] = {
@@ -474,6 +509,22 @@ static struct rzg2l_mod_clk r9a09g057_mod_clks[] = {
 					0x630, 2, 0),
 	DEF_MOD("gbeth1_aclk_i",	R9A09G057_GBETH1_ACLK_I, CLK_PLLDTY_DIV8,
 					0x630, 3, 0),
+	DEF_MOD("dsi_pclk",		R9A09G057_DSI_PCLK, CLK_PLLDTY_DIV16,
+					0x638, 8, 0),
+	DEF_MOD("dsi_aclk",		R9A09G057_DSI_ACLK, CLK_PLLDTY_ACPU_DIV2,
+					0x638, 9, 0),
+	DEF_MOD("dsi_vclk",		R9A09G057_DSI_VCLK1, CLK_PLLDSI_SDIV2,
+					0x638, 10, 0),
+	DEF_MOD("dsi_lpclk",		R9A09G057_DSI_LPCLK, CLK_PLLETH_LPCLK,
+					0x638, 11, 0),
+	DEF_MOD("dsi_pllclk",		R9A09G057_DSI_PLLREFCLK, R9A09G057_MAINCLK,
+					0x638, 12, 0),
+	DEF_MOD("lcdc_clka",		R9A09G057_LCDC_CLK_A, CLK_PLLDTY_ACPU_DIV2,
+					0x638, 13, 0),
+	DEF_MOD("lcdc_clkp",		R9A09G057_LCDC_CLK_P, CLK_PLLDTY_DIV16,
+					0x638, 14, 0),
+	DEF_MOD("lcdc_clkd",		R9A09G057_LCDC_CLK_D, CLK_PLLDSI_SDIV2,
+					0x638, 15, 0),
 	DEF_MOD("ssif_clk",		R9A09G057_SSIF_CLK, CLK_PLLCLN_DIV8,
 					0x63C, 5, 0),
 	DEF_MOD("adc_pclk",		R9A09G057_ADC_PCLK, CLK_PLLCM33_ADC_PCLK_DIV2,
@@ -558,6 +609,9 @@ static struct rzg2l_reset r9a09g057_resets[] = {
 	DEF_RST(R9A09G057_USB2_PRESETN,			0x928, 15),
 	DEF_RST(R9A09G057_GBETH0_ARESETN_I,		0x92C,  0),
 	DEF_RST(R9A09G057_GBETH1_ARESETN_I,		0x92C,  1),
+	DEF_RST(R9A09G057_DSI_PRESETN,			0x934,  7),
+	DEF_RST(R9A09G057_DSI_ARESETN,			0x934,  8),
+	DEF_RST(R9A09G057_LCDC_RESET_N,			0x934, 12),
 	DEF_RST(R9A09G057_SSIF_0_ASYNC_RESET_SSI,	0x938,	1),
 	DEF_RST(R9A09G057_SSIF_0_SYNC_RESET_SSI0,	0x938,	2),
 	DEF_RST(R9A09G057_SSIF_0_SYNC_RESET_SSI1,	0x938,	3),
