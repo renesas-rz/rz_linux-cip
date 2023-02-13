@@ -35,6 +35,11 @@
 
 #define RZ_G2L_MIPI_DSI_MAX_DATA_LANES	4
 
+enum mipi_dsi_dphy_type {
+	MIPI_DSI_DPHY_RZ_G2L,
+	MIPI_DSI_DPHY_RZ_V2H,
+};
+
 struct rzg2l_mipi_dsi {
 	struct device *dev;
 	void __iomem *link_mmio;
@@ -72,6 +77,8 @@ struct rzg2l_mipi_dsi {
 	unsigned long hsfreq;
 
 	bool hsclkmode;	/* 0 for non-continuous and 1 for continuous clock mode */
+
+	enum mipi_dsi_dphy_type type;
 };
 
 #define bridge_to_rzg2l_mipi_dsi(b) \
@@ -104,18 +111,426 @@ static int rzg2l_mipi_dsi_find_panel_or_bridge(struct rzg2l_mipi_dsi *mipi_dsi);
  * Hardware Setup
  */
 
-static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *mipi_dsi)
+
+struct dphy_rz_v2h_timings {
+	unsigned long hsfreq;
+	u32 value;
+};
+
+static const struct dphy_rz_v2h_timings TCLKPRPRCTL[] = {
+	{       0,  0 },
+	{  150000,  1 },
+	{  260000,  2 },
+	{  370000,  3 },
+	{  470000,  4 },
+	{  580000,  5 },
+	{  690000,  6 },
+	{  790000,  7 },
+	{  900000,  8 },
+	{ 1010000,  9 },
+	{ 1110000, 10 },
+	{ 1220000, 11 },
+	{ 1330000, 12 },
+	{ 1430000, 13 },
+};
+
+static const struct dphy_rz_v2h_timings TCLKZEROCTL[] = {
+	{       0,  2 },
+	{   90000,  3 },
+	{  110000,  4 },
+	{  130000,  5 },
+	{  150000,  6 },
+	{  180000,  7 },
+	{  210000,  8 },
+	{  230000,  9 },
+	{  240000, 10 },
+	{  250000, 11 },
+	{  270000, 12 },
+	{  290000, 13 },
+	{  310000, 14 },
+	{  340000, 15 },
+	{  360000, 16 },
+	{  380000, 17 },
+	{  410000, 18 },
+	{  430000, 19 },
+	{  450000, 20 },
+	{  470000, 21 },
+	{  500000, 22 },
+	{  520000, 23 },
+	{  540000, 24 },
+	{  570000, 25 },
+	{  590000, 26 },
+	{  610000, 27 },
+	{  630000, 28 },
+	{  660000, 29 },
+	{  680000, 30 },
+	{  700000, 31 },
+	{  730000, 32 },
+	{  750000, 33 },
+	{  770000, 34 },
+	{  790000, 35 },
+	{  820000, 36 },
+	{  840000, 37 },
+	{  860000, 38 },
+	{  890000, 39 },
+	{  910000, 40 },
+	{  930000, 41 },
+	{  950000, 42 },
+	{  980000, 43 },
+	{ 1000000, 44 },
+	{ 1020000, 45 },
+	{ 1050000, 46 },
+	{ 1070000, 47 },
+	{ 1090000, 48 },
+	{ 1110000, 49 },
+	{ 1140000, 50 },
+	{ 1160000, 51 },
+	{ 1180000, 52 },
+	{ 1210000, 53 },
+	{ 1230000, 54 },
+	{ 1250000, 55 },
+	{ 1270000, 56 },
+	{ 1300000, 57 },
+	{ 1320000, 58 },
+	{ 1340000, 59 },
+	{ 1370000, 60 },
+	{ 1390000, 61 },
+	{ 1410000, 62 },
+	{ 1430000, 63 },
+	{ 1460000, 64 },
+	{ 1480000, 65 },
+};
+
+static const struct dphy_rz_v2h_timings TCLKPOSTCTL[] = {
+	{       0,  6 },
+	{   80000,  7 },
+	{  210000,  8 },
+	{  340000,  9 },
+	{  480000, 10 },
+	{  610000, 11 },
+	{  740000, 12 },
+	{  880000, 13 },
+	{ 1010000, 14 },
+	{ 1140000, 15 },
+	{ 1280000, 16 },
+	{ 1410000, 17 },
+};
+
+static const struct dphy_rz_v2h_timings TCLKTRAILCTL[] = {
+	{       0,  1 },
+	{  140000,  2 },
+	{  250000,  3 },
+	{  370000,  4 },
+	{  480000,  5 },
+	{  590000,  6 },
+	{  710000,  7 },
+	{  820000,  8 },
+	{  940000,  9 },
+	{ 1050000, 10 },
+	{ 1170000, 11 },
+	{ 1280000, 12 },
+	{ 1390000, 13 },
+};
+
+static const struct dphy_rz_v2h_timings THSPRPRCTL[] = {
+	{       0,  0 },
+	{  110000,  1 },
+	{  190000,  2 },
+	{  290000,  3 },
+	{  400000,  4 },
+	{  500000,  5 },
+	{  610000,  6 },
+	{  720000,  7 },
+	{  820000,  8 },
+	{  930000,  9 },
+	{ 1030000, 10 },
+	{ 1140000, 11 },
+	{ 1250000, 12 },
+	{ 1350000, 13 },
+	{ 1460000, 14 },
+};
+
+static const struct dphy_rz_v2h_timings THSZEROCTL[] = {
+	{       0,  0 },
+	{  180000,  1 },
+	{  240000,  2 },
+	{  290000,  3 },
+	{  350000,  4 },
+	{  400000,  5 },
+	{  460000,  6 },
+	{  510000,  7 },
+	{  570000,  8 },
+	{  620000,  9 },
+	{  680000, 10 },
+	{  730000, 11 },
+	{  790000, 12 },
+	{  840000, 13 },
+	{  900000, 14 },
+	{  950000, 15 },
+	{ 1010000, 16 },
+	{ 1060000, 17 },
+	{ 1120000, 18 },
+	{ 1170000, 19 },
+	{ 1230000, 20 },
+	{ 1280000, 21 },
+	{ 1340000, 22 },
+	{ 1390000, 23 },
+	{ 1450000, 24 },
+};
+
+static const struct dphy_rz_v2h_timings THSTRAILCTL[] = {
+	{       0,  3 },
+	{  100000,  4 },
+	{  210000,  5 },
+	{  320000,  6 },
+	{  420000,  7 },
+	{  530000,  8 },
+	{  640000,  9 },
+	{  750000, 10 },
+	{  850000, 11 },
+	{  960000, 12 },
+	{ 1070000, 13 },
+	{ 1180000, 14 },
+	{ 1280000, 15 },
+	{ 1390000, 16 },
+};
+
+static const struct dphy_rz_v2h_timings TLPXCTL[] = {
+	{       0,  0 },
+	{  130000,  1 },
+	{  260000,  2 },
+	{  390000,  3 },
+	{  530000,  4 },
+	{  660000,  5 },
+	{  790000,  6 },
+	{  930000,  7 },
+	{ 1060000,  8 },
+	{ 1190000,  9 },
+	{ 1330000, 10 },
+	{ 1460000, 11 },
+};
+
+static const struct dphy_rz_v2h_timings THSEXITCTL[] = {
+	{       0,  1 },
+	{  150000,  2 },
+	{  230000,  3 },
+	{  310000,  4 },
+	{  390000,  5 },
+	{  470000,  6 },
+	{  550000,  7 },
+	{  630000,  8 },
+	{  710000,  9 },
+	{  790000, 10 },
+	{  870000, 11 },
+	{  950000, 12 },
+	{ 1030000, 13 },
+	{ 1110000, 14 },
+};
+
+static const struct dphy_rz_v2h_timings ULPSEXIT[] = {
+	{    10000,   0 },
+	{   100000,   3 },
+	{  1000000,  25 },
+	{  2000000,  50 },
+	{  3000000,  75 },
+	{  4000000, 100 },
+	{  5000000, 125 },
+	{  6000000, 150 },
+	{  7000000, 175 },
+	{  8000000, 200 },
+	{  9000000, 225 },
+	{ 10000000, 250 },
+	{ 11000000, 275 },
+	{ 12000000, 300 },
+	{ 13000000, 325 },
+	{ 14000000, 350 },
+	{ 15000000, 375 },
+	{ 16000000, 400 },
+	{ 17000000, 425 },
+	{ 18000000, 450 },
+	{ 19000000, 475 },
+	{ 20000000, 500 },
+};
+
+static int dphy_find_timings_val(struct rzg2l_mipi_dsi *mipi_dsi,
+				 const struct dphy_rz_v2h_timings timings[],
+				 int size, unsigned long freq)
 {
-	struct drm_display_mode *mode = &mipi_dsi->display_mode;
-	u32 txsetr;
-	u32 clstptsetr;
-	u32 lptrnstsetr;
-	u8 max_num_lanes;
-	u32 clkkpt;
-	u32 clkbfht;
-	u32 clkstpt;
-	u32 golpbkt;
-	unsigned int bpp;
+	int i;
+
+	for (i = 1; i < size; i++) {
+		if (freq <= timings[i].hsfreq) {
+			i = (mipi_dsi->hsfreq < timings[i].hsfreq) ? (i - 1) : i;
+			break;
+		}
+	}
+
+	return timings[i].value;
+};
+
+struct dphy_rz_v2h_pll_setting {
+        unsigned long pllfreq;
+        u32 pll_p;
+	u32 pll_m;
+	u32 pll_s;
+	short pll_k;
+};
+
+/*
+ * The PLL clock frequency:
+ * - Upper limit for D-PHY 1.5 Gbps
+ * - Lower limit for D-PHY 80 Mbps
+ * We generate all PLL setting parameters for each 10Mbps interval.
+ */
+
+static const struct dphy_rz_v2h_pll_setting pll_settings[] = {
+	{   80000, 0x03, 0x0A0, 0x4, 0x0000 },
+	{   90000, 0x02, 0x078, 0x4, 0x0000 },
+	{  100000, 0x03, 0x0C8, 0x4, 0x0000 },
+	{  110000, 0x03, 0x0DC, 0x4, 0x0000 },
+	{  120000, 0x01, 0x050, 0x4, 0x0000 },
+	{  130000, 0x03, 0x104, 0x4, 0x0000 },
+	{  140000, 0x03, 0x08C, 0x3, 0x0000 },
+	{  150000, 0x02, 0x064, 0x3, 0x0000 },
+	{  160000, 0x03, 0x0A0, 0x3, 0x0000 },
+	{  170000, 0x03, 0x0AA, 0x3, 0x0000 },
+	{  180000, 0x02, 0x078, 0x3, 0x0000 },
+	{  190000, 0x03, 0x0BE, 0x3, 0x0000 },
+	{  200000, 0x03, 0x0C8, 0x3, 0x0000 },
+	{  210000, 0x01, 0x046, 0x3, 0x0000 },
+	{  220000, 0x03, 0x0DC, 0x3, 0x0000 },
+	{  230000, 0x03, 0x0E6, 0x3, 0x0000 },
+	{  240000, 0x01, 0x050, 0x3, 0x0000 },
+	{  250000, 0x03, 0x0FA, 0x3, 0x0000 },
+	{  260000, 0x03, 0x104, 0x3, 0x0000 },
+	{  270000, 0x02, 0x05A, 0x2, 0x0000 },
+	{  280000, 0x03, 0x08C, 0x2, 0x0000 },
+	{  290000, 0x03, 0x091, 0x2, 0x0000 },
+	{  300000, 0x02, 0x064, 0x2, 0x0000 },
+	{  310000, 0x03, 0x09B, 0x2, 0x0000 },
+	{  320000, 0x03, 0x0A0, 0x2, 0x0000 },
+	{  330000, 0x02, 0x06E, 0x2, 0x0000 },
+	{  340000, 0x03, 0x0AA, 0x2, 0x0000 },
+	{  350000, 0x03, 0x0AF, 0x2, 0x0000 },
+	{  360000, 0x02, 0x078, 0x2, 0x0000 },
+	{  370000, 0x03, 0x0B9, 0x2, 0x0000 },
+	{  380000, 0x03, 0x0BE, 0x2, 0x0000 },
+	{  390000, 0x01, 0x041, 0x2, 0x0000 },
+	{  400000, 0x03, 0x0C8, 0x2, 0x0000 },
+	{  410000, 0x03, 0x0CD, 0x2, 0x0000 },
+	{  420000, 0x01, 0x046, 0x2, 0x0000 },
+	{  430000, 0x03, 0x0D7, 0x2, 0x0000 },
+	{  440000, 0x03, 0x0DC, 0x2, 0x0000 },
+	{  450000, 0x01, 0x04B, 0x2, 0x0000 },
+	{  460000, 0x03, 0x0E6, 0x2, 0x0000 },
+	{  470000, 0x03, 0x0EB, 0x2, 0x0000 },
+	{  480000, 0x01, 0x050, 0x2, 0x0000 },
+	{  490000, 0x03, 0x0F5, 0x2, 0x0000 },
+	{  500000, 0x03, 0x0FA, 0x2, 0x0000 },
+	{  510000, 0x01, 0x055, 0x2, 0x0000 },
+	{  520000, 0x03, 0x104, 0x2, 0x0000 },
+	{  530000, 0x03, 0x085, 0x1, 0x8000 },
+	{  540000, 0x02, 0x05A, 0x1, 0x0000 },
+	{  550000, 0x03, 0x08A, 0x1, 0x8000 },
+	{  560000, 0x03, 0x08C, 0x1, 0x0000 },
+	{  570000, 0x02, 0x05F, 0x1, 0x0000 },
+	{  580000, 0x03, 0x091, 0x1, 0x0000 },
+	{  590000, 0x03, 0x094, 0x1, 0x8000 },
+	{  600000, 0x02, 0x064, 0x1, 0x0000 },
+	{  610000, 0x03, 0x099, 0x1, 0x8000 },
+	{  620000, 0x03, 0x09B, 0x1, 0x0000 },
+	{  630000, 0x02, 0x069, 0x1, 0x0000 },
+	{  640000, 0x03, 0x0A0, 0x1, 0x0000 },
+	{  650000, 0x03, 0x0A3, 0x1, 0x8000 },
+	{  660000, 0x02, 0x06E, 0x1, 0x0000 },
+	{  670000, 0x03, 0x0A8, 0x1, 0x8000 },
+	{  680000, 0x03, 0x0AA, 0x1, 0x0000 },
+	{  690000, 0x02, 0x073, 0x1, 0x0000 },
+	{  700000, 0x03, 0x0AF, 0x1, 0x0000 },
+	{  710000, 0x03, 0x0B2, 0x1, 0x8000 },
+	{  720000, 0x02, 0x078, 0x1, 0x0000 },
+	{  730000, 0x03, 0x0B7, 0x1, 0x8000 },
+	{  740000, 0x03, 0x0B9, 0x1, 0x0000 },
+	{  750000, 0x02, 0x07D, 0x1, 0x0000 },
+	{  760000, 0x03, 0x0BE, 0x1, 0x0000 },
+	{  770000, 0x03, 0x0C1, 0x1, 0x8000 },
+	{  780000, 0x01, 0x041, 0x1, 0x0000 },
+	{  790000, 0x03, 0x0C6, 0x1, 0x8000 },
+	{  800000, 0x03, 0x0C8, 0x1, 0x0000 },
+	{  810000, 0x01, 0x044, 0x1, 0x8000 },
+	{  820000, 0x03, 0x0CD, 0x1, 0x0000 },
+	{  830000, 0x03, 0x0D0, 0x1, 0x8000 },
+	{  840000, 0x01, 0x046, 0x1, 0x0000 },
+	{  850000, 0x03, 0x0D5, 0x1, 0x8000 },
+	{  860000, 0x03, 0x0D7, 0x1, 0x0000 },
+	{  870000, 0x01, 0x049, 0x1, 0x8000 },
+	{  880000, 0x03, 0x0DC, 0x1, 0x0000 },
+	{  890000, 0x03, 0x0DF, 0x1, 0x8000 },
+	{  900000, 0x01, 0x04B, 0x1, 0x0000 },
+	{  910000, 0x03, 0x0E4, 0x1, 0x8000 },
+	{  920000, 0x03, 0x0E6, 0x1, 0x0000 },
+	{  930000, 0x01, 0x04E, 0x1, 0x8000 },
+	{  940000, 0x03, 0x0EB, 0x1, 0x0000 },
+	{  950000, 0x03, 0x0EE, 0x1, 0x8000 },
+	{  960000, 0x01, 0x050, 0x1, 0x0000 },
+	{  970000, 0x03, 0x0F3, 0x1, 0x8000 },
+	{  980000, 0x03, 0x0F5, 0x1, 0x0000 },
+	{  990000, 0x01, 0x053, 0x1, 0x8000 },
+	{ 1000000, 0x03, 0x0FA, 0x1, 0x0000 },
+	{ 1010000, 0x03, 0x0FD, 0x1, 0x8000 },
+	{ 1020000, 0x01, 0x055, 0x1, 0x0000 },
+	{ 1030000, 0x03, 0x102, 0x1, 0x8000 },
+	{ 1040000, 0x03, 0x104, 0x1, 0x0000 },
+	{ 1050000, 0x01, 0x058, 0x1, 0x8000 },
+	{ 1060000, 0x03, 0x085, 0x0, 0x8000 },
+	{ 1070000, 0x03, 0x086, 0x0, 0xC000 },
+	{ 1080000, 0x02, 0x05A, 0x0, 0x0000 },
+	{ 1090000, 0x03, 0x088, 0x0, 0x4000 },
+	{ 1100000, 0x03, 0x08A, 0x0, 0x8000 },
+	{ 1110000, 0x02, 0x05D, 0x0, 0x8000 },
+	{ 1120000, 0x03, 0x08C, 0x0, 0x0000 },
+	{ 1130000, 0x03, 0x08D, 0x0, 0x4000 },
+	{ 1140000, 0x02, 0x05F, 0x0, 0x0000 },
+	{ 1150000, 0x03, 0x090, 0x0, 0xC000 },
+	{ 1160000, 0x03, 0x091, 0x0, 0x0000 },
+	{ 1170000, 0x02, 0x062, 0x0, 0x8000 },
+	{ 1180000, 0x03, 0x094, 0x0, 0x8000 },
+	{ 1190000, 0x03, 0x095, 0x0, 0xC000 },
+	{ 1200000, 0x02, 0x064, 0x0, 0x0000 },
+	{ 1210000, 0x03, 0x097, 0x0, 0x4000 },
+	{ 1220000, 0x03, 0x099, 0x0, 0x8000 },
+	{ 1230000, 0x02, 0x067, 0x0, 0x8000 },
+	{ 1240000, 0x03, 0x09B, 0x0, 0x0000 },
+	{ 1250000, 0x03, 0x09C, 0x0, 0x4000 },
+	{ 1260000, 0x02, 0x069, 0x0, 0x0000 },
+	{ 1270000, 0x03, 0x09F, 0x0, 0xC000 },
+	{ 1280000, 0x03, 0x0A0, 0x0, 0x0000 },
+	{ 1290000, 0x02, 0x06C, 0x0, 0x8000 },
+	{ 1300000, 0x03, 0x0A3, 0x0, 0x8000 },
+	{ 1310000, 0x03, 0x0A4, 0x0, 0xC000 },
+	{ 1320000, 0x02, 0x06E, 0x0, 0x0000 },
+	{ 1330000, 0x03, 0x0A6, 0x0, 0x4000 },
+	{ 1340000, 0x03, 0x0A8, 0x0, 0x8000 },
+	{ 1350000, 0x02, 0x071, 0x0, 0x8000 },
+	{ 1360000, 0x03, 0x0AA, 0x0, 0x0000 },
+	{ 1370000, 0x03, 0x0AB, 0x0, 0x4000 },
+	{ 1380000, 0x02, 0x073, 0x0, 0x0000 },
+	{ 1390000, 0x03, 0x0AE, 0x0, 0xC000 },
+	{ 1400000, 0x03, 0x0AF, 0x0, 0x0000 },
+	{ 1410000, 0x02, 0x076, 0x0, 0x8000 },
+	{ 1420000, 0x03, 0x0B2, 0x0, 0x8000 },
+	{ 1430000, 0x03, 0x0B3, 0x0, 0xC000 },
+	{ 1440000, 0x02, 0x078, 0x0, 0x0000 },
+	{ 1450000, 0x03, 0x0B5, 0x0, 0x4000 },
+	{ 1460000, 0x03, 0x0B7, 0x0, 0x8000 },
+	{ 1470000, 0x02, 0x07B, 0x0, 0x8000 },
+	{ 1480000, 0x03, 0x0B9, 0x0, 0x0000 },
+	{ 1490000, 0x03, 0x0BA, 0x0, 0x4000 },
+	{ 1500000, 0x02, 0x07D, 0x0, 0x0000 },
+};
+
+static void rzg2l_mipi_dsi_dphy_init(struct rzg2l_mipi_dsi *mipi_dsi)
+{
 	struct {
 		u32 tclk_miss;
 		u32 t_init;
@@ -131,12 +546,192 @@ static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *mipi_dsi)
 		u32 ths_exit;
 		u32 ths_trail;
 		u32 ths_zero;
+		u32 ulpsexit;
 	} timings;
-	u32 dphyctrl0;
-	u32 dphytim0;
-	u32 dphytim1;
-	u32 dphytim2;
-	u32 dphytim3;
+
+	if (mipi_dsi->type == MIPI_DSI_DPHY_RZ_G2L) {
+		u32 dphyctrl0, dphytim0, dphytim1, dphytim2, dphytim3;
+
+		/* All recommended setting of DSI global operation timings */
+		if (mipi_dsi->hsfreq > 250000) {
+			timings.tclk_miss = 1;
+			timings.t_init = 79801;
+			timings.tclk_prepare = 8;
+			timings.tclk_settle = 9;
+			timings.tclk_trail = 7;
+			timings.tclk_post = 35;
+			timings.tclk_pre = 4;
+			timings.tclk_zero = 33;
+			timings.tlpx = 6;
+			timings.ths_prepare = 9;
+			timings.ths_settle = 9;
+			timings.ths_exit = 13;
+			timings.ths_trail = 9;
+			timings.ths_zero = 16;
+		} else {
+			timings.tclk_miss = 1;
+			timings.t_init = 79801;
+			timings.tclk_prepare = 8;
+			timings.tclk_settle = 9;
+			timings.tclk_trail = 10;
+			timings.tclk_post = 94;
+			timings.tclk_pre = 13;
+			timings.tclk_zero = 33;
+			timings.tlpx = 6;
+			timings.ths_prepare = 12;
+			timings.ths_settle = 9;
+			timings.ths_exit = 13;
+			timings.ths_trail = 17;
+			timings.ths_zero = 23;
+		}
+		
+		dphytim0 = DSIDPHYTIM0_TCLK_MISS(timings.tclk_miss) |
+			   DSIDPHYTIM0_T_INIT(timings.t_init);
+		dphytim1 = DSIDPHYTIM1_THS_PREPARE(timings.ths_prepare) |
+			   DSIDPHYTIM1_TCLK_PREPARE(timings.tclk_prepare) |
+			   DSIDPHYTIM1_THS_SETTLE(timings.ths_settle) |
+			   DSIDPHYTIM1_TCLK_SETTLE(timings.tclk_settle);
+		dphytim2 = DSIDPHYTIM2_TCLK_TRAIL(timings.tclk_trail) |
+			   DSIDPHYTIM2_TCLK_POST(timings.tclk_post) |
+			   DSIDPHYTIM2_TCLK_PRE(timings.tclk_pre) |
+			   DSIDPHYTIM2_TCLK_ZERO(timings.tclk_zero);
+		dphytim3 = DSIDPHYTIM3_TLPX(timings.tlpx) |
+			   DSIDPHYTIM3_THS_EXIT(timings.ths_exit) |
+			   DSIDPHYTIM3_THS_TRAIL(timings.ths_trail) |
+			   DSIDPHYTIM3_THS_ZERO(timings.ths_zero);
+		
+		rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio, DSIDPHYTIM0, dphytim0);
+		rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio, DSIDPHYTIM1, dphytim1);
+		rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio, DSIDPHYTIM2, dphytim2);
+		rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio, DSIDPHYTIM3, dphytim3);
+		
+		/* Trimming signals is set with normal mode default code */
+		rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio, DSIDPHYTRIM0, 0x5A8BBBBB);
+		rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio, DSIDPHYTRIM0,
+							 DSIDPHYCTRL1_TRIM_REGSEL);
+		
+		dphyctrl0 = DSIDPHYCTRL0_CAL_EN_HSRX_OFS | DSIDPHYCTRL0_CMN_MASTER_EN |
+			    DSIDPHYCTRL0_RE_VDD_DETVCCQLV18 | DSIDPHYCTRL0_EN_BGR;
+		rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio, DSIDPHYCTRL0, dphyctrl0);
+		udelay(20);
+		dphyctrl0 |= DSIDPHYCTRL0_EN_LDO1200;
+		rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio, DSIDPHYCTRL0, dphyctrl0);
+		udelay(10);
+	} else {
+		u32 phytclksetr, phythssetr, phytlpxsetr, phycr;
+		unsigned long lpclk_rate = clk_get_rate(mipi_dsi->clocks.lpclk);
+		int i;
+
+		timings.tclk_trail =
+				dphy_find_timings_val(mipi_dsi,
+						      TCLKTRAILCTL,
+						      ARRAY_SIZE(TCLKTRAILCTL),
+						      mipi_dsi->hsfreq);
+		timings.tclk_post =
+				dphy_find_timings_val(mipi_dsi,
+						      TCLKPOSTCTL,
+						      ARRAY_SIZE(TCLKPOSTCTL),
+						      mipi_dsi->hsfreq);
+		timings.tclk_zero = 
+				dphy_find_timings_val(mipi_dsi,
+						      TCLKZEROCTL,
+						      ARRAY_SIZE(TCLKZEROCTL),
+						      mipi_dsi->hsfreq);
+		timings.tclk_prepare = 
+				dphy_find_timings_val(mipi_dsi,
+						      TCLKPRPRCTL,
+						      ARRAY_SIZE(TCLKPRPRCTL),
+						      mipi_dsi->hsfreq);
+		timings.ths_exit =
+				dphy_find_timings_val(mipi_dsi,
+						      THSEXITCTL,
+						      ARRAY_SIZE(THSEXITCTL),
+						      mipi_dsi->hsfreq);
+		timings.ths_trail =
+				dphy_find_timings_val(mipi_dsi,
+						      THSTRAILCTL,
+						      ARRAY_SIZE(THSTRAILCTL),
+						      mipi_dsi->hsfreq);
+		timings.ths_zero = 
+				dphy_find_timings_val(mipi_dsi,
+						      THSZEROCTL,
+						      ARRAY_SIZE(THSZEROCTL),
+						      mipi_dsi->hsfreq);
+		timings.ths_prepare =
+				dphy_find_timings_val(mipi_dsi,
+						      THSPRPRCTL,
+						      ARRAY_SIZE(THSPRPRCTL),
+						      mipi_dsi->hsfreq);
+		timings.tlpx = 
+				dphy_find_timings_val(mipi_dsi,
+						      TLPXCTL,
+						      ARRAY_SIZE(TLPXCTL),
+						      mipi_dsi->hsfreq);
+		timings.ulpsexit = 
+				dphy_find_timings_val(mipi_dsi,
+						      ULPSEXIT,
+						      ARRAY_SIZE(ULPSEXIT),
+						      lpclk_rate);
+
+		phytclksetr = PHYTCLKSETR_TCLKTRAILCTL(timings.tclk_trail) |
+			      PHYTCLKSETR_TCLKPOSTCTL(timings.tclk_post) |
+			      PHYTCLKSETR_TCLKZEROCTL(timings.tclk_zero) |
+			      PHYTCLKSETR_TCLKPRPRCTL(timings.tclk_prepare);
+		phythssetr = PHYTHSSETR_THSEXITCTL(timings.ths_exit) |
+			     PHYTHSSETR_THSTRAILCTL(timings.ths_trail) |
+			     PHYTHSSETR_THSZEROCTL(timings.ths_zero) |
+			     PHYTHSSETR_THSPRPRCTL(timings.ths_prepare);
+		phytlpxsetr =
+			rzg2l_mipi_dsi_read(mipi_dsi->phy_mmio, PHYTLPXSETR) &
+			~GENMASK(7, 0);
+		phytlpxsetr |= PHYTLPXSETR_TLPXCTL(timings.tlpx);
+		phycr = rzg2l_mipi_dsi_read(mipi_dsi->phy_mmio, PHYCR) &
+			~GENMASK(9, 0);
+		phycr |= PHYCR_ULPSEXIT(timings.ulpsexit);
+
+		/* Setting all D-PHY Timings Registers */
+		rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio,
+				     PHYTCLKSETR, phytclksetr);
+		rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio,
+				     PHYTHSSETR, phythssetr);
+		rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio,
+				     PHYTLPXSETR, phytlpxsetr);
+		rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio,
+				     PHYCR, phycr);
+
+		/* Setting all PLL Registers */
+		for (i = 0; i < ARRAY_SIZE(pll_settings); i++) {
+			if (mipi_dsi->hsfreq < pll_settings[i].pllfreq)
+				break;
+		}
+
+		rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio,
+				     PLLCLKSET0R,
+				     PLLCLKSET0R_PLL_S(pll_settings[i].pll_s) |
+				     PLLCLKSET0R_PLL_P(pll_settings[i].pll_p) |
+				     PLLCLKSET0R_PLL_M(pll_settings[i].pll_m));
+		rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio,
+				     PLLCLKSET1R,
+				     PLLCLKSET1R_PLL_K(pll_settings[i].pll_k));
+		udelay(1);
+
+		rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio, PLLENR, PLLENR_PLLEN);
+		udelay(500);
+	}
+};
+
+static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *mipi_dsi)
+{
+	struct drm_display_mode *mode = &mipi_dsi->display_mode;
+	u32 txsetr;
+	u32 clstptsetr;
+	u32 lptrnstsetr;
+	u8 max_num_lanes;
+	u32 clkkpt;
+	u32 clkbfht;
+	u32 clkstpt;
+	u32 golpbkt;
+	unsigned int bpp;
 
 	/* Relationship between hsclk and vclk must follow:
 	 * vclk * bpp = hsclk * 8 * lanes
@@ -152,72 +747,7 @@ static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *mipi_dsi)
 	mipi_dsi->hsfreq = (mode->clock * bpp * 8) / (8 * mipi_dsi->lanes);
 
 	/* Initializing DPHY before accessing LINK */
-
-	/* All DSI global operation timings are set with recommended setting */
-	if (mipi_dsi->hsfreq > 250000) {
-		timings.tclk_miss = 1;
-		timings.t_init = 79801;
-		timings.tclk_prepare = 8;
-		timings.tclk_settle = 9;
-		timings.tclk_trail = 7;
-		timings.tclk_post = 35;
-		timings.tclk_pre = 4;
-		timings.tclk_zero = 33;
-		timings.tlpx = 6;
-		timings.ths_prepare = 9;
-		timings.ths_settle = 9;
-		timings.ths_exit = 13;
-		timings.ths_trail = 9;
-		timings.ths_zero = 16;
-	} else {
-		timings.tclk_miss = 1;
-		timings.t_init = 79801;
-		timings.tclk_prepare = 8;
-		timings.tclk_settle = 9;
-		timings.tclk_trail = 10;
-		timings.tclk_post = 94;
-		timings.tclk_pre = 13;
-		timings.tclk_zero = 33;
-		timings.tlpx = 6;
-		timings.ths_prepare = 12;
-		timings.ths_settle = 9;
-		timings.ths_exit = 13;
-		timings.ths_trail = 17;
-		timings.ths_zero = 23;
-	}
-
-	dphytim0 = DSIDPHYTIM0_TCLK_MISS(timings.tclk_miss) |
-		   DSIDPHYTIM0_T_INIT(timings.t_init);
-	dphytim1 = DSIDPHYTIM1_THS_PREPARE(timings.ths_prepare) |
-		   DSIDPHYTIM1_TCLK_PREPARE(timings.tclk_prepare) |
-		   DSIDPHYTIM1_THS_SETTLE(timings.ths_settle) |
-		   DSIDPHYTIM1_TCLK_SETTLE(timings.tclk_settle);
-	dphytim2 = DSIDPHYTIM2_TCLK_TRAIL(timings.tclk_trail) |
-		   DSIDPHYTIM2_TCLK_POST(timings.tclk_post) |
-		   DSIDPHYTIM2_TCLK_PRE(timings.tclk_pre) |
-		   DSIDPHYTIM2_TCLK_ZERO(timings.tclk_zero);
-	dphytim3 = DSIDPHYTIM3_TLPX(timings.tlpx) |
-		   DSIDPHYTIM3_THS_EXIT(timings.ths_exit) |
-		   DSIDPHYTIM3_THS_TRAIL(timings.ths_trail) |
-		   DSIDPHYTIM3_THS_ZERO(timings.ths_zero);
-
-	rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio, DSIDPHYTIM0, dphytim0);
-	rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio, DSIDPHYTIM1, dphytim1);
-	rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio, DSIDPHYTIM2, dphytim2);
-	rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio, DSIDPHYTIM3, dphytim3);
-
-	/* Trimming signals is set with normal mode default code */
-	rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio, DSIDPHYTRIM0, 0x5A8BBBBB);
-	rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio, DSIDPHYTRIM0,
-						 DSIDPHYCTRL1_TRIM_REGSEL);
-
-	dphyctrl0 = DSIDPHYCTRL0_CAL_EN_HSRX_OFS | DSIDPHYCTRL0_CMN_MASTER_EN |
-		    DSIDPHYCTRL0_RE_VDD_DETVCCQLV18 | DSIDPHYCTRL0_EN_BGR;
-	rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio, DSIDPHYCTRL0, dphyctrl0);
-	udelay(20);
-	dphyctrl0 |= DSIDPHYCTRL0_EN_LDO1200;
-	rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio, DSIDPHYCTRL0, dphyctrl0);
-	udelay(10);
+	rzg2l_mipi_dsi_dphy_init(mipi_dsi);
 
 	/* Check number of lanes capability */
 	max_num_lanes = rzg2l_mipi_dsi_read(mipi_dsi->link_mmio, TXSETR) >> 16;
@@ -232,6 +762,11 @@ static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *mipi_dsi)
 	txsetr = TXSETR_DLEN | TXSETR_NUMLANEUSE(mipi_dsi->lanes - 1) | TXSETR_CLEN;
 	rzg2l_mipi_dsi_write(mipi_dsi->link_mmio, TXSETR, txsetr);
 
+	if (mipi_dsi->type == MIPI_DSI_DPHY_RZ_V2H) {
+		udelay(250);
+		rzg2l_mipi_dsi_write(mipi_dsi->phy_mmio, PHYRSTR,
+				     PHYRSTR_PHYMRSTN);
+	}
 	/*
 	 * Global timings characteristic depends on high speed Clock Frequency
 	 * Currently MIPI DSI-IF just supports maximum FHD@60 with:
@@ -688,15 +1223,7 @@ int rzg2l_mipi_dsi_clk_enable(struct drm_bridge *bridge)
 	struct rzg2l_mipi_dsi *mipi_dsi = bridge_to_rzg2l_mipi_dsi(bridge);
 	int ret;
 
-	reset_control_deassert(mipi_dsi->rstc.cmn_rstb);
-	reset_control_deassert(mipi_dsi->rstc.areset_n);
-	reset_control_deassert(mipi_dsi->rstc.preset_n);
-
 	ret = clk_prepare_enable(mipi_dsi->clocks.pllclk);
-	if (ret < 0)
-		return ret;
-
-	ret = clk_prepare_enable(mipi_dsi->clocks.sysclk);
 	if (ret < 0)
 		return ret;
 
@@ -715,6 +1242,20 @@ int rzg2l_mipi_dsi_clk_enable(struct drm_bridge *bridge)
 	ret = clk_prepare_enable(mipi_dsi->clocks.lpclk);
 	if (ret < 0)
 		return ret;
+
+	if (mipi_dsi->type == MIPI_DSI_DPHY_RZ_G2L) {
+		ret = clk_prepare_enable(mipi_dsi->clocks.sysclk);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* Wait for clocks are stable */
+	udelay(20);
+
+	reset_control_deassert(mipi_dsi->rstc.areset_n);
+	reset_control_deassert(mipi_dsi->rstc.preset_n);
+	if (mipi_dsi->type == MIPI_DSI_DPHY_RZ_G2L)
+		reset_control_deassert(mipi_dsi->rstc.cmn_rstb);
 
 	return 0;
 }
@@ -1076,10 +1617,6 @@ static int rzg2l_mipi_dsi_get_clk(struct rzg2l_mipi_dsi *mipi_dsi)
 	if (IS_ERR(mipi_dsi->clocks.pllclk))
 		return PTR_ERR(mipi_dsi->clocks.pllclk);
 
-	mipi_dsi->clocks.sysclk = rzg2l_mipi_dsi_get_clock(mipi_dsi, "sysclk");
-	if (IS_ERR(mipi_dsi->clocks.sysclk))
-		return PTR_ERR(mipi_dsi->clocks.sysclk);
-
 	mipi_dsi->clocks.aclk = rzg2l_mipi_dsi_get_clock(mipi_dsi, "aclk");
 	if (IS_ERR(mipi_dsi->clocks.aclk))
 		return PTR_ERR(mipi_dsi->clocks.aclk);
@@ -1095,6 +1632,13 @@ static int rzg2l_mipi_dsi_get_clk(struct rzg2l_mipi_dsi *mipi_dsi)
 	mipi_dsi->clocks.lpclk = rzg2l_mipi_dsi_get_clock(mipi_dsi, "lpclk");
 	if (IS_ERR(mipi_dsi->clocks.lpclk))
 		return PTR_ERR(mipi_dsi->clocks.lpclk);
+
+	if (mipi_dsi->type == MIPI_DSI_DPHY_RZ_G2L) {
+		mipi_dsi->clocks.sysclk = rzg2l_mipi_dsi_get_clock(mipi_dsi,
+								   "sysclk");
+		if (IS_ERR(mipi_dsi->clocks.sysclk))
+			return PTR_ERR(mipi_dsi->clocks.sysclk);
+	}
 
 	return 0;
 }
@@ -1113,9 +1657,12 @@ static struct reset_control *rzg2l_mipi_dsi_get_rstc(struct rzg2l_mipi_dsi *mipi
 
 static int rzg2l_mipi_dsi_get_rst(struct rzg2l_mipi_dsi *mipi_dsi)
 {
-	mipi_dsi->rstc.cmn_rstb = rzg2l_mipi_dsi_get_rstc(mipi_dsi, "cmn_rstb");
-	if (IS_ERR(mipi_dsi->rstc.cmn_rstb))
-		return PTR_ERR(mipi_dsi->rstc.cmn_rstb);
+	if (mipi_dsi->type == MIPI_DSI_DPHY_RZ_G2L) {
+		mipi_dsi->rstc.cmn_rstb = rzg2l_mipi_dsi_get_rstc(mipi_dsi,
+								  "cmn_rstb");
+		if (IS_ERR(mipi_dsi->rstc.cmn_rstb))
+			return PTR_ERR(mipi_dsi->rstc.cmn_rstb);
+	}
 
 	mipi_dsi->rstc.areset_n = rzg2l_mipi_dsi_get_rstc(mipi_dsi, "areset_n");
 	if (IS_ERR(mipi_dsi->rstc.areset_n))
@@ -1157,6 +1704,9 @@ static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 	if (IS_ERR(mipi_dsi->phy_mmio))
 		return PTR_ERR(mipi_dsi->phy_mmio);
 
+	mipi_dsi->type =
+		(enum mipi_dsi_dphy_type)of_device_get_match_data(&pdev->dev);
+
 	ret = rzg2l_mipi_dsi_get_clk(mipi_dsi);
 	if (ret < 0)
 		return ret;
@@ -1189,7 +1739,12 @@ static int rzg2l_mipi_dsi_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id rzg2l_mipi_dsi_of_table[] = {
-	{ .compatible = "renesas,r9a07g044-mipi-dsi" },
+	{ .compatible = "renesas,r9a07g044-mipi-dsi",
+	  .data = (void *) MIPI_DSI_DPHY_RZ_G2L,
+	},
+	{ .compatible = "renesas,r9a09g057-mipi-dsi",
+	  .data = (void *) MIPI_DSI_DPHY_RZ_V2H,
+	},
 	{ },
 };
 

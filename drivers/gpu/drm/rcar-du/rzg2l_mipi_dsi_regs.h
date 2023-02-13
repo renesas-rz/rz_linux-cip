@@ -8,7 +8,7 @@
 #ifndef __RZG2L_MIPI_DSI_REGS_H__
 #define __RZG2L_MIPI_DSI_REGS_H__
 
-/* DPHY Registers */
+/* RZ/G2L & RZ/V2L Series DPHY Registers */
 #define DSIDPHYCTRL0			0x00
 #define DSIDPHYCTRL0_CAL_EN_HSRX_OFS	(1 << 16)
 #define DSIDPHYCTRL0_CMN_MASTER_EN	(1 << 8)
@@ -42,6 +42,45 @@
 #define DSIDPHYCTRL1_TRIM_REGSEL	(1 << 0)
 
 #define DSIDPHYTRIM0			0x44
+
+/* RZ/V2H DPHY Registers */
+#define PLLENR				0x000
+#define PLLENR_PLLEN			BIT(0)
+
+#define PHYRSTR				0x004
+#define PHYRSTR_PHYMRSTN		BIT(0)
+
+#define PLLCLKSET0R			0x010
+#define PLLCLKSET0R_PLL_S(x)		((x) << 0)
+#define PLLCLKSET0R_PLL_P(x)		((x) << 8)
+#define PLLCLKSET0R_PLL_M(x)		((x) << 16)
+
+#define PLLCLKSET1R			0x014
+#define PLLCLKSET1R_PLL_K(x)		((x) << 0)
+
+#define PHYTCLKSETR			0x020
+#define PHYTCLKSETR_TCLKTRAILCTL(x)	((x) << 0)
+#define PHYTCLKSETR_TCLKPOSTCTL(x)	((x) << 8)
+#define PHYTCLKSETR_TCLKZEROCTL(x)	((x) << 16)
+#define PHYTCLKSETR_TCLKPRPRCTL(x)	((x) << 24)
+
+#define PHYTHSSETR			0x024
+#define PHYTHSSETR_THSEXITCTL(x)	((x) << 0)
+#define PHYTHSSETR_THSTRAILCTL(x)	((x) << 8)
+#define PHYTHSSETR_THSZEROCTL(x)	((x) << 16)
+#define PHYTHSSETR_THSPRPRCTL(x)	((x) << 24)
+
+#define PHYTLPXSETR			0x028
+#define PHYTLPXSETR_TLPXCTL(x)		((x) << 0)
+
+#define PHYCR				0x030
+#define PHYCR_ULPSEXIT(x)		((x) << 0)
+
+#define PHYC1R				0x034
+
+#define PHYC2R				0x038
+
+#define PHYC3R				0x03C
 
 /* --------------------------------------------------------*/
 /* Link Registers */
