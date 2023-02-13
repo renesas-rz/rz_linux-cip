@@ -300,6 +300,7 @@ static const struct of_device_id irqc_dt_ids[] = {
 	{ .compatible = "renesas,rzg2l-irqc", },
 	{ .compatible = "renesas,rzv2l-irqc", },
 	{ .compatible = "renesas,rzg2ul-irqc", },
+	{ .compatible = "renesas,rzg3s-irqc", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, irqc_dt_ids);
