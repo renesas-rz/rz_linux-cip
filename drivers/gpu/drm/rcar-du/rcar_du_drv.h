@@ -30,6 +30,7 @@ struct rcar_du_device;
 #define RCAR_DU_FEATURE_INTERLACED	BIT(2)	/* HW supports interlaced */
 #define RCAR_DU_FEATURE_TVM_SYNC	BIT(3)	/* Has TV switch/sync modes */
 #define RCAR_DU_FEATURE_RZG2L		BIT(4)  /* Use RZ/G2L registers */
+#define RCAR_DU_FEATURE_RZV2H		BIT(5)  /* Use RZ/V2H registers */
 
 #define RCAR_DU_QUIRK_ALIGN_128B	BIT(0)	/* Align pitches to 128 bytes */
 
