@@ -64,9 +64,10 @@
 
 #define RZG2L_ADSMP_DEFAULT_SAMPLING	0x578
 #define RZG3S_ADSMP_DEFAULT_SAMPLING	0x7F
+#define RZG3S_ADSMP_DEFAULT_SAMPLING_CH8	0xFF
 
-#define RZG2L_ADC_MAX_CHANNELS		8
-#define RZG2L_ADC_CHN_MASK		0x7
+#define RZG2L_ADC_MAX_CHANNELS		9
+#define RZG2L_ADC_CHN_MASK		0xf
 #define RZG2L_ADC_TIMEOUT		usecs_to_jiffies(1 * 4)
 
 struct rzg2l_adc_data {
@@ -95,6 +96,7 @@ static const char * const rzg2l_adc_channel_name[] = {
 	"adc5",
 	"adc6",
 	"adc7",
+	"adc8",
 };
 
 static const struct soc_device_attribute rzg3s_match[] = {
@@ -159,7 +161,7 @@ static void rzg2l_set_trigger(struct rzg2l_adc *adc)
 	 * Setup ADM1 for SW trigger
 	 * EGA[13:12] - Set 00 to indicate hardware trigger is invalid
 	 * BS[4] - Enable 1-buffer mode
-	 * MS[1] - Enable Select mode
+	 * MS[2] - Enable Select mode
 	 * TRG[0] - Enable software trigger mode
 	 */
 	reg = rzg2l_adc_readl(adc, RZG2L_ADM(1));
@@ -189,11 +191,24 @@ static int rzg2l_adc_conversion_setup(struct rzg2l_adc *adc, u8 ch)
 	reg |= BIT(ch);
 	rzg2l_adc_writel(adc, RZG2L_ADM(2), reg);
 
+	/* Select Sampling Rate 0xFF for Channel 8 */
+	if (soc_device_match(rzg3s_match)) {
+		reg = rzg2l_adc_readl(adc, RZG2L_ADM(3));
+		reg &= ~RZG3S_ADM3_ADSMP_MASK;
+		reg |= ((ch == 8) ? RZG3S_ADSMP_DEFAULT_SAMPLING_CH8 :
+				    RZG3S_ADSMP_DEFAULT_SAMPLING);
+		rzg2l_adc_writel(adc, RZG2L_ADM(3), reg);
+	}
+
 	/*
 	 * Setup ADINT
 	 * INTS[31] - Select pulse signal
 	 * CSEEN[16] - Enable channel select error interrupt
 	 * INTEN[7:0] - Select channel interrupt
+	 */
+	/*
+	 * RZ/G3S:
+	 * INTEN[11:0] - Select channel interrupt
 	 */
 	reg = rzg2l_adc_readl(adc, RZG2L_ADINT);
 	reg &= ~RZG2L_ADINT_INTS;
