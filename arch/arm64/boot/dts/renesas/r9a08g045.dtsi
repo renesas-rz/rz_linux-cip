@@ -695,6 +695,9 @@
 			channel@7 {
 				reg = <7>;
 			};
+			channel@8 {
+				reg = <8>;
+			};
 		};
 
 		tsu: thermal@10059400 {
