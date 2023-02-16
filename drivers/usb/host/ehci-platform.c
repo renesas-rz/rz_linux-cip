@@ -45,6 +45,8 @@
 #define BCM_USB_FIFO_THRESHOLD	0x00800040
 #define bcm_iproc_insnreg01	hostpc[0]
 
+#define	G3S_AHB_BUS_CTR	0x108
+
 struct ehci_platform_priv {
 	struct clk *clks[EHCI_MAX_CLKS];
 	struct reset_control *rsts;
@@ -236,6 +238,11 @@ static const struct soc_device_attribute quirk_poll_match[] = {
 	{ /* sentinel*/ }
 };
 
+static const struct soc_device_attribute rzg3s_match[] = {
+	{ .family = "RZ/G3S" },
+	{ /* sentinel*/ }
+};
+
 static int ehci_platform_probe(struct platform_device *dev)
 {
 	struct usb_hcd *hcd;
@@ -362,6 +369,9 @@ static int ehci_platform_probe(struct platform_device *dev)
 	if (IS_ERR(hcd->regs)) {
 		err = PTR_ERR(hcd->regs);
 		goto err_power;
+	}
+	if (soc_device_match(rzg3s_match)) {
+		writel(2, hcd->regs + G3S_AHB_BUS_CTR);
 	}
 	hcd->rsrc_start = res_mem->start;
 	hcd->rsrc_len = resource_size(res_mem);
