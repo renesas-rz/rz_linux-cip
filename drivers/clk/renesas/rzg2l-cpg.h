@@ -238,6 +238,40 @@ struct rzg2l_reset {
 	}
 
 /**
+ * struct clk_mon - Clks Monitoring
+ *
+ * @clk_off: clk monitoring register offset
+ * @clk_bit: clk monitoring bit
+ */
+struct clk_mon {
+	u16 clk_off;
+	u8 clk_bit;
+};
+
+#define DEF_CLK_MON(_id, _clk_off, _clk_bit)        \
+        [_id] = { \
+                .clk_off = (_clk_off), \
+                .clk_bit = (_clk_bit) \
+        }
+
+/**
+ * struct rst_mon - Resets Monitoring
+ *
+ * @rst_off: reset monitoring register offset
+ * @rst_bit: reset monitoring bit
+ */
+struct rst_mon {
+	u16 rst_off;
+	u8 rst_bit;
+};
+
+#define DEF_RST_MON(_id, _rst_off, _rst_bit)        \
+        [_id] = { \
+                .rst_off = (_rst_off), \
+                .rst_bit = (_rst_bit) \
+        }
+
+/**
  * struct rzg2l_cpg_info - SoC-specific CPG Description
  *
  * @core_clks: Array of Core Clock definitions
@@ -255,6 +289,12 @@ struct rzg2l_reset {
  * @crit_mod_clks: Array with Module Clock IDs of critical clocks that
  *                 should not be disabled without a knowledgeable driver
  * @num_crit_mod_clks: Number of entries in crit_mod_clks[]
+ *
+ * @clk_mon: Array of Module Clocks Monitoring definitions
+ * @num_clk_mon: Number of entries in clk_mon[]
+ *
+ * @rst_mon: Array of Module Resets Monitoring definitions
+ * @num_rst_mon: Number of entries in rst_mon[]
  */
 struct rzg2l_cpg_info {
 	/* Core Clocks */
@@ -275,6 +315,14 @@ struct rzg2l_cpg_info {
 	/* Critical Module Clocks that should not be disabled */
 	const unsigned int *crit_mod_clks;
 	unsigned int num_crit_mod_clks;
+
+	/* Clocks Monitoring */
+	const struct clk_mon *clk_mons;
+	unsigned int num_clk_mon;
+
+	/* Resets Monitoring */
+	const struct rst_mon *rst_mons;
+	unsigned int num_rst_mon;
 };
 
 extern const struct rzg2l_cpg_info r9a07g043_cpg_info;

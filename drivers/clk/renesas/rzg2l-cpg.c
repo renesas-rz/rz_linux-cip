@@ -622,6 +622,8 @@ fail:
  * @hw: handle between common and hardware-specific interfaces
  * @off: register offset
  * @bit: ON/MON bit
+ * @off: Clock monitor register offset for special platforms such as V2H
+ * @bit: Clock MON bit
  * @enabled: soft state of the clock, if it is coupled with another clock
  * @priv: CPG/MSTP private data
  * @sibling: pointer to the other coupled clock
@@ -630,6 +632,8 @@ struct mstp_clock {
 	struct clk_hw hw;
 	u16 off;
 	u8 bit;
+	u16 mon_off;
+	u8 mon_bit;
 	bool enabled;
 	u32 mstop;
 	struct rzg2l_cpg_priv *priv;
@@ -682,8 +686,14 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 		return 0;
 
 	for (i = 1000; i > 0; --i) {
-		if (((readl(priv->base + CLK_MON_R(reg))) & bitmask))
-			break;
+		if (priv->info->clk_mons) {
+			if ((readl(priv->base + CLK_MON_R(clock->mon_off))) &
+			      BIT(clock->mon_bit))
+				break;
+		} else {
+			if (((readl(priv->base + CLK_MON_R(reg))) & bitmask))
+				break;
+		}
 		cpu_relax();
 	}
 
@@ -740,7 +750,8 @@ static int rzg2l_mod_clock_is_enabled(struct clk_hw *hw)
 {
 	struct mstp_clock *clock = to_mod_clock(hw);
 	struct rzg2l_cpg_priv *priv = clock->priv;
-	u32 bitmask = BIT(clock->bit);
+	u32 bitmask = (priv->info->clk_mons) ? BIT(clock->mon_bit) :
+					       BIT(clock->bit);
 	u32 value;
 	u32 mstop_val;
 
@@ -752,7 +763,10 @@ static int rzg2l_mod_clock_is_enabled(struct clk_hw *hw)
 	if (clock->sibling)
 		return clock->enabled;
 
-	value = readl(priv->base + CLK_MON_R(clock->off));
+	if (priv->info->clk_mons)
+		value = readl(priv->base + CLK_MON_R(clock->mon_off));
+	else
+		value = readl(priv->base + CLK_MON_R(clock->off));
 
 	if (clock->mstop) {
 		mstop_val = readl(priv->base + MSTOP_OFF(clock->mstop));
@@ -849,6 +863,10 @@ rzg2l_cpg_register_mod_clk(const struct rzg2l_mod_clk *mod,
 
 	clock->off = mod->off;
 	clock->bit = mod->bit;
+	if (info->clk_mons) {
+		clock->mon_off = info->clk_mons[id].clk_off;
+		clock->mon_bit = info->clk_mons[id].clk_bit;
+	}
 	clock->mstop = mod->mstop;
 	clock->priv = priv;
 	clock->hw.init = &init;
@@ -938,8 +956,10 @@ static int rzg2l_cpg_status(struct reset_controller_dev *rcdev,
 {
 	struct rzg2l_cpg_priv *priv = rcdev_to_priv(rcdev);
 	const struct rzg2l_cpg_info *info = priv->info;
-	unsigned int reg = info->resets[id].off;
-	u32 bitmask = BIT(info->resets[id].bit);
+	unsigned int reg = (priv->info->rst_mons) ? info->rst_mons[id].rst_off :
+						    info->resets[id].off;
+	u32 bitmask = (priv->info->rst_mons) ? BIT(info->rst_mons[id].rst_bit) :
+					       BIT(info->resets[id].bit);
 
 	return !!(readl(priv->base + CLK_MRST_R(reg)) & bitmask);
 }
