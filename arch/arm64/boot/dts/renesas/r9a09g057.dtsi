@@ -309,12 +309,12 @@
 			compatible = "renesas,scif-r9a09g057",
 				     "renesas,scif-r9a07g044";
 			reg = <0 0x11c01400 0 0x400>;
-			interrupts = <GIC_SPI 529 IRQ_TYPE_LEVEL_LOW>,
-				     <GIC_SPI 532 IRQ_TYPE_LEVEL_LOW>,
-				     <GIC_SPI 533 IRQ_TYPE_LEVEL_LOW>,
-				     <GIC_SPI 530 IRQ_TYPE_LEVEL_LOW>,
-				     <GIC_SPI 534 IRQ_TYPE_LEVEL_LOW>,
-				     <GIC_SPI 531 IRQ_TYPE_LEVEL_LOW>;
+			interrupts = <GIC_SPI 529 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 532 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 533 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 530 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 534 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 531 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "eri", "rxi", "txi",
 					  "bri", "dri", "tei";
 			clocks = <&cpg CPG_MOD R9A09G057_SCIF_CLK_PCK>;
