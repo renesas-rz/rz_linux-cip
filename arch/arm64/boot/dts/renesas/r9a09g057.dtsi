@@ -88,6 +88,14 @@
 		clock-frequency = <0>;
 	};
 
+	/* ptp_clock input */
+	ptp_clock: ptp_clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		/* This value must be overridden by the board */
+		clock-frequency = <125000000>;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -730,6 +738,56 @@
 			phy-names = "usb";
 			power-domains = <&cpg>;
 			status = "disabled";
+		};
+
+		eth0: ethernet@15C30000 {
+			compatible = "renesas,rzv2h-eqos",
+				     "snps,dwc-qos-ethernet-4.10";
+			reg = <0 0x15C30000 0 0x10000>;
+			interrupts = <GIC_SPI 765 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 767 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 766 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+			clocks =  <&cpg CPG_MOD R9A09G057_GBETH0_ACLK_I>,
+				  <&cpg CPG_MOD R9A09G057_GBETH0_ACLK_CSR_I>,
+				  <&cpg CPG_MOD R9A09G057_GBETH0_CLK_TX_I>,
+				  <&cpg CPG_MOD R9A09G057_GBETH0_CLK_TX_180_I>,
+				  <&cpg CPG_MOD R9A09G057_GBETH0_CLK_RX_I>,
+				  <&cpg CPG_MOD R9A09G057_GBETH0_CLK_RX_180_I>,
+				  <&ptp_clock>;
+			clock-names = "master_bus", "slave_bus", "tx", "tx_180", "rx", "rx_180", "ptp_ref";
+			resets = <&cpg R9A09G057_GBETH0_ARESETN_I>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+			snps,write-requests = <15>;
+			snps,read-requests = <15>;
+			snps,burst-map = <0x7>;
+		};
+
+		eth1: ethernet@15C40000 {
+			compatible = "renesas,rzv2h-eqos",
+				     "snps,dwc-qos-ethernet-4.10";
+			reg = <0 0x15C40000 0 0x10000>;
+			interrupts = <GIC_SPI 780 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 782 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 781 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+			clocks =  <&cpg CPG_MOD R9A09G057_GBETH1_ACLK_I>,
+				  <&cpg CPG_MOD R9A09G057_GBETH1_ACLK_CSR_I>,
+				  <&cpg CPG_MOD R9A09G057_GBETH1_CLK_TX_I>,
+				  <&cpg CPG_MOD R9A09G057_GBETH1_CLK_TX_180_I>,
+				  <&cpg CPG_MOD R9A09G057_GBETH1_CLK_RX_I>,
+				  <&cpg CPG_MOD R9A09G057_GBETH1_CLK_RX_180_I>,
+				  <&ptp_clock>;
+			clock-names = "master_bus", "slave_bus", "tx", "tx_180", "rx", "rx_180", "ptp_ref";
+			resets = <&cpg R9A09G057_GBETH1_ARESETN_I>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+			snps,write-requests = <15>;
+			snps,read-requests = <15>;
+			snps,burst-map = <0x7>;
 		};
 	};
 
