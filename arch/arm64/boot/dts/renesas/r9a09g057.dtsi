@@ -114,17 +114,17 @@
 			enable-method = "psci";
 		};
 
-		cpu2: cpu@10000 {
+		cpu2: cpu@200 {
 			compatible = "arm,cortex-a55";
-			reg = <0x10000>;
+			reg = <0x200>;
 			device_type = "cpu";
 			next-level-cache = <&L3_CA55>;
 			enable-method = "psci";
 		};
 
-		cpu3: cpu@1000000 {
+		cpu3: cpu@300 {
 			compatible = "arm,cortex-a55";
-			reg = <0x1000000>;
+			reg = <0x300>;
 			device_type = "cpu";
 			next-level-cache = <&L3_CA55>;
 			enable-method = "psci";
