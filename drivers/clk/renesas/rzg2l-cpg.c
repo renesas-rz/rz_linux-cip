@@ -687,7 +687,7 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 
 	for (i = 1000; i > 0; --i) {
 		if (priv->info->clk_mons) {
-			if ((readl(priv->base + CLK_MON_R(clock->mon_off))) &
+			if ((readl(priv->base + clock->mon_off)) &
 			      BIT(clock->mon_bit))
 				break;
 		} else {
@@ -764,7 +764,7 @@ static int rzg2l_mod_clock_is_enabled(struct clk_hw *hw)
 		return clock->enabled;
 
 	if (priv->info->clk_mons)
-		value = readl(priv->base + CLK_MON_R(clock->mon_off));
+		value = readl(priv->base + clock->mon_off);
 	else
 		value = readl(priv->base + CLK_MON_R(clock->off));
 
@@ -864,8 +864,8 @@ rzg2l_cpg_register_mod_clk(const struct rzg2l_mod_clk *mod,
 	clock->off = mod->off;
 	clock->bit = mod->bit;
 	if (info->clk_mons) {
-		clock->mon_off = info->clk_mons[id].clk_off;
-		clock->mon_bit = info->clk_mons[id].clk_bit;
+		clock->mon_off = info->clk_mons[id - priv->num_core_clks].clk_off;
+		clock->mon_bit = info->clk_mons[id - priv->num_core_clks].clk_bit;
 	}
 	clock->mstop = mod->mstop;
 	clock->priv = priv;
@@ -956,12 +956,18 @@ static int rzg2l_cpg_status(struct reset_controller_dev *rcdev,
 {
 	struct rzg2l_cpg_priv *priv = rcdev_to_priv(rcdev);
 	const struct rzg2l_cpg_info *info = priv->info;
-	unsigned int reg = (priv->info->rst_mons) ? info->rst_mons[id].rst_off :
-						    info->resets[id].off;
-	u32 bitmask = (priv->info->rst_mons) ? BIT(info->rst_mons[id].rst_bit) :
-					       BIT(info->resets[id].bit);
+	unsigned int reg;
+	u32 bitmask;
 
-	return !!(readl(priv->base + CLK_MRST_R(reg)) & bitmask);
+	if (priv->info->rst_mons) {
+		reg = info->rst_mons[id].rst_off;
+		bitmask = BIT(info->rst_mons[id].rst_bit);
+		return !!(readl(priv->base + reg) & bitmask);
+	} else {
+		reg = info->resets[id].off;
+		bitmask = BIT(info->resets[id].bit);
+		return !!(readl(priv->base + CLK_MRST_R(reg)) & bitmask);
+	}
 }
 
 static const struct reset_control_ops rzg2l_cpg_reset_ops = {
