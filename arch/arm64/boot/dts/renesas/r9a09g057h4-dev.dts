@@ -148,7 +148,7 @@
 #endif
 
 #if (!SEL_SD0_SD1)
-#if (SW12)
+#if (SW2)
 	/* Support pinctrl for MMC function of SDHI0*/
 	sdhi0_pins: sd0 {
 		sd0_data {
@@ -216,7 +216,7 @@
 };
 
 #if (!SEL_SD0_SD1)
-#if (SW12)
+#if (SW2)
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_pins>;
 	pinctrl-names = "default";
