@@ -88,6 +88,8 @@ enum clk_ids {
 	CLK_PLLDTY_DIV4,
 	CLK_PLLDTY_DIV8,
 	CLK_PLLDTY_DIV16,
+	CLK_PLLDTY_RCPU,
+	CLK_PLLDTY_RCPU_DIV4,
 	CLK_PLLVDO,
 	CLK_PLLVDO_CRU0,
 	CLK_PLLVDO_CRU1,
@@ -242,6 +244,9 @@ static const struct cpg_core_clk r9a09g057_core_clks[] __initconst = {
 	DEF_FIXED(".plldty_div4", CLK_PLLDTY_DIV4, CLK_PLLDTY, 1, 4),
 	DEF_FIXED(".plldty_div8", CLK_PLLDTY_DIV8, CLK_PLLDTY, 1, 8),
 	DEF_FIXED(".plldty_div16", CLK_PLLDTY_DIV16, CLK_PLLDTY, 1, 16),
+	DEF_DIV(".plldty_rcpu", CLK_PLLDTY_RCPU, CLK_PLLDTY,
+		CDDIV3_DIVCTL2, dtable_2_64, CLK_DIVIDER_HIWORD_MASK),
+	DEF_FIXED(".plldty_rcpu_div4", CLK_PLLDTY_RCPU_DIV4, CLK_PLLDTY_RCPU, 1, 4),
 	DEF_SAMPLL(".pllvdo", CLK_PLLVDO, CLK_EXTAL, RZ_V2H_PLL_CONF(PLLVDO)),
 	DEF_DIV(".pllvdo_cru0", CLK_PLLVDO_CRU0, CLK_PLLVDO,
 		CDDIV3_DIVCTL3, dtable_2_4, CLK_DIVIDER_HIWORD_MASK),
@@ -279,10 +284,20 @@ static const struct cpg_core_clk r9a09g057_core_clks[] __initconst = {
 };
 
 static struct rzg2l_mod_clk r9a09g057_mod_clks[] = {
+	DEF_MOD("mcpu_dmac0_aclk",	R9A09G057_MCPU_DMAC_0_ACLK, CLK_PLLCM33_DIV4_DDIV2,
+					0x600,	0, 0),
+	DEF_MOD("acpu_dmac0_aclk",	R9A09G057_ACPU_DMAC_0_ACLK, CLK_PLLDTY_ACPU_DIV2,
+					0x600,	1, 0),
+	DEF_MOD("acpu_dmac1_aclk",	R9A09G057_ACPU_DMAC_1_ACLK, CLK_PLLDTY_ACPU_DIV2,
+					0x600,	2, 0),
+	DEF_MOD("rcpu_dmac0_aclk",	R9A09G057_RCPU_DMAC_0_ACLK, CLK_PLLDTY_RCPU_DIV4,
+					0x600,	3, 0),
+	DEF_MOD("rcpu_dmac1_aclk",	R9A09G057_RCPU_DMAC_1_ACLK, CLK_PLLDTY_RCPU_DIV4,
+					0x600,	4, 0),
 	DEF_MOD("icu",			R9A09G057_ICU_PCLK_I, CLK_PLLCM33_DIV16,
-					0x600, 5, 0),
+					0x600,	5, 0),
 	DEF_MOD("gic",			R9A09G057_GIC_GICCLK, CLK_PLLDTY_ACPU_DIV4,
-					0x604, 3, 0),
+					0x604,	3, 0),
 	DEF_MOD("gpt0_pclk_sfr",	R9A09G057_GPT0_PCLK_SFR, CLK_PLLCLN_DIV8,
 					0x60C,	1, 0),
 	DEF_MOD("gpt1_pclk_sfr",	R9A09G057_GPT1_PCLK_SFR, CLK_PLLCLN_DIV8,
@@ -644,6 +659,11 @@ static struct rzg2l_mod_clk r9a09g057_mod_clks[] = {
 };
 
 static struct rzg2l_reset r9a09g057_resets[] = {
+	DEF_RST(R9A09G057_MCPU_DMAC_0_ARESETN,		0x90C,	1),
+	DEF_RST(R9A09G057_ACPU_DMAC_0_ARESETN,		0x90C,	2),
+	DEF_RST(R9A09G057_ACPU_DMAC_1_ARESETN,		0x90C,	3),
+	DEF_RST(R9A09G057_RCPU_DMAC_0_ARESETN,		0x90C,	4),
+	DEF_RST(R9A09G057_RCPU_DMAC_1_ARESETN,		0x90C,	5),
 	DEF_RST(R9A09G057_ICU_PRESETN,			0x90C,  6),
 	DEF_RST(R9A09G057_GIC_GICRESET_N,		0x90C,  8),
 	DEF_RST(R9A09G057_GIC_DBG_GICRESET_N,		0x90C,  9),
@@ -766,9 +786,19 @@ static struct rzg2l_reset r9a09g057_resets[] = {
 static const unsigned int r9a09g057_crit_mod_clks[] __initconst = {
 	MOD_CLK_BASE + R9A09G057_ICU_PCLK_I,
 	MOD_CLK_BASE + R9A09G057_GIC_GICCLK,
+	MOD_CLK_BASE + R9A09G057_MCPU_DMAC_0_ACLK,
+	MOD_CLK_BASE + R9A09G057_ACPU_DMAC_0_ACLK,
+	MOD_CLK_BASE + R9A09G057_ACPU_DMAC_1_ACLK,
+	MOD_CLK_BASE + R9A09G057_RCPU_DMAC_0_ACLK,
+	MOD_CLK_BASE + R9A09G057_RCPU_DMAC_1_ACLK,
 };
 
 static struct clk_mon r9a09g057_clk_mon[] = {
+	DEF_CLK_MON(R9A09G057_MCPU_DMAC_0_ACLK,		0x800,	 0),
+	DEF_CLK_MON(R9A09G057_ACPU_DMAC_0_ACLK,		0x800,	 1),
+	DEF_CLK_MON(R9A09G057_ACPU_DMAC_1_ACLK,		0x800,	 2),
+	DEF_CLK_MON(R9A09G057_RCPU_DMAC_0_ACLK,		0x800,	 3),
+	DEF_CLK_MON(R9A09G057_RCPU_DMAC_1_ACLK,		0x800,	 4),
 	DEF_CLK_MON(R9A09G057_ICU_PCLK_I,		0x800,	 5),
 	DEF_CLK_MON(R9A09G057_GIC_GICCLK,		0x800,	19),
 	DEF_CLK_MON(R9A09G057_GPT0_PCLK_SFR,		0x804,	17),
@@ -953,6 +983,11 @@ static struct clk_mon r9a09g057_clk_mon[] = {
 };
 
 static struct rst_mon r9a09g057_rst_mon[] = {
+	DEF_RST_MON(R9A09G057_MCPU_DMAC_0_ARESETN,	0xA04,	 2),
+	DEF_RST_MON(R9A09G057_ACPU_DMAC_0_ARESETN,	0xA04,	 3),
+	DEF_RST_MON(R9A09G057_ACPU_DMAC_1_ARESETN,	0xA04,	 4),
+	DEF_RST_MON(R9A09G057_RCPU_DMAC_0_ARESETN,	0xA04,	 5),
+	DEF_RST_MON(R9A09G057_RCPU_DMAC_1_ARESETN,	0xA04,	 6),
 	DEF_RST_MON(R9A09G057_ICU_PRESETN,		0xA04,	 7),
 	DEF_RST_MON(R9A09G057_GIC_GICRESET_N,		0xA04,	 9),
 	DEF_RST_MON(R9A09G057_GIC_DBG_GICRESET_N,	0xA04,	10),
@@ -1086,17 +1121,17 @@ const struct rzg2l_cpg_info r9a09g057_cpg_info = {
 	/* Module Clocks */
 	.mod_clks = r9a09g057_mod_clks,
 	.num_mod_clks = ARRAY_SIZE(r9a09g057_mod_clks),
-	.num_hw_mod_clks = R9A09G057_DRPAI_MCLK + 1,
+	.num_hw_mod_clks = R9A09G057_RCPU_DMAC_1_ACLK + 1,
 
 	/* Resets */
 	.resets = r9a09g057_resets,
-	.num_resets = R9A09G057_DRPAI_ARESETN + 1, /* Last reset ID + 1 */
+	.num_resets = R9A09G057_RCPU_DMAC_1_ARESETN + 1, /* Last reset ID + 1 */
 
 	/* Clocks Monitoring */
 	.clk_mons = r9a09g057_clk_mon,
-	.num_clk_mon = R9A09G057_DRPAI_MCLK + 1,
+	.num_clk_mon = R9A09G057_RCPU_DMAC_1_ACLK + 1,
 
 	/* Reset Monitoring */
 	.rst_mons = r9a09g057_rst_mon,
-	.num_rst_mon = R9A09G057_DRPAI_ARESETN + 1,
+	.num_rst_mon = R9A09G057_RCPU_DMAC_1_ARESETN + 1,
 };
