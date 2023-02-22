@@ -412,7 +412,7 @@ static int rzg3s_cpg_sd_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 	}
 
 
-	switch (off) {
+	switch (shift) {
 	case 0:
 		msk = CPG_RZG3S_CLKSELSTATUS_SELSDHI0_STS;
 	break;
@@ -423,7 +423,7 @@ static int rzg3s_cpg_sd_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 		msk = CPG_RZG3S_CLKSELSTATUS_SELSDHI2_STS;
 	break;
 	default:
-		dev_err(priv->dev, "wrong clk source status mask\n");
+		dev_err(priv->dev, "wrong clk source status mask %d\n", shift);
 		return -EINVAL;
 	}
 
@@ -446,7 +446,7 @@ static int rzg3s_cpg_sd_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 		msk = CPG_RZG3S_CLKDIVSTATUS_DIVSDHI2_STS;
 	break;
 	default:
-		dev_err(priv->dev, "wrong clk divisor mask\n");
+		dev_err(priv->dev, "wrong clk divisor mask %d\n", shift);
 		return -EINVAL;
 	}
 
