@@ -95,6 +95,7 @@
 #define IEN(n)			(0x1800 + (n) * 8)
 #define ISEL(n)			(0x2C00 + 0x80 + (n) * 8)
 #define PWPR			(0x3014)
+#define PWPR_RZ_V2H		(0x3C04)
 #define SD_CH(n)		(0x3000 + (n) * 4)
 #define QSPI			(0x3008)
 #define ETH_CH(n)		(0x300C + (n) * 4)
@@ -107,6 +108,8 @@
 
 #define PWPR_B0WI		BIT(7)	/* Bit Write Disable */
 #define PWPR_PFCWE		BIT(6)	/* PFC Register Write Enable */
+#define PWPR_REGWE_A		BIT(6) /* Controls writing to PFC and PMC */
+#define PWPR_REGWE_B		BIT(5) /* Controls writing to OEN */
 
 #define PM_MASK			0x03
 #define PVDD_MASK		0x01
@@ -290,6 +293,7 @@ struct rzg2l_pinctrl_data {
 	bool irq_mask;
 	u32 extended_reg_offset;
 	bool have_clrirq_reg;
+	u32 pwpr;
 };
 
 struct rzg2l_pinctrl {
@@ -328,6 +332,7 @@ static void rzg2l_pinctrl_set_pfc_mode(struct rzg2l_pinctrl *pctrl,
 {
 	unsigned long flags;
 	u32 reg;
+	u32 pwpr = pctrl->data->pwpr;
 
 	spin_lock_irqsave(&pctrl->lock, flags);
 
@@ -338,26 +343,37 @@ static void rzg2l_pinctrl_set_pfc_mode(struct rzg2l_pinctrl *pctrl,
 	reg &= ~(PM_MASK << (pin * 2));
 	writew(reg, pctrl->base + PM(port));
 
+	/* Set the PWPR register to allow PFC/PMC register to write */
+	if (pwpr == PWPR) {
+		writel(0x0, pctrl->base + pwpr);        /* B0WI=0, PFCWE=0 */
+		writel(PWPR_PFCWE, pctrl->base + pwpr);  /* B0WI=0, PFCWE=1 */
+	} else {
+		writel(readl(pctrl->base + pwpr) | PWPR_REGWE_A,
+		       pctrl->base + pwpr);
+	}
+
 	/* Temporarily switch to GPIO mode with PMC register */
 	reg = readb(pctrl->base + PMC(port));
 	writeb(reg & ~BIT(pin), pctrl->base + PMC(port));
-
-	/* Set the PWPR register to allow PFC register to write */
-	writel(0x0, pctrl->base + PWPR);        /* B0WI=0, PFCWE=0 */
-	writel(PWPR_PFCWE, pctrl->base + PWPR);  /* B0WI=0, PFCWE=1 */
 
 	/* Select Pin function mode with PFC register */
 	reg = readl(pctrl->base + PFC(port));
 	reg &= ~(PFC_MASK << (pin * 4));
 	writel(reg | (func << (pin * 4)), pctrl->base + PFC(port));
 
-	/* Set the PWPR register to be write-protected */
-	writel(0x0, pctrl->base + PWPR);        /* B0WI=0, PFCWE=0 */
-	writel(PWPR_B0WI, pctrl->base + PWPR);  /* B0WI=1, PFCWE=0 */
 
 	/* Switch to Peripheral pin function with PMC register */
 	reg = readb(pctrl->base + PMC(port));
 	writeb(reg | BIT(pin), pctrl->base + PMC(port));
+
+	/* Set the PWPR register to be write-protected */
+	if (pwpr == PWPR) {
+		writel(0x0, pctrl->base + PWPR);        /* B0WI=0, PFCWE=0 */
+		writel(PWPR_B0WI, pctrl->base + PWPR);  /* B0WI=1, PFCWE=0 */
+	} else {
+		writel(readl(pctrl->base + pwpr) & ~PWPR_REGWE_A,
+		       pctrl->base + pwpr);
+	}
 
 	spin_unlock_irqrestore(&pctrl->lock, flags);
 };
@@ -1226,10 +1242,20 @@ static int rzg2l_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 
 	port += pctrl->data->extended_reg_offset;
 
+        /* Set the PWPR register to allow PMC register to write */
+        if (pctrl->data->pwpr == PWPR_RZ_V2H)
+                writel(readl(pctrl->base + pctrl->data->pwpr) | PWPR_REGWE_A,
+		       pctrl->base + pctrl->data->pwpr);
+
 	/* Select GPIO mode in PMC Register before enabling interrupt mode */
 	reg8 = readb(pctrl->base + PMC(port));
 	reg8 &= ~BIT(bit);
 	writeb(reg8, pctrl->base + PMC(port));
+
+        /* Set the PWPR register to disallow PMC register to write */
+        if (pctrl->data->pwpr == PWPR_RZ_V2H)
+                writel(readl(pctrl->base + pctrl->data->pwpr) & ~PWPR_REGWE_A,
+		       pctrl->base + pctrl->data->pwpr);
 
 	/* Select Interrupt Mode */
 	reg64 = readq(pctrl->base + ISEL(port));
@@ -1329,10 +1355,20 @@ static int rzg2l_gpio_request(struct gpio_chip *chip, unsigned int offset)
 
 	port += pctrl->data->extended_reg_offset;
 
+	/* Set the PWPR register to allow PMC register to write */
+	if (pctrl->data->pwpr == PWPR_RZ_V2H)
+		writel(readl(pctrl->base + pctrl->data->pwpr) | PWPR_REGWE_A,
+		       pctrl->base + pctrl->data->pwpr);
+
 	/* Select GPIO mode in PMC Register */
 	reg8 = readb(pctrl->base + PMC(port));
 	reg8 &= ~BIT(bit);
 	writeb(reg8, pctrl->base + PMC(port));
+
+	/* Set the PWPR register to disallow PMC register to write */
+	if (pctrl->data->pwpr == PWPR_RZ_V2H)
+		writel(readl(pctrl->base + pctrl->data->pwpr) & ~PWPR_REGWE_A,
+		       pctrl->base + pctrl->data->pwpr);
 
 	spin_unlock_irqrestore(&pctrl->lock, flags);
 
@@ -2142,6 +2178,7 @@ static struct rzg2l_pinctrl_data r9a07g043_data = {
 	.irq_mask = false,
 	.extended_reg_offset = 0,
 	.have_clrirq_reg = false,
+	.pwpr = PWPR,
 };
 
 static struct rzg2l_pinctrl_data r9a07g043f_data = {
@@ -2155,6 +2192,7 @@ static struct rzg2l_pinctrl_data r9a07g043f_data = {
 	.irq_mask = true,
 	.extended_reg_offset = 0,
 	.have_clrirq_reg = false,
+	.pwpr = PWPR,
 };
 
 static struct rzg2l_pinctrl_data r9a07g044_data = {
@@ -2169,6 +2207,7 @@ static struct rzg2l_pinctrl_data r9a07g044_data = {
 	.irq_mask = false,
 	.extended_reg_offset = 0,
 	.have_clrirq_reg = false,
+	.pwpr = PWPR,
 };
 
 static struct rzg2l_pinctrl_data r9a09g057_data = {
@@ -2182,6 +2221,7 @@ static struct rzg2l_pinctrl_data r9a09g057_data = {
 	.irq_mask = false,
 	.extended_reg_offset = 0x10,
 	.have_clrirq_reg = true,
+	.pwpr = PWPR_RZ_V2H,
 };
 
 static const struct of_device_id rzg2l_pinctrl_of_table[] = {
