@@ -237,28 +237,8 @@
 		};
 
 		ostm0: timer@11800000 {
-			compatible = "renesas,r9a09g057-ostm";
+			compatible = "renesas,r9a09g057-ostm", "renesas,ostm";
 			reg = <0x0 0x11800000 0x0 0x1000>;
-			interrupts = <GIC_SPI 19 IRQ_TYPE_EDGE_RISING>;
-			clocks = <&cpg CPG_MOD R9A09G057_ACPU_OSTM0_PCLK>;
-			resets = <&cpg R9A09G057_ACPU_OSTM0_PRESETZ>;
-			power-domains = <&cpg>;
-			status = "disabled";
-		};
-
-		ostm1: timer@11801000 {
-			compatible = "renesas,r9a09g057-ostm";
-			reg = <0x0 0x11801000 0x0 0x1000>;
-			interrupts = <GIC_SPI 20 IRQ_TYPE_EDGE_RISING>;
-			clocks = <&cpg CPG_MOD R9A09G057_ACPU_OSTM1_PCLK>;
-			resets = <&cpg R9A09G057_ACPU_OSTM1_PRESETZ>;
-			power-domains = <&cpg>;
-			status = "disabled";
-		};
-
-		ostm2: timer@14000000 {
-			compatible = "renesas,r9a09g057-ostm";
-			reg = <0x0 0x14000000 0x0 0x1000>;
 			interrupts = <GIC_SPI 17 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&cpg CPG_MOD R9A09G057_MCPU_OSTM0_PCLK>;
 			resets = <&cpg R9A09G057_MCPU_OSTM0_PRESETZ>;
@@ -266,9 +246,9 @@
 			status = "disabled";
 		};
 
-		ostm3: timer@14001000 {
-			compatible = "renesas,r9a09g057-ostm";
-			reg = <0x0 0x14001000 0x0 0x1000>;
+		ostm1: timer@11801000 {
+			compatible = "renesas,r9a09g057-ostm", "renesas,ostm";
+			reg = <0x0 0x11801000 0x0 0x1000>;
 			interrupts = <GIC_SPI 18 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&cpg CPG_MOD R9A09G057_MCPU_OSTM1_PCLK>;
 			resets = <&cpg R9A09G057_MCPU_OSTM1_PRESETZ>;
@@ -276,8 +256,28 @@
 			status = "disabled";
 		};
 
+		ostm2: timer@14000000 {
+			compatible = "renesas,r9a09g057-ostm", "renesas,ostm";
+			reg = <0x0 0x14000000 0x0 0x1000>;
+			interrupts = <GIC_SPI 19 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD R9A09G057_ACPU_OSTM0_PCLK>;
+			resets = <&cpg R9A09G057_ACPU_OSTM0_PRESETZ>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		ostm3: timer@14001000 {
+			compatible = "renesas,r9a09g057-ostm", "renesas,ostm";
+			reg = <0x0 0x14001000 0x0 0x1000>;
+			interrupts = <GIC_SPI 20 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD R9A09G057_ACPU_OSTM1_PCLK>;
+			resets = <&cpg R9A09G057_ACPU_OSTM1_PRESETZ>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
 		ostm4: timer@12c00000 {
-			compatible = "renesas,r9a09g057-ostm";
+			compatible = "renesas,r9a09g057-ostm", "renesas,ostm";
 			reg = <0x0 0x12c00000 0x0 0x1000>;
 			interrupts = <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&cpg CPG_MOD R9A09G057_RCPU_OSTM0_PCLK>;
@@ -287,7 +287,7 @@
 		};
 
 		ostm5: timer@12c01000 {
-			compatible = "renesas,r9a09g057-ostm";
+			compatible = "renesas,r9a09g057-ostm", "renesas,ostm";
 			reg = <0x0 0x12c01000 0x0 0x1000>;
 			interrupts = <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&cpg CPG_MOD R9A09G057_RCPU_OSTM1_PCLK>;
@@ -297,7 +297,7 @@
 		};
 
 		ostm6: timer@12c02000 {
-			compatible = "renesas,r9a09g057-ostm";
+			compatible = "renesas,r9a09g057-ostm", "renesas,ostm";
 			reg = <0x0 0x12c02000 0x0 0x1000>;
 			interrupts = <GIC_SPI 23 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&cpg CPG_MOD R9A09G057_RCPU_OSTM2_PCLK>;
@@ -307,7 +307,7 @@
 		};
 
 		ostm7: timer@12c03000 {
-			compatible = "renesas,r9a09g057-ostm";
+			compatible = "renesas,r9a09g057-ostm", "renesas,ostm";
 			reg = <0x0 0x12c03000 0x0 0x1000>;
 			interrupts = <GIC_SPI 24 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&cpg CPG_MOD R9A09G057_RCPU_OSTM3_PCLK>;
