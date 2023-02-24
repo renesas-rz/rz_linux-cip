@@ -476,6 +476,9 @@ static int __maybe_unused ehci_platform_resume(struct device *dev)
 		put_device(companion_dev);
 	}
 
+	if (soc_device_match(rzg3s_match))
+		writel(2, hcd->regs + G3S_AHB_BUS_CTR);
+
 	ehci_resume(hcd, priv->reset_on_resume);
 
 	pm_runtime_disable(dev);
