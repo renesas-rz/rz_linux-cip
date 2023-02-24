@@ -315,6 +315,13 @@ static const int rzg3s_pin_info[] = {
 	RZG2L_PIN_INFO(18, 3), RZG2L_PIN_INFO(18, 4), RZG2L_PIN_INFO(18, 5),
 };
 
+static const unsigned int rzg3s_port_offset[] = {
+	0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a,
+	0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27
+};
+
+#define MAX_NUM_PORTS (ARRAY_SIZE(rzg3s_port_offset))
+
 struct rzg2l_dedicated_configs {
 	const char *name;
 	u32 config;
@@ -329,6 +336,8 @@ struct rzg2l_pinctrl_data {
 	const unsigned int *pin_info;
 	unsigned int ngpioints;
 	bool irq_mask;
+	const unsigned int *poffs;
+	unsigned int n_ports;
 };
 
 struct rzg2l_pinctrl {
@@ -357,6 +366,10 @@ struct rzg2l_pinctrl {
 	u32				tint[TINT_MAX];
 
 	spinlock_t			lock;
+
+	uint8_t				p_val[MAX_NUM_PORTS];
+	uint16_t			pm_val[MAX_NUM_PORTS];
+	uint8_t				pmc_val[MAX_NUM_PORTS];
 };
 
 static const unsigned int iolh_groupa_mA[] = { 2, 4, 8, 12 };
@@ -2231,13 +2244,41 @@ static int __maybe_unused rzg2l_pinctrl_suspend(struct device *dev)
 {
 	struct rzg2l_pinctrl *pctrl = dev_get_drvdata(dev);
 
+	if (pctrl->data->poffs) {
+		int i;
+
+		for (i = 0; i < pctrl->data->n_ports; i++) {
+			pctrl->p_val[i] = readb(pctrl->base + P(pctrl->data->poffs[i]));
+			pctrl->pm_val[i] = readw(pctrl->base + PM(pctrl->data->poffs[i]));
+			pctrl->pmc_val[i] = readb(pctrl->base + PMC(pctrl->data->poffs[i]));
+		}
+	}
+
 	if (atomic_read(&pctrl->wakeup_path))
 		device_set_wakeup_path(dev);
 
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(rzg2l_pinctrl_pm_ops, rzg2l_pinctrl_suspend, NULL);
+static int __maybe_unused rzg2l_pinctrl_resume(struct device *dev)
+{
+	struct rzg2l_pinctrl *pctrl = dev_get_drvdata(dev);
+
+	if (pctrl->data->poffs) {
+		struct rzg2l_pinctrl *pctrl = dev_get_drvdata(dev);
+		int i;
+
+		for (i = 0; i < pctrl->data->n_ports; i++) {
+			writeb(pctrl->p_val[i], pctrl->base + P(pctrl->data->poffs[i]));
+			writew(pctrl->pm_val[i], pctrl->base + PM(pctrl->data->poffs[i]));
+			writeb(pctrl->pmc_val[i], pctrl->base + PMC(pctrl->data->poffs[i]));
+		}
+	}
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(rzg2l_pinctrl_pm_ops, rzg2l_pinctrl_suspend, rzg2l_pinctrl_resume);
 
 static struct rzg2l_pinctrl_data r9a07g043_data = {
 	.port_pins = rzg2l_gpio_names,
@@ -2282,6 +2323,8 @@ static struct rzg2l_pinctrl_data r9a08g045_data = {
 	.pin_info = rzg3s_pin_info,
 	.ngpioints = ARRAY_SIZE(rzg3s_pin_info),
 	.irq_mask = false,
+	.poffs = rzg3s_port_offset,
+	.n_ports = ARRAY_SIZE(rzg3s_port_offset),
 };
 
 static const struct of_device_id rzg2l_pinctrl_of_table[] = {
