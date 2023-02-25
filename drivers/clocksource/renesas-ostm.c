@@ -200,8 +200,10 @@ static int __init ostm_init(struct device_node *np)
 		if (ret)
 			goto err_cleanup;
 
-		ostm_init_sched_clock(to);
-		pr_info("%pOF: used for clocksource\n", np);
+		if (!of_device_is_compatible(to->np, "renesas,r9a08g045-ostm")) {
+			ostm_init_sched_clock(to);
+			pr_info("%pOF: used for clocksource\n", np);
+		}
 	} else {
 		ret = ostm_init_clkevt(to);
 		if (ret)
