@@ -1208,16 +1208,17 @@ static void rzg2l_gpio_irq_shutdown(struct irq_data *d)
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
 	int hw_irq = irqd_to_hwirq(d);
 	u32 port;
-	if (soc_device_match(rzg3s_match))
-		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(hw_irq));
-	else
-		port = RZG2L_PIN_ID_TO_PORT(hw_irq);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(hw_irq);
 	u32 gpioint;
 	u32 tint_slot;
 	unsigned long flags;
 	u64 reg64;
 	u32 reg32;
+
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(hw_irq));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(hw_irq);
 
 	gpioint = rzg2l_gpio_irq_validate_id(pctrl, port, bit);
 	if (gpioint == pctrl->data->ngpioints)
@@ -1259,15 +1260,16 @@ static void rzg2l_gpio_irq_mask(struct irq_data *d)
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
 	int hw_irq = irqd_to_hwirq(d);
 	u32 port;
-	if (soc_device_match(rzg3s_match))
-		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(hw_irq));
-	else
-		port = RZG2L_PIN_ID_TO_PORT(hw_irq);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(hw_irq);
 	u32 gpioint;
 	u32 tint_slot;
 	unsigned long flags;
 	u32 reg32;
+
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(hw_irq));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(hw_irq);
 
 	gpioint = rzg2l_gpio_irq_validate_id(pctrl, port, bit);
 	if (gpioint == pctrl->data->ngpioints)
@@ -1298,15 +1300,16 @@ static void rzg2l_gpio_irq_unmask(struct irq_data *d)
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
 	int hw_irq = irqd_to_hwirq(d);
 	u32 port;
-	if (soc_device_match(rzg3s_match))
-		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(hw_irq));
-	else
-		port = RZG2L_PIN_ID_TO_PORT(hw_irq);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(hw_irq);
 	u32 gpioint;
 	u32 tint_slot;
 	unsigned long flags;
 	u32 reg32;
+
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(hw_irq));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(hw_irq);
 
 	gpioint = rzg2l_gpio_irq_validate_id(pctrl, port, bit);
 	if (gpioint == pctrl->data->ngpioints)
@@ -1355,10 +1358,6 @@ static int rzg2l_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
 	int hw_irq = irqd_to_hwirq(d);
 	u32 port;
-	if (soc_device_match(rzg3s_match))
-		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(hw_irq));
-	else
-		port = RZG2L_PIN_ID_TO_PORT(hw_irq);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(hw_irq);
 	u32 gpioint;
 	u32 tint_slot;
@@ -1367,6 +1366,11 @@ static int rzg2l_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	u64 reg64;
 	u32 reg32;
 	u8 reg8;
+
+	if (soc_device_match(rzg3s_match))
+		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(hw_irq));
+	else
+		port = RZG2L_PIN_ID_TO_PORT(hw_irq);
 
 	gpioint = rzg2l_gpio_irq_validate_id(pctrl, port, bit);
 	if (gpioint == pctrl->data->ngpioints)
@@ -1489,10 +1493,6 @@ static int rzg2l_gpio_request(struct gpio_chip *chip, unsigned int offset)
 {
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
 	u32 port;
-	if (soc_device_match(rzg3s_match))
-		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(offset));
-	else
-		port = RZG2L_PIN_ID_TO_PORT(offset);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(offset);
 	unsigned long flags;
 	u8 reg8;
@@ -1543,10 +1543,6 @@ static int rzg2l_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
 	u32 port;
-	if (soc_device_match(rzg3s_match))
-		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(offset));
-	else
-		port = RZG2L_PIN_ID_TO_PORT(offset);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(offset);
 
 	if (soc_device_match(rzg3s_match))
@@ -1569,11 +1565,12 @@ static int rzg2l_gpio_direction_input(struct gpio_chip *chip,
 {
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
 	u32 port;
+	u8 bit = RZG2L_PIN_ID_TO_PIN(offset);
+
 	if (soc_device_match(rzg3s_match))
 		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(offset));
 	else
 		port = RZG2L_PIN_ID_TO_PORT(offset);
-	u8 bit = RZG2L_PIN_ID_TO_PIN(offset);
 
 	rzg2l_gpio_set_direction(pctrl, port, bit, false);
 
@@ -1585,10 +1582,6 @@ static void rzg2l_gpio_set(struct gpio_chip *chip, unsigned int offset,
 {
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
 	u32 port;
-	if (soc_device_match(rzg3s_match))
-		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(offset));
-	else
-		port = RZG2L_PIN_ID_TO_PORT(offset);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(offset);
 	unsigned long flags;
 	u8 reg8;
@@ -1615,13 +1608,14 @@ static int rzg2l_gpio_direction_output(struct gpio_chip *chip,
 {
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
 	u32 port;
+	u8 bit = RZG2L_PIN_ID_TO_PIN(offset);
+
+	rzg2l_gpio_set(chip, offset, value);
+
 	if (soc_device_match(rzg3s_match))
 		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(offset));
 	else
 		port = RZG2L_PIN_ID_TO_PORT(offset);
-	u8 bit = RZG2L_PIN_ID_TO_PIN(offset);
-
-	rzg2l_gpio_set(chip, offset, value);
 	rzg2l_gpio_set_direction(pctrl, port, bit, true);
 
 	return 0;
@@ -1631,10 +1625,6 @@ static int rzg2l_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
 	u32 port;
-	if (soc_device_match(rzg3s_match))
-		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(offset));
-	else
-		port = RZG2L_PIN_ID_TO_PORT(offset);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(offset);
 	u16 reg16;
 
