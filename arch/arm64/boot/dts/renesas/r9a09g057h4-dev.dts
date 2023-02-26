@@ -148,31 +148,9 @@
 #endif
 
 #if (!SEL_SD0_SD1)
-#if (SW2)
-	/* Support pinctrl for MMC function of SDHI0*/
-	sdhi0_pins: sd0 {
-		sd0_data {
-			pins =	"QSD0_DATA0", "QSD0_DATA1", "QSD0_DATA2",
-				"QSD0_DATA3", "QSD0_DATA4", "QSD0_DATA5",
-				"QSD0_DATA6", "QSD0_DATA7";
-		};
-
-		sd0_ctrl {
-			pins =	"QSD0_CLK", "QSD0_CMD", "QSD0_RST_N";
-		};
-	};
-#else
+#if (!SW2)
         /* Support pinctrl for SD function of SDHI0 */
         sdhi0_pins: sd0 {
-		sd0_data {
-			pins =	"QSD0_DATA0", "QSD0_DATA1", "QSD0_DATA2",
-				"QSD0_DATA3";
-		};
-
-		sd0_ctrl {
-			pins = "QSD0_CLK", "QSD0_CMD";
-		};
-
 		sd0_mux {
 			pinmux = <RZG2L_PORT_PINMUX(9, 4, 15)>; /* SD0_CD */
 		};
@@ -180,15 +158,6 @@
 #endif
 #else
         sdhi1_pins: sd1 {
-		sd1_data {
-			pins =	"QSD1_DATA0", "QSD1_DATA1", "QSD1_DATA2",
-				"QSD1_DATA3";
-		};
-
-		sd1_ctrl {
-			pins = "QSD1_CLK", "QSD1_CMD";
-		};
-
 		sd1_mux {
 			pinmux = <RZG2L_PORT_PINMUX(10, 1, 14)>; /* SD1_CD */
 		};
@@ -218,9 +187,6 @@
 #if (!SEL_SD0_SD1)
 #if (SW2)
 &sdhi0 {
-	pinctrl-0 = <&sdhi0_pins>;
-	pinctrl-names = "default";
-
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_1p8v>;
 	bus-width = <8>;
