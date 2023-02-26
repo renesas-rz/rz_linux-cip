@@ -337,6 +337,7 @@
 			clock-names = "core", "clkh", "cd", "aclk";
 			resets = <&cpg R9A09G057_SDHI0_IXRST>;
 			power-domains = <&cpg>;
+			mmc-no-pin-volt-switch;
 			status = "disabled";
 		};
 
@@ -353,6 +354,7 @@
 			clock-names = "core", "clkh", "cd", "aclk";
 			resets = <&cpg R9A09G057_SDHI1_IXRST>;
 			power-domains = <&cpg>;
+			mmc-no-pin-volt-switch;
 			status = "disabled";
 		};
 
@@ -369,6 +371,7 @@
 			clock-names = "core", "clkh", "cd", "aclk";
 			resets = <&cpg R9A09G057_SDHI2_IXRST>;
 			power-domains = <&cpg>;
+			mmc-no-pin-volt-switch;
 			status = "disabled";
 		};
 
