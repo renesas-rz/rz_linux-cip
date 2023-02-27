@@ -46,11 +46,9 @@
 
 	aliases {
 		serial0 = &scif0;
-#if (!SEL_SD0_SD1)
 		mmc0 = &sdhi0;
-#else
 		mmc1 = &sdhi1;
-#endif
+		mmc2 = &sdhi2;
 	};
 
 	chosen {
@@ -124,6 +122,19 @@
 		states = <3300000 0 1800000 1>;
 	};
 #endif
+
+	vccq_sdhi2: regulator-vccq-sdhi2 {
+		compatible = "regulator-gpio";
+
+		regulator-name = "SDHI2 VccQ";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpios = <&pinctrl RZG2L_GPIO(10, 4) GPIO_ACTIVE_HIGH>;
+
+		gpios-states = <1>;
+		states = <3300000 0 1800000 1>;
+	};
 };
 
 &pinctrl {
@@ -147,6 +158,13 @@
 	};
 #endif
 
+	sd2_pwr_en {
+		gpio-hog;
+		gpios = <RZG2L_GPIO(10, 5) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "sd2_pwr_en";
+	};
+
 #if (!SEL_SD0_SD1)
 #if (!SW2)
         /* Support pinctrl for SD function of SDHI0 */
@@ -163,6 +181,24 @@
 		};
 	};
 #endif
+
+	sdhi2_pins: sd2 {
+		sd2_data {
+			pinmux = <RZG2L_PORT_PINMUX(11, 1, 1)>, /* SD2_DATA0 */
+				 <RZG2L_PORT_PINMUX(11, 2, 1)>, /* SD2_DATA1 */
+				 <RZG2L_PORT_PINMUX(11, 3, 1)>, /* SD2_DATA2 */
+				 <RZG2L_PORT_PINMUX(11, 4, 1)>; /* SD2_DATA3 */
+		};
+
+		sd2_ctrl {
+			pinmux = <RZG2L_PORT_PINMUX(11, 0, 1)>, /* SD2_CLK */
+				 <RZG2L_PORT_PINMUX(11, 5, 1)>; /* SD2_CMD */
+		};
+
+		sd2_mux {
+			pinmux = <RZG2L_PORT_PINMUX(10, 3, 15)>; /* SD2_CD */
+		};
+	};
 };
 
 &extal_clk {
@@ -223,3 +259,15 @@
 	status = "okay";
 };
 #endif
+
+&sdhi2 {
+	pinctrl-0 = <&sdhi2_pins>;
+	pinctrl-names = "default";
+
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&vccq_sdhi2>;
+
+	bus-width = <4>;
+	sd-uhs-sdr50;
+	status = "okay";
+};
