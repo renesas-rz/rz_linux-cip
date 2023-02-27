@@ -17,28 +17,7 @@
  *
  * SW2 (SEL_SD0): 1: eMMC (default);	0: SD
  */
-
-/*
- * There is a conflict between SD0_PWR_EN pin and SD1_CD pins.
- * They all use PA1 pin.
- * So SD0 and SD1 can not be used at the same time.
- * Just only one SDHI interface must be choosen.
- * Macro to select between SDHI0 and SDHI1:
- * SEL_SD0_SD1:	0: SDHI0	1: SDHI1
- *
- * JP7 is a connection between QSD1_CD and PA1 pins.
- * JP7_34 (connect QSD1_CD to PA1):
- *      0 (open):       unconnected
- *      1 (short):      connected
- */
-
-#define SEL_SD0_SD1	0
-#if (SEL_SD0_SD1)
-#define JP7_34  1
-#else
-#define SW2	1
-#define JP7_34	0
-#endif
+#define SEL_SD0		1
 
 / {
 	model = "Renesas Development EVK based on r9a09g057h4";
@@ -95,7 +74,6 @@
 		regulator-always-on;
 	};
 
-#if (!SEL_SD0_SD1)
 	vccq_sdhi0: regulator-vccq-sdhi0 {
 		compatible = "regulator-gpio";
 
@@ -108,20 +86,6 @@
 		gpios-states = <1>;
 		states = <3300000 0 1800000 1>;
 	};
-#else
-	vccq_sdhi1: regulator-vccq-sdhi1 {
-		compatible = "regulator-gpio";
-
-		regulator-name = "SDHI1 VccQ";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <3300000>;
-
-		gpios = <&pinctrl RZG2L_GPIO(10, 2) GPIO_ACTIVE_HIGH>;
-
-		gpios-states = <1>;
-		states = <3300000 0 1800000 1>;
-	};
-#endif
 
 	vccq_sdhi2: regulator-vccq-sdhi2 {
 		compatible = "regulator-gpio";
@@ -142,21 +106,12 @@
 		pins =  "SCIF_RXD", "SCIF_TXD";
 	};
 
-#if (!SEL_SD0_SD1)
 	sd0_pwr_en {
 		gpio-hog;
 		gpios = <RZG2L_GPIO(10, 1) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "sd0_pwr_en";
 	};
-#else
-	sd1_pwr_en {
-		gpio-hog;
-		gpios = <RZG2L_GPIO(10, 3) GPIO_ACTIVE_HIGH>;
-		output-high;
-		line-name = "sd1_pwr_en";
-	};
-#endif
 
 	sd2_pwr_en {
 		gpio-hog;
@@ -165,19 +120,11 @@
 		line-name = "sd2_pwr_en";
 	};
 
-#if (!SEL_SD0_SD1)
-#if (!SW2)
+#if (!SEL_SD0)
         /* Support pinctrl for SD function of SDHI0 */
         sdhi0_pins: sd0 {
 		sd0_mux {
 			pinmux = <RZG2L_PORT_PINMUX(9, 4, 15)>; /* SD0_CD */
-		};
-	};
-#endif
-#else
-        sdhi1_pins: sd1 {
-		sd1_mux {
-			pinmux = <RZG2L_PORT_PINMUX(10, 1, 14)>; /* SD1_CD */
 		};
 	};
 #endif
@@ -220,8 +167,7 @@
 	status = "okay";
 };
 
-#if (!SEL_SD0_SD1)
-#if (SW2)
+#if (SEL_SD0)
 &sdhi0 {
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_1p8v>;
@@ -241,21 +187,6 @@
 
 	bus-width = <4>;
 	sd-uhs-sdr50;
-	sd-uhs-sdr104;
-	status = "okay";
-};
-#endif
-#else
-&sdhi1 {
-	pinctrl-0 = <&sdhi1_pins>;
-	pinctrl-names = "default";
-
-	vmmc-supply = <&reg_3p3v>;
-	vqmmc-supply = <&vccq_sdhi1>;
-
-	bus-width = <4>;
-	sd-uhs-sdr50;
-	sd-uhs-sdr104;
 	status = "okay";
 };
 #endif
@@ -266,7 +197,6 @@
 
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&vccq_sdhi2>;
-
 	bus-width = <4>;
 	sd-uhs-sdr50;
 	status = "okay";
