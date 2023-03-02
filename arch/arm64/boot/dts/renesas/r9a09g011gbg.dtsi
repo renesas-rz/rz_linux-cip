@@ -18,6 +18,32 @@
                ethernet0 = &avb;
        };
 
+#if 0
+       cluster1_opp: opp_table10 {
+               compatible = "operating-points-v2";
+               opp-shared;
+
+               opp@800000000 {
+                       opp-hz = /bits/ 64 <800000000>;
+                       opp-microvolt = <820000>;
+                       clock-latency-ns = <300000>;
+               };
+
+               opp@1000000000 {
+                       opp-hz = /bits/ 64 <1000000000>;
+                       opp-microvolt = <820000>;
+                       clock-latency-ns = <300000>;
+               };
+
+               opp@1200000000 {
+                       opp-hz = /bits/ 64 <1200000000>;
+                       opp-microvolt = <820000>;
+                       clock-latency-ns = <300000>;
+                       opp-suspend;
+               };
+       };
+#endif/*add*/
+
 #if 1 /* used cpu */
        cpus {
                #address-cells = <1>;
@@ -36,7 +62,24 @@
                        cooling-max-level = <2>;
                        cpu-idle-states = <&CPU_SLEEP_1>;
                        clocks = <&cpg CPG_CORE R8A774C0_CLK_Z2>;
+#if 0
+			operating-points-v2 = <&cluster1_opp>;/*add*/
+#endif
                };
+
+#if 0
+               a53_1: cpu@1 {
+                       compatible = "arm,cortex-a53", "arm,armv8";
+                       reg = <1>;
+                       device_type = "cpu";
+                       #power-domains = <&sysc R8A774C0_PD_CA53_CPU1>;
+                       next-level-cache = <&L2_CA53>;
+                       enable-method = "psci";
+                       clocks = <&cpg CPG_CORE R8A774C0_CLK_Z2>;
+                       operating-points-v2 = <&cluster1_opp>;
+                       cpu-idle-states = <&CPU_SLEEP_1>;
+               };
+#endif/*add*/
 
                L2_CA53: cache-controller-0 {
                        compatible = "cache";
@@ -59,6 +102,28 @@
                        };
                };
        };
+#endif
+
+#if 0
+       firmware {
+               optee {
+                       compatible = "linaro,optee-tz";
+                       method = "smc";
+               };
+       };
+
+       pmu_a53 {
+               compatible = "arm,cortex-a53-pmu";
+               interrupts-extended = <&gic GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
+                                     <&gic GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+               interrupt-affinity = <&a53_0>, <&a53_1>;
+       };
+
+       psci {
+               compatible = "arm,psci-1.0", "arm,psci-0.2";
+               method = "smc";
+       };
+
 #endif
 
 #if 1 /* used cpg(clock pulse generator) */
@@ -121,29 +186,22 @@
 
 #if 1 /* used sh card boot */
                /* SDHI Setting */
-               mmc1: sdhi@85000000 {
+               sdhi0: sd@85000000 {
                        compatible = "renesas,sdhi-r8a774c0",
                                     "renesas,rcar-gen3-sdhi";
                        reg = <0 0x85000000 0 0x2000>;
-                       interrupts = <0 170 IRQ_TYPE_LEVEL_LOW>,
-                                        <0 171 IRQ_TYPE_LEVEL_LOW>,
-                                        <0 101 IRQ_TYPE_LEVEL_HIGH>; /* EXT_GIO_INT[1] */
+		       interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>;
                        clocks = <&imclk>;
-                       cap-sd-highspeed;
-                       cap-mmc-highspeed;
-                       sd-uhs-sdr104;
-                       sd-uhs-sdr50;
-                       mmc-hs200-1_8v;
-                       bus-width = <1>;
-                       cap-sdio-irq;
-                       renesas,mmc-scc-tapnum = <8>;
-                       renesas,mmc-scc-tappos=<0x0401>;
                        max-frequency = <200000000>;
-                       #stream-id_cells = <1>;
-
-                       #address-cells = <2>;
-                       #size-cells = <2>;
-                       ranges;
+/*                     power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>; */
+/*                     resets = <&cpg 314>; */
+                       vmmc-supply = <&vcc_sdhi0>;
+/*                     vqmmc-supply = <&vccq_sdhi0>;*/
+/*                     cd-gpios = <&gpio3 12 GPIO_ACTIVE_LOW>; */
+                       bus-width = <4>;
+                       sd-uhs-sdr50;
+                       sd-uhs-sdr104;
+                       status = "okay";
                };
 #endif
 
@@ -166,11 +224,10 @@
                };
 #endif
 
-#if 1
-               uart0@a4040000 {
+               uart0: serial@a4040000 {
                        compatible = "renesas,rzv2m-16750", "ns16750";
                        reg = <0x00 0xA4040000 0x00 0x80>;
-                       interrupts = <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>;
+                       interrupts = <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
                        clock-frequency = <48000000>;
                        reg-shift = <2>;
                        reg-io-width = <4>;
@@ -196,7 +253,7 @@
                        dma-names = "tx","rx";
 #endif
                };
-
+#if 1
                avb: ethernet@a3300000 {
                        compatible = "renesas,etheravb-r8arzv2m",
                                     "renesas,etheravb-rcar-gen3";

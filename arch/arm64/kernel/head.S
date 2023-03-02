@@ -103,7 +103,7 @@ pe_header:
 	 *  x24        __primary_switch() .. relocate_kernel()  current RELR displacement
 	 */
 SYM_CODE_START(primary_entry)
-	mov     x0, #0x0f000000
+	mov     x0, #0x10000000
 //     mov     x4, #0x40007fc0
 	bl	preserve_boot_args
 	bl      el3_setup                       // Drop to EL2, w0=cpu_boot_mode

@@ -14,15 +14,15 @@
        compatible = "renesas,evaluation-board", "renesas,r9a09g011gbg";
 
        aliases {
-
+		serial0 = &uart0;
        };
 
        chosen {
-               bootargs = "earlycon=uart,mmio32,0xA4040000,115200n8 console=ttyS0,115200n8 ignore_loglevel vmalloc=384M root=/dev/mmcblk1p3 rootwait rootfstype=ext3 rw; rodata=off";
-               stdout-path = "uart0:115200n8";
+               bootargs = "earlycon=uart,mmio32,0xA4040000,115200n8 console=ttyS0,115200n8 loglevel=8 vmalloc=384M root=/dev/mmcblk0p2 rootwait rootfstype=ext3 rw";
+               stdout-path = "serial0:115200n8";
        };
 
-       memory@08000000 {
+       memory@10000000 {
                device_type = "memory";
                /* first 256MB is reserved for secure area. */
                reg = <0x00000000 0x10000000 0x0 0x70000000>;
@@ -35,30 +35,63 @@
                ranges;
 
                /* global autoconfigured region for contiguous allocations */
-               linux,cma@18000000 {
+               linux,cma@58000000 {
                        compatible = "shared-dma-pool";
                        reusable;
-                       reg = <0x00000000 0x18000000 0x0 0x10000000>;
+                       reg = <0x00000000 0x58000000 0x0 0x10000000>;
                        linux,cma-default;
                };
-
+#if 0
                /* device specific region for contiguous allocations */
                drp_reserved: linux,CMAtoDRP {
                        compatible = "shared-dma-pool";
                        reusable;
                        reg = <0x00000000 0x28000000 0x0 0x08000000>;
-               };
+              };
+#endif
+
+	       /* device specific region for contiguous allocations */
+               mmp_reserved: linux,multimedia {
+                       compatible = "shared-dma-pool";
+                       reusable;
+                       reg = <0x00000000 0x68000000 0x0 0x08000000>;
+              };
+
        };
 #endif
 
        mmngr {
                compatible = "renesas,mmngr";
-/*             memory-region = <&mmp_reserved>; */
+/*          memory-region = <&mmp_reserved>; */
        };
 
        mmngrbuf {
                compatible = "renesas,mmngrbuf";
        };
+
+       vcc_sdhi0: regulator-vcc-sdhi0 {
+               compatible = "regulator-fixed";
+
+               regulator-name = "SDHI0 Vcc";
+               regulator-min-microvolt = <3300000>;
+               regulator-max-microvolt = <3300000>;
+               regulator-always-on;
+               regulator-boot-on;
+       };
+
+       vccq_sdhi0: regulator-vccq-sdhi0 {
+               compatible = "regulator-gpio";
+
+               regulator-name = "SDHI0 VccQ";
+               regulator-min-microvolt = <1800000>;
+               regulator-max-microvolt = <3300000>;
+
+/*             gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;   */
+               gpios-states = <1>;
+               states = <3300000 1
+                         1800000 0>;
+       };
+
 };
 
 #if 1 /* used cpg(clock pulse generator) */
