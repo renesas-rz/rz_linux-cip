@@ -31,6 +31,13 @@
 
 #define CPG_RCKCR_CKSEL	BIT(15)	/* RCLK Clock Source Select */
 
+#define Z2FC_BIT_MASK_SFT_8    BIT(2)  /* Use Z2FC bit mask range to [12:8] */
+#define ZG_PARENT_PLL0         BIT(3)  /* Use PLL0 as ZG clock parent */
+#define CPG_FRQCRB_ZGFC_MASK   GENMASK(28, 24)
+#define CPG_FRQCRC_Z2FC_MASK   GENMASK(4, 0)
+#define to_z_clk(_hw) container_of(_hw, struct cpg_z_clk, hw)
+#define Z_CLK_ROUND(f) (100000000 * DIV_ROUND_CLOSEST_ULL((f), 100000000))
+
 static spinlock_t cpg_lock;
 
 static void cpg_reg_modify(void __iomem *reg, u32 clear, u32 set)
@@ -89,6 +96,9 @@ static void cpg_simple_notifier_register(struct raw_notifier_head *notifiers,
 #define CPG_FRQCRB			0x00000004
 #define CPG_FRQCRB_KICK			BIT(31)
 #define CPG_FRQCRC			0x000000e0
+#define CPG_FRQCRC_Z2FC_SFT_8_MASK     GENMASK(12, 8)
+#define CPG_FRQCRC_Z2FC_MASK           GENMASK(4, 0)
+#define CPG_FRQCRC_ZFC_MASK            GENMASK(12, 8)
 
 struct cpg_z_clk {
 	struct clk_hw hw;
@@ -574,6 +584,10 @@ static const struct soc_device_attribute cpg_quirks_match[] __initconst = {
 		.soc_id = "r8a7796", .revision = "ES1.1",
 		.data = (void *)SD_SKIP_FIRST,
 	},
+	{
+                .soc_id = "r8arzv2m",
+                .data = (void *)(Z2FC_BIT_MASK_SFT_8 | ZG_PARENT_PLL0),
+        },
 	{ /* sentinel */ }
 };
 
@@ -699,6 +713,16 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 	case CLK_TYPE_GEN3_Z:
 		return cpg_z_clk_register(core->name, __clk_get_name(parent),
 					  base, core->div, core->offset);
+
+        case CLK_TYPE_GEN3_Z2:
+                if (cpg_quirks & Z2FC_BIT_MASK_SFT_8)
+                        return cpg_z_clk_register(core->name,
+                                                        __clk_get_name(parent), base,
+                                                        CPG_FRQCRC_Z2FC_SFT_8_MASK,
+                                                        core->div);
+                return cpg_z_clk_register(core->name, __clk_get_name(parent),
+                                                base, CPG_FRQCRC_Z2FC_MASK,
+                                                core->div);
 
 	case CLK_TYPE_GEN3_OSC:
 		/*
