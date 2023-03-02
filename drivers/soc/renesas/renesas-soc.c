@@ -57,6 +57,11 @@ static const struct renesas_family fam_rzg2 __initconst __maybe_unused = {
 	.reg	= 0xfff00044,		/* PRR (Product Register) */
 };
 
+static const struct renesas_family fam_rzv2 __initconst __maybe_unused = {
+	.name   = "RZ/V2",
+	.reg    = 0xA3F03104,           /* SYS (Version Register) */
+};
+
 static const struct renesas_family fam_rzg2l __initconst __maybe_unused = {
 	.name	= "RZ/G2L",
 };
@@ -146,6 +151,11 @@ static const struct renesas_soc soc_rz_g2e __initconst __maybe_unused = {
 static const struct renesas_soc soc_rz_g2h __initconst __maybe_unused = {
 	.family	= &fam_rzg2,
 	.id	= 0x4f,
+};
+
+static const struct renesas_soc soc_rz_v2m __initconst __maybe_unused = {
+	.family = &fam_rzv2,
+	.id     = 0x10,
 };
 
 static const struct renesas_soc soc_rz_g2l __initconst __maybe_unused = {
@@ -291,6 +301,9 @@ static const struct of_device_id renesas_socs[] __initconst = {
 #ifdef CONFIG_ARCH_R8A774E1
 	{ .compatible = "renesas,r8a774e1",	.data = &soc_rz_g2h },
 #endif
+#ifdef CONFIG_ARCH_R9A09G011GBG
+	{ .compatible = "renesas,r8arzv2m",      .data = &soc_rz_v2m },
+#endif
 #ifdef CONFIG_ARCH_R8A7778
 	{ .compatible = "renesas,r8a7778",	.data = &soc_rcar_m1a },
 #endif
@@ -434,7 +447,7 @@ static int __init renesas_soc_init(void)
 
 	soc_dev_attr->family = kstrdup_const(family->name, GFP_KERNEL);
 	soc_dev_attr->soc_id = kstrdup_const(soc_id, GFP_KERNEL);
-
+#ifndef CONFIG_ARCH_R9A09G011GBG
 	if (chipid) {
 		product = readl(chipid + id->offset);
 		iounmap(chipid);
@@ -446,12 +459,16 @@ static int __init renesas_soc_init(void)
 			/* R-Car M3-W ES1.3 incorrectly identifies as ES2.1 */
 			if ((product & 0x7fff) == 0x5211)
 				product ^= 0x12;
-
 			eshi = ((product >> 4) & 0x0f) + 1;
 			eslo = product & 0xf;
-			soc_dev_attr->revision = kasprintf(GFP_KERNEL, "ES%u.%u",
-							   eshi, eslo);
-		}  else if (id == &id_rzg2l) {
+#ifndef CONFIG_ARCH_R9A09G011GBG
+			if (eshi)
+				soc_dev_attr->revision = kasprintf(GFP_KERNEL, "ES%u.%u", eshi, eslo);
+#else
+			product = 0x0;
+			soc_dev_attr->revision = kasprintf(GFP_KERNEL, "ES%u.%u", eshi, eslo);
+#endif
+		} else if (id == &id_rzg2l) {
 			eshi =  ((product >> 28) & 0x0f);
 			soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%u",
 							   eshi);
@@ -465,6 +482,7 @@ static int __init renesas_soc_init(void)
 			goto free_soc_dev_attr;
 		}
 	}
+#endif
 
 	pr_info("Detected Renesas %s %s %s%s\n", soc_dev_attr->family,
 		soc_dev_attr->soc_id, rev_prefix, soc_dev_attr->revision ?: "");

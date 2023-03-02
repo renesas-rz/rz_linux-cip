@@ -28,8 +28,9 @@ config ARCH_RCAR_GEN2
 	select PM
 	select PM_GENERIC_DOMAINS
 	select RENESAS_IRQC
-	select RST_RCAR
+	select RST_RCAR if ARCH_R9A09G011GBG
 	select SYS_SUPPORTS_SH_CMT
+	select SYSC_R9A09G011GBG if ARCH_R9A09G011GBG
 
 config ARCH_RCAR_GEN3
 	bool
@@ -277,6 +278,10 @@ config ARCH_R8A774E1
 	select SYSC_R8A774E1
 	help
 	  This enables support for the Renesas RZ/G2H SoC.
+
+config SYSC_R9A09G011GBG
+	bool "System Controller support for RZV2M" if COMPILE_TEST
+	select SYSC_RCAR
 
 config ARCH_R8A774A1
 	bool "ARM64 Platform support for RZ/G2M v1.3"
