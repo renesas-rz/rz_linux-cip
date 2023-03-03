@@ -302,24 +302,28 @@ config ARCH_R8A774B1
 config ARCH_R9A07G043
 	bool "ARM64 Platform support for RZ/G2UL"
 	select ARCH_RZG2L
+	select SYS_SUPPORTS_RENESAS_OSTM
 	help
 	  This enables support for the Renesas RZ/G2UL SoC variants.
 
 config ARCH_R9A07G044
 	bool "ARM64 Platform support for RZ/G2L"
 	select ARCH_RZG2L
+	select SYS_SUPPORTS_RENESAS_OSTM
 	help
 	  This enables support for the Renesas RZ/G2L SoC variants.
 
 config ARCH_R9A07G054
 	bool "ARM64 Platform support for RZ/V2L"
 	select ARCH_RZG2L
+	select SYS_SUPPORTS_RENESAS_OSTM
 	help
 	  This enables support for the Renesas RZ/V2L SoC variants.
 
 config ARCH_R9A09G057
 	bool "ARM64 Platform support for RZ/V2H"
 	select ARCH_RZG2L
+	select SYS_SUPPORTS_RENESAS_OSTM
 	help
 	  This enables support for the Renesas RZ/V2H SoC variants.
 
@@ -330,6 +334,7 @@ config ARCH_R9A07G043F
 	bool "RISC-V Platform support for RZ/Five"
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select SYS_SUPPORTS_RENESAS_OSTM
 	help
 	  This enables support for the Renesas RZ/Five SoC variants.
 
