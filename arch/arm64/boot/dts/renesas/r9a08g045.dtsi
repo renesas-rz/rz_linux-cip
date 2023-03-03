@@ -8,6 +8,8 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/r9a08g045-cpg.h>
 
+#define MTU3_INTERRUPT_SUPPORT		0
+
 / {
 	compatible = "renesas,r9a08g045";
 	#address-cells = <2>;
@@ -946,66 +948,68 @@
 		mtu3: timer@10001200 {
 			compatible = "renesas,mtu3";
 			reg = <0 0x10001200 0 0xB00>;
+#if (MTU3_INTERRUPT_SUPPORT)
 			interrupts =
-				<GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 185 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 202 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 210 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 212 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "tgi0a", "tci0b", "tgi0c", "tgi0d",
-					  "tgi0v", "tgi0e", "tgi0f",
-					  "tgi1a", "tgi1b", "tgi1v", "tgi1u",
-					  "tgi2a", "tgi2b", "tgi2v", "tgi2u",
-					  "tgi3a", "tgi3b", "tgi3c", "tgi3d",
-					  "tgi3v",
-					  "tgi4a", "tgi4b", "tgi4c", "tgi4d",
-					  "tgi4v",
-					  "tgi5v", "tgi5u", "tgi5w",
-					  "tgi6a", "tgi6b", "tgi6c", "tgi6d",
-					  "tgi6v",
-					  "tgi7a", "tgi7b", "tgi7c", "tgi7d",
-					  "tgi7v",
-					  "tgi8a", "tgi8b", "tgi8c", "tgi8d",
-					  "tgi8v", "tgi8u";
+				<GIC_SPI 132 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 133 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 134 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 135 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 136 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 137 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 145 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 146 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 147 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 148 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 149 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 150 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 158 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 159 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 160 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 161 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 162 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 163 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 171 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 172 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 173 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 174 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 175 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 176 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 184 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 185 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 186 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 187 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 188 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 189 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 197 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 198 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 199 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 200 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 201 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 202 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 210 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 211 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 212 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 213 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 214 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 215 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 223 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 224 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "tgia0", "tcib0", "tgic0", "tgid0",
+					  "tciv0", "tgie0", "tgif0",
+					  "tgia1", "tgib1", "tciv1", "tciu1",
+					  "tgia2", "tgib2", "tciv2", "tciu2",
+					  "tgia3", "tgib3", "tgic3", "tgid3",
+					  "tciv3",
+					  "tgia4", "tgib4", "tgic4", "tgid4",
+					  "tciv4",
+					  "tgiu5", "tgiv5", "tgiw5",
+					  "tgia6", "tgib6", "tgic6", "tgid6",
+					  "tciv6",
+					  "tgia7", "tgib7", "tgic7", "tgid7",
+					  "tciv7",
+					  "tgia8", "tgib8", "tgic8", "tgid8",
+					  "tciv8", "tciu8";
+#endif
 			clocks = <&cpg CPG_MOD R9A08G045_MTU_X_MCK_MTU3>;
 			clock-names = "fck";
 			power-domains = <&cpg>;
@@ -1022,19 +1026,23 @@
 				<GIC_SPI 129 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 130 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 131 IRQ_TYPE_EDGE_RISING>,
+#if (!MTU3_INTERRUPT_SUPPORT)
 				<GIC_SPI 132 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 133 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 134 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 135 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 136 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 137 IRQ_TYPE_EDGE_RISING>,
+#endif
 				<GIC_SPI 138 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 139 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 140 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "gtcia", "gtcib", "gtcic", "gtcid",
+#if (!MTU3_INTERRUPT_SUPPORT)
 				"gtcie", "gtcif", "gtciada", "gtciadb",
-				"gtciv", "gtciu", "gtcih", "gtcil",
-				"gtdei";
+				"gtciv", "gtciu",
+#endif
+				"gtcih", "gtcil", "gtdei";
 			clocks = <&cpg CPG_MOD R9A08G045_GPT_PCLK>;
 			power-domains = <&cpg>;
 			resets =  <&cpg R9A08G045_GPT_RST_C>;
@@ -1050,19 +1058,23 @@
 				<GIC_SPI 142 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 143 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 144 IRQ_TYPE_EDGE_RISING>,
+#if (!MTU3_INTERRUPT_SUPPORT)
 				<GIC_SPI 145 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 146 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 147 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 148 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 149 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 150 IRQ_TYPE_EDGE_RISING>,
+#endif
 				<GIC_SPI 151 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 152 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 153 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "gtcia", "gtcib", "gtcic", "gtcid",
+#if (!MTU3_INTERRUPT_SUPPORT)
 				"gtcie", "gtcif", "gtciada", "gtciadb",
-				"gtciv", "gtciu", "gtcih", "gtcil",
-				"gtdei";
+				"gtciv", "gtciu",
+#endif
+				"gtcih", "gtcil", "gtdei";
 			clocks = <&cpg CPG_MOD R9A08G045_GPT_PCLK>;
 			power-domains = <&cpg>;
 			resets =  <&cpg R9A08G045_GPT_RST_C>;
@@ -1078,19 +1090,23 @@
 				<GIC_SPI 155 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 156 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 157 IRQ_TYPE_EDGE_RISING>,
+#if (!MTU3_INTERRUPT_SUPPORT)
 				<GIC_SPI 158 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 159 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 160 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 161 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 162 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 163 IRQ_TYPE_EDGE_RISING>,
+#endif
 				<GIC_SPI 164 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 165 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 166 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "gtcia", "gtcib", "gtcic", "gtcid",
+#if (!MTU3_INTERRUPT_SUPPORT)
 				"gtcie", "gtcif", "gtciada", "gtciadb",
-				"gtciv", "gtciu", "gtcih", "gtcil",
-				"gtdei";
+				"gtciv", "gtciu",
+#endif
+				"gtcih", "gtcil", "gtdei";
 			clocks = <&cpg CPG_MOD R9A08G045_GPT_PCLK>;
 			power-domains = <&cpg>;
 			resets =  <&cpg R9A08G045_GPT_RST_C>;
@@ -1106,19 +1122,23 @@
 				<GIC_SPI 168 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 169 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 170 IRQ_TYPE_EDGE_RISING>,
+#if (!MTU3_INTERRUPT_SUPPORT)
 				<GIC_SPI 171 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 172 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 173 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 174 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 175 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 176 IRQ_TYPE_EDGE_RISING>,
+#endif
 				<GIC_SPI 177 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 178 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 179 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "gtcia", "gtcib", "gtcic", "gtcid",
+#if (!MTU3_INTERRUPT_SUPPORT)
 				"gtcie", "gtcif", "gtciada", "gtciadb",
-				"gtciv", "gtciu", "gtcih", "gtcil",
-				"gtdei";
+				"gtciv", "gtciu",
+#endif
+				"gtcih", "gtcil", "gtdei";
 			clocks = <&cpg CPG_MOD R9A08G045_GPT_PCLK>;
 			power-domains = <&cpg>;
 			resets =  <&cpg R9A08G045_GPT_RST_C>;
@@ -1134,19 +1154,23 @@
 				<GIC_SPI 181 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 182 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 183 IRQ_TYPE_EDGE_RISING>,
+#if (!MTU3_INTERRUPT_SUPPORT)
 				<GIC_SPI 184 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 185 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 186 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 187 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 188 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 189 IRQ_TYPE_EDGE_RISING>,
+#endif
 				<GIC_SPI 190 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 191 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 192 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "gtcia", "gtcib", "gtcic", "gtcid",
+#if (!MTU3_INTERRUPT_SUPPORT)
 				"gtcie", "gtcif", "gtciada", "gtciadb",
-				"gtciv", "gtciu", "gtcih", "gtcil",
-				"gtdei";
+				"gtciv", "gtciu",
+#endif
+				"gtcih", "gtcil", "gtdei";
 			clocks = <&cpg CPG_MOD R9A08G045_GPT_PCLK>;
 			power-domains = <&cpg>;
 			resets =  <&cpg R9A08G045_GPT_RST_C>;
@@ -1162,19 +1186,23 @@
 				<GIC_SPI 194 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 195 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 196 IRQ_TYPE_EDGE_RISING>,
+#if (!MTU3_INTERRUPT_SUPPORT)
 				<GIC_SPI 197 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 198 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 199 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 200 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 201 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 202 IRQ_TYPE_EDGE_RISING>,
+#endif
 				<GIC_SPI 203 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 204 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 205 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "gtcia", "gtcib", "gtcic", "gtcid",
+#if (!MTU3_INTERRUPT_SUPPORT)
 				"gtcie", "gtcif", "gtciada", "gtciadb",
-				"gtciv", "gtciu", "gtcih", "gtcil",
-				"gtdei";
+				"gtciv", "gtciu",
+#endif
+				"gtcih", "gtcil", "gtdei";
 			clocks = <&cpg CPG_MOD R9A08G045_GPT_PCLK>;
 			power-domains = <&cpg>;
 			resets =  <&cpg R9A08G045_GPT_RST_C>;
@@ -1190,19 +1218,23 @@
 				<GIC_SPI 207 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 208 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 209 IRQ_TYPE_EDGE_RISING>,
+#if (!MTU3_INTERRUPT_SUPPORT)
 				<GIC_SPI 210 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 211 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 212 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 213 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 214 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 215 IRQ_TYPE_EDGE_RISING>,
+#endif
 				<GIC_SPI 216 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 217 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 218 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "gtcia", "gtcib", "gtcic", "gtcid",
+#if (!MTU3_INTERRUPT_SUPPORT)
 				"gtcie", "gtcif", "gtciada", "gtciadb",
-				"gtciv", "gtciu", "gtcih", "gtcil",
-				"gtdei";
+				"gtciv", "gtciu",
+#endif
+				"gtcih", "gtcil", "gtdei";
 			clocks = <&cpg CPG_MOD R9A08G045_GPT_PCLK>;
 			power-domains = <&cpg>;
 			resets =  <&cpg R9A08G045_GPT_RST_C>;
@@ -1218,8 +1250,10 @@
 				<GIC_SPI 220 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 221 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 222 IRQ_TYPE_EDGE_RISING>,
+#if (!MTU3_INTERRUPT_SUPPORT)
 				<GIC_SPI 223 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 224 IRQ_TYPE_EDGE_RISING>,
+#endif
 				<GIC_SPI 225 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 226 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 227 IRQ_TYPE_EDGE_RISING>,
@@ -1228,9 +1262,11 @@
 				<GIC_SPI 230 IRQ_TYPE_EDGE_RISING>,
 				<GIC_SPI 231 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "gtcia", "gtcib", "gtcic", "gtcid",
+#if (!MTU3_INTERRUPT_SUPPORT)
 				"gtcie", "gtcif", "gtciada", "gtciadb",
-				"gtciv", "gtciu", "gtcih", "gtcil",
-				"gtdei";
+				"gtciv", "gtciu",
+#endif
+				"gtcih", "gtcil", "gtdei";
 			clocks = <&cpg CPG_MOD R9A08G045_GPT_PCLK>;
 			power-domains = <&cpg>;
 			resets =  <&cpg R9A08G045_GPT_RST_C>;
