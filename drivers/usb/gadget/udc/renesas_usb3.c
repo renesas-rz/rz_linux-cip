@@ -38,7 +38,7 @@
 #define USB3_USB20_CON		0x204
 #define USB3_USB30_CON		0x208
 #define USB3_USB_STA		0x210
-#define USB3_DRD_CON		0x218
+#define USB3_DRD_CON		0x400
 #define USB3_USB_INT_STA_1	0x220
 #define USB3_USB_INT_STA_2	0x224
 #define USB3_USB_INT_ENA_1	0x228

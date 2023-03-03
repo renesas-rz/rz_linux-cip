@@ -103,3 +103,69 @@
        timeout-sec = <60>;
 };
 #endif
+
+#if 0
+&usb2_phy0 {
+/*     pinctrl-0 = <&usb0_pins>;*/
+/*     pinctrl-names = "default";*/
+
+       status = "okay";
+};
+#endif
+
+&xhci0 {
+/*     pinctrl-0 = <&usb30_pins>;*/
+/*     pinctrl-names = "default";*/
+
+       status = "okay";
+};
+
+#if 0
+&usb3_peri0 {
+//     companion = <&xhci0>;
+
+       status = "okay";
+       renesas,usb-role-switch;
+
+       port {
+               #address-cells = <1>;
+               #size-cells = <0>;
+
+               usb3peri_role_switch: endpoint@0 {
+                       reg = <0>;
+                       remote-endpoint = <&hd3ss3220_ep>;
+               };
+       };
+};
+#endif
+
+
+#if 0
+&i2c0 {
+       status = "okay";
+       clock-frequency = <100000>;
+
+       hd3ss3220@47 {
+               compatible = "ti,hd3ss3220";
+               reg = <0x47>;
+/*             interrupt-parent = <&gpio6>;*/
+/*             interrupts = <3 IRQ_TYPE_LEVEL_LOW>;*/
+
+               usb_con: connector {
+                       compatible = "usb-c-connector";
+                       label = "USB-C";
+                       data-role = "dual";
+               };
+
+               port {
+                       #address-cells = <1>;
+                       #size-cells = <0>;
+
+                       hd3ss3220_ep: endpoint@0 {
+                               reg = <0>;
+                               remote-endpoint = <&usb3peri_role_switch>;
+                       };
+               };
+       };
+};
+#endif

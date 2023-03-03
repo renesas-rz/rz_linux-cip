@@ -104,6 +104,14 @@ config USB_XHCI_TEGRA
 	  Say 'Y' to enable the support for the xHCI host controller
 	  found in NVIDIA Tegra124 and later SoCs.
 
+config USB_XHCI_RZV2M
+	tristate "xHCI support for RZ/V2M"
+	select USB_XHCI_PLATFORM
+	depends on ARCH_RENESAS || COMPILE_TEST
+	help
+	  Say 'Y' to enable the support for the xHCI host controller
+	  found in RZ/V2M.
+
 endif # USB_XHCI_HCD
 
 config USB_EHCI_BRCMSTB
@@ -791,3 +799,17 @@ config USB_HCD_TEST_MODE
 	  This option is of interest only to developers who need to validate
 	  their USB hardware designs.  It is not needed for normal use.  If
 	  unsure, say N.
+
+config USB_OHCI_RZV2M
+       select GENERIC_PHY
+       select USB_OHCI_HCD_PLATFORM
+       tristate "RZ/V2M USB2.0 OHCI Host driver"
+       help
+         Enable support of the on-chip OHCI controller on RZ/V2M chip.
+
+config USB_EHCI_RZV2M
+       select GENERIC_PHY
+       select USB_EHCI_HCD_PLATFORM
+       tristate "RZ/V2M USB2.0 EHCI Host driver"
+       help
+         Enable support of the on-chip EHCI controller on RZ/V2M chip.

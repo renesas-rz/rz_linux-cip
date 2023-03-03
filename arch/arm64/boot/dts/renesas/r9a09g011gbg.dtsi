@@ -16,6 +16,7 @@
 
        aliases {
                ethernet0 = &avb;
+	       i2c0 = &i2c0;
        };
 
 #if 0
@@ -138,6 +139,16 @@
                compatible = "fixed-clock";
                clock-frequency = <200000000>;
        };
+       pclk: pclk@100M {
+               #clock-cells = <0>;
+               compatible = "fixed-clock";
+               clock-frequency = <100000000>;
+       };
+       usbclk: usbclk@200M {
+               #clock-cells = <0>;
+               compatible = "fixed-clock";
+               clock-frequency = <200000000>;
+       };
 #endif
 
        soc: soc {
@@ -155,6 +166,61 @@
                        clocks = <&cpg CPG_MOD 402>;
                        power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;
                        resets = <&cpg 402>;
+                       status = "disabled";
+               };
+#endif
+
+               i2c0: i2c@a4030000 {
+                       #address-cells = <1>;
+                       #size-cells = <0>;
+                       compatible = "renesas,rzv2m-i2c";
+                       reg = <0 0xa4030000 0 0x80>;
+                       interrupts = <GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>,<GIC_SPI 236 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks = <&pclk>;
+       /*              power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
+       /*              resets = <&cpg 931>;*/
+       /*              dmas = <&dmac1 0x91>, <&dmac1 0x90>,*/
+       /*                     <&dmac2 0x91>, <&dmac2 0x90>; */
+       /*              dma-names = "tx", "rx", "tx", "rx"; */
+                       i2c-scl-internal-delay-ns = <110>;
+                       status = "disabled";
+               };
+
+               xhci0: usb@85060000 {
+                       compatible = "renesas,xhci-r8a774c0",
+                                    "renesas,rzv2m-xhci";
+                       reg = <0 0x85060000 0 0x20000>;
+                       interrupts = <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks =  <&usbclk>;
+                       /*power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
+                       /*resets = <&cpg 328>;*/
+                       status = "disabled";
+               };
+#if 0
+               usb3_peri0: usb@85070000 {
+                       compatible = "renesas,r8a774c0-usb3-peri",
+                                    "renesas,rcar-gen3-usb3-peri";
+                       reg = <0 0x85070000 0 0x1000>;
+
+                       interrupts = <GIC_SPI 242 IRQ_TYPE_LEVEL_HIGH>,
+                                    <GIC_SPI 243 IRQ_TYPE_LEVEL_HIGH>,
+                                    <GIC_SPI 244 IRQ_TYPE_LEVEL_HIGH>,
+                                    <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks =  <&usbclk>;
+                       /*power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;
+                        resets = <&cpg 328>;*/
+                       status = "disabled";
+               };
+#endif
+#if 0
+               usb2_phy0: usb-phy@85070200 {
+                       compatible = "renesas,usb2-phy-r8a774c0",
+                                    "renesas,rcar-gen3-usb2-phy";
+                       reg = <0 0x85070200 0 0x700>;
+                       interrupts = <GIC_SPI 242 IRQ_TYPE_LEVEL_HIGH>,
+                                    <GIC_SPI 243 IRQ_TYPE_LEVEL_HIGH>,
+                                    <GIC_SPI 244 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks =  <&usbclk>;
                        status = "disabled";
                };
 #endif
