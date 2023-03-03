@@ -503,6 +503,9 @@ config SYS_SUPPORTS_RENESAS_MTU3
 config SYS_SUPPORTS_SH_TMU
 	bool
 
+config SYS_SUPPORTS_RENESAS_OSTM
+	bool
+
 config SYS_SUPPORTS_EM_STI
 	bool
 
