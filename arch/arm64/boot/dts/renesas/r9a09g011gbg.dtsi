@@ -79,7 +79,6 @@
         compatible = "fixed-clock";
         clock-frequency = <100000000>;
     };
-
     usbclk: usbclk@200M {
         #clock-cells = <0>;
         compatible = "fixed-clock";
@@ -104,6 +103,11 @@
         #clock-cells = <0>;
         compatible = "fixed-clock";
         clock-frequency = <48000000>;
+    };
+    timclk: timclk@2M {
+        #clock-cells = <0>;
+        compatible = "fixed-clock";
+        clock-frequency = <2000000>;
     };
 
     timer {
@@ -325,6 +329,290 @@
                 rxc-skew-ps = <1500>;
                 reg = <0>;
             };
+        };
+
+        tim0: timer@a4000000 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000000 0 0x80>;
+            interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim1: timer@a4000080 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000080 0 0x80>;
+            interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim2: timer@a4000100 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000100 0 0x80>;
+            interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim3: timer@a4000180 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000180 0 0x80>;
+            interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim4: timer@a4000200 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000200 0 0x80>;
+            interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim5: timer@a4000280 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000280 0 0x80>;
+            interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim6: timer@a4000300 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000300 0 0x80>;
+            interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim7: timer@a4000380 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000380 0 0x80>;
+            interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim8: timer@a4000400 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000400 0 0x80>;
+            interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim9: timer@a4000480 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000480 0 0x80>;
+            interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim10: timer@a4000500 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000500 0 0x80>;
+            interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim11: timer@a4000580 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000580 0 0x80>;
+            interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim12: timer@a4000600 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000600 0 0x80>;
+            interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim13: timer@a4000680 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000680 0 0x80>;
+            interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim14: timer@a4000700 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000700 0 0x80>;
+            interrupts = <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim15: timer@a4000780 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000780 0 0x80>;
+            interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+        tim16: timer@a4000800 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000800 0 0x80>;
+            interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+        tim17: timer@a4000880 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000880 0 0x80>;
+            interrupts = <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim18: timer@a4000900 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000900 0 0x80>;
+            interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim19: timer@a4000980 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000980 0 0x80>;
+            interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim20: timer@a4000a00 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000a00 0 0x80>;
+            interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim21: timer@a4000a80 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000a80 0 0x80>;
+            interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim22: timer@a4000b00 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000b00 0 0x80>;
+            interrupts = <GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+        tim23: timer@a4000b80 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000b80 0 0x80>;
+            interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+        tim24: timer@a4000c00 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000c00 0 0x80>;
+            interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+        tim25: timer@a4000c80 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000c80 0 0x80>;
+            interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim26: timer@a4000d00 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000d00 0 0x80>;
+            interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim27: timer@a4000d80 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000d80 0 0x80>;
+            interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim28: timer@a4000e00 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000e00 0 0x80>;
+            interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim29: timer@a4000e80 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000e80 0 0x80>;
+            interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+
+        tim30: timer@a4000f00 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000f00 0 0x80>;
+            interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
+        };
+
+        tim31: timer@a4000f80 {
+            compatible =  "renesas,tim-rzv2m";
+            reg = <0 0xa4000f80 0 0x80>;
+            interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&timclk>;
+            clock-names = "timclk";
+            status = "disabled";
         };
 
         pwm0: pwm@a4010000 {

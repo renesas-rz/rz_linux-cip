@@ -232,6 +232,8 @@ source "drivers/slimbus/Kconfig"
 
 source "drivers/udmabuf/Kconfig"
 
+source "drivers/hw_tim/Kconfig"
+
 source "drivers/interconnect/Kconfig"
 
 source "drivers/counter/Kconfig"
