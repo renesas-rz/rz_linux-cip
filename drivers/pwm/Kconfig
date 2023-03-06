@@ -422,6 +422,17 @@ config PWM_RENESAS_TPU
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-renesas-tpu.
 
+config PWM_RZV2M
+       tristate "Renesas RZV2M PWM support"
+       depends on ARCH_RENESAS || COMPILE_TEST
+       depends on HAS_IOMEM
+       help
+         This driver exposes the PWM controller found in Renesas
+         RZV2M chips through the PWM API.
+
+         To compile this driver as a module, choose M here: the module
+         will be called pwm-v2m.
+
 config PWM_ROCKCHIP
 	tristate "Rockchip PWM support"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST

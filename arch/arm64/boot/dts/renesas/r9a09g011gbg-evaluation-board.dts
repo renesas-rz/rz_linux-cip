@@ -195,3 +195,35 @@
        };
 };
 #endif
+
+&pwm0 {
+       status = "okay";
+};
+
+&pwm1 {
+       status = "okay";
+};
+
+&pwm2 {
+       status = "okay";
+};
+
+&pwm3 {
+       status = "okay";
+};
+
+&pwm4 {
+       status = "okay";
+};
+
+&pwm5 {
+       status = "okay";
+};
+
+&pwm6 {
+       status = "okay";
+};
+
+&pwm7 {
+       status = "okay";
+};

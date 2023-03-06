@@ -153,6 +153,21 @@
                compatible = "fixed-clock";
                clock-frequency = <200000000>;
        };
+       sys: sys@100M {
+               #clock-cells = <0>;
+               compatible = "fixed-clock";
+               clock-frequency = <100000000>;
+       };
+       pwm: pwm@48M {
+               #clock-cells = <0>;
+               compatible = "fixed-clock";
+               clock-frequency = <48000000>;
+       };
+       csi_clk: wdt_clk: pclk48: clk@48M {
+               #clock-cells = <0>;
+               compatible = "fixed-clock";
+               clock-frequency = <48000000>;
+       };
 #endif
 
        soc: soc {
@@ -396,6 +411,178 @@
                        };
                };
 
+               pwm0: pwm@a4010000 {
+                       compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
+                       reg = <0 0xa4010000 0 0x80>;
+                       interrupts = <GIC_SPI 368 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks = <&sys>, <&pwm>;
+                       clock-names = "sys", "pwm";
+                       /*power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
+                       #pwm-cells = <2>;
+                       status = "disabled";
+               };
+
+               pwm1: pwm@a4010080 {
+                       compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
+                       reg = <0 0xa4010080 0 0x80>;
+                       interrupts = <GIC_SPI 369 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks = <&sys>, <&pwm>;
+                       clock-names = "sys", "pwm";
+                       /*power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
+                       #pwm-cells = <2>;
+                       status = "disabled";
+               };
+
+               pwm2: pwm@a4010100 {
+                       compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
+                       reg = <0 0xa4010100 0 0x80>;
+                       interrupts = <GIC_SPI 370 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks = <&sys>, <&pwm>;
+                       clock-names = "sys", "pwm";
+                       /*power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
+                       #pwm-cells = <2>;
+                       status = "disabled";
+               };
+
+               pwm3: pwm@a4010180 {
+                       compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
+                       reg = <0 0xa4010180 0 0x80>;
+                       interrupts = <GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks = <&sys>, <&pwm>;
+                       clock-names = "sys", "pwm";
+                       /*power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
+                       #pwm-cells = <2>;
+                       status = "disabled";
+               };
+               pwm4: pwm@a4010200 {
+                       compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
+                       reg = <0 0xa4010200 0 0x80>;
+                       interrupts = <GIC_SPI 372 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks = <&sys>, <&pwm>;
+                       clock-names = "sys", "pwm";
+                       /*power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
+                       #pwm-cells = <2>;
+                       status = "disabled";
+               };
+
+               pwm5: pwm@a4010280 {
+                       compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
+                       reg = <0 0xa4010280 0 0x80>;
+                       interrupts = <GIC_SPI 373 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks = <&sys>, <&pwm>;
+                       clock-names = "sys", "pwm";
+                       /*power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
+                       #pwm-cells = <2>;
+                       status = "disabled";
+               };
+
+               pwm6: pwm@a4010300 {
+                       compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
+                       reg = <0 0xa4010300 0 0x80>;
+                       interrupts = <GIC_SPI 374 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks = <&sys>, <&pwm>;
+                       clock-names = "sys", "pwm";
+                       /*power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
+                       #pwm-cells = <2>;
+                       status = "disabled";
+               };
+               pwm7: pwm@a4010380 {
+                       compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
+                       reg = <0 0xa4010380 0 0x80>;
+                       interrupts = <GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks = <&sys>, <&pwm>;
+                       clock-names = "sys", "pwm";
+                       /*power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
+                       #pwm-cells = <2>;
+                       status = "disabled";
+               };
+
+               pwm8: pwm@a4010400 {
+                       compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
+                       reg = <0 0xa4010400 0 0x80>;
+                       interrupts = <GIC_SPI 376 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks = <&sys>, <&pwm>;
+                       clock-names = "sys", "pwm";
+                       /*power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
+                       #pwm-cells = <2>;
+                       status = "disabled";
+               };
+
+               pwm9: pwm@a4010480 {
+                       compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
+                       reg = <0 0xa4010480 0 0x80>;
+                       interrupts = <GIC_SPI 377 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks = <&sys>, <&pwm>;
+                       clock-names = "sys", "pwm";
+                       /*power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
+                       #pwm-cells = <2>;
+                       status = "disabled";
+               };
+
+               pwm10: pwm@a4010500 {
+                       compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
+                       reg = <0 0xa4010500 0 0x80>;
+                       interrupts = <GIC_SPI 378 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks = <&sys>, <&pwm>;
+                       clock-names = "sys", "pwm";
+                       /*power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
+                       #pwm-cells = <2>;
+                       status = "disabled";
+               };
+
+               pwm11: pwm@a4010580 {
+                       compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
+                       reg = <0 0xa4010580 0 0x80>;
+                       interrupts = <GIC_SPI 379 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks = <&sys>, <&pwm>;
+                       clock-names = "sys", "pwm";
+                       /*power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
+                       #pwm-cells = <2>;
+                       status = "disabled";
+               };
+
+               pwm12: pwm@a4010600 {
+                       compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
+                       reg = <0 0xa4010600 0 0x80>;
+                       interrupts = <GIC_SPI 380 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks = <&sys>, <&pwm>;
+                       clock-names = "sys", "pwm";
+                       /*power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
+                       #pwm-cells = <2>;
+                       status = "disabled";
+               };
+              pwm13: pwm@a4010680 {
+                       compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
+                       reg = <0 0xa4010680 0 0x80>;
+                       interrupts = <GIC_SPI 381 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks = <&sys>, <&pwm>;
+                       clock-names = "sys", "pwm";
+                       /*power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
+                       #pwm-cells = <2>;
+                       status = "disabled";
+               };
+
+               pwm14: pwm@a4010700 {
+                       compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
+                       reg = <0 0xa4010700 0 0x80>;
+                       interrupts = <GIC_SPI 382 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks = <&sys>, <&pwm>;
+                       clock-names = "sys", "pwm";
+                       /*power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
+                       #pwm-cells = <2>;
+                       status = "disabled";
+               };
+
+               pwm15: pwm@a4010780 {
+                       compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
+                       reg = <0 0xa4010780 0 0x80>;
+                       interrupts = <GIC_SPI 383 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks = <&sys>, <&pwm>;
+                       clock-names = "sys", "pwm";
+                       /*power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;*/
+                       #pwm-cells = <2>;
+                       status = "disabled";
+               };
 #endif
        };
 
