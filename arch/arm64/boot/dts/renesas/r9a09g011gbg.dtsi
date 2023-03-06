@@ -113,11 +113,10 @@
                };
        };
 
-       pmu_a53 {
+       pmu_a53 { /* Support only for core0 not core1 */
                compatible = "arm,cortex-a53-pmu";
-               interrupts-extended = <&gic GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
-                                     <&gic GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
-               interrupt-affinity = <&a53_0>, <&a53_1>;
+	       interrupts-extended = <&gic GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+	       interrupt-affinity = <&a53_0>;
        };
 
        psci {
