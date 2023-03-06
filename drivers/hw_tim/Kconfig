@@ -1,0 +1,9 @@
+menu "RZ/V2M TIM drivers"
+
+config TIM_RZV2M
+       bool "Timer for the RZ/V2M"
+       help
+         RZ/V2M TIM drivers enable.
+
+endmenu
+
