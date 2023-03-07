@@ -102,6 +102,25 @@ struct mstp_clock {
 
 #define to_mstp_clock(_hw) container_of(_hw, struct mstp_clock, hw)
 
+static int cpg_mstp_clock_is_enabled(struct clk_hw *hw)
+{
+       struct mstp_clock *clock = to_mstp_clock(hw);
+       struct cpg_mssr_priv *priv = clock->priv;
+       unsigned int no = clock->index / 100;
+       unsigned int bit = clock->index % 100;
+       u32 value;
+
+       value = r8arzv2m_cpg_getClockCtrl(priv->base,no,BIT(bit));
+
+       if(value == 0xFFFFFFFF){
+               return 0;
+       }
+
+       value = value >> bit;
+
+       return value;
+}
+
 static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
 {
        struct mstp_clock *clock = to_mstp_clock(hw);
@@ -114,9 +133,18 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
        unsigned int i;
        u32 value;
 
-       dev_dbg(dev, "MSTP %u%02u/%pC %s\n", no, bit, hw->clk,
+       dev_dbg(dev, "CLOCKON %u%02u/%pC %s\n", no, bit, hw->clk,
                enable ? "ON" : "OFF");
+       value = cpg_mstp_clock_is_enabled(hw);
+       if((0 != value) && enable){
+
+               dev_dbg(dev, "%s is enabled",hw->init->name);
+               return 0;
+       }
        spin_lock_irqsave(&priv->rmw_lock, flags);
+
+       dev_info(dev, "CLOCK SET %u%02u/%pC %s\n", no, bit, hw->clk,
+                      enable ? "is enabled" : "is disabled");
 
        if(clock->type == RST_TYPEA){
                CPG_SetResetCtrl(priv->base,clock->reset_no,BIT(clock->reset_bit),0);
@@ -158,25 +186,6 @@ static void cpg_mstp_clock_disable(struct clk_hw *hw)
        struct cpg_mssr_priv *priv = clock->priv;//add for debug
 
        cpg_mstp_clock_endisable(hw, false);
-}
-
-static int cpg_mstp_clock_is_enabled(struct clk_hw *hw)
-{
-       struct mstp_clock *clock = to_mstp_clock(hw);
-       struct cpg_mssr_priv *priv = clock->priv;
-       unsigned int no = clock->index / 100;
-       unsigned int bit = clock->index % 100;
-       u32 value;
-
-       value = r8arzv2m_cpg_getClockCtrl(priv->base,no,BIT(bit));
-
-       if(value == 0xFFFFFFFF){
-               return 0;
-       }
-
-       value = value >> bit;
-
-       return 0;//[TODO]return value;
 }
 
 static const struct clk_ops cpg_mstp_clock_ops = {
@@ -372,12 +381,20 @@ static void __init cpg_mssr_register_mod_clk(const struct mssr_mod_clk *mod,
        clock->index = id - priv->num_core_clks;
        clock->priv = priv;
        clock->hw.init = &init;
+       clock->type = mod->type;
+       clock->reset_no = mod->reset_no;
+       clock->reset_bit = mod->reset_bit;
+       clock->reset_msk = mod->reset_msk;
 
        clk = clk_register(NULL, &clock->hw);
        if (IS_ERR(clk))
                goto fail;
 
        dev_dbg(dev, "Module clock %pC at %lu Hz\n", clk, clk_get_rate(clk));
+
+       clk_prepare(clk);
+       clk_enable(clk);
+
        priv->clks[id] = clk;
        priv->smstpcr_saved[clock->index / 100].mask |= BIT(clock->index % 100); //[TODO:saved module stop manage]
        return;
