@@ -44,6 +44,7 @@ enum clk_ids {
        CLK_PLL2_2,
        CLK_PLL2_8,
        CLK_PLL2_16,
+       CLK_PLL6,
 //     CLK_DIV_A,
        CLK_DIV_B,
        CLK_DIV_D,
@@ -51,12 +52,10 @@ enum clk_ids {
        CLK_SEL_B,
        CLK_SEL_D,
        CLK_SEL_E,
-#if 0//static defined is disabled
        CLK_SEL_CSI0,
        CLK_SEL_CSI2,
        CLK_SEL_W0,
        CLK_SEL_SDI0,
-#endif
 
        /* Module Clocks */
        MOD_CLK_BASE
@@ -72,6 +71,7 @@ static const struct cpg_core_clk r8arzv2m_core_clks[] __initconst = {
        DEF_RATE(".pll2_2",    CLK_PLL2_2,      800*1000*1000),
        DEF_RATE(".pll2_8",    CLK_PLL2_8,      200*1000*1000),
        DEF_RATE(".pll2_16",   CLK_PLL2_16,     100*1000*1000),
+       DEF_RATE(".pll6",      CLK_PLL6,        1260*1000*1000),	
 
        DEF_DIV(".divb",     CLK_DIV_B,          CLK_PLL2,         4,
                CPG_SYS_DDIV, CPG_SYS_DDIV_WEN_DIVB|CPG_SYS_DDIV_WEN_DIVE|CPG_SYS_DDIV_WEN_DIVD,
@@ -97,6 +97,12 @@ static const struct cpg_core_clk r8arzv2m_core_clks[] __initconst = {
                CPG_URT_RCLK_SSEL, CPG_URT_RCLK_SSEL_WEN_SELW0,         0),
        DEF_STATIC(".selsdi0",     CLK_SEL_SDI0,          CLK_PLL2,       2,
                CPG_SDIEMM_SSEL,   CPG_SDIEMM_SSEL_WEN_SELSDI,          CPG_SDIEMM_SSEL_SELSDI),
+#else
+       DEF_RATE(".selcsi0",     CLK_SEL_CSI0,  24*1000*1000),
+       DEF_RATE(".selcsi2",     CLK_SEL_CSI2,  24*1000*1000),
+       DEF_RATE(".selw",        CLK_SEL_W0,    48*1000*1000),
+       DEF_RATE(".selsdi0",     CLK_SEL_SDI0,  200*1000*1000),
+
 #endif
 };
 
@@ -140,7 +146,7 @@ static const struct mssr_mod_clk r8arzv2m_mod_clks[] __initconst = {
        DEF_MOD("tim_clk29",            1209,   CLK_MAIN_24,    RST_TYPEA,      6,      3,      0,),
        DEF_MOD("tim_clk30",            1210,   CLK_MAIN_24,    RST_TYPEA,      6,      3,      0,),
        DEF_MOD("tim_clk31",            1211,   CLK_MAIN_24,    RST_TYPEA,      6,      3,      0,),
-       DEF_MOD("pwm_clk8",                     1404,   CLK_MAIN,               RST_TYPEB,      6,      5,      0,),
+       DEF_MOD("pwm_clk8",                     1404,   CLK_MAIN,               RST_TYPEB,      6,      5,      23),
        DEF_MOD("pwm_clk9",                     1405,   CLK_MAIN,               RST_TYPEB,      6,      5,      23),
        DEF_MOD("pwm_clk10",            1406,   CLK_MAIN,               RST_TYPEB,      6,      5,      23),
        DEF_MOD("pwm_clk11",            1407,   CLK_MAIN,               RST_TYPEB,      6,      5,      23),
@@ -148,22 +154,20 @@ static const struct mssr_mod_clk r8arzv2m_mod_clks[] __initconst = {
        DEF_MOD("pwm_clk13",            1409,   CLK_MAIN,               RST_TYPEB,      6,      5,      23),
        DEF_MOD("pwm_clk14",            1410,   CLK_MAIN,               RST_TYPEB,      6,      5,      23),
        DEF_MOD("pwm_clk15",            1411,   CLK_MAIN,               RST_TYPEB,      6,      5,      23),
-#if 0 //static defined is disabled
        DEF_MOD("urt_pclk",                     1504,   CLK_SEL_E,              RST_TYPEB,      6,      10,     26),
-       DEF_MOD("urt_clk0",                     1505,   CLK_SEL_W0,             RST_NON,        0,      0,      0),
-       DEF_MOD("csi_clk0",                     1508,   CLK_SEL_CSI0,   RST_NON,        0,      0,      0),
+       DEF_MOD("urt_clk0",                     1505,   CLK_SEL_W0,             RST_NON,        6,      10,     26),
        DEF_MOD("csi_clk2",                     1510,   CLK_SEL_CSI2,   RST_NON,        0,      0,      0),
-#endif
-#if 0
-       DEF_MOD("drpa_aclk",            2000,   CLK_SEL_B,              RST_NON,        0,      0,      14),
+       DEF_MOD("drpa_aclk",            2000,   CLK_SEL_B,              RST_NON,        0,      0,      0),
        DEF_MOD("drpa_dclk",            2001,   CLK_PLL6,               RST_NON,        0,      0,      0),
        DEF_MOD("drpa_initclk",         2002,   CLK_MAIN,               RST_TYPEB,      9,      0,      0),
-#endif
 };
 
 static const unsigned int r8arzv2m_crit_mod_clks[] __initconst = {
-       //MOD_CLK_ID(408),        /* INTC-AP (GIC) */
-       000
+       MOD_CLK_ID(404),        /* usb_aclk_h */
+       MOD_CLK_ID(405),        /* usb_aclk_p */
+       MOD_CLK_ID(406),        /* usb_pclk */
+       MOD_CLK_ID(408),        /* eth0_clk_axi */
+       MOD_CLK_ID(409),        /* eth0_clk_gptp_extern */
 };
 
 /*
