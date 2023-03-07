@@ -133,7 +133,7 @@
 
         cpg: clock-controller@A3500000 {
             compatible = "renesas,r8arzv2m-cpg-mssr";
-            reg = <0 0xA3500000 0 0x4>;
+            reg = <0 0xA3500000 0 0x1000>;
             clocks = <&extal_clk>;
             clock-names = "extal";
             #clock-cells = <2>;
@@ -153,7 +153,9 @@
             compatible = "renesas,rzv2m-i2c";
             reg = <0 0xa4030000 0 0x80>;
             interrupts = <GIC_SPI 232 IRQ_TYPE_EDGE_RISING>,<GIC_SPI 236 IRQ_TYPE_EDGE_RISING>;
-            clocks = <&pclk>;
+            /*clocks = <&pclk>;*/
+	    clocks = <&cpg CPG_MOD 912>;
+	    reset = <&cpg 912>;
             i2c-scl-internal-delay-ns = <110>;
             status = "disabled";
         };
@@ -164,7 +166,7 @@
             compatible = "renesas,rzv2m-i2c";
             reg = <0 0xa4030080 0 0x80>;
             interrupts = <GIC_SPI 233 IRQ_TYPE_EDGE_RISING>,<GIC_SPI 237 IRQ_TYPE_EDGE_RISING>;
-            clocks = <&pclk>;
+            clocks = <&cpg CPG_MOD 1012>;
             i2c-scl-internal-delay-ns = <110>;
             status = "disabled";
         };
@@ -251,7 +253,6 @@
                   <0x0 0x82060000 0 0x20000>;
             interrupts = <GIC_PPI 9
                     (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
-            clocks = <&cpg CPG_MOD 408>;
             clock-names = "clk";
             power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;
             resets = <&cpg 408>;
@@ -335,8 +336,9 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000000 0 0x80>;
             interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&timclk>;
             clock-names = "timclk";
+	    reset = <&cpg 904>;
+	    reset-names = "tim0"
             status = "disabled";
         };
 
