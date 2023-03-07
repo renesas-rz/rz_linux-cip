@@ -86,6 +86,78 @@
 #define DPHY_TIMING_TCLK_PREPARE	10
 #define DPHY_TIMING_THS_PREPARE		10
 
+/* DPHY Slave Timing Control Register */
+#define S_TIMCTL			0x41C
+#define S_TIMCTL_S_HSSETTLECTL(x)	((x) << 8)
+
+/* Slave D-PHY Control Register */
+#define DPHY_S_DPHYCTL_MSB		0x434
+#define DPHY_S_DPHYCTL_MSB_DESKEW	BIT(1)
+
+/* DP/DN Swap Control Register */
+#define DPHY_SWAPCTL			0x438
+#define DPHY_SWAPCTL_S_DPDN_SWAP_DAT	BIT(5)
+#define DPHY_SWAPCTL_S_DPDN_SWAP_CLK	BIT(4)
+
+enum mipi_csi2_dphy_type {
+	MIPI_CSI2_DPHY_RZ_G2L,
+	MIPI_CSI2_DPHY_RZ_V2H,
+};
+
+struct dphy_s_timctl {
+	u32 hsfreq;
+	u32 s_hssettlectl;
+};
+
+static const struct dphy_s_timctl dphy_s_timctls[] = {
+	{   90,  1 },
+	{  130,  2 },
+	{  180,  3 },
+	{  220,  4 },
+	{  270,  5 },
+	{  310,  6 },
+	{  360,  7 },
+	{  400,  8 },
+	{  450,  9 },
+	{  490, 10 },
+	{  540, 11 },
+	{  580, 12 },
+	{  630, 13 },
+	{  670, 14 },
+	{  720, 15 },
+	{  760, 16 },
+	{  810, 17 },
+	{  850, 18 },
+	{  900, 19 },
+	{  940, 20 },
+	{  990, 21 },
+	{ 1030, 22 },
+	{ 1080, 23 },
+	{ 1120, 24 },
+	{ 1170, 25 },
+	{ 1220, 26 },
+	{ 1260, 27 },
+	{ 1310, 28 },
+	{ 1350, 29 },
+	{ 1400, 30 },
+	{ 1440, 31 },
+	{ 1490, 32 },
+	{ 1530, 33 },
+	{ 1580, 34 },
+	{ 1620, 35 },
+	{ 1670, 36 },
+	{ 1710, 37 },
+	{ 1760, 38 },
+	{ 1800, 39 },
+	{ 1850, 40 },
+	{ 1890, 41 },
+	{ 1940, 42 },
+	{ 1980, 43 },
+	{ 2030, 44 },
+	{ 2070, 45 },
+	{ 2100, 46 },
+};
+
 struct timings {
 	u32 t_init;
 	u32 tclk_miss;
@@ -174,6 +246,8 @@ struct rzg2l_csi2 {
 	unsigned short lanes;
 
 	unsigned long hsfreq;
+
+	enum mipi_csi2_dphy_type type;
 };
 
 static inline struct rzg2l_csi2 *sd_to_csi2(struct v4l2_subdev *sd)
@@ -213,60 +287,88 @@ static void rzg2l_csi2_clr(struct rzg2l_csi2 *priv, unsigned int reg, u32 clr)
 
 static int rzg2l_csi2_dphy_setting(struct rzg2l_csi2 *priv, bool on)
 {
-	struct timings dphy_timing = {
-		.t_init         = DPHY_TIMING_T_INIT,
-		.tclk_miss      = DPHY_TIMING_TCLK_MISS,
-		.tclk_settle    = DPHY_TIMING_TCLK_SETTLE,
-		.ths_settle     = DPHY_TIMING_THS_SETTLE,
-		.tclk_prepare   = DPHY_TIMING_TCLK_PREPARE,
-		.ths_prepare    = DPHY_TIMING_THS_PREPARE,
-	};
 	int ret = 0;
 
 	if (on) {
-		u32 dphytim0, dphytim1;
+		if (priv->type == MIPI_CSI2_DPHY_RZ_G2L) {
+			struct timings dphy_timing = {
+				.t_init         = DPHY_TIMING_T_INIT,
+				.tclk_miss      = DPHY_TIMING_TCLK_MISS,
+				.tclk_settle    = DPHY_TIMING_TCLK_SETTLE,
+				.ths_settle     = DPHY_TIMING_THS_SETTLE,
+				.tclk_prepare   = DPHY_TIMING_TCLK_PREPARE,
+				.ths_prepare    = DPHY_TIMING_THS_PREPARE,
+			};
+			u32 dphytim0, dphytim1;
 
-		/* Set DPHY timing parameters */
-		if (priv->hsfreq <= 80) {
-			dphy_timing.tclk_settle = 23;
-			dphy_timing.ths_settle = 31;
-			dphy_timing.ths_prepare = 19;
-		} else if (priv->hsfreq <= 125) {
-			dphy_timing.tclk_settle = 23;
-			dphy_timing.ths_settle = 28;
-			dphy_timing.ths_prepare = 19;
-		} else if (priv->hsfreq <= 250) {
-			dphy_timing.tclk_settle = 23;
-			dphy_timing.ths_settle = 22;
-			dphy_timing.ths_prepare = 16;
-		} else if (priv->hsfreq <= 360) {
-			dphy_timing.ths_settle = 19;
+			/* Set DPHY timing parameters */
+			if (priv->hsfreq <= 80) {
+				dphy_timing.tclk_settle = 23;
+				dphy_timing.ths_settle = 31;
+				dphy_timing.ths_prepare = 19;
+			} else if (priv->hsfreq <= 125) {
+				dphy_timing.tclk_settle = 23;
+				dphy_timing.ths_settle = 28;
+				dphy_timing.ths_prepare = 19;
+			} else if (priv->hsfreq <= 250) {
+				dphy_timing.tclk_settle = 23;
+				dphy_timing.ths_settle = 22;
+				dphy_timing.ths_prepare = 16;
+			} else if (priv->hsfreq <= 360) {
+				dphy_timing.ths_settle = 19;
+			}
+
+			dphytim0 =
+			    CSIDPHYTIM0_TCLK_MISS(dphy_timing.tclk_miss) |
+			    CSIDPHYTIM0_T_INIT(dphy_timing.t_init);
+			dphytim1 =
+			    CSIDPHYTIM1_THS_PREPARE(dphy_timing.ths_prepare) |
+			    CSIDPHYTIM1_TCLK_PREPARE(dphy_timing.tclk_prepare) |
+			    CSIDPHYTIM1_THS_SETTLE(dphy_timing.ths_settle) |
+			    CSIDPHYTIM1_TCLK_SETTLE(dphy_timing.tclk_settle);
+
+			rzg2l_csi2_write(priv, CSIDPHYTIM0, dphytim0);
+			rzg2l_csi2_write(priv, CSIDPHYTIM1, dphytim1);
+
+			/* Set D-PHY Skew Adjustment with recommended value */
+			rzg2l_csi2_write(priv, CSIDPHYSKW0, 0x00001111);
+
+			/* Set the EN_BGR bit */
+			rzg2l_csi2_set(priv, CSIDPHYCTRL0, CSIDPHYCTRL0_EN_BGR);
+
+			/* Delay 20us to be stable */
+			udelay(20);
+
+			/* Set the EN_LDO1200 bit */
+			rzg2l_csi2_set(priv, CSIDPHYCTRL0,
+				       CSIDPHYCTRL0_EN_LDO1200);
+
+			/* Delay 10us to be stable */
+			udelay(10);
+		} else {
+			u32 i, hssettle;
+
+			rzg2l_csi2_write(priv, DPHY_SWAPCTL, 0);
+
+			for (i = 0; i < ARRAY_SIZE(dphy_s_timctls); i++) {
+				if ((priv->hsfreq) <= dphy_s_timctls[i].hsfreq)
+					break;
+			}
+
+			if (i == ARRAY_SIZE(dphy_s_timctls))
+				return -EINVAL;
+
+			hssettle = dphy_s_timctls[i].s_hssettlectl;
+			rzg2l_csi2_write(priv, S_TIMCTL,
+					 S_TIMCTL_S_HSSETTLECTL(hssettle));
+
+			if (priv->hsfreq > 1500)
+				rzg2l_csi2_set(priv, DPHY_S_DPHYCTL_MSB,
+					       DPHY_S_DPHYCTL_MSB_DESKEW);
+			else
+				rzg2l_csi2_clr(priv, DPHY_S_DPHYCTL_MSB,
+					       DPHY_S_DPHYCTL_MSB_DESKEW);
 		}
-
-		dphytim0 = CSIDPHYTIM0_TCLK_MISS(dphy_timing.tclk_miss) |
-			   CSIDPHYTIM0_T_INIT(dphy_timing.t_init);
-		dphytim1 = CSIDPHYTIM1_THS_PREPARE(dphy_timing.ths_prepare) |
-			   CSIDPHYTIM1_TCLK_PREPARE(dphy_timing.tclk_prepare) |
-			   CSIDPHYTIM1_THS_SETTLE(dphy_timing.ths_settle) |
-			   CSIDPHYTIM1_TCLK_SETTLE(dphy_timing.tclk_settle);
-
-		rzg2l_csi2_write(priv, CSIDPHYTIM0, dphytim0);
-		rzg2l_csi2_write(priv, CSIDPHYTIM1, dphytim1);
-
-		/* Set D-PHY Skew Adjustment with recommended value */
-		rzg2l_csi2_write(priv, CSIDPHYSKW0, 0x00001111);
-
-		/* Set the EN_BGR bit */
-		rzg2l_csi2_set(priv, CSIDPHYCTRL0, CSIDPHYCTRL0_EN_BGR);
-
-		/* Delay 20us to be stable */
-		udelay(20);
-
-		/* Set the EN_LDO1200 bit */
-		rzg2l_csi2_set(priv, CSIDPHYCTRL0, CSIDPHYCTRL0_EN_LDO1200);
-
-		/* Delay 10us to be stable */
-		udelay(10);
 
 		/* Turn on the DPHY Clock */
 		ret = clk_prepare_enable(priv->sysclk);
@@ -279,11 +381,16 @@ static int rzg2l_csi2_dphy_setting(struct rzg2l_csi2 *priv, bool on)
 		/* Stop the DPHY clock */
 		clk_disable_unprepare(priv->sysclk);
 
-		/* Cancel the EN_LDO1200 register setting */
-		rzg2l_csi2_clr(priv, CSIDPHYCTRL0, CSIDPHYCTRL0_EN_LDO1200);
+		if (priv->type == MIPI_CSI2_DPHY_RZ_G2L) {
+			/* Cancel the EN_LDO1200 register setting */
+			rzg2l_csi2_clr(priv, CSIDPHYCTRL0,
+				       CSIDPHYCTRL0_EN_LDO1200);
 
-		/* Cancel the EN_BGR register setting */
-		rzg2l_csi2_clr(priv, CSIDPHYCTRL0, CSIDPHYCTRL0_EN_BGR);
+			/* Cancel the EN_BGR register setting */
+			rzg2l_csi2_clr(priv, CSIDPHYCTRL0, CSIDPHYCTRL0_EN_BGR);
+		} else {
+			rzg2l_csi2_write(priv, CSI2nMCT0, CSI2nMCT0_VDLN(0));
+		}
 	}
 
 	return ret;
@@ -345,7 +452,7 @@ int rzg2l_cru_init_csi_dphy(struct v4l2_subdev *sd)
 static int rzg2l_csi2_start(struct rzg2l_csi2 *priv)
 {
 	int lanes;
-	u32 frrskw, frrclk, frrskw_coeff, frrclk_coeff;
+	u32 frrskw, frrclk, vclk_rate;
 	int ret, count;
 
 	dev_dbg(priv->dev, "Input size (%ux%u%c)\n",
@@ -362,13 +469,10 @@ static int rzg2l_csi2_start(struct rzg2l_csi2 *priv)
 	}
 	rzg2l_csi2_write(priv, CSI2nMCT0, CSI2nMCT0_VDLN(priv->lanes));
 
-	/* Set some parameters in accordance with the sensor transfer rate.
-	 * Currently vclk is fixed with 266MHz.
-	 */
-	frrskw_coeff = 3 * 266 * 8;
-	frrclk_coeff = 1.5 * 266 * 8;
-	frrskw = DIV_ROUND_UP(frrskw_coeff, priv->hsfreq);
-	frrclk = DIV_ROUND_UP(frrclk_coeff, priv->hsfreq);
+	/* Set some parameters in accordance with the sensor transfer rate */
+	vclk_rate = DIV_ROUND_UP(clk_get_rate(priv->vclk), 1000000) - 1;
+	frrskw = DIV_ROUND_UP(3 * 8 * vclk_rate, priv->hsfreq);
+	frrclk = DIV_ROUND_UP(3 * 4 * vclk_rate, priv->hsfreq);
 	rzg2l_csi2_write(priv, CSI2nMCT2, CSI2nMCT2_FRRSKW(frrskw) |
 					  CSI2nMCT2_FRRCLK(frrclk));
 
@@ -394,6 +498,8 @@ static int rzg2l_csi2_start(struct rzg2l_csi2 *priv)
 
 	/* Enable LINK reception */
 	rzg2l_csi2_set(priv, CSI2nMCT3, CSI2nMCT3_RXEN);
+
+	udelay(200);
 
 	ret = clk_prepare_enable(priv->vclk);
 	if (ret)
@@ -667,6 +773,9 @@ static int rzg2l_csi2_probe(struct platform_device *pdev)
 	priv->stream_count = 0;
 	priv->power_count = 0;
 
+	priv->type =
+		(enum mipi_csi2_dphy_type)of_device_get_match_data(&pdev->dev);
+
 	platform_set_drvdata(pdev, priv);
 
 	priv->vclk = devm_clk_get(priv->dev, "vclk");
@@ -728,8 +837,15 @@ error:
 
 
 static const struct of_device_id rzg2l_csi2_of_table[] = {
-	{ .compatible = "renesas,r9a07g044-csi2", },
-	{ .compatible = "renesas,r9a07g043-csi2", },
+	{ .compatible = "renesas,r9a07g044-csi2",
+	  .data = (void *) MIPI_CSI2_DPHY_RZ_G2L,
+	},
+	{ .compatible = "renesas,r9a07g043-csi2",
+	  .data = (void *) MIPI_CSI2_DPHY_RZ_G2L,
+	},
+	{ .compatible = "renesas,r9a09g057-csi2",
+	  .data = (void *) MIPI_CSI2_DPHY_RZ_V2H,
+	},
 	{ /* sentinel */ },
 };
 
