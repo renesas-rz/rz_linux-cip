@@ -29,6 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/time.h>
 #include <linux/tim_rzv2m.h>
+#include <linux/delay.h>
 
 #define DRIVER_NAME "tim"
 
@@ -77,7 +78,8 @@ struct tim_priv {
 //INTCLR register field
 #define INTCLR_INTCLEAR     (0x1)
 
-
+#define MAX_TIM_USEC (MAX_TIMCYS * (1UL << (TMCD_MAXDIV_C0C1C2+1)))
+#define MAX_TIM_TIMEOUT (549760)
 
 /******************************************************************************
 Private global variables and functions
@@ -109,14 +111,25 @@ static int rzv2m_tim_start(struct tim_priv *priv)
     int ret = 0;
     unsigned long time_left;
 
+    if( 0 != (readl( priv->base + TMCD ) & ( TMCD_CE | TMCD_CAE )) ){
+        writel(TMCD_TIM_STOP, priv->base + TMCD);
+        udelay(3);/* delay  5 [0m~W[0m~H1/PCLK[0m~HHz[0m~I[0m~I[0m~K5[0m~W[0m~H1/INCLOCK [0m~HHz[0m~I[0m~I*/
+    }
+
     switch(priv->ioctl_inf.mode)
     {
     case IOCTL_START_FREERUN:
 
         printk("IOCTL_START_FREERUN mode\n");
-        writel(MAX_TIMCYS, priv->base + CMD);
-        writel((TMCD_CS(priv->ioctl_inf.clk_div) | TMCD_TIM_START), priv->base + TMCD);
 
+        if( priv->ioctl_inf.clk_div > TMCD_MAXDIV_C0C1C2 )
+        {
+            return -EINVAL;
+        }else{
+            writel(MAX_TIMCYS, priv->base + CMD);
+            writel((TMCD_CS(priv->ioctl_inf.clk_div) | TMCD_TIM_START), priv->base + TMCD);
+        }
+	
         break;
     case IOCTL_START_INTERRUPT:
 
@@ -126,7 +139,7 @@ static int rzv2m_tim_start(struct tim_priv *priv)
         if( ret < 0 )
             return ret;
 
-        time_left = wait_for_completion_timeout(&priv->hw_tim_wait_done, 60 * HZ );
+        time_left = wait_for_completion_timeout(&priv->hw_tim_wait_done, MAX_TIM_TIMEOUT * HZ );
         if (!time_left)
             return -ETIMEDOUT;
 
@@ -156,18 +169,17 @@ static int rzv2m_calc_cycle_div(struct tim_priv *priv)
 
     if (clk_mhz == 0)
         return -EINVAL;
+     
+     if ( (usec == 0) || ((MAX_TIM_USEC/clk_mhz) < usec) ){
+	return -EINVAL;
+     }
 
     for (div = 0; div < TMCD_MAXDIV_C0C1C2; div++) {
-        max_cnt = ( (MAX_TIMCYS / clk_mhz) * (1 << (div+1) ));
-        tim_cmd_val = usec / ( (1 << (div+1) ) / clk_mhz );
+        max_cnt = ((MAX_TIMCYS * (1UL << (div+1)))/ clk_mhz);
+        tim_cmd_val = usec / ( (1UL << (div+1) ) / clk_mhz );
 
-        if( max_cnt > usec )
+	if( max_cnt >= usec )
             break;
-    }
-
-    if( div >= TMCD_MAXDIV_C0C1C2 )
-    {
-        return -EINVAL;
     }
 
     priv->ioctl_inf.clk_div = div;
