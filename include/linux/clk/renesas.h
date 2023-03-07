@@ -29,7 +29,12 @@ void cpg_mstp_detach_dev(struct generic_pm_domain *unused, struct device *dev);
 int cpg_mssr_attach_dev(struct generic_pm_domain *unused, struct device *dev);
 void cpg_mssr_detach_dev(struct generic_pm_domain *unused, struct device *dev);
 #else
-#define cpg_mssr_attach_dev	NULL
-#define cpg_mssr_detach_dev	NULL
+//#define cpg_mssr_attach_dev	NULL
+//#define cpg_mssr_detach_dev	NULL
+#endif
+
+#ifdef CONFIG_CLK_RENESAS_CPG_CLKON
+int cpg_mssr_attach_dev(struct generic_pm_domain *unused, struct device *dev);
+void cpg_mssr_detach_dev(struct generic_pm_domain *unused, struct device *dev);
 #endif
 #endif
