@@ -59,19 +59,10 @@ int xhci_rzv2m_drd_init(struct usb_hcd *hcd)
        u32 temp;
 
        if (hcd->regs != NULL) {
-               /* perecon hostcon reset */
-               temp = readl(hcd->regs + RZV2M_DRD_HC_OFFSET +
-                               RZV2M_DRD_DRDCON);
-               temp |= (RZV2M_DRD_PERI_RST | RZV2M_DRD_HOST_RST);
-               writel(temp, hcd->regs + RZV2M_DRD_HC_OFFSET +
-                               RZV2M_DRD_DRDCON);
-
-               /* Host role setting */
-               temp = readl(hcd->regs + RZV2M_DRD_HC_OFFSET +
-                               RZV2M_DRD_DRDCON);
-               temp &= ~(RZV2M_DRD_PERICON | RZV2M_DRD_HOST_RST);
-               writel(temp, hcd->regs + RZV2M_DRD_HC_OFFSET +
-                               RZV2M_DRD_DRDCON);
+		temp = readl(hcd->regs + RZV2M_DRD_HC_OFFSET);
+		if(temp != RZV2M_DRD_PERI_RST){
+			return -EFAULT;
+		}
        }
        return 0;
 }
@@ -86,5 +77,10 @@ void xhci_rzv2m_start(struct usb_hcd *hcd)
                temp |= RZV2M_USB3_INT_ENA_VAL;
                writel(temp, hcd->regs + RZV2M_USB3_INTEN);
        }
+       else{
+	       return -EFAULT;
+       }
+	
+       return 0;
 }
 
