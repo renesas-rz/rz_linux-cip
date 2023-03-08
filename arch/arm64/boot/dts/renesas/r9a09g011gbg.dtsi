@@ -155,6 +155,8 @@
             interrupts = <GIC_SPI 232 IRQ_TYPE_EDGE_RISING>,<GIC_SPI 236 IRQ_TYPE_EDGE_RISING>;
             clocks = <&cpg CPG_MOD 912>;
             i2c-scl-internal-delay-ns = <110>;
+	    i2c-scl-falling-time-ns = <200>;
+	    i2c-scl-rising-time-ns = <200>;
             status = "disabled";
         };
 
@@ -166,6 +168,8 @@
             interrupts = <GIC_SPI 233 IRQ_TYPE_EDGE_RISING>,<GIC_SPI 237 IRQ_TYPE_EDGE_RISING>;
             clocks = <&cpg CPG_MOD 1012>;
             i2c-scl-internal-delay-ns = <110>;
+            i2c-scl-falling-time-ns = <200>;
+            i2c-scl-rising-time-ns = <200>;
             status = "disabled";
         };
 
@@ -177,6 +181,8 @@
             interrupts = <GIC_SPI 234 IRQ_TYPE_EDGE_RISING>,<GIC_SPI 238 IRQ_TYPE_EDGE_RISING>;
             clocks = <&pclk>;
             i2c-scl-internal-delay-ns = <110>;
+	    i2c-scl-falling-time-ns = <200>;
+            i2c-scl-rising-time-ns = <200>;
             status = "disabled";
         };
 
@@ -188,6 +194,8 @@
             interrupts = <GIC_SPI 235 IRQ_TYPE_EDGE_RISING>,<GIC_SPI 239 IRQ_TYPE_EDGE_RISING>;
             clocks = <&pclk>;
             i2c-scl-internal-delay-ns = <110>;
+	    i2c-scl-falling-time-ns = <200>;
+            i2c-scl-rising-time-ns = <200>;
             status = "disabled";
         };
 
