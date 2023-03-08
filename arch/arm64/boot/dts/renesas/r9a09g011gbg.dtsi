@@ -99,10 +99,15 @@
         compatible = "fixed-clock";
         clock-frequency = <48000000>;
     };
-    csi_clk: wdt_clk: pclk48: clk@48M {
+    wdt_clk: pclk48: clk@48M {
         #clock-cells = <0>;
         compatible = "fixed-clock";
         clock-frequency = <48000000>;
+    };
+    csi_clk: clk24@24M {
+        #clock-cells = <0>;
+        compatible = "fixed-clock";
+        clock-frequency = <24000000>;
     };
     timclk: timclk@2M {
         #clock-cells = <0>;
@@ -129,6 +134,90 @@
         pfc: pin-controller@B6250000 {
             compatible = "renesas,pfc-r8a774c0";
             reg = <0 0xB6250000 0 0x2>;
+        };
+
+       csi0: csi@a4020000 {
+            compatible = "renesas,rzv2m-csi";
+            reg = <0x00 0xa4020000 0x0 0x80>;
+            interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
+            /* clocks = <&cpg CPG_MOD 1508>; */
+            clocks = <&csi_clk>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            status = "disabled";
+            interval_time = <0x2>;
+            tx_trigger_lvl = <0x4>;
+            rx_trigger_lvl = <0x4>;
+        };
+
+        csi1: csi@a4020080 {
+            compatible = "renesas,rzv2m-csi";
+            reg = <0x00 0xa4020080 0x0 0x80>;
+            interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
+            /* clocks = <&cpg CPG_MOD 1509>; */
+            clocks = <&csi_clk>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            status = "disabled";
+            interval_time = <0x2>;
+            tx_trigger_lvl = <0x4>;
+            rx_trigger_lvl = <0x4>;
+        };
+
+        csi2: csi@a4020100 {
+            compatible = "renesas,rzv2m-csi";
+            reg = <0x00 0xa4020100 0x0 0x80>;
+            interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
+            /* clocks = <&cpg CPG_MOD 1510>; */
+            clocks = <&csi_clk>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            status = "disabled";
+            interval_time = <0x2>;
+            tx_trigger_lvl = <0x4>;
+            rx_trigger_lvl = <0x4>;
+        };
+
+        csi3: csi@a4020180 {
+            compatible = "renesas,rzv2m-csi";
+            reg = <0x00 0xa4020180 0x0 0x80>;
+            interrupts = <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>;
+            /* clocks = <&cpg CPG_MOD 1511>; */
+            clocks = <&csi_clk>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            status = "disabled";
+            interval_time = <0x2>;
+            tx_trigger_lvl = <0x4>;
+            rx_trigger_lvl = <0x4>;
+        };
+
+        csi4: csi@a4020200 {
+            compatible = "renesas,rzv2m-csi";
+            reg = <0x00 0xa4020200 0x0 0x80>;
+            interrupts = <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>;
+            /* clocks = <&cpg CPG_MOD 1512>; */
+            clocks = <&csi_clk>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            status = "disabled";
+            interval_time = <0x2>;
+            tx_trigger_lvl = <0x4>;
+            rx_trigger_lvl = <0x4>;
+        };
+
+        csi5: csi@a4020280 {
+            compatible = "renesas,rzv2m-csi";
+            reg = <0x00 0xa4020280 0x0 0x80>;
+            interrupts = <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
+           /* clocks = <&cpg CPG_MOD 1513>; */
+            clocks = <&csi_clk>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            status = "disabled";
+            interval_time = <0x2>;
+            tx_trigger_lvl = <0x4>;
+            rx_trigger_lvl = <0x4>;
         };
 
         cpg: clock-controller@A3500000 {

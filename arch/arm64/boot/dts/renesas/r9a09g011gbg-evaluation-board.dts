@@ -130,6 +130,17 @@
     };
 };
 
+&csi4{
+    status = "okay";
+    slavedev {
+        compatible = "rzv2m,slavedev";
+        reg = <0>;
+        spi-max-frequency = <25000000>;
+        spi-cpha;
+        spi-cpol;
+    };
+};
+
 &i2c0 {
     clock-frequency = <100000>;
     status = "okay";
