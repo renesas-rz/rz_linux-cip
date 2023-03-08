@@ -608,6 +608,7 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 			"Finding endpoint context");
 
 	hw_dequeue = xhci_get_hw_deq(xhci, dev, ep_index, stream_id);
+	hw_dequeue |= BIT(32);  //34bit extension for rzv2m(add bank address with bit32 )
 	new_seg = ep_ring->deq_seg;
 	new_deq = ep_ring->dequeue;
 
@@ -954,6 +955,7 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 		 */
 		hw_deq = xhci_get_hw_deq(xhci, vdev, ep_index,
 					 cur_td->urb->stream_id);
+		hw_deq |= BIT(32);  //34bit extension for rzv2m(add bank address with bit32 )
 		hw_deq &= ~0xf;
 
 		if (trb_in_td(xhci, cur_td->start_seg, cur_td->first_trb,
@@ -1580,6 +1582,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	u32 cmd_type;
 
 	cmd_dma = le64_to_cpu(event->cmd_trb);
+	cmd_dma |= BIT(32);  //34bit extension for rzv2m(add bank address with bit32 )
 	cmd_trb = xhci->cmd_ring->dequeue;
 
 	trace_xhci_handle_command(xhci->cmd_ring, &cmd_trb->generic);
@@ -2435,6 +2438,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	ep_index = TRB_TO_EP_ID(le32_to_cpu(event->flags)) - 1;
 	trb_comp_code = GET_COMP_CODE(le32_to_cpu(event->transfer_len));
 	ep_trb_dma = le64_to_cpu(event->buffer);
+	ep_trb_dma |= BIT(32);  //34bit extension for rzv2m(add bank address with bit32 )
 
 	ep = xhci_get_virt_ep(xhci, slot_id, ep_index);
 	if (!ep) {

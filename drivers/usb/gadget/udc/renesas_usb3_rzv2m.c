@@ -2777,6 +2777,8 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 	if (!usb3)
 		return -ENOMEM;
 
+	dma_set_mask_and_coherent(&pdev->dev,DMA_BIT_MASK(34)); //34bit extension for rzv2m
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	usb3->reg = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(usb3->reg))
