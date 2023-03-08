@@ -839,6 +839,230 @@
 			snps,read-requests = <15>;
 			snps,burst-map = <0x7>;
 		};
+
+		cru0: cru0@16000000 {
+			compatible = "renesas,cru-r9a09g057";
+			reg = <0 0x16000000 0 0x400>;
+			clocks = <&cpg CPG_MOD R9A09G057_CRU0_VCLK>,
+				 <&cpg CPG_MOD R9A09G057_CRU0_PCLK>,
+				 <&cpg CPG_MOD R9A09G057_CRU0_ACLK>;
+			clock-names = "vclk", "pclk", "aclk";
+			interrupts = <GIC_SPI 838 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&cpg R9A09G057_CRU0_PRESETN>,
+				 <&cpg R9A09G057_CRU0_ARESETN>;
+			reset-names = "presetn", "aresetn";
+			power-domains = <&cpg>;
+			channel,id = <0>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+
+					cru0_to_csi20: endpoint {
+						remote-endpoint =
+							<&csi20_to_cru0>;
+					};
+				};
+			};
+		};
+
+		cru1: cru1@16010000 {
+			compatible = "renesas,cru-r9a09g057";
+			reg = <0 0x16010000 0 0x400>;
+			clocks = <&cpg CPG_MOD R9A09G057_CRU1_VCLK>,
+				 <&cpg CPG_MOD R9A09G057_CRU1_PCLK>,
+				 <&cpg CPG_MOD R9A09G057_CRU1_ACLK>;
+			clock-names = "vclk", "pclk", "aclk";
+			interrupts = <GIC_SPI 844 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&cpg R9A09G057_CRU1_PRESETN>,
+				 <&cpg R9A09G057_CRU1_ARESETN>;
+			reset-names = "presetn", "aresetn";
+			power-domains = <&cpg>;
+			channel,id = <1>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+
+					cru1_to_csi21: endpoint {
+						remote-endpoint =
+							<&csi21_to_cru1>;
+					};
+				};
+			};
+		};
+
+		cru2: cru2@16020000 {
+			compatible = "renesas,cru-r9a09g057";
+			reg = <0 0x16020000 0 0x400>;
+			clocks = <&cpg CPG_MOD R9A09G057_CRU2_VCLK>,
+				 <&cpg CPG_MOD R9A09G057_CRU2_PCLK>,
+				 <&cpg CPG_MOD R9A09G057_CRU2_ACLK>;
+			clock-names = "vclk", "pclk", "aclk";
+			interrupts = <GIC_SPI 850 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&cpg R9A09G057_CRU2_PRESETN>,
+				 <&cpg R9A09G057_CRU2_ARESETN>;
+			reset-names = "presetn", "aresetn";
+			power-domains = <&cpg>;
+			channel,id = <2>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+
+					cru2_to_csi22: endpoint {
+						remote-endpoint =
+							<&csi22_to_cru2>;
+					};
+				};
+			};
+		};
+
+		cru3: cru3@16030000 {
+			compatible = "renesas,cru-r9a09g057";
+			reg = <0 0x16030000 0 0x400>;
+			clocks = <&cpg CPG_MOD R9A09G057_CRU3_VCLK>,
+				 <&cpg CPG_MOD R9A09G057_CRU3_PCLK>,
+				 <&cpg CPG_MOD R9A09G057_CRU3_ACLK>;
+			clock-names = "vclk", "pclk", "aclk";
+			interrupts = <GIC_SPI 855 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&cpg R9A09G057_CRU3_PRESETN>,
+				 <&cpg R9A09G057_CRU3_ARESETN>;
+			reset-names = "presetn", "aresetn";
+			power-domains = <&cpg>;
+			channel,id = <3>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+
+					cru3_to_csi23: endpoint {
+						remote-endpoint =
+							<&csi23_to_cru3>;
+					};
+				};
+			};
+		};
+
+		csi20: csi20@16000400 {
+			compatible = "renesas,r9a09g057-csi2";
+			reg = <0 0x16000400 0 0xc00>;
+			interrupts = <GIC_SPI 837 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A09G057_CRU0_VCLK>,
+				 <&cpg CPG_MOD R9A09G057_CRU0_M_XI>;
+			clock-names = "vclk", "sysclk";
+			resets = <&cpg R9A09G057_CRU0_S_RESETN>;
+			reset-names = "cmn_rstb";
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+
+					csi20_to_cru0: endpoint {
+						remote-endpoint =
+							<&cru0_to_csi20>;
+					};
+				};
+			};
+		};
+
+		csi21: csi21@16010400 {
+			compatible = "renesas,r9a09g057-csi2";
+			reg = <0 0x16010400 0 0xc00>;
+			interrupts = <GIC_SPI 843 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A09G057_CRU1_VCLK>,
+				 <&cpg CPG_MOD R9A09G057_CRU1_M_XI>;
+			clock-names = "vclk", "sysclk";
+			resets = <&cpg R9A09G057_CRU1_S_RESETN>;
+			reset-names = "cmn_rstb";
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+
+					csi21_to_cru1: endpoint {
+						remote-endpoint =
+							<&cru1_to_csi21>;
+					};
+				};
+			};
+		};
+
+		csi22: csi22@16020400 {
+			compatible = "renesas,r9a09g057-csi2";
+			reg = <0 0x16020400 0 0xc00>;
+			interrupts = <GIC_SPI 849 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A09G057_CRU2_VCLK>,
+				 <&cpg CPG_MOD R9A09G057_CRU2_M_XI>;
+			clock-names = "vclk", "sysclk";
+			resets = <&cpg R9A09G057_CRU2_S_RESETN>;
+			reset-names = "cmn_rstb";
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+
+					csi22_to_cru2: endpoint {
+						remote-endpoint =
+							<&cru2_to_csi22>;
+					};
+				};
+			};
+		};
+
+		csi23: csi23@16030400 {
+			compatible = "renesas,r9a09g057-csi2";
+			reg = <0 0x16030400 0 0xc00>;
+			interrupts = <GIC_SPI 854 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A09G057_CRU3_VCLK>,
+				 <&cpg CPG_MOD R9A09G057_CRU3_M_XI>;
+			clock-names = "vclk", "sysclk";
+			resets = <&cpg R9A09G057_CRU3_S_RESETN>;
+			reset-names = "cmn_rstb";
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+
+					csi23_to_cru3: endpoint {
+						remote-endpoint =
+							<&cru3_to_csi23>;
+					};
+				};
+			};
+		};
 	};
 
 	timer {
