@@ -370,7 +370,7 @@ struct renesas_usb3 {
 	bool extcon_usb;		/* check vbus and set EXTCON_USB */
 	bool forced_b_device;
 	bool start_to_connect;
-	bool role_sw_by_connector;
+	bool usb_role_switch_property;
 };
 
 #define gadget_to_renesas_usb3(_gadget)	\
@@ -713,7 +713,7 @@ static void usb3_mode_config(struct renesas_usb3 *usb3, bool host, bool a_dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&usb3->lock, flags);
-	if (!usb3->role_sw_by_connector ||
+	if (!usb3->usb_role_switch_property ||
 	    usb3->connection_state != USB_ROLE_NONE) {
 		usb3_set_mode_by_role_sw(usb3, host);
 		usb3_vbus_out(usb3, a_dev);
@@ -739,7 +739,7 @@ static void usb3_check_id(struct renesas_usb3 *usb3)
         else{
                 usb3->connection_state = USB_ROLE_DEVICE;
         }
-	if ((!usb3->role_sw_by_connector && 	
+	if ((!usb3->usb_role_switch_property && 	
 	     usb3->extcon_host && !usb3->forced_b_device) ||
 	     usb3->connection_state == USB_ROLE_HOST)
 		usb3_mode_config(usb3, true, true);
@@ -2302,11 +2302,11 @@ static int renesas_usb3_start(struct usb_gadget *gadget,
 
 	usb3 = gadget_to_renesas_usb3(gadget);
 
-	/* hook up the driver */
-	usb3->driver = driver;
-
         if(usb3_is_a_device(usb3))
                 return -EBUSY;
+	
+	/* hook up the driver */
+	usb3->driver = driver;
 
 	if (usb3->phy)
 		phy_init(usb3->phy);
@@ -2389,8 +2389,6 @@ static void handle_ext_role_switch_states(struct device *dev,
 	switch (role) {
 	case USB_ROLE_NONE:
 		usb3->connection_state = USB_ROLE_NONE;
-		if (cur_role == USB_ROLE_HOST)
-			device_release_driver(host);
 		if (usb3->driver)
 			usb3_disconnect(usb3);
 		usb3_vbus_out(usb3, false);
@@ -2459,7 +2457,7 @@ static int renesas_usb3_role_switch_set(struct usb_role_switch *sw,
 
 	pm_runtime_get_sync(usb3_to_dev(usb3));
 
-	if (usb3->role_sw_by_connector)
+	if (usb3->usb_role_switch_property)
 		handle_ext_role_switch_states(usb3_to_dev(usb3), role);
 	else
 		handle_role_switch_states(usb3_to_dev(usb3), role);
@@ -2852,7 +2850,7 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 		goto err_dev_create;
 
 	if (device_property_read_bool(&pdev->dev, "renesas,usb-role-switch")) {
-	 	usb3->role_sw_by_connector = true;
+	 	usb3->usb_role_switch_property = true;
 		renesas_usb3_role_switch_desc.fwnode = dev_fwnode(&pdev->dev);
 	}
 
