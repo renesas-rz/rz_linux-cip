@@ -400,7 +400,7 @@
             compatible = "renesas,rzv2m-i2c";
             reg = <0 0xa4030080 0 0x80>;
             interrupts = <GIC_SPI 233 IRQ_TYPE_EDGE_RISING>,<GIC_SPI 237 IRQ_TYPE_EDGE_RISING>;
-            clocks = <&cpg CPG_MOD 1012>;
+            clocks = <&cpg CPG_MOD 912>;
             i2c-scl-internal-delay-ns = <110>;
             i2c-scl-falling-time-ns = <200>;
             i2c-scl-rising-time-ns = <200>;
@@ -413,7 +413,7 @@
             compatible = "renesas,rzv2m-i2c";
             reg = <0 0xa4030100 0 0x80>;
             interrupts = <GIC_SPI 234 IRQ_TYPE_EDGE_RISING>,<GIC_SPI 238 IRQ_TYPE_EDGE_RISING>;
-            clocks = <&pclk>;
+            clocks = <&cpg CPG_MOD 1012>;
             i2c-scl-internal-delay-ns = <110>;
 	    i2c-scl-falling-time-ns = <200>;
             i2c-scl-rising-time-ns = <200>;
@@ -426,7 +426,7 @@
             compatible = "renesas,rzv2m-i2c";
             reg = <0 0xa4030180 0 0x80>;
             interrupts = <GIC_SPI 235 IRQ_TYPE_EDGE_RISING>,<GIC_SPI 239 IRQ_TYPE_EDGE_RISING>;
-            clocks = <&pclk>;
+            clocks = <&cpg CPG_MOD 1012>;
             i2c-scl-internal-delay-ns = <110>;
 	    i2c-scl-falling-time-ns = <200>;
             i2c-scl-rising-time-ns = <200>;
