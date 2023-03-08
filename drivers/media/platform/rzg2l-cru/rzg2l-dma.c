@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2021 Renesas Electronics Corp.
  *
- * Based on the rcar_cru driver
+ * Based on the rcar_vin driver
  */
 
 #include <linux/delay.h>
@@ -16,13 +16,11 @@
 
 #include "rzg2l-cru.h"
 
-/* HW CRU Registers Definition */
 /* CRU Control Register */
-#define CRUnCTRL			0x0
 #define CRUnCTRL_VINSEL(x)		((x) << 0)
+#define CRUnCTRL_ATH			BIT(1)
 
 /* CRU Interrupt Enable Register */
-#define CRUnIE				0x4
 #define CRUnIE_FOE			BIT(0)
 #define CRUnIE_SLVEE			BIT(1)
 #define CRUnIE_DECEE			BIT(2)
@@ -33,8 +31,13 @@
 #define CRUnIE_WIE			BIT(19)
 #define CRUnIE_CEE			BIT(20)
 
+/* CRU Interrupt Enable 2 Register */
+#define CRUnIE2_FSE(x)			BIT((x) * 3)
+#define CRUnIE2_FEE(x)			BIT((x) * 3 + 1)
+#define CRUnIE2_SIE(x)			BIT((x) * 3 + 2)
+#define CRUnIE2_VDADRxWE(x)		GENMASK(16 + (x), 17)
+
 /* CRU Interrupt Status Register */
-#define CRUnINTS			0x8
 #define CRUnINTS_FOS			BIT(0)
 #define CRUnINTS_SLVES			BIT(1)
 #define CRUnINTS_DECES			BIT(2)
@@ -45,55 +48,56 @@
 #define CRUnINTS_WIS			BIT(19)
 #define CRUnINTS_CES			BIT(20)
 
+/* CRU Interrupt Status 2 Register */
+#define CRUnINTS2_VDADRxWS_MASK		GENMASK(20, 17)
+#define CRUnINTS2_FSS(x)		BIT((x) * 3)
+#define CRUnINTS2_FES(x)		BIT((x) * 3 + 1)
+#define CRUnINTS2_SIS(x)		BIT((x) * 3 + 2)
+
 /* CRU Reset Register */
-#define CRUnRST				0xC
 #define CRUnRST_VRESETN			BIT(0)
 
 /* CRU General Read/Write Register */
-#define CRUnCOM				0x80
 #define CRUnCOM_COMMON(x)		((x) << 0)
 
-/* Memory Bank Base Address (Lower) Register for CRU Image Data */
-#define AMnMBxADDRL(x)			(0x100 + ((x) * 8))
-
-/* Memory Bank Base Address (Higher) Register for CRU Image Data */
-#define AMnMBxADDRH(x)			(0x104 + ((x) * 8))
-
-/* UV Data Address Offset (Lower/Higher) Register for CRU Image Data */
-#define AMnUVAOFL			0x140
-#define AMnUVAOFH			0x144
-
 /* Memory Bank Enable Register for CRU Image Data */
-#define AMnMBVALID			0x148
 #define AMnMBVALID_MBVALID(x)		GENMASK(x, 0)
 
 /* Memory Bank Status Register for CRU Image Data */
-#define AMnMBS				0x14C
 #define AMnMBS_MBSTS			0x7
 
-/* AXI Master FIFO Setting Register for CRU Image Data */
-#define AMnFIFO				0x160
-
 /* AXI Master FIFO Pointer Register for CRU Image Data */
-#define AMnFIFOPNTR			0x168
 #define AMnFIFOPNTR_FIFOWPNTR		GENMASK(7, 0)
 #define AMnFIFOPNTR_FIFORPNTR_Y		GENMASK(23, 16)
 #define AMnFIFOPNTR_FIFORPNTR_UV	GENMASK(31, 24)
+#define AMnFIFOPNTR_FIFOWPNTR_B0	GENMASK(7, 0)
+#define AMnFIFOPNTR_FIFOWPNTR_B1	GENMASK(15, 8)
+#define AMnFIFOPNTR_FIFORPNTR_B0	GENMASK(23, 16)
+#define AMnFIFOPNTR_FIFORPNTR_B1	GENMASK(31, 24)
 
 /* AXI Master Transfer Stop Register for CRU Image Data */
-#define AMnAXISTP			0x174
 #define AMnAXISTP_AXI_STOP		BIT(0)
 
 /* AXI Master Transfer Stop Status Register for CRU Image Data */
-#define AMnAXISTPACK			0x178
 #define AMnAXISTPACK_AXI_STOP_ACK	BIT(0)
 
+/* Image Stride Setting Register */
+#define AMnIS_IS(x)			((x) << 7)
+
 /* CRU Image Processing Enable Register */
-#define ICnEN				0x200
 #define ICnEN_ICEN			BIT(0)
 
+/* CRU SVC Number Register */
+#define ICnSVCNUM_SVCNUM(x)		((x) - 1)
+
+/* CRU VC Select Register */
+#define ICnSVC_SVC0(x)			(x)
+#define ICnSVC_SVC1(x)			((x) << 4)
+#define ICnSVC_SVC2(x)			((x) << 8)
+#define ICnSVC_SVC3(x)			((x) << 12)
+#define ICnSVC_SVC_MASK			0xF
+
 /* CRU Image Processing Main Control Register */
-#define ICnMC				0x208
 #define ICnMC_ICTHR			BIT(0)
 #define ICnMC_DECTHR			BIT(1)
 #define ICnMC_CLPTHR			BIT(2)
@@ -120,20 +124,7 @@
 #define ICnMC_VCSEL(x)			((x) << 22)
 #define ICnMC_INF_MASK			GENMASK(21, 16)
 
-/* CRU Image Clipping Start Line Register */
-#define ICnSLPrC			0x210
-
-/* CRU Image Clipping End Line Register */
-#define ICnELPrC			0x214
-
-/* CRU Image Clipping Start Pixel Register */
-#define ICnSPPrC			0x218
-
-/* CRU Image Clipping End Pixel Register */
-#define ICnEPPrC			0x21C
-
 /* CRU Parallel I/F Control Register */
-#define ICnPIFC				0x250
 #define ICnPIFC_PINF_UYVY8_BT656	0x0
 #define ICnPIFC_PINF_UYVY10_BT656	0x1
 #define ICnPIFC_PINF_YUYV16		0x2
@@ -158,13 +149,11 @@
 #define ICnPIFC_ENPOL_LOW		BIT(14)
 
 /* CRU Module Status Register */
-#define ICnMS				0x254
-#define ICnMS_CA			BIT(0)
-#define ICnMS_AV			BIT(1)
-#define ICnMS_IA			BIT(2)
+#define ICnMS_CA(x)			BIT((x) * 4)
+#define ICnMS_AV(x)			BIT((x) * 4 + 1)
+#define ICnMS_IA(x)			BIT((x) * 4 + 2)
 
 /* CRU Data Output Mode Register */
-#define ICnDMR				0x26C
 #define ICnDMR_RGBMODE_RGB24		(0 << 0)
 #define ICnDMR_RGBMODE_XRGB32		(1 << 0)
 #define ICnDMR_RGBMODE_ABGR32		(2 << 0)
@@ -175,7 +164,6 @@
 #define ICnDMR_YCMODE_GREY		(3 << 4)
 
 /* CRU Test Image Generation Control 1 Register */
-#define ICnTICTRL1			0x2C0
 #define ICnTICTRL1_TIEN			BIT(0)
 #define ICnTICTRL1_TIMODE		BIT(1)
 #define ICnTICTRL1_TIPTNY1(x)		((x) << 4)
@@ -183,17 +171,14 @@
 #define ICnTICTRL1_TIPTNV1(x)		((x) << 12)
 
 /* CRU Test Image Generation Control 2 Register */
-#define ICnTICTRL2			0x2C4
 #define ICnTICTRL2_TIPTNY2(x)		((x) << 0)
 #define ICnTICTRL2_TIPTNU2(x)		((x) << 8)
 #define ICnTICTRL2_TIPTNV2(x)		((x) << 16)
 
 /* CRU Test Image Size Setting 1 Register */
-#define ICnTISIZE1			0x2C8
 #define ICnTISIZE1_TIPPL(x)		((x) << 0)
 
 /* CRU Test Image Size Setting 2 Register */
-#define ICnTISIZE2			0x2CC
 #define ICnTISIZE2_TIN(x)		((x) << 0)
 #define ICnTISIZE2_TIM(x)		((x) << 16)
 
@@ -207,11 +192,15 @@ struct rzg2l_cru_buffer {
 	struct list_head list;
 };
 
-static int sensor_stop_try;
-static int prev_slot;
-static int frame_skip;
-static u32 amnmbxaddrl[HW_BUFFER_MAX];
-static u32 amnmbxaddrh[HW_BUFFER_MAX];
+static int sensor_stop_try[CRU_CHANNEL_MAX];
+static int prev_slot[CRU_CHANNEL_MAX];
+static int frame_skip[CRU_CHANNEL_MAX];
+static u32 amnmbxaddrl[CRU_CHANNEL_MAX][HW_BUFFER_MAX];
+static u32 amnmbxaddrh[CRU_CHANNEL_MAX][HW_BUFFER_MAX];
+static u32 amnivtaddrl[CRU_CHANNEL_MAX][HW_IVT_MAX];
+static u32 amnivtaddrh[CRU_CHANNEL_MAX][HW_IVT_MAX];
+static bool write_complete[CRU_CHANNEL_MAX];
+static u32 buf_slot[CRU_CHANNEL_MAX];
 
 #define to_buf_list(vb2_buffer) (&container_of(vb2_buffer, \
 						struct rzg2l_cru_buffer, \
@@ -219,12 +208,48 @@ static u32 amnmbxaddrh[HW_BUFFER_MAX];
 
 static void rzg2l_cru_write(struct rzg2l_cru_dev *cru, u32 offset, u32 value)
 {
-	iowrite32(value, cru->base + offset);
+	iowrite32(value, cru->base + cru->info->regs[offset].offset);
 }
 
 static u32 rzg2l_cru_read(struct rzg2l_cru_dev *cru, u32 offset)
 {
-	return ioread32(cru->base + offset);
+	return ioread32(cru->base + cru->info->regs[offset].offset);
+}
+
+static void rzg2l_cru_set_mb(struct rzg2l_cru_dev *cru,
+			     u32 bank, u32 low, u32 high)
+{
+	iowrite32(low,
+		  cru->base + cru->info->regs[AMnMB1ADDRL].offset + bank * 8);
+	iowrite32(high,
+		  cru->base + cru->info->regs[AMnMB1ADDRH].offset + bank * 8);
+}
+
+static void rzg2l_cru_get_mb(struct rzg2l_cru_dev *cru,
+			     u32 bank, u32 *low, u32 *high)
+{
+	*low = ioread32(cru->base +
+			cru->info->regs[AMnMB1ADDRL].offset + bank * 8);
+	*high = ioread32(cru->base +
+			 cru->info->regs[AMnMB1ADDRH].offset + bank * 8);
+}
+
+static void rzg2l_cru_set_ivt(struct rzg2l_cru_dev *cru,
+			      u32 bank, u32 low, u32 high)
+{
+	iowrite32(low,
+		  cru->base + cru->info->regs[AMnIVT0ADDRL].offset + bank * 8);
+	iowrite32(high,
+		  cru->base + cru->info->regs[AMnIVT0ADDRH].offset + bank * 8);
+}
+
+static void rzg2l_cru_get_ivt(struct rzg2l_cru_dev *cru,
+			      u32 bank, u32 *low, u32 *high)
+{
+	*low = ioread32(cru->base +
+			cru->info->regs[AMnIVT0ADDRL].offset + bank * 8);
+	*high = ioread32(cru->base +
+			cru->info->regs[AMnIVT0ADDRH].offset + bank * 8);
 }
 
 /* Need to hold qlock before calling */
@@ -409,8 +434,7 @@ static void rzg2l_cru_set_slot_addr(struct rzg2l_cru_dev *cru,
 		return;
 
 	/* Currently, we just use the buffer in 32 bits address */
-	rzg2l_cru_write(cru, AMnMBxADDRL(slot), offset);
-	rzg2l_cru_write(cru, AMnMBxADDRH(slot), 0);
+	rzg2l_cru_set_mb(cru, slot, offset, 0);
 }
 
 /*
@@ -449,7 +473,7 @@ static void rzg2l_cru_fill_hw_slot(struct rzg2l_cru_dev *cru, int slot)
 	rzg2l_cru_set_slot_addr(cru, slot, phys_addr);
 }
 
-static void rzg2l_cru_initialize_axi(struct rzg2l_cru_dev *cru)
+static int rzg2l_cru_initialize_axi(struct rzg2l_cru_dev *cru)
 {
 	int slot;
 
@@ -460,20 +484,40 @@ static void rzg2l_cru_initialize_axi(struct rzg2l_cru_dev *cru)
 
 	if (cru->retry_thread) {
 		for (slot = 0; slot < cru->num_buf; slot++) {
-			rzg2l_cru_write(cru, AMnMBxADDRL(slot),
-					amnmbxaddrl[slot]);
-			rzg2l_cru_write(cru, AMnMBxADDRH(slot),
-					amnmbxaddrh[slot]);
+			rzg2l_cru_set_mb(cru, slot, amnmbxaddrl[cru->id][slot],
+					 amnmbxaddrh[cru->id][slot]);
 		}
+		rzg2l_cru_set_ivt(cru, 1, amnivtaddrl[cru->id][0],
+				  amnivtaddrh[cru->id][0]);
 	} else {
 		for (slot = 0; slot < cru->num_buf; slot++)
 			rzg2l_cru_fill_hw_slot(cru, slot);
 	}
+
+	if (cru->info->type == RZ_CRU_V2H) {
+		u32 stride;
+
+		stride = cru->format.bytesperline;
+		if ((stride % 128) == 0) {
+			stride = stride / 128;
+			rzg2l_cru_write(cru, AMnIS, AMnIS_IS(stride));
+		} else {
+			cru_err(cru,
+				"Bytesperline must be multiple of 128 bytes\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
 }
 
 static void rzg2l_cru_csi2_setup(struct rzg2l_cru_dev *cru)
 {
-	u32 icnmc;
+	u32 icnmc, icnmc_regs;
+
+	/* Currently enable only 1 SVC0 channel */
+	if (cru->info->type == RZ_CRU_V2H)
+		rzg2l_cru_write(cru, ICnSVCNUM, ICnSVCNUM_SVCNUM(1));
 
 	/*
 	 * Input interface
@@ -544,12 +588,19 @@ static void rzg2l_cru_csi2_setup(struct rzg2l_cru_dev *cru)
 		break;
 	}
 
-	icnmc |= (rzg2l_cru_read(cru, ICnMC) & ~ICnMC_INF_MASK);
+	icnmc_regs = (cru->info->type == RZ_CRU_G2L) ? ICnMC : ICnIPMC_C0;
+
+	icnmc |= (rzg2l_cru_read(cru, icnmc_regs) & ~ICnMC_INF_MASK);
 
 	/* Set virtual channel CSI2 */
-	icnmc |= ICnMC_VCSEL(cru->group->csi.channel);
+	if (cru->info->type == RZ_CRU_G2L)
+		icnmc |= ICnMC_VCSEL(cru->group->csi.channel);
+	else
+		rzg2l_cru_write(cru, ICnSVC, ICnSVC_SVC0(0) | ICnSVC_SVC1(1) |
+				ICnSVC_SVC2(2) | ICnSVC_SVC3(3));
 
-	rzg2l_cru_write(cru, ICnMC, icnmc);
+	rzg2l_cru_write(cru, icnmc_regs, icnmc);
+
 }
 
 static void rzg2l_cru_parallel_setup(struct rzg2l_cru_dev *cru)
@@ -647,7 +698,7 @@ static void rzg2l_cru_parallel_setup(struct rzg2l_cru_dev *cru)
 
 static int rzg2l_cru_initialize_image_conv(struct rzg2l_cru_dev *cru)
 {
-	u32 icndmr;
+	u32 icndmr, icnmc_regs;
 
 	/* Currently we do not support:
 	 * - Frame subsampling
@@ -748,17 +799,18 @@ static int rzg2l_cru_initialize_image_conv(struct rzg2l_cru_dev *cru)
 		return -EINVAL;
 	}
 
+	icnmc_regs = (cru->info->type == RZ_CRU_G2L) ? ICnMC : ICnIPMC_C0;
 	/*
 	 * CRU can perform colorspace conversion: YUV <=> RGB.
 	 * If other formats, do bypass mode.
 	 */
 	if (cru->output_fmt == cru->input_fmt)
-		rzg2l_cru_write(cru, ICnMC,
-				rzg2l_cru_read(cru, ICnMC) | ICnMC_CSCTHR);
+		rzg2l_cru_write(cru, icnmc_regs,
+				rzg2l_cru_read(cru, icnmc_regs) | ICnMC_CSCTHR);
 	else if (((cru->output_fmt == YUV) && (cru->input_fmt == RGB)) ||
 		 ((cru->output_fmt == RGB) && (cru->input_fmt == YUV)))
-		rzg2l_cru_write(cru, ICnMC,
-				rzg2l_cru_read(cru, ICnMC) & (~ICnMC_CSCTHR));
+		rzg2l_cru_write(cru, icnmc_regs,
+				rzg2l_cru_read(cru, icnmc_regs) & (~ICnMC_CSCTHR));
 	else {
 		cru_err(cru, "Not support color space conversion for (0x%x)\n",
 			cru->format.pixelformat);
@@ -783,6 +835,7 @@ static int rzg2l_cru_start(struct rzg2l_cru_dev *cru, struct v4l2_subdev *sd)
 			return ret;
 
 		rzg2l_cru_write(cru, CRUnCTRL, CRUnCTRL_VINSEL(0));
+
 	} else
 		rzg2l_cru_write(cru, CRUnCTRL, CRUnCTRL_VINSEL(1));
 
@@ -790,20 +843,33 @@ static int rzg2l_cru_start(struct rzg2l_cru_dev *cru, struct v4l2_subdev *sd)
 	rzg2l_cru_write(cru, CRUnRST, CRUnRST_VRESETN);
 
 	/* Disable and clear the interrupt before using */
-	rzg2l_cru_write(cru, CRUnIE, 0);
-	rzg2l_cru_write(cru, CRUnINTS, 0);
+	if (cru->info->type == RZ_CRU_G2L) {
+		rzg2l_cru_write(cru, CRUnIE, 0);
+		rzg2l_cru_write(cru, CRUnINTS, 0x1F000F);
+	} else {
+		rzg2l_cru_write(cru, CRUnIE1, 0);
+		rzg2l_cru_write(cru, CRUnIE2, 0);
+		rzg2l_cru_write(cru, CRUnINTS1, 0x80000F0F);
+		rzg2l_cru_write(cru, CRUnINTS2, 0x031F0FFF);
+	}
 
 	/* Initialize the AXI master */
-	rzg2l_cru_initialize_axi(cru);
+	ret = rzg2l_cru_initialize_axi(cru);
+	if (ret)
+		return ret;
 
 	/* Initialize image convert */
 	ret = rzg2l_cru_initialize_image_conv(cru);
-	if (ret) {
+	if (ret)
 		return ret;
-	}
 
 	/* Enable interrupt */
-	rzg2l_cru_write(cru, CRUnIE, CRUnIE_EFE);
+	if (cru->info->type == RZ_CRU_G2L)
+		rzg2l_cru_write(cru, CRUnIE, CRUnIE_EFE);
+	else
+		/* Frame End IRQ + AXI-VD Bus Write Completion IRQ 1 */
+		rzg2l_cru_write(cru, CRUnIE2, CRUnIE2_FEE(0) |
+				CRUnIE2_VDADRxWE(1));
 
 	/* Enable AXI master & image_conv reception */
 	rzg2l_cru_write(cru, ICnEN, ICnEN_ICEN);
@@ -844,9 +910,16 @@ static int rzg2l_cru_set_stream(struct rzg2l_cru_dev *cru, int on)
 	ret = rzg2l_cru_start(cru, sd);
 
 	for (i = 0; i < cru->num_buf; i++) {
-		amnmbxaddrl[i] = rzg2l_cru_read(cru, AMnMBxADDRL(i));
-		amnmbxaddrh[i] = rzg2l_cru_read(cru, AMnMBxADDRH(i));
+		rzg2l_cru_get_mb(cru, i, &amnmbxaddrl[cru->id][i],
+				 &amnmbxaddrh[cru->id][i]);
 	}
+
+	/* Use only AMnIVT1ADDRL/H 1 to detect to which data is written. */
+	rzg2l_cru_set_ivt(cru, 1,
+			  amnmbxaddrl[cru->id][0] + cru->format.sizeimage - 1,
+			  amnmbxaddrh[cru->id][0]);
+	rzg2l_cru_get_ivt(cru, 1, &amnivtaddrl[cru->id][0],
+			  &amnivtaddrh[cru->id][0]);
 
 	spin_unlock_irqrestore(&cru->qlock, flags);
 
@@ -864,9 +937,9 @@ static int rzg2l_cru_set_stream(struct rzg2l_cru_dev *cru, int on)
 static void rzg2l_cru_stop(struct rzg2l_cru_dev *cru)
 {
 	int retries = 0;
-	u32 icnms;
 	u32 amnfifopntr, amnfifopntr_w, amnfifopntr_r_y, amnfifopntr_r_uv;
 	unsigned long flags;
+	u32 icnms;
 
 	spin_lock_irqsave(&cru->qlock, flags);
 	if (!(cru->is_csi)) {
@@ -881,17 +954,31 @@ static void rzg2l_cru_stop(struct rzg2l_cru_dev *cru)
 		}
 	}
 
-	/* Disable and clear the interrupt */
-	rzg2l_cru_write(cru, CRUnIE, 0);
-	rzg2l_cru_write(cru, CRUnINTS, 0);
+	/* Disable and clear the interrupt before using */
+	if (cru->info->type == RZ_CRU_G2L) {
+		rzg2l_cru_write(cru, CRUnIE, 0);
+		rzg2l_cru_write(cru, CRUnINTS, 0x1F000F);
+	} else {
+		rzg2l_cru_write(cru, CRUnIE1, 0);
+		rzg2l_cru_write(cru, CRUnIE2, 0);
+		rzg2l_cru_write(cru, CRUnINTS1, 0x80000F0F);
+		rzg2l_cru_write(cru, CRUnINTS2, 0x031F0FFF);
+	}
 
-	icnms = rzg2l_cru_read(cru, ICnMS) & ICnMS_IA;
+	/* Wait until frame processing being stopped */
+	for (retries = 10; retries > 0; retries--) {
+		icnms = rzg2l_cru_read(cru, ICnMS) & ICnMS_IA(0);
+		if (!icnms)
+			break;
+
+		udelay(500);
+	};
 
 	/* TODO
 	 * It is bad if can not stop reception from Sensor.
 	 * Should reset system here.
 	 */
-	if (icnms || (sensor_stop_try > 3))
+	if (icnms || sensor_stop_try[cru->id] > 5)
 		cru_err(cru, "Failed stop HW, something is seriously broken\n");
 
 	cru->state = STOPPED;
@@ -904,18 +991,27 @@ static void rzg2l_cru_stop(struct rzg2l_cru_dev *cru)
 	for (retries = 5; retries > 0; retries--) {
 		amnfifopntr = rzg2l_cru_read(cru, AMnFIFOPNTR);
 
-		if (cru->format.pixelformat == V4L2_PIX_FMT_NV16) {
-			amnfifopntr_w =
-				(amnfifopntr & AMnFIFOPNTR_FIFOWPNTR) >> 1;
-			amnfifopntr_r_uv =
-				(amnfifopntr & AMnFIFOPNTR_FIFORPNTR_UV) >> 25;
-			if (amnfifopntr_w == amnfifopntr_r_uv)
-				break;
+		if (cru->info->type == RZ_CRU_G2L) {
+			if (cru->format.pixelformat == V4L2_PIX_FMT_NV16) {
+				amnfifopntr_w = (amnfifopntr &
+						 AMnFIFOPNTR_FIFOWPNTR) >> 1;
+				amnfifopntr_r_uv = (amnfifopntr &
+						AMnFIFOPNTR_FIFORPNTR_UV) >> 25;
+				if (amnfifopntr_w == amnfifopntr_r_uv)
+					break;
+			} else {
+				amnfifopntr_w = amnfifopntr &
+						AMnFIFOPNTR_FIFOWPNTR;
+				amnfifopntr_r_y = (amnfifopntr &
+						AMnFIFOPNTR_FIFORPNTR_Y) >> 16;
+				if (amnfifopntr_w == amnfifopntr_r_y)
+					break;
+			}
 		} else {
-			amnfifopntr_w = amnfifopntr & AMnFIFOPNTR_FIFOWPNTR;
-			amnfifopntr_r_y =
-				(amnfifopntr & AMnFIFOPNTR_FIFORPNTR_Y) >> 16;
-			if (amnfifopntr_w == amnfifopntr_r_y)
+			if ((((amnfifopntr & AMnFIFOPNTR_FIFORPNTR_B1) >> 24) ==
+			    ((amnfifopntr & AMnFIFOPNTR_FIFOWPNTR_B1) >> 8)) &&
+			    (((amnfifopntr & AMnFIFOPNTR_FIFORPNTR_B0) >> 16) ==
+			    (amnfifopntr & AMnFIFOPNTR_FIFOWPNTR_B0)))
 				break;
 		}
 
@@ -995,7 +1091,7 @@ static int retry_streaming_func(void *data)
 	sd = media_entity_to_v4l2_subdev(pad->entity);
 
 	while (retry < 5) {
-		for (i = 0; i < 5; i++) {
+		for (i = 0; i < 10; i++) {
 			if (cru->state == RUNNING)
 				goto retry_done;
 
@@ -1054,8 +1150,8 @@ static int rzg2l_cru_start_streaming(struct vb2_queue *vq, unsigned int count)
 	reset_control_deassert(cru->rstc.presetn);
 	reset_control_deassert(cru->rstc.aresetn);
 
-	sensor_stop_try = 0;
-	frame_skip = 0;
+	sensor_stop_try[cru->id] = 0;
+	frame_skip[cru->id] = 0;
 
 	/* Allocate scratch buffer. */
 	cru->scratch = dma_alloc_coherent(cru->dev, cru->format.sizeimage,
@@ -1080,8 +1176,10 @@ static int rzg2l_cru_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	cru->state = STARTING;
 
+
 	/* Initialize value of previous memory bank slot before streaming */
-	prev_slot = -1;
+	prev_slot[cru->id] = -1;
+	write_complete[cru->id] = 0;
 
 	/*
 	 * Workaround to start a thread to restart CRU processing flow
@@ -1143,7 +1241,7 @@ void rzg2l_cru_suspend_stop_streaming(struct rzg2l_cru_dev *cru)
 
 	/* Disable and clear the interrupt */
 	rzg2l_cru_write(cru, CRUnIE, 0);
-	rzg2l_cru_write(cru, CRUnINTS, 0);
+	rzg2l_cru_write(cru, CRUnINTS, 0x1F000F);
 
 	/* Stop the operation of image conversion */
 	rzg2l_cru_write(cru, ICnEN, 0);
@@ -1183,6 +1281,94 @@ static const struct vb2_ops rzg2l_cru_qops = {
 	.wait_finish		= vb2_ops_wait_finish,
 };
 
+static irqreturn_t rzv2h_cru_irq(int irq, void *data)
+{
+	struct rzg2l_cru_dev *cru = data;
+	unsigned long flags;
+	u32 irq_status;
+	unsigned int handled = 0;
+
+	spin_lock_irqsave(&cru->qlock, flags);
+
+	irq_status = rzg2l_cru_read(cru, CRUnINTS2);
+	if (!(irq_status))
+		goto done;
+
+	handled = 1;
+
+	rzg2l_cru_write(cru, CRUnINTS2, irq_status);
+
+	/* Nothing to do if capture status is 'STOPPED' */
+	if (cru->state == STOPPED) {
+		cru_dbg(cru, "IRQ while state stopped\n");
+		goto done;
+	}
+
+	/* Prepare for capture and update state */
+	if (!write_complete[cru->id]) {
+		if (irq_status & CRUnINTS2_VDADRxWS_MASK) {
+			buf_slot[cru->id] =
+				(irq_status & CRUnINTS2_VDADRxWS_MASK) >> 17;
+			buf_slot[cru->id] = ffs(buf_slot[cru->id] - 1);
+			write_complete[cru->id] = 1;
+			/* Disable Bus Write Completion Interrupt */
+			rzg2l_cru_write(cru, CRUnIE2,
+					rzg2l_cru_read(cru, CRUnIE2) &
+					(~CRUnIE2_VDADRxWE(4)));
+		} else {
+			goto done;
+		}
+	}
+
+	/*
+	 * To hand buffers back in a known order to userspace start
+	 * to capture first from slot 0.
+	 */
+	if (cru->state == STARTING) {
+		if (cru->is_frame_skip) {
+			if (frame_skip[cru->id] < CRU_FRAME_SKIP) {
+				cru_dbg(cru, "Skipping %d frame\n",
+					frame_skip[cru->id]);
+				frame_skip[cru->id]++;
+				goto update_slot;
+			}
+		}
+
+		cru_dbg(cru, "Capture start synced!\n");
+		cru->state = RUNNING;
+	}
+
+	/* Capture frame */
+	if (cru->queue_buf[buf_slot[cru->id]]) {
+		cru->queue_buf[buf_slot[cru->id]]->field = cru->format.field;
+		cru->queue_buf[buf_slot[cru->id]]->sequence = cru->sequence;
+		cru->queue_buf[buf_slot[cru->id]]->vb2_buf.timestamp =
+								ktime_get_ns();
+		vb2_buffer_done(&cru->queue_buf[buf_slot[cru->id]]->vb2_buf,
+				VB2_BUF_STATE_DONE);
+		cru->queue_buf[buf_slot[cru->id]] = NULL;
+	} else {
+		/* Scratch buffer was used, dropping frame. */
+		cru_dbg(cru, "Dropping frame %u\n", cru->sequence);
+	}
+
+	cru->sequence++;
+
+	/* Prepare for next frame */
+	rzg2l_cru_fill_hw_slot(cru, buf_slot[cru->id]);
+
+update_slot:
+	if (buf_slot[cru->id] == (cru->num_buf - 1))
+		buf_slot[cru->id] = 0;
+	else
+		buf_slot[cru->id]++;
+
+done:
+	spin_unlock_irqrestore(&cru->qlock, flags);
+
+	return IRQ_RETVAL(handled);
+}
+
 static irqreturn_t rzg2l_cru_irq(int irq, void *data)
 {
 	struct rzg2l_cru_dev *cru = data;
@@ -1212,7 +1398,7 @@ static irqreturn_t rzg2l_cru_irq(int irq, void *data)
 	if (cru->state == STOPPING) {
 		cru_dbg(cru, "IRQ while state stopping\n");
 		if (irq_status & CRUnINTS_SFS)
-			sensor_stop_try++;
+			sensor_stop_try[cru->id]++;
 
 		goto done;
 	}
@@ -1236,9 +1422,10 @@ static irqreturn_t rzg2l_cru_irq(int irq, void *data)
 	 */
 	if (cru->state == STARTING) {
 		if (cru->is_frame_skip) {
-			if (frame_skip < CRU_FRAME_SKIP) {
-				cru_dbg(cru, "Skipping %d frame\n", frame_skip);
-				frame_skip++;
+			if (frame_skip[cru->id] < CRU_FRAME_SKIP) {
+				cru_dbg(cru, "Skipping %d frame\n",
+					frame_skip[cru->id]);
+				frame_skip[cru->id]++;
 				goto done;
 			}
 		} else {
@@ -1252,9 +1439,9 @@ static irqreturn_t rzg2l_cru_irq(int irq, void *data)
 		cru->state = RUNNING;
 	}
 
-	if (slot != prev_slot) {
+	if (slot != prev_slot[cru->id]) {
 		/* Update value of previous memory bank slot */
-		prev_slot = slot;
+		prev_slot[cru->id] = slot;
 	} else {
 		/*
 		 * AXI-Bus congestion maybe occurred.
@@ -1339,8 +1526,9 @@ int rzg2l_cru_dma_register(struct rzg2l_cru_dev *cru, int irq)
 	}
 
 	/* IRQ */
-	ret = devm_request_irq(cru->dev, irq, rzg2l_cru_irq, IRQF_SHARED,
-			       KBUILD_MODNAME, cru);
+	ret = devm_request_irq(cru->dev, irq, (cru->info->type == RZ_CRU_G2L) ?
+			       rzg2l_cru_irq : rzv2h_cru_irq,
+			       IRQF_SHARED, KBUILD_MODNAME, cru);
 	if (ret) {
 		cru_err(cru, "failed to request irq\n");
 		goto error;

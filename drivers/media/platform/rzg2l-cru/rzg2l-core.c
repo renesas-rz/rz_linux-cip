@@ -421,6 +421,24 @@ static int rzg2l_cru_mc_init(struct rzg2l_cru_dev *cru)
 	if (ret)
 		return ret;
 
+	/* Make sure VIN id is present and sane */
+	ret = of_property_read_u32(cru->dev->of_node, "channel,id", &cru->id);
+	if (ret) {
+		if (cru->info->type == RZ_CRU_V2H) {
+			cru_err(cru, "%pOF: No channel,id property found\n",
+				cru->dev->of_node);
+			return -EINVAL;
+		}
+
+		cru->id = 0;
+	}
+
+	if (cru->id >= CRU_CHANNEL_MAX) {
+		cru_err(cru, "%pOF: Invalid channel,id '%u'\n",
+			cru->dev->of_node, cru->id);
+		return -EINVAL;
+	}
+
 	group = kzalloc(sizeof(*group), GFP_KERNEL);
 	if (!group)
 		return -ENOMEM;
@@ -592,6 +610,15 @@ error_dma_unregister:
 static const struct rzg2l_cru_info rzg2l_cru_info_generic = {
 	.max_width = 2800,
 	.max_height = 4096,
+	.regs = rzg2l_cru_regs_offset,
+	.type = RZ_CRU_G2L,
+};
+
+static const struct rzg2l_cru_info rzv2h_cru_info_generic = {
+	.max_width = 4096,
+	.max_height = 4096,
+	.regs = rzv2h_cru_regs_offset,
+	.type = RZ_CRU_V2H,
 };
 
 static const struct of_device_id rzg2l_cru_of_id_table[] = {
@@ -602,6 +629,10 @@ static const struct of_device_id rzg2l_cru_of_id_table[] = {
 	{
 		.compatible = "renesas,cru-r9a07g043",
 		.data = &rzg2l_cru_info_generic,
+	},
+	{
+		.compatible = "renesas,cru-r9a09g057",
+		.data = &rzv2h_cru_info_generic,
 	},
 	{ /* Sentinel */ },
 };
