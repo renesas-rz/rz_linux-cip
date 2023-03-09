@@ -37,6 +37,21 @@ struct tegra_eqos {
 	struct gpio_desc *reset;
 };
 
+struct renesas_rzv2h_eqos {
+	struct device *dev;
+	void __iomem *regs;
+
+	struct clk *clk_master;
+	struct clk *clk_slave;
+	struct clk *clk_tx;
+	struct clk *clk_tx_180;
+	struct clk *clk_rx;
+	struct clk *clk_rx_180;
+
+	struct reset_control *rst;
+	struct gpio_desc *reset;
+};
+
 static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
 				   struct plat_stmmacenet_data *plat_dat)
 {
@@ -403,6 +418,261 @@ static int tegra_eqos_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void renesas_rzv2h_eqos_fix_speed(void *priv, unsigned int speed)
+{
+	struct renesas_rzv2h_eqos *eqos = priv;
+	unsigned long rate = 125000000;
+	int err;
+	struct clk *parent;
+	parent = clk_get_parent(eqos->clk_tx);
+	parent = clk_get_parent(parent);
+
+	switch (speed) {
+	case SPEED_1000:
+		rate = 125000000;
+		break;
+
+	case SPEED_100:
+		rate = 25000000;
+		break;
+
+	case SPEED_10:
+		rate = 2500000;
+		break;
+
+	default:
+		dev_err(eqos->dev, "invalid speed %u\n", speed);
+		break;
+	}
+
+	err = clk_set_rate(parent, rate);
+	if (err < 0)
+		dev_err(eqos->dev, "failed to set TX rate: %d\n", err);
+}
+
+static int renesas_rzv2h_eqos_init(struct platform_device *pdev, void *priv)
+{
+	struct renesas_rzv2h_eqos *eqos = priv;
+	unsigned long rate;
+	u32 value;
+
+	rate = clk_get_rate(eqos->clk_slave);
+	value = (rate / 1000000) - 1;
+	writel(value, eqos->regs + GMAC_1US_TIC_COUNTER);
+
+	return 0;
+}
+
+static void *renesas_rzv2h_eqos_probe(struct platform_device *pdev,
+				struct plat_stmmacenet_data *data,
+				struct stmmac_resources *res)
+{
+	struct device *dev = &pdev->dev;
+	struct renesas_rzv2h_eqos *eqos;
+	int err;
+
+	eqos = devm_kzalloc(&pdev->dev, sizeof(*eqos), GFP_KERNEL);
+	if (!eqos) {
+		err = -ENOMEM;
+		goto error;
+	}
+
+	eqos->dev = &pdev->dev;
+	eqos->regs = res->addr;
+
+	if (!is_of_node(dev->fwnode))
+		goto bypass_clk_reset_gpio;
+
+	eqos->clk_master = devm_clk_get(&pdev->dev, "master_bus");
+	if (IS_ERR(eqos->clk_master)) {
+		err = PTR_ERR(eqos->clk_master);
+		goto error;
+	}
+
+	err = clk_prepare_enable(eqos->clk_master);
+	if (err < 0)
+		goto error;
+
+	dev_dbg(&pdev->dev, "Enabled master_bus clk\n");
+
+	eqos->clk_slave = devm_clk_get(&pdev->dev, "slave_bus");
+	if (IS_ERR(eqos->clk_slave)) {
+		err = PTR_ERR(eqos->clk_slave);
+		goto disable_master;
+	}
+
+	data->stmmac_clk = eqos->clk_slave;
+
+	err = clk_prepare_enable(eqos->clk_slave);
+	if (err < 0)
+		goto disable_master;
+
+	dev_dbg(&pdev->dev, "Enabled slave_bus clk\n");
+
+	eqos->clk_rx = devm_clk_get(&pdev->dev, "rx");
+	if (IS_ERR(eqos->clk_rx)) {
+		err = PTR_ERR(eqos->clk_rx);
+		goto disable_slave;
+	}
+
+	err = clk_prepare_enable(eqos->clk_rx);
+	if (err < 0)
+		goto disable_slave;
+
+	dev_dbg(&pdev->dev, "Enabled rx clk\n");
+
+	eqos->clk_rx_180 = devm_clk_get(&pdev->dev, "rx_180");
+	if (IS_ERR(eqos->clk_rx_180)) {
+		err = PTR_ERR(eqos->clk_rx_180);
+		goto disable_rx;
+	}
+
+	err = clk_prepare_enable(eqos->clk_rx_180);
+	if (err < 0)
+		goto disable_rx;
+
+	dev_dbg(&pdev->dev, "Enabled rx_180 clk\n");
+
+	eqos->clk_tx = devm_clk_get(&pdev->dev, "tx");
+	if (IS_ERR(eqos->clk_tx)) {
+		err = PTR_ERR(eqos->clk_tx);
+		goto disable_rx_180;
+	}
+
+	err = clk_prepare_enable(eqos->clk_tx);
+	if (err < 0)
+		goto disable_rx_180;
+
+	dev_dbg(&pdev->dev, "Enabled tx clk\n");
+
+	eqos->clk_tx_180 = devm_clk_get(&pdev->dev, "tx_180");
+	if (IS_ERR(eqos->clk_tx_180)) {
+		err = PTR_ERR(eqos->clk_tx_180);
+		goto disable_tx;
+	}
+
+	err = clk_prepare_enable(eqos->clk_tx_180);
+	if (err < 0)
+		goto disable_tx;
+
+	dev_dbg(&pdev->dev, "Enabled tx_180 clk\n");
+
+	eqos->reset = devm_gpiod_get_optional(&pdev->dev, "phy-reset",
+				      GPIOD_OUT_HIGH);
+	if (IS_ERR(eqos->reset)) {
+		dev_dbg(&pdev->dev, "Not support phy-reset\n");
+	}
+
+	usleep_range(2000, 4000);
+	gpiod_set_value(eqos->reset, 0);
+
+	/* MDIO bus was already reset just above */
+	data->mdio_bus_data->needs_reset = false;
+
+	eqos->rst = devm_reset_control_get(&pdev->dev, NULL);
+	if (IS_ERR(eqos->rst)) {
+		err = PTR_ERR(eqos->rst);
+		goto reset_phy ;
+	}
+
+	err = reset_control_assert(eqos->rst);
+	if (err < 0)
+		goto reset_phy;
+
+	usleep_range(2000, 4000);
+
+	err = reset_control_deassert(eqos->rst);
+	if (err < 0)
+		goto reset_phy;
+
+	usleep_range(2000, 4000);
+
+	dev_dbg(&pdev->dev, "Assert Deassert reset control OK\n");
+
+	/* Get IRQ information early to have an ability to ask for deferred
+	 * probe if needed before we went too far with resource allocation.
+	 */
+	res->irq = platform_get_irq_byname(pdev, "macirq");
+	if (res->irq < 0)
+		goto reset;
+
+	dev_dbg(&pdev->dev, "Get macirq OK\n");
+	/* On some platforms e.g. SPEAr the wake up irq differs from the mac irq
+	 * The external wake up irq can be passed through the platform code
+	 * named as "eth_wake_irq"
+	 *
+	 * In case the wake up interrupt is not passed from the platform
+	 * so the driver will continue to use the mac irq (ndev->irq)
+	 */
+	res->wol_irq = platform_get_irq_byname_optional(pdev, "eth_wake_irq");
+	if (res->wol_irq < 0) {
+		if (res->wol_irq == -EPROBE_DEFER)
+			goto bypass_clk_reset_gpio;
+		dev_dbg(&pdev->dev, "IRQ eth_wake_irq not found\n");
+		res->wol_irq = res->irq;
+	}
+
+	dev_dbg(&pdev->dev, "Get eth_wake_irq OK\n");
+
+	res->lpi_irq = platform_get_irq_byname_optional(pdev, "eth_lpi");
+	if (res->lpi_irq < 0) {
+		if (res->lpi_irq == -EPROBE_DEFER)
+			goto bypass_clk_reset_gpio;
+		dev_dbg(&pdev->dev, "IRQ eth_lpi not found\n");
+	}
+
+	dev_dbg(&pdev->dev, "Get eth_lpi OK\n");
+
+bypass_clk_reset_gpio:
+	data->fix_mac_speed = renesas_rzv2h_eqos_fix_speed;
+	data->init = renesas_rzv2h_eqos_init;
+	data->bsp_priv = eqos;
+	data->sph_disable = 1;
+
+	err = renesas_rzv2h_eqos_init(pdev, eqos);
+	if (err < 0)
+		goto reset;
+
+out:
+	return eqos;
+reset:
+	reset_control_assert(eqos->rst);
+reset_phy:
+	gpiod_set_value(eqos->reset, 1);
+	clk_disable_unprepare(eqos->clk_tx_180);
+disable_tx:
+	clk_disable_unprepare(eqos->clk_tx);
+disable_rx_180:
+	clk_disable_unprepare(eqos->clk_rx_180);
+disable_rx:
+	clk_disable_unprepare(eqos->clk_rx);
+disable_slave:
+	clk_disable_unprepare(eqos->clk_slave);
+disable_master:
+	clk_disable_unprepare(eqos->clk_master);
+error:
+	eqos = ERR_PTR(err);
+	goto out;
+}
+
+static int renesas_rzv2h_eqos_remove(struct platform_device *pdev)
+{
+	struct renesas_rzv2h_eqos *eqos = get_stmmac_bsp_priv(&pdev->dev);
+
+	reset_control_assert(eqos->rst);
+
+	gpiod_set_value(eqos->reset, 1);
+
+	clk_disable_unprepare(eqos->clk_tx);
+	clk_disable_unprepare(eqos->clk_tx_180);
+	clk_disable_unprepare(eqos->clk_rx);
+	clk_disable_unprepare(eqos->clk_rx_180);
+	clk_disable_unprepare(eqos->clk_slave);
+	clk_disable_unprepare(eqos->clk_master);
+
+	return 0;
+}
+
 struct dwc_eth_dwmac_data {
 	void *(*probe)(struct platform_device *pdev,
 		       struct plat_stmmacenet_data *data,
@@ -418,6 +688,12 @@ static const struct dwc_eth_dwmac_data dwc_qos_data = {
 static const struct dwc_eth_dwmac_data tegra_eqos_data = {
 	.probe = tegra_eqos_probe,
 	.remove = tegra_eqos_remove,
+};
+
+
+static const struct dwc_eth_dwmac_data renesas_rzv2h_eqos_data = {
+	.probe = renesas_rzv2h_eqos_probe,
+	.remove = renesas_rzv2h_eqos_remove,
 };
 
 static int dwc_eth_dwmac_probe(struct platform_device *pdev)
@@ -503,6 +779,7 @@ static int dwc_eth_dwmac_remove(struct platform_device *pdev)
 static const struct of_device_id dwc_eth_dwmac_match[] = {
 	{ .compatible = "snps,dwc-qos-ethernet-4.10", .data = &dwc_qos_data },
 	{ .compatible = "nvidia,tegra186-eqos", .data = &tegra_eqos_data },
+	{ .compatible = "renesas,rzv2h-eqos", .data = &renesas_rzv2h_eqos_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, dwc_eth_dwmac_match);
