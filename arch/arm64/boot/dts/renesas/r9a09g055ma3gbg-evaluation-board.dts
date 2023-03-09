@@ -114,6 +114,10 @@
     };
 };
 
+&cpg {
+    cpg-non-set-div;
+};
+
 /* used cpg(clock pulse generator) */
 &extal_clk {
     clock-frequency = <48000000>;
