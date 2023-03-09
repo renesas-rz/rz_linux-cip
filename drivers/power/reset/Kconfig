@@ -274,6 +274,13 @@ config POWER_RESET_SC27XX
 	  PMICs includes the SC2720, SC2721, SC2723, SC2730
 	  and SC2731 chips.
 
+config POWER_RESET_RENESAS_RZV2M
+       tristate "Renesas RZ/V2M reset driver"
+       depends on ARCH_R9A09G011GBG || ARCH_R9A09G055MA3GBG
+       help
+         Reboot support for Renesas RZ/V2M and RZ/V2MA LSIs.
+
+
 config NVMEM_REBOOT_MODE
 	tristate "Generic NVMEM reboot mode driver"
 	depends on OF
