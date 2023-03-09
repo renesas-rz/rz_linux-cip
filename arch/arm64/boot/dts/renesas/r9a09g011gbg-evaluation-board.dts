@@ -10,7 +10,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-    model = "RZ/V2M";
+    model = "RZ/V2MA";
     compatible = "renesas,r9a09g011gbg";
 
     aliases {
@@ -20,6 +20,11 @@
     chosen {
         bootargs = "earlycon=uart,mmio32,0xA4040000,115200n8 console=ttyS0,115200n8 loglevel=8 vmalloc=384M root=/dev/mmcblk0p2 rootwait rootfstype=ext3 rw; rodata=off ip=dhcp";
         stdout-path = "serial0:115200n8";
+    };
+
+    memory@00000000 {
+	device_type = "memory";
+	reg = <0x0 0x00000000 0x0 0x80000000>;
     };
 
     memory@180000000 {
@@ -33,23 +38,37 @@
         ranges;
 
         /* global autoconfigured region for contiguous allocations */
-	global_cma: linux,cma@1B8000000 {
+	global_cma: linux,cma@28000000 {
             compatible = "shared-dma-pool";
             reusable;
-	    reg = <0x1 0xB8000000 0x0 0x8000000>;
+	    reg = <0x0 0x28000000 0x0 0x8000000>;
             linux,cma-default;
         };
+
+	/* device specific region for contiguous allocations */
+	mmp_reserved: linux,multimedia {
+	    compatible = "shared-dma-pool";
+	    reusable;
+	    reg = <0x0 0x30000000 0x0 0x10000000>;
+	};
 
         /* device specific region for contiguous allocations */
         drp_reserved: linux,CMAtoDRP {
             reusable;
-	    reg = <0x1 0xC0000000 0x0 0x20000000>;
+	    reg = <0x0 0x40000000 0x0 0x20000000>;
+        };
+
+	open_cv: open_cv {
+	    compatible = "shared-dma-pool";
+	    reusable;
+	    reg = <0x0 0x77000000 0x0 0x8000000>;
+	    label = "image_buf0";
         };
 
 	image_buf0: image_buf@0 {
             compatible = "shared-dma-pool";
             reusable;
-	    reg = <0x1 0xFFC00000 0x0 0x400000>; //4MiB
+	    reg = <0x0 0x7F000000 0x0 0x1000000>; //16MiB
             label = "image_buf0";
         };
 

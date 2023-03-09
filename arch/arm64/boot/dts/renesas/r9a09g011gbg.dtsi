@@ -89,7 +89,6 @@
         #address-cells = <2>;
         #size-cells = <2>;
         ranges;
-	dma-ranges =<0x1 0x80000000 0x1 0x80000000 0x0 0x80000000>;
 
        /* used watch dog timer */
        wdt0: watchdog@a4050000 {
