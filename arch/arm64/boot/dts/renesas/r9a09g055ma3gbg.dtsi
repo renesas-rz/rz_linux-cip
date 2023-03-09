@@ -8,6 +8,7 @@
 #include <dt-bindings/clock/r9a09g011gbg-cpg-mssr.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/power/r9a09g011gbg-sysc.h>
+#include <dt-bindings/gpio/gpio.h>
 /memreserve/ 0x1B7FFF000 0x00001000; /* spin-table address */
 
 / {
@@ -421,6 +422,7 @@
             clocks = <&cpg CPG_MOD 301>;
             max-frequency = <200000000>;
             vmmc-supply = <&vcc_sdhi0>;
+	    cd-gpios = <&gpio8 07 GPIO_ACTIVE_LOW>;
             bus-width = <4>;
             sd-uhs-sdr50;
             sd-uhs-sdr104;
