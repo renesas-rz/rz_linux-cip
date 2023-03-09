@@ -114,7 +114,8 @@ config CLK_R8A7778
 	select CLK_RENESAS_CPG_MSTP
 
 config CLK_RENESAS_CPG_CLKON
-	bool "CPG/CLK_ON clock support" if COMPILE_TEST
+	bool "Renesas RZ/V2M family clock support" if COMPILE_TEST
+	select RESET_CONTROLLER
 
 config CLK_R8A7779
 	bool "R-Car H1 clock support" if COMPILE_TEST
