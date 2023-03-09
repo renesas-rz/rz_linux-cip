@@ -74,15 +74,6 @@
 
     };
 
-    udmabuf@0 {
-        compatible = "ikwzm,udmabuf-0.10.a";
-        device-name = "udmabuf0";
-        minor-number = <0>;
-        size = <0x400000>; // 4MiB
-        dma-coherent;
-	memory-region = <&image_buf0>;
-    };
-
     vcc_sdhi0: regulator-vcc-sdhi0 {
         compatible = "regulator-fixed";
 
