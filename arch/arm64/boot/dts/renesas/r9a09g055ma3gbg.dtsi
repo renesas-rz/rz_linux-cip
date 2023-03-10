@@ -976,6 +976,13 @@
             #pwm-cells = <2>;
             status = "disabled";
         };
+
+        rst: poweroff-reset@a3700000 {
+            compatible = "renesas,psc-rzv2m";
+            reg = <0 0xa3700000 0 0x800>;
+            status = "okay";
+        };
+
     };
 
 
