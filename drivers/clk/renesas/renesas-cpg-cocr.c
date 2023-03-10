@@ -27,6 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/slab.h>
+#include <linux/bits.h>
 
 #include <dt-bindings/clock/r9a09g011gbg-cpg-cocr.h>
 
@@ -90,19 +91,40 @@ struct cocr_clock {
 
 #define to_cocr_clock(_hw) container_of(_hw, struct cocr_clock, hw)
 
+static void cpg_reg_write(struct cpg_cocr_priv *priv, u32 offset, u32 val)
+{
+       unsigned long flags;
+
+       dev_dbg(priv->dev, "  %s offset: 0x%04x val: 0x%04x\n",__func__, offset, val);
+
+       spin_lock_irqsave(&priv->rmw_lock, flags);
+       writel(val, priv->base + offset);
+       spin_unlock_irqrestore(&priv->rmw_lock, flags);
+
+}
+
+static u32 cpg_reg_read(struct cpg_cocr_priv *priv, u32 offset)
+{
+       unsigned long flags;
+       u32 val;
+
+       spin_lock_irqsave(&priv->rmw_lock, flags);
+       val = readl(priv->base + offset);
+       spin_unlock_irqrestore(&priv->rmw_lock, flags);
+
+       return val;
+}
+
 static void cpg_clkonoff_ctrl(struct cpg_cocr_priv *priv, unsigned char reg_num, 
 				unsigned short target, unsigned short set_value)
 {
 	u32 offset, value;
-	unsigned long flags;
 
 	offset = CPG_CLK_ON1 + ((reg_num - 1) * sizeof(u32));
-	value = ((u32)target << CPG_REG_WEN_SHIFT)
-			| (set_value & CPG_SET_DATA_MASK);
-
-	spin_lock_irqsave(&priv->rmw_lock, flags);
-	writel(value,priv->base + offset);
-	spin_unlock_irqrestore(&priv->rmw_lock, flags);
+	value = ((u32)target << CPG_REG_WEN_SHIFT) | (set_value & CPG_SET_DATA_MASK);
+	
+	cpg_reg_write(priv, offset,value);
+	udelay(10);
 }
 
 static int is_cpg_clk_on_sts(struct cpg_cocr_priv *priv, unsigned char reg_num,
@@ -112,16 +134,19 @@ static int is_cpg_clk_on_sts(struct cpg_cocr_priv *priv, unsigned char reg_num,
 	int clk_onoff_sts;
 
 	offset = CPG_CLK_ON1 + ((reg_num - 1) * sizeof(u32));
-	clk_onoff_sts = ((readl(priv->base + offset) & target) >> target);
+	clk_onoff_sts = ((cpg_reg_read(priv,offset) & BIT(target)) >> target);
 	return clk_onoff_sts;
 }
 
 static int __cpg_cocr_clock_is_enabled(struct cpg_cocr_priv *priv, unsigned index)
 {
+       int status;
        unsigned int no = index / 32;
        unsigned int bit =index % 32;
 
-       return is_cpg_clk_on_sts(priv,no,BIT(bit));
+       status = is_cpg_clk_on_sts(priv,no,bit);
+       dev_dbg(priv->dev, "  clock status[%d%02d] is [%d]\n",no, bit, status);
+       return status;
 }
 
 static int cpg_cocr_clock_is_enabled(struct clk_hw *hw)
@@ -143,14 +168,15 @@ static int __cpg_cocr_clock_endisable(struct cpg_cocr_priv *priv, unsigned index
 	clk_status = __cpg_cocr_clock_is_enabled(priv,index);
 
 	/* If the current status and the request match, skip the process */
-	if (clk_status == (int)enable)
-		return 0;
-	
-	/* Set the clock on/off control register */
-	if (enable)
-		cpg_clkonoff_ctrl(priv,no,BIT(bit),BIT(bit));
+	if (clk_status != (int)enable) {
+		/* Set the clock on/off control register */
+		if (enable)
+			cpg_clkonoff_ctrl(priv,no,BIT(bit),BIT(bit));
+		else
+			cpg_clkonoff_ctrl(priv,no,BIT(bit),0);
+	}
 	else
-		cpg_clkonoff_ctrl(priv,no,BIT(bit),0);
+		dev_dbg(priv->dev, "    Current status is skipped due to expected status[%d]\n", (int)enable);
 
 	return 0;
 }
@@ -167,11 +193,19 @@ static int cpg_cocr_clock_endisable(struct clk_hw *hw, bool enable)
 
 static int cpg_cocr_clock_enable(struct clk_hw *hw)
 {
+	struct cocr_clock *clock = to_cocr_clock(hw);
+	struct cpg_cocr_priv *priv = clock->priv;
+	
+	dev_dbg(priv->dev, "Request clock_enable\n");
 	return cpg_cocr_clock_endisable(hw, true);
 }
 
 static void cpg_cocr_clock_disable(struct clk_hw *hw)
 {
+	struct cocr_clock *clock = to_cocr_clock(hw);
+	struct cpg_cocr_priv *priv = clock->priv;
+
+	dev_dbg(priv->dev, "Request clock_disable\n");
 	(void)cpg_cocr_clock_endisable(hw, false);
 }
 
@@ -190,11 +224,12 @@ static struct clk *cpg_cocr_clk_src_twocell_get(
 	const char *type;
 	struct clk *clk;
 
+	dev_dbg(priv->dev, "Request clock frequency\n");
 	switch (clkspec->args[0]) {
 	case CPG_CORE:
 		type = "core";
 		if (clkidx > priv->last_dt_core_clk) {
-			dev_err(dev, "Invalid %s clock index %u\n", 
+			dev_err(dev, "  Invalid %s clock index %u\n",
 				type, clkidx);
 			return ERR_PTR(-EINVAL);
 		}
@@ -206,14 +241,14 @@ static struct clk *cpg_cocr_clk_src_twocell_get(
 		break;
 
 	default:
-		dev_err(dev, "Invalid CPG clock type %u\n", clkspec->args[0]);
+		dev_err(dev, "  Invalid CPG clock type %u\n", clkspec->args[0]);
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (IS_ERR(clk))
-		dev_err(dev, "Cannot get %s clock %u: %ld", type, clkidx,PTR_ERR(clk));
+		dev_err(dev, "  Cannot get %s clock %u: %ld", type, clkidx,PTR_ERR(clk));
 	else
-		dev_dbg(dev, "clock (%u, %u) is %pC at %lu Hz\n",
+		dev_dbg(dev, "  clock (%u, %u) is %pC at %lu Hz\n",
 			clkspec->args[0], clkspec->args[1], clk,
 			clk_get_rate(clk));
 	
@@ -258,7 +293,7 @@ static void __init cpg_cocr_register_core_clk(const struct cpg_core_clk *core,
 					if (core->id == info->mod_clks[i].parent) {
 						//children Clock off
 						cpg_clkonoff_ctrl(priv,
-						(info->mod_clks[i].id/32) ,(BIT(info->mod_clks[i].id%32)),0);
+						(info->mod_clks[i].id/32) ,BIT(info->mod_clks[i].id%32),0);
 					}
 				}
 			}
@@ -266,13 +301,13 @@ static void __init cpg_cocr_register_core_clk(const struct cpg_core_clk *core,
 			if (core->type == CLK_TYPE_DIV) {
 				t = 0;
 				while (10000000 > t++) {
-					if (0 == (readl(priv->base + CPG_CLKSTATUS) & core->status)) 
+					if (0 == (cpg_reg_read(priv, CPG_CLKSTATUS) & core->status)) 
 						break;
 					udelay(1);
 				}
 			}
 			
-			writel(core->msk | core->val, priv->base + core->offset);
+			cpg_reg_write(priv, core->offset, (core->msk | core->val));
 
 			if(core->type == CLK_TYPE_DIV){
 				t = 0;
@@ -364,10 +399,7 @@ static void __init cpg_cocr_register_mod_clk(const struct cocr_mod_clk *mod,
 	if (IS_ERR(clk))
 		goto fail;
 
-	dev_dbg(dev, "Module clock %pC[%ld] at %lu Hz\n", clk, clock->index, clk_get_rate(clk));
-
-	clk_prepare(clk);
-	clk_enable(clk);
+	dev_dbg(dev, "Module clock %pC[%d] at %lu Hz\n", clk, clock->index, clk_get_rate(clk));
 
 	priv->clks[id] = clk;
 	return;
@@ -386,34 +418,41 @@ static void cpg_reset_ctrl(struct reset_controller_dev *rcdev,
 {
 	struct cpg_cocr_priv *priv = rcdev_to_priv(rcdev);
 	u32 offset, value;
-	unsigned long flags;
 
 	offset = CPG_RST1 + ((reg_num - 1) * sizeof(u32));
 	value = ((u32)target << CPG_REG_WEN_SHIFT) | (set_value & CPG_SET_DATA_MASK);
-	
-	dev_dbg(priv->dev, "%s: reg offset:0x%08x write value:0x%08x\n",
-		__func__, offset, value);
-	spin_lock_irqsave(&priv->rmw_lock, flags);
-	writel(value, (priv->base+ offset));
-	spin_unlock_irqrestore(&priv->rmw_lock, flags);
+
+	cpg_reg_write(priv, offset, value);
+	udelay(10);	
 }
 
 static int cpg_get_reset_status(struct reset_controller_dev *rcdev,
-			unsigned char reg_num, unsigned short target)
+			unsigned long id)
 {
 	struct cpg_cocr_priv *priv = rcdev_to_priv(rcdev);
-	u32 offset, value;
-	unsigned long flags;
+	u32 offset, value, mask;
+	int ret;
+	unsigned int reg = id / 32;
+	unsigned int bit = id % 32;
 
-	offset = CPG_RST1 + ((reg_num - 1) * sizeof(u32));
-	
-	spin_lock_irqsave(&priv->rmw_lock, flags);
-	value = readl(priv->base + offset) & target;
-	spin_unlock_irqrestore(&priv->rmw_lock, flags);
-
-	dev_dbg(priv->dev, "%s: reg offset:0x%08x read value:0x%08x status:0x%08x\n",
-		__func__, offset, value, !value);
-	return !value;
+       if (priv->resets[id].type == RST_TYPEA){
+               offset = CPG_RST1 + ((reg - 1) * sizeof(u32));
+               value = cpg_reg_read(priv, offset);
+               ret = !(value& BIT(bit));
+               dev_dbg(priv->dev, "  %s: [type-A]reg offset:0x%08x read value:0x%08x status:0x%08x\n",
+                       __func__, offset, value, ret);
+               dev_dbg(priv->dev, "  %s: [type-A]name:%s ID:d'%d mask:0x%x\n",
+                       __func__, priv->resets[id].name, priv->resets[id].id, priv->resets[id].reset_msk);
+       } else { //for RST_TYPEB
+               mask = priv->resets[id].reset_msk;
+               value = cpg_reg_read(priv, CPG_RST_MON);
+               ret = (value& BIT(mask)) >> mask;
+               dev_dbg(priv->dev, "  %s: [type-B]reg offset:0x%08x read value:0x%08x status:0x%08x\n",
+                       __func__, CPG_RST_MON, value, ret);
+               dev_dbg(priv->dev, "  %s: [type-B]name:%s ID:d'%d mask:0x%x\n",
+                       __func__, priv->resets[id].name, priv->resets[id].id, priv->resets[id].reset_msk);
+       }
+       return ret;
 }
 
 static int cpg_wait_reset_monitor(struct reset_controller_dev *rcdev,
@@ -424,7 +463,7 @@ static int cpg_wait_reset_monitor(struct reset_controller_dev *rcdev,
 
 	while (true)
 	{
-		if (status == ((readl(priv->base + CPG_RST_MON) & msk) >> msk) ) {
+		if (status == ((cpg_reg_read(priv, CPG_RST_MON) & BIT(msk) ) >> msk ) ) {
 			break;
 		}
 		if (0 < count) {
@@ -437,16 +476,25 @@ static int cpg_wait_reset_monitor(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
+static void cpg_cocr_reset_to_clk_endisable(struct cpg_cocr_priv *priv,
+       unsigned long id, bool enable)
+{
+       int i;
+       unsigned int cpg_clk_id;
+
+       for (i = 0;i < priv->resets[id].clk_num; i++){
+               cpg_clk_id = MOD_CLK_PACK(priv->resets[id].clk_id[i]);
+               __cpg_cocr_clock_endisable(priv, cpg_clk_id ,enable);
+       }
+}
 
 static int cpg_cocr_assert(struct reset_controller_dev *rcdev, unsigned long id)
 {
 	struct cpg_cocr_priv *priv = rcdev_to_priv(rcdev);
 	unsigned int reg = id / 32;
 	unsigned int bit = id % 32;
-	int i;
-	int clk_state[9] = {0};
 
-	if ( id <= CPG_MIN_CLKID ) {
+	if ( id <= CPG_MIN_RESETID ) {
 		dev_err(priv->dev, "Invalid reset id %ld\n", id);
 		return -EINVAL;
 	}
@@ -455,32 +503,13 @@ static int cpg_cocr_assert(struct reset_controller_dev *rcdev, unsigned long id)
 		return -EINVAL;
 	}
 	
-	if (priv->resets[id].type == RST_TYPEA){
-		/*Reset assert*/
-		cpg_reset_ctrl(rcdev,reg,BIT(bit),0);
-	} else {
-		/*Type B*/
-		for (i = 0;i < priv->resets[id].clk_num; i++){
-			clk_state[i] = __cpg_cocr_clock_is_enabled(priv,priv->resets[id].clk_id[i]);
-			if(0 == clk_state[i]){
-				__cpg_cocr_clock_endisable(priv,priv->resets[id].clk_id[i],true);
-				udelay(10);
-			}
-		}
+	dev_dbg(priv->dev, "%s(%lld) \n",__func__, id);
+	cpg_reset_ctrl(rcdev,reg,BIT(bit),0);
 
-		/* Reset assert */
-		cpg_reset_ctrl(rcdev,reg,BIT(bit),0);
-
+	if (priv->resets[id].type == RST_TYPEB) {
 		/* Check the monitor */
-		if (0 != cpg_wait_reset_monitor(rcdev, RST_MON_TIMEOUT, BIT(priv->resets[id].reset_msk), RST_MON_ASSERT) ){
-			dev_err(priv->dev, "Reset assert was time out:id %d\n", priv->resets[id].clk_id[i]);
-		}
-		
-		for (i=0; i < priv->resets[id].clk_num; i++){
-			if (0 == clk_state[i]){
-				__cpg_cocr_clock_endisable(priv,priv->resets[id].clk_id[i],false);
-			}
-			udelay(10);
+		if (0 != cpg_wait_reset_monitor(rcdev, RST_MON_TIMEOUT, priv->resets[id].reset_msk, RST_MON_ASSERT) ){
+			dev_err(priv->dev, "Reset assert was time out:id %d\n", BIT(priv->resets[id].reset_msk));
 		}
 	}
 	return 0;
@@ -492,10 +521,8 @@ static int cpg_cocr_deassert(struct reset_controller_dev *rcdev,
 	struct cpg_cocr_priv *priv = rcdev_to_priv(rcdev);
 	unsigned int reg = id / 32;
 	unsigned int bit = id % 32;
-	int i;
-	int clk_state[9] = {0};
 
-	if ( id <= CPG_MIN_CLKID ) {
+	if ( id <= CPG_MIN_RESETID ) {
 		dev_err(priv->dev, "Invalid reset id %ld\n", id);
 		return -EINVAL;
 	}
@@ -503,51 +530,28 @@ static int cpg_cocr_deassert(struct reset_controller_dev *rcdev,
 		dev_err(priv->dev, "Invalid CPG register info %u:%u\n", reg, bit);
 		return -EINVAL;
 	}
-	
+
+	dev_dbg(priv->dev, "%s(%lld) \n",__func__, id);
+
+	/*The reset control of the TypeB is optional for the clock On/OFF control.
+	Therefore, the clock On/OFF control is not performed.*/	
 	if (priv->resets[id].type == RST_TYPEA){
-		/*Reset deassert*/
-		for (i = 0;i < priv->resets[id].clk_num; i++){
-			clk_state[i] = __cpg_cocr_clock_is_enabled(priv,priv->resets[id].clk_id[i]);
-			if(0 != clk_state[i]){
-				__cpg_cocr_clock_endisable(priv,priv->resets[id].clk_id[i],false);
-				udelay(10);
-			}
-		}
-
-		cpg_reset_ctrl(rcdev,reg,BIT(bit),BIT(bit));
-		udelay(10);
-
-		for (i=0; i < priv->resets[id].clk_num; i++){
-			if (0 != clk_state[i]){
-				__cpg_cocr_clock_endisable(priv,priv->resets[id].clk_id[i],true);
-				udelay(10);
-			}
-		}
-	} else {
-		/*Type B*/
-		for (i = 0;i < priv->resets[id].clk_num; i++){
-			clk_state[i] = __cpg_cocr_clock_is_enabled(priv,priv->resets[id].clk_id[i]);
-			if (0 == clk_state[i]){
-				__cpg_cocr_clock_endisable(priv,priv->resets[id].clk_id[i],true);
-				udelay(10);
-			}
-		}
+		cpg_cocr_reset_to_clk_endisable(priv, id, false);
+	}
 	
-		/*Reset deassert*/
-		cpg_reset_ctrl(rcdev,reg,BIT(bit),BIT(bit));
+	/*Reset deassert*/
+	cpg_reset_ctrl(rcdev,reg,BIT(bit),BIT(bit));
 
+	if (priv->resets[id].type == RST_TYPEB){
 		/* Check the monitor */
-		if (0 != cpg_wait_reset_monitor(rcdev, RST_MON_TIMEOUT, BIT(priv->resets[id].reset_msk), RST_MON_DEASSERT) ){
-			dev_err(priv->dev, "Reset deassert was time out:id %d\n", priv->resets[id].clk_id[i]);
-		}
-
-		for (i=0; i < priv->resets[id].clk_num; i++){
-			if (0 == clk_state[i]){
-				__cpg_cocr_clock_endisable(priv,priv->resets[id].clk_id[i],false);
-				udelay(10);
-			}
+		if (0 != cpg_wait_reset_monitor(rcdev, RST_MON_TIMEOUT, priv->resets[id].reset_msk, RST_MON_DEASSERT) ){
+			dev_err(priv->dev, "Reset deassert was time out:id %d\n", BIT(priv->resets[id].reset_msk));
 		}
 	}
+	
+	/* The clock supply is guaranteed after the reset is released in both types. */
+	cpg_cocr_reset_to_clk_endisable(priv, id, true);
+
 	return 0;
 }
 
@@ -567,7 +571,7 @@ static int cpg_cocr_status(struct reset_controller_dev *rcdev,
 	unsigned int bit = id % 32;
 	int status;
 	
-	if ( id <= CPG_MIN_CLKID ) {
+	if ( id <= CPG_MIN_RESETID ) {
 		dev_err(priv->dev, "Invalid reset id %ld\n", id);
 		return -EINVAL;
 	}
@@ -576,8 +580,8 @@ static int cpg_cocr_status(struct reset_controller_dev *rcdev,
 		return -EINVAL;
 	}
 	
-	status = cpg_get_reset_status(priv->base,reg,BIT(bit));
-	dev_dbg(priv->dev, "status is %d\n", status);
+	status = cpg_get_reset_status(rcdev, id);
+	dev_dbg(priv->dev, "  reset status is [%d]\n", status);
 	
 	return status;
 }
@@ -625,16 +629,18 @@ static inline int cpg_cocr_reset_controller_register(struct cpg_cocr_priv *priv)
 
 
 static const struct of_device_id cpg_cocr_match[] = {
-#if 0 //[TODO]
+#ifdef CONFIG_CLK_R9A09G011GBG
 	{
 		.compatible = "renesas,r9a09g011gbg-cpg-cocr",
 		.data = &r9a09g011gbg_cpg_cocr_info,
 	},
 #endif
+#ifdef CONFIG_CLK_R9A09G055MA3GBG
 	{
 		.compatible = "renesas,r9a09g055ma3gbg-cpg-cocr",
 		.data = &r9a09g055ma3gbg_cpg_cocr_info,
 	},
+#endif
 	{ /* sentinel */ }
 };
 

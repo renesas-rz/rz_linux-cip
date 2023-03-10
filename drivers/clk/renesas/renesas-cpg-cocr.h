@@ -100,18 +100,13 @@ struct rcr_reset {
 
 #define DEF_MOD(_name, _mod, _parent...)     \
 	{ .name = _name, .id = MOD_CLK_ID(_mod), .parent = _parent}
-	
-#define DEF_RESET(_name, _id,  _type, _reset_msk, _clk_num, clk0, clk1, clk2, clk3, clk4, clk5, clk6, clk7, clk8)     \
-	{ .name = _name, .id = _id, .type=_type, .reset_msk = _reset_msk,  .clk_num= _clk_num, \
-          .clk_id = { clk0, clk1, clk2 , clk3, clk4, clk5, clk6, clk7, clk8 } \
-	}
 
 #define RST_MON_UNUSED		0xFFFFFFFF
 #define RST_MON_TIMEOUT		100
 #define RST_MON_DEASSERT	0
 #define RST_MON_ASSERT		1
 
-#define CPG_MIN_CLKID		100
+#define CPG_MIN_RESETID         31
 #define CPG_REG_WEN_SHIFT	(16)
 #define CPG_SET_DATA_MASK	(0xFFFF)
 
@@ -172,6 +167,11 @@ struct cpg_cocr_info {
 extern const struct cpg_cocr_info r9a09g011gbg_cpg_cocr_info;
 extern const struct cpg_cocr_info r9a09g055ma3gbg_cpg_cocr_info;
 
+/* Fixed Clock Signal Definition */
+#define CLK_EXTAL_48MHZ         (48000000U)
+#define CLK_PLL2_1600MHZ        (1600000000U)
+#define CLK_PLL6_1260MHZ        (1260000000U)
+#define DIV_W_48MHZ             (48000000U)
 
 /** CPG Registor Offset */
 #define CPG_PLL1_STBY           (0x0000)
@@ -210,6 +210,7 @@ extern const struct cpg_cocr_info r9a09g055ma3gbg_cpg_cocr_info;
 #define CPG_SYS_DDIV            (0x0204)
 #define CPG_MMCDDI_DDIV         (0x0210)
 #define CPG_CLK48_DSEL          (0x0214)
+#define CPG_ISP_DDIV2           (0x021C)
 #define CPG_CLKSTATUS           (0x0224)
 
 #define CPG_SDIEMM_SSEL         (0x0300)
@@ -297,6 +298,12 @@ extern const struct cpg_cocr_info r9a09g055ma3gbg_cpg_cocr_info;
 #define CPG_MMCDDI_DDIV_DIVX_SET_MIN        (0)
 #define CPG_MMCDDI_DDIV_WEN_DIVX            (0x00010000)
 
+#define CPG_ISP_DDIV2_DIVI_SET_MSK          (0x00000003)
+#define CPG_ISP_DDIV2_DIVI_SET_SHIFT        (0)
+#define CPG_ISP_DDIV2_DIVI_SET_MAX          (3)
+#define CPG_ISP_DDIV2_DIVI_SET_MIN          (0)
+#define CPG_ISP_DDIV2_WEN_DIVI              (0x00010000)
+
 #define CPG_CLK48_DSEL_SELB                 (0x00000001)
 #define CPG_CLK48_DSEL_SELD                 (0x00000002)
 #define CPG_CLK48_DSEL_SELE                 (0x00000004)
@@ -304,10 +311,26 @@ extern const struct cpg_cocr_info r9a09g055ma3gbg_cpg_cocr_info;
 #define CPG_CLK48_DSEL_WEN_SELD             (0x00020000)
 #define CPG_CLK48_DSEL_WEN_SELE             (0x00040000)
 
+#define CPG_CSI_RCLK_SSEL_SELCSI0           (0x00000000)
+#define CPG_CSI_RCLK_SSEL_SELCSI1           (0x00000000)
+#define CPG_CSI_RCLK_SSEL_SELCSI2           (0x00000000)
+#define CPG_CSI_RCLK_SSEL_SELCSI3           (0x00000000)
+#define CPG_CSI_RCLK_SSEL_SELCSI4           (0x00000000)
+#define CPG_CSI_RCLK_SSEL_SELCSI5           (0x00000000)
+#define CPG_CSI_RCLK_SSEL_WEN_SELCSI0       (0x00010000)
+#define CPG_CSI_RCLK_SSEL_WEN_SELCSI1       (0x00020000)
+#define CPG_CSI_RCLK_SSEL_WEN_SELCSI2       (0x00040000)
+#define CPG_CSI_RCLK_SSEL_WEN_SELCSI3       (0x00080000)
+#define CPG_CSI_RCLK_SSEL_WEN_SELCSI4       (0x00100000)
+#define CPG_CSI_RCLK_SSEL_WEN_SELCSI5       (0x00200000)
+
+#define CPG_URT_RCLK_SSEL_SELW0             (0x00000000)
+#define CPG_URT_RCLK_SSEL_SELW1             (0x00000000)
+#define CPG_URT_RCLK_SSEL_WEN_SELW0         (0x00010000)
+#define CPG_URT_RCLK_SSEL_WEN_SELW1         (0x00100000)
+
 #define CPG_SDIEMM_SSEL_SELSDI              (0x00000001)
 #define CPG_SDIEMM_SSEL_WEN_SELSDI          (0x00010000)
-
-#define CPG_URT_RCLK_SSEL_WEN_SELW0         (0x00010000)
 
 #define CPG_CLKSTATUS_DIVA                  (0x00000001)
 #define CPG_CLKSTATUS_DIVB                  (0x00000002)
