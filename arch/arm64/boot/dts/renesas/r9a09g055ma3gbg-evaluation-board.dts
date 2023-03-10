@@ -129,6 +129,10 @@
 	timeout-sec = <60>;
 };
 
+&wdt1 {
+	status = "okay";
+	timeout-sec = <60>;
+};
 
 &xhci0 {
        memory-region = <&global_cma>;
