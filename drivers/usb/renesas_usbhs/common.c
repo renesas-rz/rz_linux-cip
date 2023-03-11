@@ -862,7 +862,7 @@ static struct platform_driver renesas_usbhs_driver = {
 	.driver		= {
 		.name	= "renesas_usbhs",
 		.pm	= &usbhsc_pm_ops,
-		.of_match_table = of_match_ptr(usbhs_of_match),
+		.of_match_table = usbhs_of_match,
 	},
 	.probe		= usbhs_probe,
 	.remove_new	= usbhs_remove,
