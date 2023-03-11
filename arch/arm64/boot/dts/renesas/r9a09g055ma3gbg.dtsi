@@ -456,6 +456,7 @@
 	    resets = <&cpg 300>;
             max-frequency = <200000000>;
             vmmc-supply = <&vcc_sdhi0>;
+	    vqmmc-supply = <&vccq_sdhi0>;
 	    cd-gpios = <&gpio8 07 GPIO_ACTIVE_LOW>;
             bus-width = <4>;
             sd-uhs-sdr50;
