@@ -25,6 +25,7 @@
 
 	aliases {
 		serial0 = &scif0;
+		serial1 = &sci3;
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
 		mmc2 = &sdhi2;
@@ -185,6 +186,11 @@
 		pins =  "SCIF_RXD", "SCIF_TXD";
 	};
 
+	sci3_pins: sci3 {
+		pinmux = <RZG2L_PORT_PINMUX(5, 6, 1)>, /* SCI3_TXD_MOSI_SDA */
+			 <RZG2L_PORT_PINMUX(5, 7, 1)>; /* SCI3_RXD_MISO_SCL */
+	};
+
 	sd0_pwr_en {
 		gpio-hog;
 		gpios = <RZG2L_GPIO(10, 1) GPIO_ACTIVE_HIGH>;
@@ -294,6 +300,12 @@
 	pinctrl-names = "default";
 
 	status = "okay";
+};
+
+&sci3 {
+	pinctrl-0 = <&sci3_pins>;
+	pinctrl-names = "default";
+	status ="okay";
 };
 
 #if (SEL_SD0)
