@@ -652,8 +652,19 @@ pinctrl_bind_failed:
 		break;
 	default:
 		/* driver matched but the probe failed */
+#ifndef CONFIG_ARCH_R9A09G055MA3GBG
 		pr_warn("%s: probe of %s failed with error %d\n",
 			drv->name, dev_name(dev), ret);
+#else
+               if(strcmp(drv->name, "xhci-hcd")){
+                       pr_warn("%s: probe of %s failed with error %d\n",
+                               drv->name, dev_name(dev), ret);
+               }
+               else{
+                       pr_debug("%s: probe of %s failed with error(pr_debug) %d\n",
+                               drv->name, dev_name(dev), ret);
+               }
+#endif
 	}
 	/*
 	 * Ignore errors returned by ->probe so that the next driver can try
