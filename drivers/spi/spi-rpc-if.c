@@ -108,9 +108,6 @@ static int rpcif_spi_mem_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	if (desc->info.op_tmpl.data.dir == SPI_MEM_DATA_OUT)
 		return -ENOTSUPP;
 
-	if (rpc->type == XSPI_RZ_G3S)
-		return -ENOTSUPP;
-
 	return 0;
 }
 
