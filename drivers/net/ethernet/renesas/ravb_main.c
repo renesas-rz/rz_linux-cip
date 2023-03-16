@@ -1370,6 +1370,11 @@ static const struct soc_device_attribute r8a7795es10[] = {
 	{ /* sentinel */ }
 };
 
+static const struct soc_device_attribute rzg3s_match[] = {
+	{ .family = "RZ/G3S" },
+	{ /* sentinel*/ }
+};
+
 /* PHY init function */
 static int ravb_phy_init(struct net_device *ndev)
 {
@@ -2868,6 +2873,10 @@ static int __maybe_unused ravb_suspend(struct device *dev)
 	else
 		ret = ravb_close(ndev);
 
+	/* RZ/G3S requires reset control assertion */
+	if (soc_device_match(rzg3s_match))
+		reset_control_assert(priv->rstc);
+
 	return ret;
 }
 
@@ -2877,6 +2886,10 @@ static int __maybe_unused ravb_resume(struct device *dev)
 	struct ravb_private *priv = netdev_priv(ndev);
 	const struct ravb_hw_info *info = priv->info;
 	int ret = 0;
+
+	/* RZ/G3S requires reset control deassertion */
+	if (soc_device_match(rzg3s_match))
+		reset_control_deassert(priv->rstc);
 
 	/* If WoL is enabled set reset mode to rearm the WoL logic */
 	if (priv->wol_enabled)
