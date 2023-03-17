@@ -517,6 +517,22 @@
 			power-domains = <&cpg>;
 		};
 
+		rtc: rtc@11c00800 {
+			compatible = "renesas,r9a09g057-rtc", "renesas,rtca-3";
+			reg = <0 0x11C00800 0 0x400>;
+			interrupts = <GIC_SPI 525 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 526 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 524 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "periodic", "carry", "alarm";
+			clocks = <&cpg CPG_MOD R9A09G057_RTC_CLK_RTC>;
+			clock-names = "fck";
+			resets = <&cpg R9A09G057_RTC_RST_RTC>,
+				<&cpg R9A09G057_RTC_RST_RTC_V>;
+			reset-names = "rtc", "rtc_v";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
 		du: display@16460000 {
 			compatible = "renesas,du-rzv2h";
 			reg = <0 0x16460000 0 0x10000>;
