@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * PCIe driver for Renesas RZ/V2MA SoCs
+ *  PCIe driver for Renesas RZ/V2M SoCs
  *  Copyright (C) 2022 Renesas Electronics Europe Ltd
  */
 
@@ -58,10 +58,7 @@ void rzv2m_pcie_set_outbound(struct rzv2m_pcie *pcie, int win,
 	 */
 	size = resource_size(res);
 
-	if (size > 128)
-		mask = (roundup_pow_of_two(size) / SZ_128) - 1;
-	else
-		mask = 0x0;
+	mask = size - 1;	
 
 	if (res->flags & IORESOURCE_IO)
 		res_start = pci_pio_to_address(res->start) - window->offset;
@@ -84,15 +81,17 @@ void rzv2m_pcie_set_inbound(struct rzv2m_pcie *pcie, u64 cpu_addr,
 	 * Set up 64-bit inbound regions as the range parser doesn't
 	 * distinguish between 32 and 64-bit types.
 	 */
-	rzv2m_pci_write_reg(pcie, pci_addr, AXI_WINDOW_BASE_REG(idx));
-	rzv2m_pci_write_reg(pcie, cpu_addr, AXI_DESTINATION_REG(idx));
+	rzv2m_pci_write_reg(pcie, lower_32_bits(pci_addr), AXI_WINDOW_BASE_REG(idx));
+	pcie->save_reg.axi_window.base_u[idx] = upper_32_bits(pci_addr);
+	rzv2m_pci_write_reg(pcie, lower_32_bits(cpu_addr), AXI_DESTINATION_REG(idx));
+	pcie->save_reg.axi_window.dest_u[idx] = upper_32_bits(cpu_addr);
 	rzv2m_pci_write_reg(pcie, flags,    AXI_WINDOW_MASK_REG(idx));
 	rzv2m_rmw(pcie, AXI_WINDOW_BASE_REG(idx), AXI_WINDOW_ENABLE, AXI_WINDOW_ENABLE);
 
 #if 1 //RAMA
 	rzv2m_pci_write_reg(pcie, RAMA_ADDRESS, AXI_WINDOW_BASE_REG(1));
 	rzv2m_pci_write_reg(pcie, RAMA_ADDRESS, AXI_DESTINATION_REG(1));
-	rzv2m_pci_write_reg(pcie, 0x31fff,    AXI_WINDOW_MASK_REG(1));
+	rzv2m_pci_write_reg(pcie, RAMA_SIZE - 1,    AXI_WINDOW_MASK_REG(1));
 	rzv2m_rmw(pcie, AXI_WINDOW_BASE_REG(1), AXI_WINDOW_ENABLE, AXI_WINDOW_ENABLE);
 #endif
 }
