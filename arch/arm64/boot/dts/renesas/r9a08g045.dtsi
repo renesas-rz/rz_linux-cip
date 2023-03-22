@@ -230,7 +230,7 @@
 			phy-mode = "rgmii";
 			clocks = <&cpg CPG_MOD R9A08G045_ETH0_CLK_AXI>,
 				 <&cpg CPG_MOD R9A08G045_ETH0_CLK_CHI>,
-				 <&cpg CPG_CORE R9A08G045_CLK_HP>;
+				 <&cpg CPG_MOD R9A08G045_ETH0_REFCLK>;
 			clock-names = "axi", "chi", "refclk";
 			resets = <&cpg R9A08G045_ETH0_RST_HW_N>;
 			power-domains = <&cpg>;
@@ -249,7 +249,7 @@
 			phy-mode = "rgmii";
 			clocks = <&cpg CPG_MOD R9A08G045_ETH1_CLK_AXI>,
 				 <&cpg CPG_MOD R9A08G045_ETH1_CLK_CHI>,
-				 <&cpg CPG_CORE R9A08G045_CLK_HP>;
+				 <&cpg CPG_MOD R9A08G045_ETH1_REFCLK>;
 			clock-names = "axi", "chi", "refclk";
 			resets = <&cpg R9A08G045_ETH1_RST_HW_N>;
 			power-domains = <&cpg>;
