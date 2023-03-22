@@ -21,6 +21,7 @@
 #include <linux/reset.h>
 #include <linux/sys_soc.h>
 
+#include "rzg2l_adc.h"
 #define DRIVER_NAME		"rzg2l-adc"
 
 #define RZG2L_ADM(n)			((n) * 0x4)
@@ -69,23 +70,6 @@
 #define RZG2L_ADC_MAX_CHANNELS		9
 #define RZG2L_ADC_CHN_MASK		0xf
 #define RZG2L_ADC_TIMEOUT		usecs_to_jiffies(1 * 4)
-
-struct rzg2l_adc_data {
-	const struct iio_chan_spec *channels;
-	u8 num_channels;
-};
-
-struct rzg2l_adc {
-	void __iomem *base;
-	struct clk *pclk;
-	struct clk *adclk;
-	struct reset_control *presetn;
-	struct reset_control *adrstn;
-	struct completion completion;
-	const struct rzg2l_adc_data *data;
-	struct mutex lock;
-	u16 last_val[RZG2L_ADC_MAX_CHANNELS];
-};
 
 static const char * const rzg2l_adc_channel_name[] = {
 	"adc0",
@@ -296,6 +280,31 @@ static int rzg2l_adc_read_raw(struct iio_dev *indio_dev,
 		return -EINVAL;
 	}
 }
+
+int rzg2l_adc_read_tsu(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct rzg2l_adc *adc = iio_priv(indio_dev);
+	u8 ch = 7; /* Select channel 8 */
+	int ret;
+
+	if (!indio_dev || !adc) {
+		pr_err(" TSU found no iio and adc device\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&adc->lock);
+	ret = rzg2l_adc_conversion(indio_dev, adc, ch);
+	if (ret) {
+		mutex_unlock(&adc->lock);
+		return ret;
+	}
+	ret = adc->last_val[ch];
+	mutex_unlock(&adc->lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rzg2l_adc_read_tsu);
 
 static const struct iio_info rzg2l_adc_iio_info = {
 	.read_raw = rzg2l_adc_read_raw,
