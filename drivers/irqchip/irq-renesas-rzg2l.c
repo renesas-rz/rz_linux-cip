@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
+#include <linux/of.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
@@ -27,18 +28,22 @@
 #define NSCR		0x00	/* NMI Status Control Register */
 #define NCSR_NSMON	BIT(16)
 #define NCSR_NSTAT	BIT(0)
-#define NITSR		0x04	/* NMI Interrupt Type Selection Register */
+#define NSCLR		0x04	/* NMI status clear register */
+#define NSCLR_NCLR	BIT(0)
+#define NITSR(x)	(0x04 + 4 * (x)) /* NMI Interrupt Type Selection Register */
 #define NITSR_NTSEL	BIT(0)
 #define ISCR		0x10	/* IRQ Status Control Register */
 #define ISCR_ISTAT(x)	BIT(x)
-#define IITSR		0x14	/* IRQ Interrupt Type Selection Register */
+#define ISCLR		0x14	/* IRQ Status Clear Register */
+#define ISCLR_ICLR(x)	BIT(x)
+#define IITSR(x)	(0x14 + 4 * (x)) /* IRQ Interrupt Type Selection Register */
 
-/* Maximum 8 IRQ per driver instance */
-#define IRQC_IRQ_MAX	8
+/* Maximum 16 IRQ per driver instance */
+#define IRQC_IRQ_MAX	16
 /* Maximum 1 NMI per driver instance */
 #define IRQC_NMI_MAX	1
 
-#define IITSR_INIT	(0xffff) /* All IRQs set to Both Edge Detection */
+#define IITSR_INIT	(0xffffffff) /* All IRQs set to Both Edge Detection */
 
 /* Interrupt type support */
 enum {
@@ -61,6 +66,7 @@ struct irqc_priv {
 	struct irq_domain *irq_domain;
 	atomic_t wakeup_path;
 	struct reset_control *rstc;
+	bool has_clrsr_reg;
 };
 
 static struct irqc_priv *irq_data_to_priv(struct irq_data *data)
@@ -91,15 +97,16 @@ static int irqc_irq_set_type(struct irq_data *d, unsigned int type)
 	int hw_irq = irqd_to_hwirq(d);
 
 	if (priv->irq[hw_irq].type == IRQC_NMI) {
-		writel(irqc_nmi_sense[type], priv->base + NITSR);
+		writel(irqc_nmi_sense[type],
+		       priv->base + NITSR(priv->has_clrsr_reg));
 	} else if (priv->irq[hw_irq].type == IRQC_IRQ) {
 		unsigned char value = irqc_irq_sense[type];
 		u32 tmp;
 
-		tmp = readl(priv->base + IITSR);
+		tmp = readl(priv->base + IITSR(priv->has_clrsr_reg));
 		tmp &= ~(0x3 << (hw_irq * 2));
 		tmp |= (value << (hw_irq * 2));
-		writel(tmp, priv->base + IITSR);
+		writel(tmp, priv->base + IITSR(priv->has_clrsr_reg));
 	}
 
 	return 0;
@@ -133,12 +140,17 @@ static irqreturn_t irqc_irq_handler(int irq, void *dev_id)
 		bit = BIT(irqc->hw_irq);
 	} else
 		return IRQ_NONE;
-
 	val = readl(priv->base + reg);
 	if (val & bit) {
-		writel(~bit, priv->base + reg);
+		if (priv->has_clrsr_reg) {
+			if (irqc->type == IRQC_NMI)
+				reg = NSCLR;
+			else
+				reg = ISCLR;
+		}
+		writel((priv->has_clrsr_reg) ? bit : (~bit), priv->base + reg);
 		generic_handle_irq(irq_find_mapping(priv->irq_domain,
-						    irqc->hw_irq));
+                                                irqc->hw_irq));
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
@@ -179,8 +191,11 @@ static int irqc_probe(struct platform_device *pdev)
 	const char *name = dev_name(dev);
 	int k, ret;
 	const char * const irqs_name[] = {"irq0", "irq1", "irq2", "irq3",
-					"irq4", "irq5", "irq6", "irq7"};
+					"irq4", "irq5", "irq6", "irq7",
+					"irq8", "irq9", "irq10", "irq11",
+					"irq12", "irq13", "irq14", "irq15"};
 	const char * const nmis_name[] = {"nmi"};
+	int irq_numbers;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -198,13 +213,25 @@ static int irqc_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 
+	priv->has_clrsr_reg = device_property_read_bool(dev, "has-clrsr-register");
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
+	/* Count irq numbers including IRQC and NMI */
+	irq_numbers = of_property_count_strings(dev->of_node,
+						"interrupt-names");
+	if ((irq_numbers < 0) ||
+	    (irq_numbers > (IRQC_IRQ_MAX + IRQC_NMI_MAX))) {
+		dev_err(dev, "wrong number of IRQs resources\n");
+		ret = -EINVAL;
+		goto err1;
+	}
+
 	/* allow any number of IRQs between 1 and IRQC_IRQ_MAX */
-	irqc_request_irq(pdev, IRQC_IRQ, irqs_name, IRQC_IRQ_MAX);
+	irqc_request_irq(pdev, IRQC_IRQ, irqs_name, irq_numbers - 1);
 	/* allow any number of IRQs between 1 and IRQC_NMI_MAX */
 	irqc_request_irq(pdev, IRQC_NMI, nmis_name, IRQC_NMI_MAX);
 
@@ -243,7 +270,7 @@ static int irqc_probe(struct platform_device *pdev)
 	priv->gc->chip_types[0].chip.flags = IRQCHIP_SET_TYPE_MASKED;
 
 	/* Initialized with BOTH_EDGE_LEVEL */
-	writel(IITSR_INIT, priv->base + IITSR);
+	writel(IITSR_INIT, priv->base + IITSR(priv->has_clrsr_reg));
 
 	/* request interrupts one by one */
 	for (k = 0; k < priv->number_of_irqs; k++) {
@@ -300,6 +327,7 @@ static const struct of_device_id irqc_dt_ids[] = {
 	{ .compatible = "renesas,rzg2l-irqc", },
 	{ .compatible = "renesas,rzv2l-irqc", },
 	{ .compatible = "renesas,rzg2ul-irqc", },
+	{ .compatible = "renesas,rzv2h-irqc", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, irqc_dt_ids);
