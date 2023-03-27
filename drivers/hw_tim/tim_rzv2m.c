@@ -448,7 +448,8 @@ End of function tim_device_init
 ******************************************************************************/
 static void tim_device_exit(void)
 {
-    return 0;
+    if (g_tim_dev)
+	unregister_chrdev_region(g_tim_dev, minor_num);
 }
 /******************************************************************************
 End of function tim_device_exit
