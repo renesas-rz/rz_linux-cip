@@ -701,12 +701,13 @@
 		};
 
 		tsu: thermal@10059400 {
-			compatible = "renesas,rzg2l-tsu";
+			compatible = "renesas,rzg3s-tsu";
 			reg = <0 0x10059400 0 0x400>;
 			clocks = <&cpg CPG_MOD R9A08G045_TSU_PCLK>;
 			resets = <&cpg R9A08G045_TSU_PRESETN>;
 			power-domains = <&cpg>;
 			#thermal-sensor-cells = <1>;
+			adc-handle = <&adc>;
 		};
 
 		phyrst: usbphy-ctrl@11e00000 {
