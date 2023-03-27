@@ -88,10 +88,7 @@ void xhci_rzv2m_start(struct usb_hcd *hcd)
                temp |= RZV2M_USB3_INT_ENA_VAL;
                writel(temp, hcd->regs + RZV2M_USB3_INTEN);
        }
-       else{
-	       return -EFAULT;
-       }
 	
-       return 0;
+       return;
 }
 
