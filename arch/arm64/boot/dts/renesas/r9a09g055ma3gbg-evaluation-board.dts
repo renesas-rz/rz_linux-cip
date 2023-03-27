@@ -270,7 +270,7 @@
 
 &csi2{
     status = "okay";
-    slavedev {
+    slavedev2: spi@0 {
         compatible = "rzv2m,slavedev";
         reg = <0>;
         spi-max-frequency = <25000000>;
@@ -281,7 +281,7 @@
 
 &csi3{
     status = "okay";
-    slavedev {
+    slavedev3: spi@0 {
         compatible = "rzv2m,slavedev";
         reg = <0>;
         spi-max-frequency = <25000000>;
@@ -292,7 +292,7 @@
 
 &csi4{
     status = "okay";
-    slavedev {
+    slavedev4: spi@0 {
         compatible = "rzv2m,slavedev";
         reg = <0>;
         spi-max-frequency = <25000000>;
@@ -303,7 +303,7 @@
 
 &csi5{
     status = "okay";
-    slavedev {
+    slavedev5: spi@0 {
         compatible = "rzv2m,slavedev";
         reg = <0>;
         spi-max-frequency = <25000000>;
