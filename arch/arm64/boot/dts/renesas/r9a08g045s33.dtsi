@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * DeviceTree for specific RZ/G3S SoC R9A08G045S33.
+ *
+ * Copyright (C) 2023 Renesas Electronics Corp.
+ */
+
+#include "r9a08g045.dtsi"
+
+/ {
+	compatible = "renesas,r9a08g045s33", "renesas,r9a08g045";
+};
