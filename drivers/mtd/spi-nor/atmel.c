@@ -8,6 +8,8 @@
 
 #include "core.h"
 
+#define AT25QL128A_OP_PP_1_4_4		0x33	/* Quad page program */
+
 /*
  * The Atmel AT25FS010/AT25FS040 parts have some weird configuration for the
  * block protection bits. We don't support them. But legacy behavior in linux
@@ -48,7 +50,25 @@ static const struct spi_nor_locking_ops atmel_at25fs_locking_ops = {
 
 static void atmel_at25fs_default_init(struct spi_nor *nor)
 {
-	nor->params->locking_ops = &atmel_at25fs_locking_ops;
+	struct spi_nor_flash_parameter *params = nor->params;
+
+	/*
+	 * AT25QL128A supports 1S-4S-4S for both read and write.
+	 * However, only 1S-4S-4S read command (0xEBh) is declared in spi-nor
+	 * opcodes, 1S-4S-4S write command (0x33h) is not declared yet, so to
+	 * workaround it, the fixup below is used for setting 1S-4S-4S write
+	 * command.
+	 */
+	if (strcmp(nor->info->name, "at25ql128a") == 0) {
+		if (nor->info->flags & SPI_NOR_QUAD_READ) {
+			params->hwcaps.mask |= SNOR_HWCAPS_PP_1_4_4;
+			spi_nor_set_pp_settings
+				(&params->page_programs[SNOR_CMD_PP_1_4_4],
+				 AT25QL128A_OP_PP_1_4_4,
+				 SNOR_PROTO_1_4_4);
+		}
+	} else
+		nor->params->locking_ops = &atmel_at25fs_locking_ops;
 }
 
 static const struct spi_nor_fixups atmel_at25fs_fixups = {
@@ -68,7 +88,8 @@ static const struct flash_info atmel_parts[] = {
 	{ "at25df641",  INFO(0x1f4800, 0, 64 * 1024, 128, SECT_4K | SPI_NOR_HAS_LOCK) },
 
 	/* Dialog */
-	{ "at25ql128a",	 INFO(0x1f4218, 0, 64 * 1024,  256, SECT_4K | SPI_NOR_QUAD_READ) },
+	{ "at25ql128a",	 INFO(0x1f4218, 0, 64 * 1024,  256, SECT_4K | SPI_NOR_QUAD_READ)
+		.fixups = &atmel_at25fs_fixups },
 
 	{ "at25sl321",	INFO(0x1f4216, 0, 64 * 1024, 64,
 			     SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
