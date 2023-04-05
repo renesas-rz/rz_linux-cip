@@ -36,6 +36,7 @@ properties:
               - renesas,r9a07g043-canfd    # RZ/G2UL
               - renesas,r9a07g044-canfd    # RZ/G2{L,LC}
               - renesas,r9a07g054-canfd    # RZ/V2L
+              - renesas,r9a09g057-canfd    # RZ/V2H
           - const: renesas,rzg2l-canfd     # RZ/G2L family
 
   reg:
