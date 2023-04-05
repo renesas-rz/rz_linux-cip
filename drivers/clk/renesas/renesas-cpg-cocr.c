@@ -71,8 +71,8 @@ struct cpg_cocr_priv {
 	unsigned int num_hw_resets;
 
 	struct raw_notifier_head notifiers;
-	struct cocr_mod_clk *mod_clk;
-	struct cpg_core_clk *core_clk;
+	const struct cocr_mod_clk *mod_clk;
+	const struct cpg_core_clk *core_clk;
 	bool no_hw_clk_rate;
 };
 
@@ -503,13 +503,13 @@ static int cpg_cocr_assert(struct reset_controller_dev *rcdev, unsigned long id)
 		return -EINVAL;
 	}
 	
-	dev_dbg(priv->dev, "%s(%lld) \n",__func__, id);
+	dev_dbg(priv->dev, "%s(%lud) \n",__func__, id);
 	cpg_reset_ctrl(rcdev,reg,BIT(bit),0);
 
 	if (priv->resets[id].type == RST_TYPEB) {
 		/* Check the monitor */
 		if (0 != cpg_wait_reset_monitor(rcdev, RST_MON_TIMEOUT, priv->resets[id].reset_msk, RST_MON_ASSERT) ){
-			dev_err(priv->dev, "Reset assert was time out:id %d\n", BIT(priv->resets[id].reset_msk));
+			dev_err(priv->dev, "Reset assert was time out:id %lud\n", BIT(priv->resets[id].reset_msk));
 		}
 	}
 	return 0;
@@ -531,7 +531,7 @@ static int cpg_cocr_deassert(struct reset_controller_dev *rcdev,
 		return -EINVAL;
 	}
 
-	dev_dbg(priv->dev, "%s(%lld) \n",__func__, id);
+	dev_dbg(priv->dev, "%s(%lud) \n",__func__, id);
 
 	/*The reset control of the TypeB is optional for the clock On/OFF control.
 	Therefore, the clock On/OFF control is not performed.*/	
@@ -545,7 +545,7 @@ static int cpg_cocr_deassert(struct reset_controller_dev *rcdev,
 	if (priv->resets[id].type == RST_TYPEB){
 		/* Check the monitor */
 		if (0 != cpg_wait_reset_monitor(rcdev, RST_MON_TIMEOUT, priv->resets[id].reset_msk, RST_MON_DEASSERT) ){
-			dev_err(priv->dev, "Reset deassert was time out:id %d\n", BIT(priv->resets[id].reset_msk));
+			dev_err(priv->dev, "Reset deassert was time out:id %lud\n", BIT(priv->resets[id].reset_msk));
 		}
 	}
 	
