@@ -1013,7 +1013,6 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	int num_irqs, irq, ret, i;
 	struct resource *res;
 	u16 ver;
-	u32 psc_pins = 0;
 
 	of_data = of_device_get_match_data(&pdev->dev);
 
