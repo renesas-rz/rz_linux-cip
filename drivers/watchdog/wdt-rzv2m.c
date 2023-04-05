@@ -105,6 +105,8 @@ static irqreturn_t rzv2m_wdt_irq(int irq, void *devid)
 
 static int rzv2m_wdt_start(struct watchdog_device *wdev)
 {
+	struct rzv2m_wdt_priv *priv = watchdog_get_drvdata(wdev);
+
 	/*Enable clock for reset status*/
 	{
 		void __iomem *cpg_base = ioremap(0xA3500000, 0x1000);
@@ -114,8 +116,6 @@ static int rzv2m_wdt_start(struct watchdog_device *wdev)
 		iowrite32(0x30003000, cpg_base + 0x42C);        //CPG_CLK_ON12
 		iounmap(cpg_base);
         }
-
-	struct rzv2m_wdt_priv *priv = watchdog_get_drvdata(wdev);
 	
 	pm_runtime_get_sync(wdev->parent);
 	clk_enable(priv->clk);
