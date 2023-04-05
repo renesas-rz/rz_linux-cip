@@ -12,6 +12,7 @@
 #ifndef __RZV2M_CORE_H__
 #define __RZV2M_CORE_H__
 
+#include <linux/pinctrl/pinconf-generic.h>
 #include "pfc.h"
 
 #define DRV_NAME	"PFC_RZV2M"

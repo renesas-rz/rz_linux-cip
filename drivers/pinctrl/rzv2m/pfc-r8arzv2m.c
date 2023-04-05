@@ -1971,6 +1971,7 @@ static const struct rzv2m_func_desc funcs_mux[] = {
 
 static const struct rzv2m_pfc_config_reg config_regs[] = {
 #define FN(x)	x,
+#undef F_
 #define F_(x)	0,
 	/*
 	 *  In case the register control not continuous pin such 0,1,3, we can
