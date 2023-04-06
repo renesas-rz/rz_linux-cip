@@ -68,7 +68,7 @@ static inline void rzg3s_thermal_write(struct rzg3s_thermal_priv *priv, u32 reg,
 static int rzg3s_thermal_get_temp(void *devdata, int *temp)
 {
 	struct rzg3s_thermal_priv *priv = devdata;
-	u32 result = 0, dsensor, ts_code_ave;
+	u32 result = 0, ts_code_ave;
 	int val, i;
 
 	for (i = 0; i < TS_CODE_CAP_TIMES ; i++) {
@@ -86,19 +86,11 @@ static int rzg3s_thermal_get_temp(void *devdata, int *temp)
 	ts_code_ave = result / TS_CODE_CAP_TIMES;
 
 	/*
-	 * Calculate actual sensor value by applying curvature correction formula
-	 * dsensor = ts_code_ave / (1 + ts_code_ave * 0.000013). Here we are doing
-	 * integer calculation by scaling all the values by 1000000.
-	 */
-	dsensor = TS_CODE_AVE_SCALE(ts_code_ave) /
-		(TS_CODE_AVE_SCALE(1) + (ts_code_ave * CURVATURE_CORRECTION_CONST));
-
-	/*
 	 * The temperature Tj is calculated by the formula
 	 * Tj = (dsensor − calib1) * 165/ (calib0 − calib1) − 40
 	 * where calib0 and calib1 are the calibration values.
 	 */
-	val = ((dsensor - priv->calib1) * (MCELSIUS(165) /
+	val = ((ts_code_ave - priv->calib1) * (MCELSIUS(165) /
 		(priv->calib0 - priv->calib1))) - MCELSIUS(40);
 
 	*temp = roundup(val, RZG2L_THERMAL_GRAN);
@@ -159,7 +151,7 @@ static int rzg3s_get_adc_device(struct rzg3s_thermal_priv *priv)
 
 	adc_node = of_parse_phandle(priv->dev->of_node, "adc-handle", 0);
 	if (!adc_node) {
-		pr_err("TSU failed to get ADC node or no adc-refer property found \n");
+		pr_err("TSU failed to get ADC node or no adc-handle property found \n");
 		return -EINVAL;
 	}
 
