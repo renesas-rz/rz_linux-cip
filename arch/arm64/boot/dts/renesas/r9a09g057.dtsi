@@ -422,6 +422,8 @@
 					  "bri", "dri", "tei";
 			clocks = <&cpg CPG_MOD R9A09G057_SCIF_CLK_PCK>;
 			clock-names = "fck";
+			dmas = <&dmac1 0x7F4CD0>, <&dmac1 0x7F4CCF>;
+			dma-names = "tx", "rx";
 			power-domains = <&cpg>;
 			resets = <&cpg R9A09G057_SCIF_RST_SYSTEM_N>;
 			status = "disabled";
