@@ -285,7 +285,7 @@ int rzg2l_adc_read_tsu(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct rzg2l_adc *adc = iio_priv(indio_dev);
-	u8 ch = 7; /* Select channel 8 */
+	u8 ch = 8; /* Select channel 8 */
 	int ret;
 
 	if (!indio_dev || !adc) {
