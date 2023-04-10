@@ -12,6 +12,7 @@
 #include "rzg3s-smarc.dtsi"
 
 / {
-	model = "Renesas SMARC EVK version2 based on r9a08g045s";
-	compatible = "renesas,smarc-evk", "renesas,r9a08g045", "renesas,r9a08g045s31";
+	model = "Renesas SMARC EVK version2 based on r9a08g045s33 SoC";
+	compatible = "renesas,r9a08g045s33", "renesas,r9a08g045s33-smarc",
+		     "renesas,r9a08g045", "renesas,smarc-evk";
 };
