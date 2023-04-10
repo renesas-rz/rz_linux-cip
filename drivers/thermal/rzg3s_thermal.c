@@ -23,8 +23,8 @@
 #define CTEMP_MASK	0xFFF
 
 /* default calibration values, if FUSE values are missing */
-#define SW_CALIB0_VAL	3148
-#define SW_CALIB1_VAL	503
+#define SW_CALIB0_VAL	1297
+#define SW_CALIB1_VAL	751
 
 /* Register offsets */
 #define TSU_SM		0x00
