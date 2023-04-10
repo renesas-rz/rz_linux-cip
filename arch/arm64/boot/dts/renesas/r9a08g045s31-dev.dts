@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the RZ/G3S Development board (13mm_LPDDR4)
+ *
+ * Copyright (C) 2023 Renesas Electronics Corp.
+ */
+
+/dts-v1/;
+#include "r9a08g045.dtsi"
+#include "rzg3s-dev-common.dtsi"
+#include "rzg3s-dev-pinfunction.dtsi"
+
+/*
+ * Select between USB2 phy0 and MTU3 pins which are multiplexed
+ * MTU3 pins are NOT required, if only use clocksource/clockevent
+ * functions.
+ */
+#define MTU3_PINS_SEL			0
+
+/ {
+	model = "Renesas Development EVK based on r9a08g045s31 SoC";
+	compatible = "renesas,r9a08g045",
+		     "renesas,r9a08g045s31",
+		     "renesas,r9a08g045s31-dev";
+};
+
+#if !MTU3_PINS_SEL
+&usb2_phy0 {
+	pinctrl-0 = <&usb0_pins>;
+	pinctrl-names = "default";
+
+	vbus-supply = <&vbus0_usb2>;
+	status = "okay";
+};
+#else
+&mtu3 {
+	pinctrl-0 = <&mtu3_pins>;
+	pinctrl-names = "default";
+	pwm_complementary = <7 0>;
+};
+#endif
+
+&poe3 {
+	pinctrl-0 = <&poe3_pins>;
+	pinctrl-names = "default";
+	poe3_pins_mode = <0 0>, <4 0>;
+	status = "okay";
+	mtu3_ch67 {
+		mtu3_outputs = <1>;
+		addition_poe3_inputs = <0 4>;
+	};
+};
+
+&poegc {
+	pinctrl-0 = <&poegc_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&poegd {
+	pinctrl-0 = <&poegd_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&gpt0 {
+	pinctrl-0 = <&gpt0_pins>;
+	pinctrl-names = "default";
+	channel = "both_AB";
+	poeg = <&poegc &poegd>;
+	status = "okay";
+};
