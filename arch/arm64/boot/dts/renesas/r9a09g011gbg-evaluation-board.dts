@@ -13,6 +13,13 @@
     model = "RZ/V2M";
     compatible = "rdk,rdk", "renesas,r8arzv2m";    
 
+    backlight {
+        compatible = "pwm-backlight";
+        pwms = <&pwm0 0 5000000>;
+        brightness-levels = <0 4 8 16 32 64 128 255>;
+        default-brightness-level = <6>;
+    };
+
     aliases {
         serial0 = &uart0;
     };
@@ -152,6 +159,15 @@
             };
         };
     };
+   clock-generator@68 {
+       compatible = "idt,9fgv0241";
+       reg = <0x68>;
+    };
+};
+
+&i2c2 {
+    clock-frequency = <100000>;
+    status = "okay";
 };
 
 &uart0 {
@@ -170,38 +186,69 @@
     status = "okay";
 };
 
-&pwm0 {
+&pwm8 {
     status = "okay";
 };
 
-&pwm1 {
+&pwm9 {
     status = "okay";
 };
 
-&pwm2 {
+&pwm10 {
     status = "okay";
 };
 
-&pwm3 {
+&pwm11 {
     status = "okay";
 };
 
-&pwm4 {
+&pwm12 {
     status = "okay";
 };
 
-&pwm5 {
+&pwm13 {
     status = "okay";
 };
 
-&pwm6 {
+&pwm14 {
     status = "okay";
 };
 
-&pwm7 {
+&pwm15 {
     status = "okay";
 };
 
+&tim8 {
+    status = "okay";
+};
+
+&tim9 {
+    status = "okay";
+};
+
+&tim10 {
+    status = "okay";
+};
+
+&tim11 {
+    status = "okay";
+};
+
+&tim12 {
+    status = "okay";
+};
+
+&tim13 {
+    status = "okay";
+};
+
+&tim14 {
+    status = "okay";
+};
+
+&tim15 {
+    status = "okay";
+};
 &tim16 {
     status = "okay";
 };
@@ -231,37 +278,5 @@
 };
 
 &tim23 {
-    status = "okay";
-};
-&tim24 {
-    status = "okay";
-};
-
-&tim25 {
-    status = "okay";
-};
-
-&tim26 {
-    status = "okay";
-};
-
-&tim27 {
-    status = "okay";
-};
-
-&tim28 {
-    status = "okay";
-};
-
-&tim29 {
-    status = "okay";
-};
-
-&tim30 {
-    status = "okay";
-};
-
-
-&tim31 {
     status = "okay";
 };
