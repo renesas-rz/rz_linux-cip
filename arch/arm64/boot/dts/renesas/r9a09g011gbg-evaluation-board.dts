@@ -28,37 +28,34 @@
                reg = <0x00000000 0x10000000 0x0 0x70000000>;
        };
 
-#if 1 /*  */
        reserved-memory {
                #address-cells = <2>;
                #size-cells = <2>;
                ranges;
 
                /* global autoconfigured region for contiguous allocations */
-               linux,cma@58000000 {
+               linux,cma@18000000 {
                        compatible = "shared-dma-pool";
                        reusable;
-                       reg = <0x00000000 0x58000000 0x0 0x10000000>;
+                       reg = <0x00000000 0x18000000 0x0 0x10000000>;
                        linux,cma-default;
                };
-#if 0
+
                /* device specific region for contiguous allocations */
                drp_reserved: linux,CMAtoDRP {
                        compatible = "shared-dma-pool";
                        reusable;
                        reg = <0x00000000 0x28000000 0x0 0x08000000>;
               };
-#endif
-
+#if 0
 	       /* device specific region for contiguous allocations */
                mmp_reserved: linux,multimedia {
                        compatible = "shared-dma-pool";
                        reusable;
                        reg = <0x00000000 0x68000000 0x0 0x08000000>;
               };
-
-       };
 #endif
+	};
 
        mmngr {
                compatible = "renesas,mmngr";
