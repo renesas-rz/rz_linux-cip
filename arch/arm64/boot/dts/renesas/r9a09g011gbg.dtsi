@@ -238,6 +238,7 @@
             vqmmc-supply = <&reg_1p8v>;
             bus-width = <8>;
             non-removable;
+	    mmc-hs200-1_8v;
             status = "disable";
         };
 
