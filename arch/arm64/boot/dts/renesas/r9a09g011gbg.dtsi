@@ -72,7 +72,7 @@
     imclk: imclk@200M {
         #clock-cells = <0>;
         compatible = "fixed-clock";
-        clock-frequency = <0>;
+        clock-frequency = <200000000>;
     };
     pclk: pclk@100M {
         #clock-cells = <0>;
