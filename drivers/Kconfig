@@ -230,6 +230,8 @@ source "drivers/siox/Kconfig"
 
 source "drivers/slimbus/Kconfig"
 
+source "drivers/udmabuf/Kconfig"
+
 source "drivers/interconnect/Kconfig"
 
 source "drivers/counter/Kconfig"
