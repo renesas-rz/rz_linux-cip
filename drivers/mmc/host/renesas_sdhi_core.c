@@ -70,6 +70,7 @@
 enum switching_voltage_mode{
        psc_mode,
        pfc_mode,
+       none,
 };
 
 static const struct soc_device_attribute soc_whitelist[] = {
@@ -1096,17 +1097,18 @@ int renesas_sdhi_probe(struct platform_device *pdev,
         if (soc){
                priv->switching_volt_type = psc_mode;
 
-               if(of_property_read_u32(pdev->dev.of_node, "psc-pins", &psc_pins))
-                       priv->switching_volt_type = pfc_mode;
-
-               else
-               {
+		if(of_property_read_u32(pdev->dev.of_node, "psc-pins", &psc_pins)){
                        priv->psc_pins = psc_pins;
 
-                       if(   32 <= priv->psc_pins ){
+                       if(   16 <= priv->psc_pins ){
                                return -EINVAL;
                        }
-               }
+                }
+		else
+		{
+			priv->switching_volt_type = none;
+		}
+
         }
         else
                priv->switching_volt_type = pfc_mode;
