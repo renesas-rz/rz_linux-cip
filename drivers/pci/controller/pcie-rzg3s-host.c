@@ -1001,7 +1001,7 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	host->rst = devm_reset_control_get_shared(dev, NULL);
+	host->rst = devm_reset_control_array_get(dev, 0, 0);
 	if (IS_ERR(host->rst)) {
 		dev_err(dev, "PCIE cannot get reset\n");
 		return PTR_ERR(host->rst);
