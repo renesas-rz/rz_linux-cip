@@ -276,6 +276,20 @@
                };
 #endif
 
+               eMM: sd@85020000 {
+                       compatible = "renesas,sdhi-r8a774c0",
+                                       "renesas,rcar-gen3-sdhi";
+                       reg = <0 0x85020000 0 0x2000>;
+                       interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>;
+                       clocks = <&imclk>;
+                       max-frequency = <200000000>;
+                       vmmc-supply = <&reg_3p3v>;
+                       vqmmc-supply = <&reg_1p8v>;
+                       bus-width = <8>;
+                       non-removable;
+                       status = "okay";
+               };
+
 #if 1 /* used soc systems */
                gic: interrupt-controller@82000000 {
                        compatible = "arm,gic-400";

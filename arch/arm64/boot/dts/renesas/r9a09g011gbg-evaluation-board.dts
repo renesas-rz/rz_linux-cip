@@ -97,6 +97,24 @@
                          1800000 0>;
        };
 
+       reg_1p8v: regulator0 {
+               compatible = "regulator-fixed";
+               regulator-name = "fixed-1.8V";
+               regulator-min-microvolt = <1800000>;
+               regulator-max-microvolt = <1800000>;
+               regulator-boot-on;
+               regulator-always-on;
+       };
+
+       reg_3p3v: regulator1 {
+               compatible = "regulator-fixed";
+               regulator-name = "fixed-3.3V";
+               regulator-min-microvolt = <3300000>;
+               regulator-max-microvolt = <3300000>;
+               regulator-boot-on;
+               regulator-always-on;
+       };
+
 };
 
 #if 1 /* used cpg(clock pulse generator) */
