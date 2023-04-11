@@ -10,220 +10,200 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-       model = "RZ/V2M";
-       compatible = "renesas,evaluation-board", "renesas,r9a09g011gbg";
+    model = "RZ/V2M";
+    compatible = "renesas,evaluation-board", "renesas,r9a09g011gbg";
 
-       aliases {
-		serial0 = &uart0;
-       };
+    aliases {
+        serial0 = &uart0;
+    };
 
-       chosen {
-	       bootargs = "earlycon=uart,mmio32,0xA4040000,115200n8 console=ttyS0,115200n8 loglevel=8 vmalloc=384M root=/dev/mmcblk0p2 rootwait rootfstype=ext3 rw; rodata=off ip=dhcp";
-               stdout-path = "serial0:115200n8";
-       };
+    chosen {
+        bootargs = "earlycon=uart,mmio32,0xA4040000,115200n8 console=ttyS0,115200n8 loglevel=8 vmalloc=384M root=/dev/mmcblk0p2 rootwait rootfstype=ext3 rw; rodata=off ip=dhcp";
+        stdout-path = "serial0:115200n8";
+    };
 
-       memory@58000000 {
-               device_type = "memory";
-               /* first 256MB is reserved for secure area. */
-               reg = <0x00000000 0x58000000 0x0 0x28000000>;
-       };
+    memory@58000000 {
+        device_type = "memory";
+        /* first 256MB is reserved for secure area. */
+        reg = <0x00000000 0x58000000 0x0 0x28000000>;
+    };
 
-       reserved-memory {
-               #address-cells = <2>;
-               #size-cells = <2>;
-               ranges;
+    reserved-memory {
+        #address-cells = <2>;
+        #size-cells = <2>;
+        ranges;
 
-               /* global autoconfigured region for contiguous allocations */
-               linux,cma@67800000 {
-                       compatible = "shared-dma-pool";
-                       reusable;
-                       reg = <0x0 0x67800000 0x0 0x8000000>;
-                       linux,cma-default;
-               };
+        /* global autoconfigured region for contiguous allocations */
+        linux,cma@67800000 {
+            compatible = "shared-dma-pool";
+            reusable;
+            reg = <0x0 0x67800000 0x0 0x8000000>;
+            linux,cma-default;
+        };
 
-               /* device specific region for contiguous allocations */
-               drp_reserved: linux,CMAtoDRP {
-                       compatible = "shared-dma-pool";
-                       reusable;
-                       reg = <0x0 0x6F800000 0x0 0x10000000>;
-              };
+        /* device specific region for contiguous allocations */
+        drp_reserved: linux,CMAtoDRP {
+            reusable;
+            reg = <0x0 0x6F800000 0x0 0x10000000>;
+        };
 
-               v4l2_reserved: v4l2-DRP_buf@0 {
-                       compatible = "shared-dma-pool";
-                       reusable;
-                       reg = <0x0 0x7F800000 0x0 0x400000>; //4MiB
-                       label = "image_buf0";
-               };
-	};
+        v4l2_reserved: v4l2-DRP_buf@0 {
+            compatible = "shared-dma-pool";
+            reusable;
+            reg = <0x0 0x7F800000 0x0 0x400000>; //4MiB
+            label = "image_buf0";
+        };
 
-       udmabuf@0 {
-               compatible = "ikwzm,udmabuf-0.10.a";
-               device-name = "udmabuf0";
-               minor-number = <0>;
-               size = <0x400000>; // 4MiB
-               dma-coherent;
-               memory-region = <&v4l2_reserved>;
-       };
+    };
 
-       mmngr {
-               compatible = "renesas,mmngr";
-/*          memory-region = <&mmp_reserved>; */
-       };
+    udmabuf@0 {
+        compatible = "ikwzm,udmabuf-0.10.a";
+        device-name = "udmabuf0";
+        minor-number = <0>;
+        size = <0x400000>; // 4MiB
+        dma-coherent;
+        memory-region = <&v4l2_reserved>;
+    };
 
-       mmngrbuf {
-               compatible = "renesas,mmngrbuf";
-       };
+    vcc_sdhi0: regulator-vcc-sdhi0 {
+        compatible = "regulator-fixed";
 
-       vcc_sdhi0: regulator-vcc-sdhi0 {
-               compatible = "regulator-fixed";
+        regulator-name = "SDHI0 Vcc";
+        regulator-min-microvolt = <3300000>;
+        regulator-max-microvolt = <3300000>;
+        regulator-always-on;
+        regulator-boot-on;
+    };
 
-               regulator-name = "SDHI0 Vcc";
-               regulator-min-microvolt = <3300000>;
-               regulator-max-microvolt = <3300000>;
-               regulator-always-on;
-               regulator-boot-on;
-       };
+    vccq_sdhi0: regulator-vccq-sdhi0 {
+        compatible = "regulator-gpio";
 
-       vccq_sdhi0: regulator-vccq-sdhi0 {
-               compatible = "regulator-gpio";
+        regulator-name = "SDHI0 VccQ";
+        regulator-min-microvolt = <1800000>;
+        regulator-max-microvolt = <3300000>;
 
-               regulator-name = "SDHI0 VccQ";
-               regulator-min-microvolt = <1800000>;
-               regulator-max-microvolt = <3300000>;
+/*      gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;   */
+        gpios-states = <1>;
+        states = <3300000 1
+              1800000 0>;
+    };
 
-/*             gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;   */
-               gpios-states = <1>;
-               states = <3300000 1
-                         1800000 0>;
-       };
+        reg_1p8v: regulator0 {
+        compatible = "regulator-fixed";
+        regulator-name = "fixed-1.8V";
+        regulator-min-microvolt = <1800000>;
+        regulator-max-microvolt = <1800000>;
+        regulator-boot-on;
+        regulator-always-on;
+    };
 
-       reg_1p8v: regulator0 {
-               compatible = "regulator-fixed";
-               regulator-name = "fixed-1.8V";
-               regulator-min-microvolt = <1800000>;
-               regulator-max-microvolt = <1800000>;
-               regulator-boot-on;
-               regulator-always-on;
-       };
-
-       reg_3p3v: regulator1 {
-               compatible = "regulator-fixed";
-               regulator-name = "fixed-3.3V";
-               regulator-min-microvolt = <3300000>;
-               regulator-max-microvolt = <3300000>;
-               regulator-boot-on;
-               regulator-always-on;
-       };
-
+    reg_3p3v: regulator1 {
+        compatible = "regulator-fixed";
+        regulator-name = "fixed-3.3V";
+        regulator-min-microvolt = <3300000>;
+        regulator-max-microvolt = <3300000>;
+        regulator-boot-on;
+        regulator-always-on;
+    };
 };
 
-#if 1 /* used cpg(clock pulse generator) */
+/* used cpg(clock pulse generator) */ 
 &extal_clk {
-       clock-frequency = <48000000>;
+	clock-frequency = <48000000>;
 };
-#endif
 
-#if 0 /* used watch dog timer */
-&rwdt {
-       status = "okay";
-       timeout-sec = <60>;
+&extal_clk {
+	clock-frequency = <48000000>;
 };
-#endif
-
-#if 0
-&usb2_phy0 {
-/*     pinctrl-0 = <&usb0_pins>;*/
-/*     pinctrl-names = "default";*/
-
-       status = "okay";
-};
-#endif
 
 &xhci0 {
-/*     pinctrl-0 = <&usb30_pins>;*/
-/*     pinctrl-names = "default";*/
-
-       status = "okay";
+	status = "okay";
 };
 
-#if 1
 &usb3_peri0 {
-//     companion = <&xhci0>;
+    status = "okay";
+    renesas,usb-role-switch;
 
-       status = "okay";
-       renesas,usb-role-switch;
+    port {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-       port {
-               #address-cells = <1>;
-               #size-cells = <0>;
-
-               usb3peri_role_switch: endpoint@0 {
-                       reg = <0>;
-                       remote-endpoint = <&hd3ss3220_ep>;
-               };
-       };
+        usb3peri_role_switch: endpoint@0 {
+            reg = <0>;
+            remote-endpoint = <&hd3ss3220_ep>;
+        };
+    };
 };
-#endif
 
-
-#if 1
 &i2c0 {
-       status = "okay";
-       clock-frequency = <100000>;
+    clock-frequency = <100000>;
+    status = "okay";
+    hd3ss3220@47 {
+        compatible = "ti,hd3ss3220";
+        reg = <0x47>;
 
-       hd3ss3220@47 {
-               compatible = "ti,hd3ss3220";
-               reg = <0x47>;
-/*             interrupt-parent = <&gpio6>;*/
-/*             interrupts = <3 IRQ_TYPE_LEVEL_LOW>;*/
+        usb_con: connector {
+            compatible = "usb-c-connector";
+            label = "USB-C";
+            data-role = "dual";
+        };
 
-               usb_con: connector {
-                       compatible = "usb-c-connector";
-                       label = "USB-C";
-                       data-role = "dual";
-               };
+        port {
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-               port {
-                       #address-cells = <1>;
-                       #size-cells = <0>;
-
-                       hd3ss3220_ep: endpoint@0 {
-                               reg = <0>;
-                               remote-endpoint = <&usb3peri_role_switch>;
-                       };
-               };
-       };
+            hd3ss3220_ep: endpoint@0 {
+                reg = <0>;
+                remote-endpoint = <&usb3peri_role_switch>;
+            };
+        };
+    };
 };
-#endif
+
+&uart0 {
+    status = "okay";
+};
+
+&sdhi0 {
+    status = "okay";
+};
+
+&eMM {
+    status = "okay";
+};
+
+&avb {
+    status = "okay";
+};
 
 &pwm0 {
-       status = "okay";
+    status = "okay";
 };
 
 &pwm1 {
-       status = "okay";
+    status = "okay";
 };
 
 &pwm2 {
-       status = "okay";
+    status = "okay";
 };
 
 &pwm3 {
-       status = "okay";
+    status = "okay";
 };
 
 &pwm4 {
-       status = "okay";
+    status = "okay";
 };
 
 &pwm5 {
-       status = "okay";
+    status = "okay";
 };
 
 &pwm6 {
-       status = "okay";
+    status = "okay";
 };
 
 &pwm7 {
-       status = "okay";
+    status = "okay";
 };
