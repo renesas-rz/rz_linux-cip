@@ -115,6 +115,7 @@
 };
 
 &usb3_peri0 {
+    companion = <&xhci0>;
     status = "okay";
     renesas,usb-role-switch;
 
