@@ -160,6 +160,31 @@ int __init early_serial8250_setup(struct earlycon_device *device,
 	if (!(device->port.membase || device->port.iobase))
 		return -ENODEV;
 
+#if defined(CONFIG_ARCH_R9A09G011GBG)
+       {
+               struct uart_port *up = &device->port;
+               unsigned int ier, fcr, lcr, mcr, hcr0;
+
+               ier = serial8250_early_in(up, UART_IER);
+               fcr = serial8250_early_in(up, UART_FCR);
+               lcr = serial8250_early_in(up, UART_LCR);
+               mcr = serial8250_early_in(up, UART_MCR);
+               hcr0 = serial8250_early_in(up, UART_HCR0);
+
+               serial8250_early_out(up, UART_FCR,
+                       fcr | UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT);
+
+               serial8250_early_out(up, UART_HCR0, hcr0 | UART_HCR0_SWRST);
+               serial8250_early_out(up, UART_HCR0, hcr0 & ~UART_HCR0_SWRST);
+
+               serial8250_early_out(up, UART_IER, ier);
+               serial8250_early_out(up, UART_FCR, fcr);
+               serial8250_early_out(up, UART_LCR, lcr);
+               serial8250_early_out(up, UART_MCR, mcr);
+               serial8250_early_out(up, UART_HCR0, hcr0);
+       }
+#endif /* defined(CONFIG_ARCH_R9A09G011GBG) */
+
 	if (!device->baud) {
 		struct uart_port *port = &device->port;
 		unsigned int ier;

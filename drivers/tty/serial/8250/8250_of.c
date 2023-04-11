@@ -234,6 +234,14 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 			&port8250.overrun_backoff_time_ms) != 0)
 		port8250.overrun_backoff_time_ms = 0;
 
+#if defined(CONFIG_ARCH_R9A09G011GBG)
+       if (of_find_property(ofdev->dev.of_node, "dmas", NULL)
+               && of_find_property(ofdev->dev.of_node,
+                                               "dma-names", NULL))
+               port8250.dma = devm_kzalloc(&ofdev->dev,
+                       sizeof(struct uart_8250_dma), GFP_KERNEL);
+#endif /* defined(CONFIG_ARCH_R9A09G011GBG) */
+
 	ret = serial8250_register_8250_port(&port8250);
 	if (ret < 0)
 		goto err_dispose;

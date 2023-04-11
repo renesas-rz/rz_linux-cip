@@ -11,6 +11,10 @@
 
 #include "8250.h"
 
+#if defined(CONFIG_ARCH_R9A09G011GBG)
+#include <linux/console.h>
+#endif /* defined(CONFIG_ARCH_R9A09G011GBG) */
+
 static void __dma_tx_complete(void *param)
 {
 	struct uart_8250_port	*p = param;
@@ -62,6 +66,12 @@ static void __dma_rx_complete(void *param)
 
 	tty_insert_flip_string(tty_port, dma->rx_buf, count);
 	p->port.icount.rx += count;
+
+#if defined(CONFIG_ARCH_R9A09G011GBG)
+	if (!dma->rx_running)
+		return
+#endif /* defined(CONFIG_ARCH_R9A09G011GBG) */
+
 	dma->rx_running = 0;
 
 	tty_flip_buffer_push(tty_port);
