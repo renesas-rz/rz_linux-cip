@@ -204,6 +204,19 @@ config USB_RENESAS_USB3
 	   dynamically linked module called "renesas_usb3" and force all
 	   gadget drivers to also be dynamically linked.
 
+config USB_RENESAS_USB3_RZV2M
+       tristate 'Renesas RZV/2M USB3.0 Peripheral controller'
+       depends on ARCH_RENESAS || COMPILE_TEST
+       depends on EXTCON
+       select USB_ROLE_SWITCH
+       help
+          Renesas USB3.0 Peripheral controller is a USB peripheral controller
+          that supports super, high, and full speed USB 3.0 data transfers.
+
+          Say "y" to link the driver statically, or "m" to build a
+          dynamically linked module called "renesas_usb3_rzv2m" and force all
+          gadget drivers to also be dynamically linked.
+
 config USB_PXA27X
 	tristate "PXA 27x"
 	depends on HAS_IOMEM
