@@ -211,9 +211,8 @@
         };
 
         sdhi0: sd@85000000 {    /* used sh card boot */
-            compatible = "renesas,sdhi-r8a774c0",
-                     "renesas,rcar-gen3-sdhi";
-            reg = <0 0x85000000 0 0x2000>;
+            compatible = "renesas,rzv2m-sdhi";
+	    reg = <0 0x85000000 0 0x2000>;
             interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&cpg CPG_MOD 301>;
             max-frequency = <200000000>;
@@ -225,8 +224,7 @@
         };
 
         eMM: sd@85020000 {
-            compatible = "renesas,sdhi-r8a774c0",
-                    "renesas,rcar-gen3-sdhi";
+            compatible = "renesas,rzv2m-sdhi";
             reg = <0 0x85020000 0 0x2000>;
             interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&cpg CPG_MOD 309>;
