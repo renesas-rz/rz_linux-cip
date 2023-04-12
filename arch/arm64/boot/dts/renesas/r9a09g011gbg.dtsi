@@ -116,6 +116,22 @@
         #size-cells = <2>;
         ranges;
 
+       /* used watch dog timer */
+       wdt0: watchdog@a4050000 {
+              compatible = "renesas,rzv2m-wdt";
+              reg = <0 0xa4050000 0 0x80>;
+              clocks = <&pclk>,<&wdt_clk>;
+              interrupts = <GIC_SPI 043 IRQ_TYPE_LEVEL_HIGH>;
+              status = "disabled";
+       };
+       wdt1: watchdog@a4050080 {
+              compatible = "renesas,rzv2m-wdt";
+              reg = <0 0xa4050080 0 0x80>;
+              clocks = <&pclk>,<&wdt_clk>;
+              interrupts = <GIC_SPI 044 IRQ_TYPE_LEVEL_HIGH>;
+              status = "disabled";
+       };
+
        pfc: pin-controller@B6250000 {
             compatible = "renesas,pfc-r8arzv2m";
             reg = <0 0xB6250000 0 0x1000>;

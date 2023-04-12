@@ -110,6 +110,12 @@
 	clock-frequency = <48000000>;
 };
 
+/* used watch dog timer */
+&wdt0 {
+       status = "okay";
+       timeout-sec = <60>;
+};
+
 &xhci0 {
 	status = "okay";
 };
