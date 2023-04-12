@@ -33,7 +33,7 @@
         ranges;
 
         /* global autoconfigured region for contiguous allocations */
-	linux,cma@1B8000000 {
+	global_cma: linux,cma@1B8000000 {
             compatible = "shared-dma-pool";
             reusable;
 	    reg = <0x1 0xB8000000 0x0 0x8000000>;
@@ -116,6 +116,7 @@
 };
 
 &xhci0 {
+	memory-region = <&global_cma>;
 	status = "okay";
 };
 
