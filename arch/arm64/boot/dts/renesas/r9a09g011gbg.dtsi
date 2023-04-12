@@ -69,25 +69,10 @@
         /* This value must be overridden by the board */
         clock-frequency = <0>;
     };
-    imclk: imclk@200M {
-        #clock-cells = <0>;
-        compatible = "fixed-clock";
-        clock-frequency = <200000000>;
-    };
     pclk: pclk@100M {
         #clock-cells = <0>;
         compatible = "fixed-clock";
         clock-frequency = <100000000>;
-    };
-    usbclk: usbclk@200M {
-        #clock-cells = <0>;
-        compatible = "fixed-clock";
-        clock-frequency = <200000000>;
-    };
-    ethclk: ethclk@200M {
-        #clock-cells = <0>;
-        compatible = "fixed-clock";
-        clock-frequency = <200000000>;
     };
     sys: sys@100M {
         #clock-cells = <0>;
@@ -283,7 +268,6 @@
             compatible = "renesas,rzv2m-csi";
             reg = <0x00 0xa4020000 0x0 0x80>;
             interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
-            /* clocks = <&cpg CPG_MOD 1508>; */
             clocks = <&csi_clk>;
             #address-cells = <1>;
             #size-cells = <0>;
@@ -297,7 +281,6 @@
             compatible = "renesas,rzv2m-csi";
             reg = <0x00 0xa4020080 0x0 0x80>;
             interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
-            /* clocks = <&cpg CPG_MOD 1509>; */
             clocks = <&csi_clk>;
             #address-cells = <1>;
             #size-cells = <0>;
@@ -311,7 +294,6 @@
             compatible = "renesas,rzv2m-csi";
             reg = <0x00 0xa4020100 0x0 0x80>;
             interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
-            /* clocks = <&cpg CPG_MOD 1510>; */
             clocks = <&csi_clk>;
             #address-cells = <1>;
             #size-cells = <0>;
@@ -325,7 +307,6 @@
             compatible = "renesas,rzv2m-csi";
             reg = <0x00 0xa4020180 0x0 0x80>;
             interrupts = <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>;
-            /* clocks = <&cpg CPG_MOD 1511>; */
             clocks = <&csi_clk>;
             #address-cells = <1>;
             #size-cells = <0>;
@@ -339,7 +320,6 @@
             compatible = "renesas,rzv2m-csi";
             reg = <0x00 0xa4020200 0x0 0x80>;
             interrupts = <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>;
-            /* clocks = <&cpg CPG_MOD 1512>; */
             clocks = <&csi_clk>;
             #address-cells = <1>;
             #size-cells = <0>;

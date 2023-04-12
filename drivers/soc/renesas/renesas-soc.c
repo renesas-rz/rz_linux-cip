@@ -58,7 +58,7 @@ static const struct renesas_family fam_rzg2 __initconst __maybe_unused = {
 };
 
 static const struct renesas_family fam_rzv2 __initconst __maybe_unused = {
-	.name   = "RZ/V2",
+	.name   = "RZ/V2M",
 	.reg    = 0xA3F03104,           /* SYS (Version Register) */
 };
 
@@ -302,7 +302,7 @@ static const struct of_device_id renesas_socs[] __initconst = {
 	{ .compatible = "renesas,r8a774e1",	.data = &soc_rz_g2h },
 #endif
 #ifdef CONFIG_ARCH_R9A09G011GBG
-	{ .compatible = "renesas,r8arzv2m",      .data = &soc_rz_v2m },
+	{ .compatible = "renesas,r9a09g011gbg", .data = &soc_rz_v2m },
 #endif
 #ifdef CONFIG_ARCH_R8A7778
 	{ .compatible = "renesas,r8a7778",	.data = &soc_rcar_m1a },
@@ -484,8 +484,8 @@ static int __init renesas_soc_init(void)
 	}
 #endif
 
-	pr_info("Detected Renesas %s %s %s%s\n", soc_dev_attr->family,
-		soc_dev_attr->soc_id, rev_prefix, soc_dev_attr->revision ?: "");
+        pr_info("Detected Renesas %s (%s)\n", soc_dev_attr->family,
+                       soc_dev_attr->soc_id ?: "");
 
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev)) {
