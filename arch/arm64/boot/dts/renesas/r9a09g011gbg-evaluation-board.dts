@@ -11,7 +11,7 @@
 
 / {
     model = "RZ/V2M";
-    compatible = "rdk,rdk", "renesas,r8arzv2m";    
+    compatible = "renesas,r9a09g011gbg";
 
     aliases {
         serial0 = &uart0;
@@ -118,16 +118,6 @@
     companion = <&xhci0>;
     status = "okay";
     renesas,usb-role-switch;
-
-    port {
-        #address-cells = <1>;
-        #size-cells = <0>;
-
-        usb3peri_role_switch: endpoint@0 {
-            reg = <0>;
-            remote-endpoint = <&hd3ss3220_ep>;
-        };
-    };
 };
 
 &pfc {
@@ -153,27 +143,7 @@
 &i2c0 {
     clock-frequency = <100000>;
     status = "okay";
-    hd3ss3220@47 {
-        compatible = "ti,hd3ss3220";
-        reg = <0x47>;
-
-        usb_con: connector {
-            compatible = "usb-c-connector";
-            label = "USB-C";
-            data-role = "dual";
-        };
-
-        port {
-            #address-cells = <1>;
-            #size-cells = <0>;
-
-            hd3ss3220_ep: endpoint@0 {
-                reg = <0>;
-                remote-endpoint = <&usb3peri_role_switch>;
-            };
-        };
-    };
-   clock-generator@68 {
+    clock-generator@68 {
        compatible = "idt,9fgv0241";
        reg = <0x68>;
     };
