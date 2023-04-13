@@ -69,7 +69,7 @@ static void __dma_rx_complete(void *param)
 
 #if defined(CONFIG_ARCH_R9A09G011GBG)
 	if (!dma->rx_running)
-		return
+		return;
 #endif /* defined(CONFIG_ARCH_R9A09G011GBG) */
 
 	dma->rx_running = 0;
