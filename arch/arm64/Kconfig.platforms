@@ -7,6 +7,12 @@ config ARCH_R9A09G011GBG
        help
          This enables support for the Renesas RZ/V2M SoC.
 
+config ARCH_R9A09G055MA3GBG
+       bool "Renesas RZ/V2MA SoC Platform"
+       depends on ARCH_RENESAS
+       help
+         This enables support for the Renesas RZ/V2MA SoC.
+
 config ARCH_ACTIONS
 	bool "Actions Semi Platforms"
 	select OWL_TIMER

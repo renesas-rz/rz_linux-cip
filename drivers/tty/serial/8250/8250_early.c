@@ -160,7 +160,7 @@ int __init early_serial8250_setup(struct earlycon_device *device,
 	if (!(device->port.membase || device->port.iobase))
 		return -ENODEV;
 
-#if defined(CONFIG_ARCH_R9A09G011GBG)
+#if defined(CONFIG_ARCH_R9A09G011GBG) || defined(CONFIG_ARCH_R9A09G055MA3GBG)
        {
                struct uart_port *up = &device->port;
                unsigned int ier, fcr, lcr, mcr, hcr0;
@@ -183,7 +183,7 @@ int __init early_serial8250_setup(struct earlycon_device *device,
                serial8250_early_out(up, UART_MCR, mcr);
                serial8250_early_out(up, UART_HCR0, hcr0);
        }
-#endif /* defined(CONFIG_ARCH_R9A09G011GBG) */
+#endif /* defined(CONFIG_ARCH_R9A09G011GBG) || defined(CONFIG_ARCH_R9A09G055MA3GBG) */
 
 	if (!device->baud) {
 		struct uart_port *port = &device->port;

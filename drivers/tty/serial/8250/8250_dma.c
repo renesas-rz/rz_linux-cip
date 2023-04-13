@@ -11,9 +11,9 @@
 
 #include "8250.h"
 
-#if defined(CONFIG_ARCH_R9A09G011GBG)
+#if defined(CONFIG_ARCH_R9A09G011GBG) || defined(CONFIG_ARCH_R9A09G055MA3GBG)
 #include <linux/console.h>
-#endif /* defined(CONFIG_ARCH_R9A09G011GBG) */
+#endif /* defined(CONFIG_ARCH_R9A09G011GBG) || defined(CONFIG_ARCH_R9A09G055MA3GBG) */
 
 static void __dma_tx_complete(void *param)
 {
@@ -67,10 +67,10 @@ static void __dma_rx_complete(void *param)
 	tty_insert_flip_string(tty_port, dma->rx_buf, count);
 	p->port.icount.rx += count;
 
-#if defined(CONFIG_ARCH_R9A09G011GBG)
+#if defined(CONFIG_ARCH_R9A09G011GBG) || defined(CONFIG_ARCH_R9A09G055MA3GBG)
 	if (!dma->rx_running)
 		return;
-#endif /* defined(CONFIG_ARCH_R9A09G011GBG) */
+#endif /* defined(CONFIG_ARCH_R9A09G011GBG) || defined(CONFIG_ARCH_R9A09G055MA3GBG) */
 
 	dma->rx_running = 0;
 

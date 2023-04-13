@@ -57,7 +57,7 @@ static const struct renesas_family fam_rzg2 __initconst __maybe_unused = {
 	.reg	= 0xfff00044,		/* PRR (Product Register) */
 };
 
-static const struct renesas_family fam_rzv2 __initconst __maybe_unused = {
+static const struct renesas_family fam_rzv2m __initconst __maybe_unused = {
 	.name   = "RZ/V2M",
 	.reg    = 0xA3F03104,           /* SYS (Version Register) */
 };
@@ -159,7 +159,7 @@ static const struct renesas_soc soc_rz_g2h __initconst __maybe_unused = {
 };
 
 static const struct renesas_soc soc_rz_v2m __initconst __maybe_unused = {
-	.family = &fam_rzv2,
+	.family = &fam_rzv2m,
 	.id     = 0x10,
 };
 
@@ -312,11 +312,10 @@ static const struct of_device_id renesas_socs[] __initconst = {
 	{ .compatible = "renesas,r8a774e1",	.data = &soc_rz_g2h },
 #endif
 #ifdef CONFIG_ARCH_R9A09G011GBG
-#if 0 /* TODO Add V2MA config*/
 	{ .compatible = "renesas,r9a09g011gbg", .data = &soc_rz_v2m },
 #endif
-/*#ifdef CONFIG_ARCH_R9A09G055MA3GBG*/ /* TODO Add V2MA config*/
-	 { .compatible = "renesas,r9a09g011gbg", .data = &soc_rz_v2ma },
+#ifdef CONFIG_ARCH_R9A09G055MA3GBG
+	{ .compatible = "renesas,r9a09g055ma3gbg", .data = &soc_rz_v2ma },
 #endif
 #ifdef CONFIG_ARCH_R8A7778
 	{ .compatible = "renesas,r8a7778",	.data = &soc_rcar_m1a },
