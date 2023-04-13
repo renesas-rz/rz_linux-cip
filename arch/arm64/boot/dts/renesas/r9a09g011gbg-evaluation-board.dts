@@ -115,6 +115,11 @@
        timeout-sec = <60>;
 };
 
+&wdt1 {
+       status = "okay";
+       timeout-sec = <60>;
+};
+
 &xhci0 {
 	memory-region = <&global_cma>;
 	status = "okay";
@@ -129,18 +134,162 @@
 &pfc {
     status = "okay";
     pinctrl-names = "default";
+
+    pwm0_pins: pwm@0 {
+        groups = "pwm0";
+        function = "pwm";
+    };
+
+    pwm1_pins: pwm@1 {
+        groups = "pwm1";
+        function = "pwm";
+    };
+
+    pwm2_pins: pwm@2 {
+        groups = "pwm2";
+        function = "pwm";
+    };
+
+    pwm3_pins: pwm@3 {
+        groups = "pwm3";
+        function = "pwm";
+    };
+
+    pwm4_pins: pwm4@ {
+        groups = "pwm4";
+        function = "pwm";
+    };
+
+    pwm5_pins: pwm@5 {
+        groups = "pwm5";
+        function = "pwm";
+    };
+
+    pwm6_pins: pwm@6 {
+        groups = "pwm6";
+        function = "pwm";
+    };
+
+    pwm7_pins: pwm@7 {
+        groups = "pwm7";
+        function = "pwm";
+    };
+
+    pwm8_pins: pwm@8 {
+        groups = "pwm8";
+        function = "pwm";
+    };
+
+    pwm9_pins: pwm@9 {
+        groups = "pwm9";
+        function = "pwm";
+    };
+
+    pwm10_pins: pwm@10 {
+        groups = "pwm10";
+        function = "pwm";
+    };
+
+    pwm11_pins: pwm@11 {
+        groups = "pwm11";
+        function = "pwm";
+    };
+
+    pwm12_pins: pwm@12 {
+        groups = "pwm12";
+        function = "pwm";
+    };
+
+    pwm13_pins: pwm@13 {
+        groups = "pwm13";
+        function = "pwm";
+    };
+
+    pwm14_pins: pwm@14 {
+        groups = "pwm14";
+        function = "pwm";
+    };
+
+    pwm15_pins: pwm@15 {
+        groups = "pwm15";
+        function = "pwm";
+    };
+
+    uart1_data_pins: uart_data@1 {
+        groups = "uart1_data";
+        function = "uart";
+    };
+
+    uart1_ctl_pins: uart_ctl@1 {
+        groups = "uart1_ctl";
+        function = "uart";
+    };
+
+    csi2_pins: csi@2 {
+        groups = "csi2rw";
+        function = "csi";
+    };
+
+    csi3_pins: csi@3 {
+        groups = "csi3rw";
+        function = "csi";
+    };
+
     csi4_pins: csi@4 {
         groups = "csi4rw";
         function = "csi";
     };
 
-    i2c2_pins: i2c@2 {
-        groups = "i2c2";
+    csi5_pins: csi@5 {
+        groups = "csi5rw";
+        function = "csi";
+    };
+
+    i2c0_pins: i2c@0 {
+        groups = "i2c0";
         function = "i2c";
+    };
+
+    i2c1_pins: i2c@1 {
+        groups = "i2c1";
+        function = "i2c";
+     };
+};
+
+&csi2{
+    status = "okay";
+    slavedev {
+        compatible = "rzv2m,slavedev";
+        reg = <0>;
+        spi-max-frequency = <25000000>;
+        spi-cpha;
+        spi-cpol;
+    };
+};
+
+&csi3{
+    status = "okay";
+    slavedev {
+        compatible = "rzv2m,slavedev";
+        reg = <0>;
+        spi-max-frequency = <25000000>;
+        spi-cpha;
+        spi-cpol;
     };
 };
 
 &csi4{
+    status = "okay";
+    slavedev {
+        compatible = "rzv2m,slavedev";
+        reg = <0>;
+        spi-max-frequency = <25000000>;
+        spi-cpha;
+        spi-cpol;
+    };
+};
+
+&csi5{
     status = "okay";
     slavedev {
         compatible = "rzv2m,slavedev";
@@ -160,14 +309,20 @@
     };
 };
 
-&i2c2 {
-    pinctrl-0 = <&i2c2_pins>;
-    pinctrl-names = "default";
+&i2c1 {
     clock-frequency = <100000>;
     status = "okay";
+    clock-generator@68 {
+       compatible = "idt,9fgv0241";
+       reg = <0x68>;
+    };
 };
 
 &uart0 {
+    status = "okay";
+};
+
+&uart1 {
     status = "okay";
 };
 
@@ -181,6 +336,38 @@
 };
 
 &avb {
+    status = "okay";
+};
+
+&pwm0 {
+    status = "okay";
+};
+
+&pwm1 {
+    status = "okay";
+};
+
+&pwm2 {
+    status = "okay";
+};
+
+&pwm3 {
+    status = "okay";
+};
+
+&pwm4 {
+    status = "okay";
+};
+
+&pwm5 {
+    status = "okay";
+};
+
+&pwm6 {
+    status = "okay";
+};
+
+&pwm7 {
     status = "okay";
 };
 
@@ -209,6 +396,42 @@
 };
 
 &pwm14 {
+    status = "okay";
+};
+
+&pwm15 {
+    status = "okay";
+};
+
+&tim0 {
+    status = "okay";
+};
+
+&tim1 {
+    status = "okay";
+};
+
+&tim2 {
+    status = "okay";
+};
+
+&tim3 {
+    status = "okay";
+};
+
+&tim4 {
+    status = "okay";
+};
+
+&tim5 {
+    status = "okay";
+};
+
+&tim6 {
+    status = "okay";
+};
+
+&tim7 {
     status = "okay";
 };
 
@@ -243,6 +466,7 @@
 &tim15 {
     status = "okay";
 };
+
 &tim16 {
     status = "okay";
 };
@@ -272,5 +496,37 @@
 };
 
 &tim23 {
+    status = "okay";
+};
+
+&tim24 {
+    status = "okay";
+};
+
+&tim25 {
+    status = "okay";
+};
+
+&tim26 {
+    status = "okay";
+};
+
+&tim27 {
+    status = "okay";
+};
+
+&tim28 {
+    status = "okay";
+};
+
+&tim29 {
+    status = "okay";
+};
+
+&tim30 {
+    status = "okay";
+};
+
+&tim31 {
     status = "okay";
 };

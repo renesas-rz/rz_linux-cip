@@ -55,36 +55,6 @@
         /* This value must be overridden by the board */
         clock-frequency = <0>;
     };
-    pclk: pclk@100M {
-        #clock-cells = <0>;
-        compatible = "fixed-clock";
-        clock-frequency = <100000000>;
-    };
-    sys: sys@100M {
-        #clock-cells = <0>;
-        compatible = "fixed-clock";
-        clock-frequency = <100000000>;
-    };
-    pwm: pwm@48M {
-        #clock-cells = <0>;
-        compatible = "fixed-clock";
-        clock-frequency = <48000000>;
-    };
-    wdt_clk: pclk48: clk@48M {
-        #clock-cells = <0>;
-        compatible = "fixed-clock";
-        clock-frequency = <48000000>;
-    };
-    csi_clk: clk24@24M {
-        #clock-cells = <0>;
-        compatible = "fixed-clock";
-        clock-frequency = <24000000>;
-    };
-    timclk: timclk@2M {
-        #clock-cells = <0>;
-        compatible = "fixed-clock";
-        clock-frequency = <2000000>;
-    };
 
     timer {
         compatible = "arm,armv8-timer";
@@ -113,14 +83,14 @@
        wdt0: watchdog@a4050000 {
               compatible = "renesas,rzv2m-wdt";
               reg = <0 0xa4050000 0 0x80>;
-              clocks = <&pclk>,<&wdt_clk>;
+              clocks = <&cpg CPG_MOD 1112>, <&cpg CPG_MOD 1113>;
               interrupts = <GIC_SPI 043 IRQ_TYPE_LEVEL_HIGH>;
               status = "disabled";
        };
        wdt1: watchdog@a4050080 {
               compatible = "renesas,rzv2m-wdt";
               reg = <0 0xa4050080 0 0x80>;
-              clocks = <&pclk>,<&wdt_clk>;
+              clocks = <&cpg CPG_MOD 1114>, <&cpg CPG_MOD 1115>;
               interrupts = <GIC_SPI 044 IRQ_TYPE_LEVEL_HIGH>;
               status = "disabled";
        };
@@ -277,7 +247,7 @@
             compatible = "renesas,rzv2m-csi";
             reg = <0x00 0xa4020000 0x0 0x80>;
             interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&csi_clk>;
+            clocks = <&cpg CPG_MOD 1508>;
             #address-cells = <1>;
             #size-cells = <0>;
             status = "disabled";
@@ -290,7 +260,7 @@
             compatible = "renesas,rzv2m-csi";
             reg = <0x00 0xa4020080 0x0 0x80>;
             interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&csi_clk>;
+            clocks = <&cpg CPG_MOD 1509>;
             #address-cells = <1>;
             #size-cells = <0>;
             status = "disabled";
@@ -303,7 +273,7 @@
             compatible = "renesas,rzv2m-csi";
             reg = <0x00 0xa4020100 0x0 0x80>;
             interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&csi_clk>;
+            clocks = <&cpg CPG_MOD 1510>;
             #address-cells = <1>;
             #size-cells = <0>;
             status = "disabled";
@@ -316,7 +286,7 @@
             compatible = "renesas,rzv2m-csi";
             reg = <0x00 0xa4020180 0x0 0x80>;
             interrupts = <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&csi_clk>;
+            clocks = <&cpg CPG_MOD 1511>;
             #address-cells = <1>;
             #size-cells = <0>;
             status = "disabled";
@@ -329,7 +299,7 @@
             compatible = "renesas,rzv2m-csi";
             reg = <0x00 0xa4020200 0x0 0x80>;
             interrupts = <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&csi_clk>;
+            clocks = <&cpg CPG_MOD 1512>;
             #address-cells = <1>;
             #size-cells = <0>;
             status = "disabled";
@@ -342,8 +312,7 @@
             compatible = "renesas,rzv2m-csi";
             reg = <0x00 0xa4020280 0x0 0x80>;
             interrupts = <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
-           /* clocks = <&cpg CPG_MOD 1513>; */
-            clocks = <&csi_clk>;
+            clocks = <&cpg CPG_MOD 1513>; 
             #address-cells = <1>;
             #size-cells = <0>;
             status = "disabled";
@@ -560,7 +529,7 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000000 0 0x80>;
             interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
-	    clocks = <&timclk>;
+	    clocks = <&cpg CPG_MOD 904>;
             clock-names = "timclk";
             status = "disabled";
         };
@@ -569,7 +538,7 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000080 0 0x80>;
             interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&timclk>;
+            clocks = <&cpg CPG_MOD 905>;
             clock-names = "timclk";
             status = "disabled";
         };
@@ -578,7 +547,7 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000100 0 0x80>;
             interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&timclk>;
+            clocks = <&cpg CPG_MOD 906>;
             clock-names = "timclk";
             status = "disabled";
         };
@@ -587,7 +556,7 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000180 0 0x80>;
             interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&timclk>;
+            clocks = <&cpg CPG_MOD 907>;
             clock-names = "timclk";
             status = "disabled";
         };
@@ -596,7 +565,7 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000200 0 0x80>;
             interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&timclk>;
+            clocks = <&cpg CPG_MOD 908>;
             clock-names = "timclk";
             status = "disabled";
         };
@@ -605,7 +574,7 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000280 0 0x80>;
             interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&timclk>;
+            clocks = <&cpg CPG_MOD 909>;
             clock-names = "timclk";
             status = "disabled";
         };
@@ -614,7 +583,7 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000300 0 0x80>;
             interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&timclk>;
+            clocks = <&cpg CPG_MOD 910>;
             clock-names = "timclk";
             status = "disabled";
         };
@@ -623,7 +592,7 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000380 0 0x80>;
             interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&timclk>;
+            clocks = <&cpg CPG_MOD 911>;
             clock-names = "timclk";
             status = "disabled";
         };
@@ -632,7 +601,7 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000400 0 0x80>;
             interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&cpg CPG_MOD 1005>;
+            clocks = <&cpg CPG_MOD 1004>;
             clock-names = "timclk";
             status = "disabled";
         };
@@ -641,7 +610,7 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000480 0 0x80>;
             interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&cpg CPG_MOD 1006>;
+            clocks = <&cpg CPG_MOD 1005>;
             clock-names = "timclk";
             status = "disabled";
         };
@@ -772,7 +741,7 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000c00 0 0x80>;
             interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&timclk>;
+            clocks = <&cpg CPG_MOD 1204>;
             clock-names = "timclk";
             status = "disabled";
         };
@@ -780,7 +749,7 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000c80 0 0x80>;
             interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&timclk>;
+            clocks = <&cpg CPG_MOD 1205>;
             clock-names = "timclk";
             status = "disabled";
         };
@@ -789,7 +758,7 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000d00 0 0x80>;
             interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&timclk>;
+            clocks = <&cpg CPG_MOD 1206>;
             clock-names = "timclk";
             status = "disabled";
         };
@@ -798,7 +767,7 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000d80 0 0x80>;
             interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&timclk>;
+            clocks = <&cpg CPG_MOD 1207>;
             clock-names = "timclk";
             status = "disabled";
         };
@@ -807,7 +776,7 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000e00 0 0x80>;
             interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&timclk>;
+            clocks = <&cpg CPG_MOD 1208>;
             clock-names = "timclk";
             status = "disabled";
         };
@@ -816,7 +785,7 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000e80 0 0x80>;
             interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&timclk>;
+            clocks = <&cpg CPG_MOD 1209>;
             clock-names = "timclk";
             status = "disabled";
         };
@@ -826,7 +795,7 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000f00 0 0x80>;
             interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&timclk>;
+            clocks = <&cpg CPG_MOD 1210>;
             clock-names = "timclk";
             status = "disabled";
         };
@@ -835,7 +804,7 @@
             compatible =  "renesas,tim-rzv2m";
             reg = <0 0xa4000f80 0 0x80>;
             interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&timclk>;
+            clocks = <&cpg CPG_MOD 1211>;
             clock-names = "timclk";
             status = "disabled";
         };
@@ -844,7 +813,7 @@
             compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
             reg = <0 0xa4010000 0 0x80>;
             interrupts = <GIC_SPI 368 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&sys>, <&pwm>;
+            clocks = <&cpg CPG_MOD 1300>, <&cpg CPG_MOD 1304>;
             clock-names = "sys", "pwm";
             #pwm-cells = <2>;
             status = "disabled";
@@ -854,7 +823,7 @@
             compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
             reg = <0 0xa4010080 0 0x80>;
             interrupts = <GIC_SPI 369 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&sys>, <&pwm>;
+            clocks = <&cpg CPG_MOD 1300>, <&cpg CPG_MOD 1305>;
             clock-names = "sys", "pwm";
             #pwm-cells = <2>;
             status = "disabled";
@@ -864,7 +833,7 @@
             compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
             reg = <0 0xa4010100 0 0x80>;
             interrupts = <GIC_SPI 370 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&sys>, <&pwm>;
+            clocks = <&cpg CPG_MOD 1300>, <&cpg CPG_MOD 1306>;
             clock-names = "sys", "pwm";
             #pwm-cells = <2>;
             status = "disabled";
@@ -874,7 +843,7 @@
             compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
             reg = <0 0xa4010180 0 0x80>;
             interrupts = <GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&sys>, <&pwm>;
+            clocks = <&cpg CPG_MOD 1300>, <&cpg CPG_MOD 1307>;
             clock-names = "sys", "pwm";
             #pwm-cells = <2>;
             status = "disabled";
@@ -884,7 +853,7 @@
             compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
             reg = <0 0xa4010200 0 0x80>;
             interrupts = <GIC_SPI 372 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&sys>, <&pwm>;
+            clocks = <&cpg CPG_MOD 1300>, <&cpg CPG_MOD 1308>;
             clock-names = "sys", "pwm";
             #pwm-cells = <2>;
             status = "disabled";
@@ -894,7 +863,7 @@
             compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
             reg = <0 0xa4010280 0 0x80>;
             interrupts = <GIC_SPI 373 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&sys>, <&pwm>;
+            clocks = <&cpg CPG_MOD 1300>, <&cpg CPG_MOD 1309>;
             clock-names = "sys", "pwm";
             #pwm-cells = <2>;
             status = "disabled";
@@ -904,7 +873,7 @@
             compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
             reg = <0 0xa4010300 0 0x80>;
             interrupts = <GIC_SPI 374 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&sys>, <&pwm>;
+            clocks = <&cpg CPG_MOD 1300>, <&cpg CPG_MOD 1310>;
             clock-names = "sys", "pwm";
             #pwm-cells = <2>;
             status = "disabled";
@@ -914,7 +883,7 @@
             compatible = "renesas,pwm-r8arzv2m-rzv2m", "renesas,pwm-v2m";
             reg = <0 0xa4010380 0 0x80>;
             interrupts = <GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&sys>, <&pwm>;
+            clocks = <&cpg CPG_MOD 1300>, <&cpg CPG_MOD 1311>;
             clock-names = "sys", "pwm";
             #pwm-cells = <2>;
             status = "disabled";
