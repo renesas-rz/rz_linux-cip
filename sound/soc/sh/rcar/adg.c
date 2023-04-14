@@ -6,6 +6,7 @@
 
 #include <linux/clk-provider.h>
 #include "rsnd.h"
+#include <linux/reset.h>
 
 #define CLKA	0
 #define CLKB	1
@@ -20,6 +21,9 @@
 #define CLKOUTMAX 4
 
 #define BRRx_MASK(x) (0x3FF & x)
+
+#define SSI_NAME "ssi"
+#define ADG_NAME "adg"
 
 static struct rsnd_mod_ops adg_ops = {
 	.name = "adg",
@@ -319,7 +323,17 @@ int rsnd_adg_clk_query(struct rsnd_priv *priv, unsigned int rate)
 
 int rsnd_adg_ssi_clk_stop(struct rsnd_mod *ssi_mod)
 {
+	struct rsnd_priv *priv = rsnd_mod_to_priv(ssi_mod);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct clk *clk;
+
 	rsnd_adg_set_ssi_clk(ssi_mod, 0);
+
+	clk = devm_clk_get_optional(dev, "ssif_supply_clk");
+	if (IS_ERR(clk))
+		dev_dbg(dev, "Not use ssif_supply_clk\n");
+
+	clk_disable_unprepare(clk);
 
 	return 0;
 }
@@ -330,8 +344,10 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate)
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
-	int data;
+	struct clk *clk;
+	int data, ret;
 	u32 ckr = 0;
+	char name[16];
 
 	data = rsnd_adg_clk_query(priv, rate);
 	if (data < 0)
@@ -350,6 +366,25 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate)
 	rsnd_mod_bset(adg_mod, BRGCKR, 0x80770000, adg->ckr | ckr);
 	rsnd_mod_write(adg_mod, BRRA,  adg->rbga);
 	rsnd_mod_write(adg_mod, BRRB,  adg->rbgb);
+
+	snprintf(name, 16, "%s.%s.%d", ADG_NAME, SSI_NAME, rsnd_mod_id(ssi_mod));
+
+	clk = devm_clk_get_optional(dev, name);
+	if (IS_ERR(clk))
+		dev_dbg(dev, "Not use %s\n", name);
+
+	ret = clk_prepare_enable(clk);
+	if (ret < 0)
+		dev_dbg(dev, "Can not enable %s\n", name);
+
+
+	clk = devm_clk_get_optional(dev, "ssif_supply_clk");
+	if (IS_ERR(clk))
+		dev_dbg(dev, "Not use ssif_supply_clk\n");
+
+	ret = clk_prepare_enable(clk);
+	if (ret < 0)
+		dev_dbg(dev, "Can not enable ssif_supply_clk\n");
 
 	dev_dbg(dev, "CLKOUT is based on BRG%c (= %dHz)\n",
 		(ckr) ? 'B' : 'A',
@@ -584,14 +619,28 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 {
 	struct rsnd_adg *adg;
 	struct device *dev = rsnd_priv_to_dev(priv);
+	struct clk *clk;
+	struct reset_control *rstc;
 	int ret;
 
 	adg = devm_kzalloc(dev, sizeof(*adg), GFP_KERNEL);
 	if (!adg)
 		return -ENOMEM;
 
+	clk = devm_clk_get_optional(dev, "adg_clk");
+	if (IS_ERR(clk))
+		dev_dbg(dev, "Not use adg_clk\n");
+
+	ret = clk_prepare_enable(clk);
+	if (ret < 0)
+		dev_dbg(dev, "Can not enable adg_clk\n");
+
+	rstc = devm_reset_control_get_optional(dev, ADG_NAME);
+	if (IS_ERR(rstc))
+		dev_dbg(dev, "failed to get cpg reset\n");
+
 	ret = rsnd_mod_init(priv, &adg->mod, &adg_ops,
-		      NULL, 0, 0);
+		      NULL, rstc, 0, 0);
 	if (ret)
 		return ret;
 
@@ -621,4 +670,10 @@ void rsnd_adg_remove(struct rsnd_priv *priv)
 	of_clk_del_provider(np);
 
 	rsnd_adg_clk_disable(priv);
+
+	clk = devm_clk_get_optional(dev, "adg_clk");
+	if (IS_ERR(clk))
+		dev_dbg(dev, "Not use adg_clk\n");
+
+	clk_disable_unprepare(clk);
 }
