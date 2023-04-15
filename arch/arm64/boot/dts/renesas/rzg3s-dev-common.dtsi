@@ -300,3 +300,7 @@
 		status = "okay";
 	};
 };
+
+&rtc{
+	status = "okay";
+};
