@@ -202,3 +202,7 @@
 	status = "okay";
 	timeout-sec = <60>;
 };
+
+&rtc{
+	status = "okay";
+};
