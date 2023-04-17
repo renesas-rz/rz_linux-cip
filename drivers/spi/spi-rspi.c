@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/of_device.h>
@@ -230,12 +231,18 @@ static u32 rspi_read32(const struct rspi_data *rspi, u16 offset)
 
 static void rspi_write_data(const struct rspi_data *rspi, u16 data)
 {
-	if (rspi->bits_per_word == 8)
+	if (rspi->bits_per_word == 8) {
 		rspi_write8(rspi, data, RSPI_SPDR);
-	else if (rspi->bits_per_word == 16)
+		usleep_range(10,20);
+	}
+	else if (rspi->bits_per_word == 16) {
 		rspi_write16(rspi, data, RSPI_SPDR);
-	else
+		usleep_range(10,20);
+	}
+	else {
 		rspi_write32(rspi, data, RSPI_SPDR);
+		usleep_range(10,20);
+	}
 }
 
 static u16 rspi_read_data(const struct rspi_data *rspi)
