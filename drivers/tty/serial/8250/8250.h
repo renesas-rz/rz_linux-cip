@@ -155,11 +155,18 @@ static inline void serial_dl_write(struct uart_8250_port *up, int value)
 
 static inline bool serial8250_set_THRI(struct uart_8250_port *up)
 {
+	struct uart_port *port = &up->port;
+	struct circ_buf *xmit = &port->state->xmit;
+
 	if (up->ier & UART_IER_THRI)
 		return false;
-	up->ier |= UART_IER_THRI;
-	serial_out(up, UART_IER, up->ier);
-	return true;
+
+	if (!uart_circ_empty(xmit)) {
+		up->ier |= UART_IER_THRI;
+		serial_out(up, UART_IER, up->ier);
+		return true;
+	} else
+		return false;
 }
 
 static inline bool serial8250_clear_THRI(struct uart_8250_port *up)
