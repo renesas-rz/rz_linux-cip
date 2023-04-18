@@ -307,7 +307,7 @@ static int rzv2m_func_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
 	struct rzv2m_pfc *pfc = pin_ctl->pfc;
 	const struct rzv2m_group_desc *_group = &pfc->info->groups[group];
 	unsigned long flags;
-	unsigned int i;
+	unsigned int i, index;
 	int ret = 0;
 
 	spin_lock_irqsave(&pfc->lock, flags);
@@ -316,7 +316,14 @@ static int rzv2m_func_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
 					   _group->pin_desc[i].pin);
 		if (ret)
 			break;
-		pin_ctl->configs[_group->pin_desc[i].pin] = PINMUX_FUNCTION;
+		
+		index = rzv2m_pfc_get_pin_index(pfc,_group->pin_desc[i].pin);
+		if (index >= pfc->info->nr_pins) {
+			ret = -EINVAL;
+			break;
+		}
+		
+		pin_ctl->configs[index] = PINMUX_FUNCTION;
 	}
 	spin_unlock_irqrestore(&pfc->lock, flags);
 	return ret;
