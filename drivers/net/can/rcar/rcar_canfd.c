@@ -103,7 +103,7 @@ enum rcanfd_chip_id {
 /* RSCFDnCFDGAFLECTR / RSCFDnGAFLECTR */
 #define RCANFD_GAFLECTR_AFLDAE		BIT(8)
 #define RCANFD_GAFLECTR_AFLPN(x)	((x) & 0x1f)
-#define RCANFD_G3S_GAFLECTR_AFLPN(x)	((x) & 0x3f)
+#define RCANFD_G3S_GAFLECTR_AFLPN(x)	((x) & 0x7f)
 
 /* RSCFDnCFDGAFLIDj / RSCFDnGAFLIDj */
 #define RCANFD_GAFLID_GAFLLB		BIT(29)
@@ -124,7 +124,7 @@ enum rcanfd_chip_id {
 #define RCANFD_NCFG_NTSEG1(x)		(((x) & 0x7f) << 16)
 #define RCANFD_NCFG_NSJW(x)		(((x) & 0x1f) << 11)
 #define RCANFD_NCFG_NBRP(x)		(((x) & 0x3ff) << 0)
-#define RCANFD_G3S_NCFG_NTSEG2(x)	(((x) & 0x3f) << 25)
+#define RCANFD_G3S_NCFG_NTSEG2(x)	(((x) & 0x7f) << 25)
 #define RCANFD_G3S_NCFG_NTSEG1(x)	(((x) & 0xff) << 17)
 #define RCANFD_G3S_NCFG_NSJW(x)		(((x) & 0x3f) << 10)
 
