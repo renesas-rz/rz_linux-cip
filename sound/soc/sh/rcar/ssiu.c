@@ -30,21 +30,22 @@ struct rsnd_ssiu {
 	     i++)
 
 /*
- *	SSI	Gen2		Gen3
- *	0	BUSIF0-3	BUSIF0-7
- *	1	BUSIF0-3	BUSIF0-7
- *	2	BUSIF0-3	BUSIF0-7
- *	3	BUSIF0		BUSIF0-7
- *	4	BUSIF0		BUSIF0-7
+ *	SSI	Gen2		Gen3		RZV2H
+ *	0	BUSIF0-3	BUSIF0-7	BUSIF0-3
+ *	1	BUSIF0-3	BUSIF0-7	BUSIF0-3
+ *	2	BUSIF0-3	BUSIF0-7	BUSIF0-3
+ *	3	BUSIF0		BUSIF0-7	BUSIF0-3
+ *	4	BUSIF0		BUSIF0-7	BUSIF0-3
  *	5	BUSIF0		BUSIF0
  *	6	BUSIF0		BUSIF0
  *	7	BUSIF0		BUSIF0
  *	8	BUSIF0		BUSIF0
- *	9	BUSIF0-3	BUSIF0-7
- *	total	22		52
+ *	9	BUSIF0-3	BUSIF0-7	BUSIF0-3
+ *	total	22		52		28
  */
 static const int gen2_id[] = { 0, 4,  8, 12, 13, 14, 15, 16, 17, 18 };
 static const int gen3_id[] = { 0, 8, 16, 24, 32, 40, 41, 42, 43, 44 };
+static const int rzv2h_id[] = { 0, 4, 8, 12, 16, 20, 21, 22, 23, 24 };
 
 static u32 *rsnd_ssiu_get_status(struct rsnd_mod *mod,
 				 struct rsnd_dai_stream *io,
@@ -75,19 +76,28 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 	case 2:
 	case 3:
 	case 4:
-		for (i = 0; i < 4; i++)
-			rsnd_mod_write(mod, SSI_SYS_STATUS(i * 2), 0xf << (id * 4));
+		if (!rsnd_is_rzv2h(priv))
+			for (i = 0; i < 4; i++)
+				rsnd_mod_write(mod, SSI_SYS_STATUS(i * 2), 0xf << (id * 4));
+		else
+			for (i = 0; i < 2; i++)
+				rsnd_mod_write(mod, SSI_SYS_STATUS(i * 2), 0xf << (id * 4));
 		break;
 	case 9:
-		for (i = 0; i < 4; i++)
-			rsnd_mod_write(mod, SSI_SYS_STATUS((i * 2) + 1), 0xf << 4);
+		if (!rsnd_is_rzv2h(priv))
+			for (i = 0; i < 4; i++)
+				rsnd_mod_write(mod, SSI_SYS_STATUS((i * 2) + 1), 0xf << 4);
+		else
+			for (i = 0; i < 2; i++)
+				rsnd_mod_write(mod, SSI_SYS_STATUS((i * 2) + 1), 0xf << 4);
 		break;
 	}
 
 	/*
 	 * SSI_MODE0
 	 */
-	rsnd_mod_bset(mod, SSI_MODE0, (1 << id), !use_busif << id);
+	if (!rsnd_is_rzv2h(priv))
+		rsnd_mod_bset(mod, SSI_MODE0, (1 << id), !use_busif << id);
 
 	/*
 	 * SSI_MODE1 / SSI_MODE2
@@ -131,6 +141,10 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 	if (ssis & (1 << 4))
 		val1 |= is_clk_master ? 0x2 << 16 :
 					0x1 << 16;
+	/* SSI6 is sharing pin with SSI5 */
+	if (ssis & (1 << 6))
+		val1 |= is_clk_master ? 0x2 << 24 :
+					0x1 << 24;
 	/* SSI9 is sharing pin with SSI0 */
 	if (ssis & (1 << 9))
 		val2 |= is_clk_master ? 0x2 : 0x1;
@@ -436,6 +450,9 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 		} else if (rsnd_is_gen3(priv)) {
 			list	= gen3_id;
 			nr	= ARRAY_SIZE(gen3_id);
+		} else if (rsnd_is_rzv2h(priv)) {
+			list	= rzv2h_id;
+			nr	= ARRAY_SIZE(rzv2h_id);
 		} else {
 			dev_err(dev, "unknown SSIU\n");
 			return -ENODEV;
