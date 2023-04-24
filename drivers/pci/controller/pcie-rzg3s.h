@@ -84,12 +84,22 @@
 /* Macro Control */
 #define PERMISSION_REG							0x0300
 	#define CFG_HWINIT_EN						0x00000004
+	#define PIPE_PHY_REG_EN						0x00000002
+/*--- PCIE_REG_RESET ---*/
 #define PCI_RC_RESET_REG						0x0310
 	#define RESET_ALL_DEASSERT					0x0000007F
 	#define RESET_CONFIG_DEASSERT				0x0000001C
 	#define RESET_ALL_ASSERT				    0x00000000
 	#define RESET_LOAD_CFG_RELEASE				0x00000018
 	#define RESET_PS_GP_RELEASE  				0x0000003B
+#define RST_OUT_B                       BIT(6)
+#define RST_PS_B                        BIT(5)
+#define RST_LOAD_B                      BIT(4)
+#define RST_CFG_B                       BIT(3)
+#define RST_RSM_B                       BIT(2)
+#define RST_GP_B                        BIT(1)
+#define RST_B                           BIT(0)
+
 #define MODE_SET_0_REG							0x0314
 #define MODE_SET_1_REG							0x0318
 #define GENERAL_PURPOSE_OUTPUT_REG(x)			(0x0380 + ((x) * 0x04))
@@ -272,6 +282,9 @@
 -------------------------------------------------------*/
 #define RAMA_ADDRESS			 				0x80100000
 #define RAMA_SIZE				 				0x32000
+
+/* Function ID to set PCIE RST_RSM_B */
+#define RZ_SIP_SVC_SET_PCIE_RST_RSMB	0x82000013
 
 struct rzg3s_axi_window_set {
 	u32	base[RZG3S_PCI_MAX_RESOURCES];
