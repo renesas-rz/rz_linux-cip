@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/reset.h>
 #include <uapi/linux/psci.h>
+#include <linux/arm-smccc.h>
 
 #include "pcie-rzg3s.h"
 
@@ -496,28 +497,30 @@ static int PCIE_INT_Initialize(struct rzg3s_pcie *pcie)
 static int rzg3s_pcie_hw_init(struct rzg3s_pcie *pcie, int channel)
 {
 	unsigned int timeout = 50;
+	struct arm_smccc_res local_res;
 
-	/* Set to the PCIe reset state   : step6 */
-	rzg3s_pci_write_reg(pcie, RESET_ALL_ASSERT, PCI_RC_RESET_REG);			/* Set PCI_RC 310h */
+	arm_smccc_smc(RZ_SIP_SVC_SET_PCIE_RST_RSMB, 0xd74, 0x1, 0, 0, 0, 0, 0, &local_res);
 
-	/* Release the PCIe reset : step10 : RST_LOAD_B, RST_CFG_B)*/
-	rzg3s_pci_write_reg(pcie, RESET_LOAD_CFG_RELEASE, PCI_RC_RESET_REG);	/* Set PCI_RC 310h */
+	/* Clear all PCIe reset bits */
+	rzg3s_pci_write_reg(pcie, RESET_ALL_ASSERT, PCI_RC_RESET_REG);
+	udelay(100);
 
-	/* Setting of HWINT related registers : step11 */
+	/* Release RST_CFG_B, RST_LOAD_B, RST_OUT_B */
+	rzg3s_pci_write_reg(pcie, RST_CFG_B | RST_LOAD_B | RST_OUT_B, PCI_RC_RESET_REG);
+	udelay(100);
+
+	/* Setting of HWINT related registers */
 	PCIE_CFG_Initialize(pcie);
 
-	/* Set Interrupt settings: step13  */
+	/* Set Interrupt settings */
 	PCIE_INT_Initialize(pcie);
 
-	/* Release the PCIe reset : step14 : RST_PS_B, RST_GP_B, RST_B */
-	rzg3s_pci_write_reg(pcie, RESET_PS_GP_RELEASE, PCI_RC_RESET_REG);		/* Set PCI_RC 310h */
+	/* Release RST_PS_B, RST_GP_B, RST_B */
+	rzg3s_pci_write_reg(pcie, RST_OUT_B | RST_PS_B | RST_LOAD_B | RST_CFG_B | RST_GP_B | RST_B, PCI_RC_RESET_REG);
+	udelay(100);
 
-	msleep(1);
-
-	/* Release the PCIe reset : step16 : RST_OUT_B, RST_RSM_B) */
-	rzg3s_pci_write_reg(pcie, RESET_ALL_DEASSERT,  PCI_RC_RESET_REG);		/* Set PCI_RC 310h */
-
-	rzg3s_pci_write_reg(pcie, 0x3ff2, MODE_SET_1_REG);						/* Set PCI_RC 318h */
+	/* Release all */
+	rzg3s_pci_write_reg(pcie, RESET_ALL_DEASSERT, PCI_RC_RESET_REG);
 
 	/* This will timeout if we don't have a link. */
 	while (timeout--) {
@@ -949,8 +952,100 @@ static int rzg3s_pcie_parse_map_dma_ranges(struct rzg3s_pcie_host *host)
 	return err;
 }
 
+static int rzg3s_pcie_phy_init(struct rzg3s_pcie_host *host)
+{
+	struct rzg3s_pcie *pcie = &host->pcie;
+
+	rzg3s_pci_write_reg(pcie, PIPE_PHY_REG_EN, PERMISSION_REG);
+
+	/* PHY Control Pin (XCFGD) registers setting: 0x2000 - 0x2260 */
+	rzg3s_pci_write_reg(pcie, 0, 0x2000);
+	rzg3s_pci_write_reg(pcie, 0, 0x2010);
+	rzg3s_pci_write_reg(pcie, 0, 0x2020);
+	rzg3s_pci_write_reg(pcie, 0, 0x2030);
+	rzg3s_pci_write_reg(pcie, 0, 0x2040);
+	rzg3s_pci_write_reg(pcie, 0, 0x2050);
+	rzg3s_pci_write_reg(pcie, 0, 0x2060);
+	rzg3s_pci_write_reg(pcie, 0, 0x2070);
+	rzg3s_pci_write_reg(pcie, 0xE0006801, 0x2080);
+	rzg3s_pci_write_reg(pcie, 0x007F7E30, 0x2090);
+	rzg3s_pci_write_reg(pcie, 0x183E0000, 0x20A0);
+	rzg3s_pci_write_reg(pcie, 0x978FF500, 0x20B0);
+	rzg3s_pci_write_reg(pcie, 0xEC000000, 0x20C0);
+	rzg3s_pci_write_reg(pcie, 0x009F1400, 0x20D0);
+	rzg3s_pci_write_reg(pcie, 0x0000D009, 0x20E0);
+	rzg3s_pci_write_reg(pcie, 0, 0x20F0);
+	rzg3s_pci_write_reg(pcie, 0, 0x2100);
+	rzg3s_pci_write_reg(pcie, 0x78000000, 0x2110);
+	rzg3s_pci_write_reg(pcie, 0, 0x2120);
+	rzg3s_pci_write_reg(pcie, 0x00880000, 0x2130);
+	rzg3s_pci_write_reg(pcie, 0x000005C0, 0x2140);
+	rzg3s_pci_write_reg(pcie, 0x07000000, 0x2150);
+	rzg3s_pci_write_reg(pcie, 0x00780920, 0x2160);
+	rzg3s_pci_write_reg(pcie, 0xC9400CE2, 0x2170);
+	rzg3s_pci_write_reg(pcie, 0x90000C0C, 0x2180);
+	rzg3s_pci_write_reg(pcie, 0x000C1414, 0x2190);
+	rzg3s_pci_write_reg(pcie, 0x00005034, 0x21A0);
+	rzg3s_pci_write_reg(pcie, 0x00006000, 0x21B0);
+	rzg3s_pci_write_reg(pcie, 0x00000001, 0x21C0);
+	rzg3s_pci_write_reg(pcie, 0, 0x21D0);
+	rzg3s_pci_write_reg(pcie, 0, 0x21E0);
+	rzg3s_pci_write_reg(pcie, 0, 0x21F0);
+	rzg3s_pci_write_reg(pcie, 0, 0x2220);
+	rzg3s_pci_write_reg(pcie, 0, 0x2210);
+	rzg3s_pci_write_reg(pcie, 0, 0x2220);
+	rzg3s_pci_write_reg(pcie, 0, 0x2230);
+	rzg3s_pci_write_reg(pcie, 0, 0x2240);
+	rzg3s_pci_write_reg(pcie, 0, 0x2250);
+	rzg3s_pci_write_reg(pcie, 0, 0x2260);
+
+	/* PHY Control Pin (XCFGA CMN) registers setting: 0x2400 - 0x24F0*/
+	rzg3s_pci_write_reg(pcie, 0x00000D10, 0x2400);
+	rzg3s_pci_write_reg(pcie, 0x08310100, 0x2410);
+	rzg3s_pci_write_reg(pcie, 0x00C21404, 0x2420);
+	rzg3s_pci_write_reg(pcie, 0x013C0010, 0x2430);
+	rzg3s_pci_write_reg(pcie, 0x01874440, 0x2440);
+	rzg3s_pci_write_reg(pcie, 0x1A216082, 0x2450);
+	rzg3s_pci_write_reg(pcie, 0x00103440, 0x2460);
+	rzg3s_pci_write_reg(pcie, 0x00000080, 0x2470);
+	rzg3s_pci_write_reg(pcie, 0x00000010, 0x2480);
+	rzg3s_pci_write_reg(pcie, 0x0C1000C1, 0x2490);
+	rzg3s_pci_write_reg(pcie, 0x1000C100, 0x24A0);
+	rzg3s_pci_write_reg(pcie, 0x0222000C, 0x24B0);
+	rzg3s_pci_write_reg(pcie, 0x00640019, 0x24C0);
+	rzg3s_pci_write_reg(pcie, 0x00A00028, 0x24D0);
+	rzg3s_pci_write_reg(pcie, 0x01D11228, 0x24E0);
+	rzg3s_pci_write_reg(pcie, 0x0201001D, 0x24F0);
+
+	/* PHY Control Pin (XCFGA RX) registers setting: 0x2500 - 0x25C0 */
+	rzg3s_pci_write_reg(pcie, 0x07D55000, 0x2500);
+	rzg3s_pci_write_reg(pcie, 0x030E3F00, 0x2510);
+	rzg3s_pci_write_reg(pcie, 0x00000288, 0x2520);
+	rzg3s_pci_write_reg(pcie, 0x102C5880, 0x2530);
+	rzg3s_pci_write_reg(pcie, 0x0000000B, 0x2540);
+	rzg3s_pci_write_reg(pcie, 0x04141441, 0x2550);
+	rzg3s_pci_write_reg(pcie, 0x00641641, 0x2560);
+	rzg3s_pci_write_reg(pcie, 0x00D63D63, 0x2570);
+	rzg3s_pci_write_reg(pcie, 0x00641641, 0x2580);
+	rzg3s_pci_write_reg(pcie, 0x01970377, 0x2590);
+	rzg3s_pci_write_reg(pcie, 0x00190287, 0x25A0);
+	rzg3s_pci_write_reg(pcie, 0x00190028, 0x25B0);
+	rzg3s_pci_write_reg(pcie, 0x00000028, 0x25C0);
+
+	/* PHY Control Pin (XCFGA TX) registers setting: 0x25D0 */
+	rzg3s_pci_write_reg(pcie, 0x00000107, 0x25D0);
+
+	/* PHY Control Pin (XCFG*) select registers setting: 0x2A20 */
+	rzg3s_pci_write_reg(pcie, 0x00000001, 0x2A20);
+
+	rzg3s_pci_write_reg(pcie, 0, PERMISSION_REG);
+
+	return 0;
+}
+
 static const struct of_device_id rzg3s_pcie_of_match[] = {
-	{ .compatible = "renesas,rzg3s-pcie", },
+	{ .compatible = "renesas,rzg3s-pcie",
+	  .data = rzg3s_pcie_phy_init },
 	{},
 };
 
@@ -1018,6 +1113,13 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 	err = rzg3s_pcie_parse_map_dma_ranges(host);
 	if (err)
 		return err;
+
+	host->phy_init_fn = of_device_get_match_data(dev);
+	err = host->phy_init_fn(host);
+	if (err) {
+		dev_err(dev, "failed to init PCIe PHY\n");
+		return err;
+	}
 
 	err = rzg3s_pcie_hw_init(pcie, host->channel);
 	if (err) {
