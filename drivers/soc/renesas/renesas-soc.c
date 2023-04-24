@@ -424,11 +424,11 @@ static int __init renesas_soc_init(void)
 	const struct renesas_soc *soc;
 	const struct renesas_id *id;
 	void __iomem *chipid = NULL;
-	const char *rev_prefix = "";
 	struct soc_device *soc_dev;
 	struct device_node *np;
-	unsigned int product;
 #if !defined(CONFIG_ARCH_R9A09G011GBG) && !defined(CONFIG_ARCH_R9A09G055MA3GBG)
+	const char *rev_prefix = "";
+	unsigned int product;
 	unsigned int eshi = 0, eslo;
 #endif
 	const char *soc_id;
