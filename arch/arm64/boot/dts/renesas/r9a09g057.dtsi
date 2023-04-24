@@ -823,6 +823,30 @@
 			status = "disabled";
 		};
 
+		xhci0: usb@15850000 {
+			compatible = "renesas,rzv2h-xhci";
+			reg = <0 0x15850000 0 0x10000>;
+			interrupts = <GIC_SPI 759 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A09G057_USB30_ACLK>,
+				 <&cpg CPG_MOD R9A09G057_USB30_PCLK_USBTST>;
+			clock-names = "reg", "usbtst";
+			power-domains = <&cpg>;
+			resets = <&cpg R9A09G057_USB30_ARESETN>;
+			status = "disabled";
+		};
+
+		xhci1: usb@15860000 {
+			compatible = "renesas,rzv2h-xhci";
+			reg = <0 0x15860000 0 0x10000>;
+			interrupts = <GIC_SPI 764 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A09G057_USB31_ACLK>,
+			<&cpg CPG_MOD R9A09G057_USB31_PCLK_USBTST>;
+			clock-names = "reg", "usbtst";
+			power-domains = <&cpg>;
+			resets = <&cpg R9A09G057_USB31_ARESETN>;
+			status = "disabled";
+		};
+
 		eth0: ethernet@15C30000 {
 			compatible = "renesas,rzv2h-eqos",
 				     "snps,dwc-qos-ethernet-4.10";
