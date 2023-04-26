@@ -244,4 +244,9 @@
 			 <RZG2L_PORT_PINMUX(10, 3, 3)>, /* TXD */
 			 <RZG2L_PORT_PINMUX(10, 4, 3)>; /* RXD */
 	};
+
+	pcie0_pins: pcie0 {
+		pinmux = <RZG2L_PORT_PINMUX(13, 3, 2)>, /* PCIE_CLKREQ_N */
+			 <RZG2L_PORT_PINMUX(13, 2, 2)>; /* PCIE_RST_OUT# */
+	};
 };
