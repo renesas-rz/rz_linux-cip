@@ -18,5 +18,7 @@
 };
 
 &pcie0 {
+	pinctrl-0 = <&pcie0_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 };
