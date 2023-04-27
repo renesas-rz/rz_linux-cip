@@ -406,18 +406,19 @@ static const struct of_device_id renesas_ids[] __initconst = {
 static int __init renesas_soc_init(void)
 {
 	struct soc_device_attribute *soc_dev_attr;
-	unsigned int product, eshi = 0, eslo;
 	const struct renesas_family *family;
 	const struct of_device_id *match;
 	const struct renesas_soc *soc;
 	const struct renesas_id *id;
 	void __iomem *chipid = NULL;
-	const char *rev_prefix = "";
 	struct soc_device *soc_dev;
 	struct device_node *np;
 	const char *soc_id;
 	int ret;
-
+#ifndef CONFIG_ARCH_R9A09G011GBG
+	const char *rev_prefix = "";
+	unsigned int product, eshi = 0, eslo;
+#endif
 	match = of_match_node(renesas_socs, of_root);
 	if (!match)
 		return -ENODEV;
