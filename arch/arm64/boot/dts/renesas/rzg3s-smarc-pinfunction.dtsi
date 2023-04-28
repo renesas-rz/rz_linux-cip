@@ -28,7 +28,7 @@
 	/* GPIO8 */
 	can0-stb-hog {
 		gpio-hog;
-		gpios = <RZG2L_GPIO(8, 2) GPIO_ACTIVE_HIGH>;
+		gpios = <RZG2L_GPIO(13, 0) GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "can0_stb";
 	};
@@ -43,7 +43,7 @@
 	/* GPIO9 */
 	can1-stb-hog {
 		gpio-hog;
-		gpios = <RZG2L_GPIO(8, 3) GPIO_ACTIVE_HIGH>;
+		gpios = <RZG2L_GPIO(13, 1) GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "can1_stb";
 	};
