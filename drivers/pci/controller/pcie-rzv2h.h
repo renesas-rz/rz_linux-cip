@@ -257,7 +257,8 @@ struct rzv2h_pci_window_set {
 };
 
 struct rzv2h_interrupt_set {
-	u32	msi_win_addr;
+	u32	msi_win_addrl;
+	u32	msi_win_addru;
 	u32	msi_win_mask;
 	u32	intx_ena;
 	u32	msi_ena;
