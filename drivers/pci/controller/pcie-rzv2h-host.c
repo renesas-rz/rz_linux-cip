@@ -805,9 +805,9 @@ static void rzv2h_pcie_hw_enable_msi(struct rzv2h_pcie_host *host)
 	for (idx = 0; idx < MSI_RCV_NUM; idx++)
 		*(unsigned int *)(msi->pages + idx*0x4) = MSI_RCV_WINDOW_INVALID;
 
-	rzv2h_pci_write_reg(pcie, msi_base, MSI_RCV_WINDOW_ADDR_REG);
+	rzv2h_pci_write_reg(pcie, msi_base, MSI_RCV_WINDOW_ADDRL_REG);
 	rzv2h_pci_write_reg(pcie, MSI_RCV_WINDOW_MASK_MIN, MSI_RCV_WINDOW_MASK_REG);
-	rzv2h_rmw(pcie, MSI_RCV_WINDOW_ADDR_REG, MSI_RCV_WINDOW_ENABLE, MSI_RCV_WINDOW_ENABLE);
+	rzv2h_rmw(pcie, MSI_RCV_WINDOW_ADDRL_REG, MSI_RCV_WINDOW_ENABLE, MSI_RCV_WINDOW_ENABLE);
 
 	/* enable all MSI interrupts */
 	rzv2h_rmw(pcie, PCI_INTX_RCV_INTERRUPT_ENABLE_REG,
@@ -1091,7 +1091,7 @@ static int rzv2h_pcie_suspend(struct device *dev)
 		pcie->save_reg.pci_window.dest_l[idx] = rzv2h_pci_read_reg(pcie, PCIE_DESTINATION_LO_REG(idx));
 	}
 	/* Save MSI setting*/
-	pcie->save_reg.interrupt.msi_win_addr	= rzv2h_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDR_REG);
+	pcie->save_reg.interrupt.msi_win_addr	= rzv2h_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDRL_REG);
 	pcie->save_reg.interrupt.msi_win_mask	= rzv2h_pci_read_reg(pcie, MSI_RCV_WINDOW_MASK_REG);
 	pcie->save_reg.interrupt.intx_ena	= rzv2h_pci_read_reg(pcie, PCI_INTX_RCV_INTERRUPT_ENABLE_REG);
 	pcie->save_reg.interrupt.msi_ena	= rzv2h_pci_read_reg(pcie, MSG_RCV_INTERRUPT_ENABLE_REG);
@@ -1131,7 +1131,7 @@ static int rzv2h_pcie_resume(struct device *dev)
 		}
 		/* Restores MSI setting*/
 		rzv2h_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_win_mask, MSI_RCV_WINDOW_MASK_REG);
-		rzv2h_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_win_addr, MSI_RCV_WINDOW_ADDR_REG);
+		rzv2h_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_win_addr, MSI_RCV_WINDOW_ADDRL_REG);
 		rzv2h_pci_write_reg(pcie, pcie->save_reg.interrupt.intx_ena, PCI_INTX_RCV_INTERRUPT_ENABLE_REG);
 		rzv2h_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_ena, MSG_RCV_INTERRUPT_ENABLE_REG);
 	}
