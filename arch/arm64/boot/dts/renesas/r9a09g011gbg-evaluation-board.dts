@@ -79,10 +79,9 @@
 
         regulator-name = "SDHI0 VccQ";
         regulator-min-microvolt = <1800000>;
-        regulator-max-microvolt = <3300000>;
-        gpios-states = <1>;
-        states = <3300000 1
-              1800000 0>;
+        regulator-max-microvolt = <1800000>;
+	regulator-always-on;
+	regulator-boot-on;
     };
 
     reg_1p8v: regulator0 {
@@ -102,6 +101,10 @@
         regulator-boot-on;
         regulator-always-on;
     };
+};
+
+&cpg {
+	cpg-non-set-div;
 };
 
 /* used cpg(clock pulse generator) */ 
