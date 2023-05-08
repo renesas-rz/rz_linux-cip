@@ -230,9 +230,15 @@
 #endif
 
 	usb0_pins: usb0 {
-		pinmux = <RZG2L_PORT_PINMUX(5, 0, 1)>, /* VBUS */
-			 <RZG2L_PORT_PINMUX(5, 2, 1)>, /* OVC */
-			 <RZG2L_PORT_PINMUX(5, 3, 1)>; /* OTG_ID */
+		peri {
+			pinmux = <RZG2L_PORT_PINMUX(5, 0, 1)>, /* VBUS */
+				 <RZG2L_PORT_PINMUX(5, 2, 1)>; /* OVC */
+		};
+
+		otg {
+			pinmux = <RZG2L_PORT_PINMUX(5, 3, 1)>; /* OTG_ID */
+			bias-pull-up;
+		};
 	};
 
 	usb1_pins: usb1 {
