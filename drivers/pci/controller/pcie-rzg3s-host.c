@@ -3,7 +3,6 @@
  * PCIe driver for Renesas RZ/G3S Series SoCs
  * Copyright (C) 2023 Renesas Electronics Corp.
  */
-
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -76,7 +75,7 @@ static u32 r_virtual_channel_enhanced_capability_header[] = {
 };
 
 static u32 r_device_serial_number_capability[] = {
-	0x00010003,
+	0x1B010003,
 	0x00000000,
 	0x00000000
 };
@@ -599,11 +598,7 @@ static irqreturn_t rzg3s_pcie_msi_irq(int irq, void *data)
 	struct rzg3s_pcie_host *host = data;
 	struct rzg3s_pcie *pcie = &host->pcie;
 	struct rzg3s_msi *msi = &host->msi;
-	unsigned long reg;
-	unsigned int irq_v;
-	unsigned int i = 0;
-	unsigned int hwirq;
-	irqreturn_t ret = IRQ_NONE;
+	unsigned long reg, msi_stat;
 
 	reg = rzg3s_pci_read_reg(pcie, PCI_INTX_RCV_INTERRUPT_STATUS_REG);
 	/* clear the interrupt */
@@ -613,36 +608,41 @@ static irqreturn_t rzg3s_pcie_msi_irq(int irq, void *data)
 	if (!(reg & MSI_RECEIVE_INTERRUPT_STATUS))
 		return IRQ_NONE;
 
-	for (i = 0; i < MSI_RCV_NUM; i++) {
-		hwirq = *(unsigned int *)(msi->pages + i*0x4);
-		if (hwirq != MSI_RCV_WINDOW_INVALID) {
-			/* Invalidate MSI Window */
-			*(unsigned int *)(msi->pages + i*0x4) = MSI_RCV_WINDOW_INVALID;
-			irq_v = irq_find_mapping(msi->domain, hwirq);
-			if (irq_v) {
-				if (test_bit(hwirq, msi->used)) {
-					generic_handle_irq(irq_v);
-					ret = IRQ_HANDLED;
-				} else
-					dev_info(pcie->dev, "unhandled MSI\n");
-			} else {
-				/* Unknown MSI, just clear it */
-				dev_info(pcie->dev, "unexpected MSI\n");
-			}
-		}
-	}
+	msi_stat = rzg3s_pci_read_reg(pcie, PCI_RC_MSIRCVSTAT(0));
 
-	return ret;
+	while (msi_stat) {
+		unsigned int index = find_first_bit(&msi_stat, 32);
+		unsigned int msi_irq;
+
+		rzg3s_pci_write_reg(pcie, 1 << index, PCI_RC_MSIRCVSTAT(0));
+		msi_irq = irq_find_mapping(msi->domain, index);
+		if (msi_irq) {
+			if (test_bit(index, msi->used))
+				generic_handle_irq(msi_irq);
+			else
+				dev_info(pcie->dev, "unhandled MSI\n");
+		} else {
+			/* Unknown MSI, just clear it */
+			dev_dbg(pcie->dev, "unexpected MSI\n");
+		}
+
+		/* see if there's any more pending in this vector */
+		msi_stat = rzg3s_pci_read_reg(pcie, PCI_RC_MSIRCVSTAT(0));
+        }
+
+        return IRQ_HANDLED;
 }
 
 static int rzg3s_msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev,
 			      struct msi_desc *desc)
 {
 	struct rzg3s_msi *msi = to_rzg3s_msi(chip);
+	struct rzg3s_pcie_host *host = container_of(chip, struct rzg3s_pcie_host,
+						   msi.chip);
+	struct rzg3s_pcie *pcie = &host->pcie;
 	struct msi_msg msg;
 	unsigned int irq;
 	int hwirq;
-	unsigned long msi_notice_addr;
 
 	hwirq = rzg3s_msi_alloc(msi);
 	if (hwirq < 0)
@@ -656,9 +656,8 @@ static int rzg3s_msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev
 
 	irq_set_msi_desc(irq, desc);
 
-	msi_notice_addr = (unsigned long)msi->virt_pages + (hwirq * sizeof(unsigned int));
-	msg.address_lo = lower_32_bits(msi_notice_addr);
-	msg.address_hi = 0x00;
+	msg.address_lo = rzg3s_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDRL_REG) & (~PCIE_WINDOW_ENABLE);
+	msg.address_hi = rzg3s_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDRU_REG);
 	msg.data = hwirq;
 
 	pci_write_msi_msg(irq, &msg);
@@ -670,12 +669,14 @@ static int rzg3s_msi_setup_irqs(struct msi_controller *chip,
 			       struct pci_dev *pdev, int nvec, int type)
 {
 	struct rzg3s_msi *msi = to_rzg3s_msi(chip);
+	struct rzg3s_pcie_host *host = container_of(chip, struct rzg3s_pcie_host,
+						   msi.chip);
+	struct rzg3s_pcie *pcie = &host->pcie;
 	struct msi_desc *desc;
 	struct msi_msg msg;
 	unsigned int irq;
 	int hwirq;
 	int i;
-	unsigned long msi_notice_addr;
 
 	/* MSI-X interrupts are not supported */
 	if (type == PCI_CAP_ID_MSIX)
@@ -709,9 +710,8 @@ static int rzg3s_msi_setup_irqs(struct msi_controller *chip,
 	desc->nvec_used = nvec;
 	desc->msi_attrib.multiple = order_base_2(nvec);
 
-	msi_notice_addr = (unsigned long)msi->virt_pages + (hwirq * sizeof(unsigned int));
-	msg.address_lo = lower_32_bits(msi_notice_addr);
-	msg.address_hi = 0x00;
+	msg.address_lo = rzg3s_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDRL_REG) & (~PCIE_WINDOW_ENABLE);
+	msg.address_hi = rzg3s_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDRU_REG);
 	msg.data = hwirq;
 
 	pci_write_msi_msg(irq, &msg);
@@ -798,17 +798,19 @@ static void rzg3s_pcie_hw_enable_msi(struct rzg3s_pcie_host *host)
 		goto err;
 	}
 
-	for (idx = 0; idx < MSI_RCV_NUM; idx++)
-		*(unsigned int *)(msi->pages + idx*0x4) = MSI_RCV_WINDOW_INVALID;
-
-	rzg3s_pci_write_reg(pcie, msi_base, MSI_RCV_WINDOW_ADDR_REG);
+	/* open MSI window */
+	rzg3s_pci_write_reg(pcie, lower_32_bits(base), MSI_RCV_WINDOW_ADDRL_REG);
+	rzg3s_pci_write_reg(pcie, upper_32_bits(base), MSI_RCV_WINDOW_ADDRU_REG);
 	rzg3s_pci_write_reg(pcie, MSI_RCV_WINDOW_MASK_MIN, MSI_RCV_WINDOW_MASK_REG);
-	rzg3s_rmw(pcie, MSI_RCV_WINDOW_ADDR_REG, MSI_RCV_WINDOW_ENABLE, MSI_RCV_WINDOW_ENABLE);
+	rzg3s_rmw(pcie, MSI_RCV_WINDOW_ADDRL_REG, MSI_RCV_WINDOW_ENABLE, MSI_RCV_WINDOW_ENABLE);
 
 	/* enable all MSI interrupts */
 	rzg3s_rmw(pcie, PCI_INTX_RCV_INTERRUPT_ENABLE_REG,
 					 MSI_RECEIVE_INTERRUPT_ENABLE,
 					 MSI_RECEIVE_INTERRUPT_ENABLE);
+
+	rzg3s_pci_write_reg(pcie, PCI_RC_MSIRCVE_EN, PCI_RC_MSIRCVE(0));
+	rzg3s_pci_write_reg(pcie, ~PCI_RC_MSIRCVMSK_MSI_MASK, PCI_RC_MSIRCVMSK(0));
 
 	return;
 
@@ -1179,7 +1181,8 @@ static int rzg3s_pcie_suspend(struct device *dev)
 		pcie->save_reg.pci_window.dest_l[idx] = rzg3s_pci_read_reg(pcie, PCIE_DESTINATION_LO_REG(idx));
 	}
 	/* Save MSI setting*/
-	pcie->save_reg.interrupt.msi_win_addr	= rzg3s_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDR_REG);
+	pcie->save_reg.interrupt.msi_win_addrl	= rzg3s_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDRL_REG);
+	pcie->save_reg.interrupt.msi_win_addru	= rzg3s_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDRU_REG);
 	pcie->save_reg.interrupt.msi_win_mask	= rzg3s_pci_read_reg(pcie, MSI_RCV_WINDOW_MASK_REG);
 	pcie->save_reg.interrupt.intx_ena	= rzg3s_pci_read_reg(pcie, PCI_INTX_RCV_INTERRUPT_ENABLE_REG);
 	pcie->save_reg.interrupt.msi_ena	= rzg3s_pci_read_reg(pcie, MSG_RCV_INTERRUPT_ENABLE_REG);
@@ -1219,7 +1222,8 @@ static int rzg3s_pcie_resume(struct device *dev)
 		}
 		/* Restores MSI setting*/
 		rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_win_mask, MSI_RCV_WINDOW_MASK_REG);
-		rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_win_addr, MSI_RCV_WINDOW_ADDR_REG);
+		rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_win_addrl, MSI_RCV_WINDOW_ADDRL_REG);
+		rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_win_addru, MSI_RCV_WINDOW_ADDRU_REG);
 		rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.intx_ena, PCI_INTX_RCV_INTERRUPT_ENABLE_REG);
 		rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_ena, MSG_RCV_INTERRUPT_ENABLE_REG);
 	}
