@@ -45,8 +45,10 @@
 
 
 /* Interruption */
-#define MSI_RCV_WINDOW_ADDR_REG					0x0100
+#define MSI_RCV_WINDOW_ADDRL_REG				0x0100
 		#define MSI_RCV_WINDOW_ENABLE			0x00000001
+#define MSI_RCV_WINDOW_ADDRU_REG				0x0104
+
 #define MSI_RCV_WINDOW_MASK_REG					0x0108
 	#define MSI_RCV_NUM							32
 	#define MSI_RCV_WINDOW_SIZE					(MSI_RCV_NUM * sizeof(unsigned int))
@@ -72,6 +74,13 @@
 
 /* Interrupt Table */
 #define INTERRUPT_TABLE_REG						0x0140
+
+/* MSI receive register group */
+#define PCI_RC_MSIRCVE(x)			(0x600 + 0x10 * (x))
+#define PCI_RC_MSIRCVE_EN			BIT(0)
+#define PCI_RC_MSIRCVMSK(x)			(0x608 + 0x10 * (x))
+#define PCI_RC_MSIRCVMSK_MSI_MASK		0xFFFFFFFF
+#define PCI_RC_MSIRCVSTAT(x)			(0x60C + 0x10 * (x))
 
 /* Error Event */
 #define PCIE_EVENT_INTERRUPT_EANBLE_0_REG		0x0200
@@ -302,7 +311,8 @@ struct rzg3s_pci_window_set {
 };
 
 struct rzg3s_interrupt_set {
-	u32	msi_win_addr;
+	u32	msi_win_addrl;
+	u32	msi_win_addru;
 	u32	msi_win_mask;
 	u32	intx_ena;
 	u32	msi_ena;
