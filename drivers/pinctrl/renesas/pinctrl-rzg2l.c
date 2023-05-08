@@ -117,6 +117,7 @@
 #define IOLH(n)			(0x1000 + (n) * 8)
 #define SR(n)			(0x1400 + (n) * 8)
 #define IEN(n)			(0x1800 + (n) * 8)
+#define PUPD(n)			(0x1C00 + (n) * 8)
 #define ISEL(n)			(0x2C00 + 0x80 + (n) * 8)
 #define PWPR			(0x3014)
 #define PWPR_G3S		(0x3000)
@@ -148,6 +149,7 @@
 #define IEN_MASK		0x01
 #define SR_MASK			0x01
 #define IOLH_MASK		0x03
+#define PUPD_MASK		0x03
 #define XSPI_PVDD_MASK	0x03
 
 #define PM_INPUT		0x1
@@ -906,6 +908,18 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 		break;
 	}
 
+	case PIN_CONFIG_BIAS_PULL_UP: {
+		/* TODO implement for other SoCs */
+		if (!soc_device_match(rzg3s_match))
+			return -EOPNOTSUPP;
+
+		if (!(cfg & PIN_CFG_PUPD))
+			return -EINVAL;
+
+		arg = rzg2l_read_pin_config(pctrl, PUPD(port_offset), bit, PUPD_MASK);
+		break;
+	}
+
 	default:
 		return -ENOTSUPP;
 	}
@@ -1072,6 +1086,21 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 
 			rzg2l_rmw_pin_config(pctrl, SR(port_offset),
 					     bit, SR_MASK, !!arg);
+			break;
+		}
+
+		case PIN_CONFIG_BIAS_PULL_UP: {
+			unsigned int arg =
+					pinconf_to_config_argument(_configs[i]);
+
+			/* TODO implement for other SoCs */
+			if (!soc_device_match(rzg3s_match))
+				return -EOPNOTSUPP;
+
+			if (!(cfg & PIN_CFG_PUPD))
+				return -EINVAL;
+
+			rzg2l_rmw_pin_config(pctrl, PUPD(port_offset), bit, PUPD_MASK, !!arg);
 			break;
 		}
 
