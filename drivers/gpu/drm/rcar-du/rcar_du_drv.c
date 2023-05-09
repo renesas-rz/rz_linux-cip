@@ -272,13 +272,9 @@ static const struct rcar_du_device_info rcar_du_rzv2h_info = {
 		  | RCAR_DU_FEATURE_VSP1_SOURCE,
 	.channels_mask = BIT(0),
 	.routes = {
-		[RCAR_DU_OUTPUT_DPAD0] = {
-			.possible_crtcs = BIT(0),
-			.port = 0,
-		},
 		[RCAR_DU_OUTPUT_MIPI_DSI0] = {
 			.possible_crtcs = BIT(0),
-			.port = 1,
+			.port = 0,
 		},
 	},
 	.num_mipi_dsi = 1,
