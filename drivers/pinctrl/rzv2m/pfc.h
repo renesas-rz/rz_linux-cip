@@ -79,7 +79,7 @@
 #define RZV2M_PINCTRL(pin_name, port, pf, config)	\
 	{					\
 		.pin = RZV2M_PIN(port, pf),	\
-		.configs = config,		\
+		.configs = (unsigned short)(config),		\
 		.name = pin_name,		\
 	}
 
