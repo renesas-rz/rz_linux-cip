@@ -11,6 +11,8 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/sys_soc.h>
+#include <linux/delay.h>
+#include <asm-generic/delay.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -330,42 +332,95 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 		u32 tableMax;
 
 		if (rcar_du_has(rcdu, RCAR_DU_FEATURE_RZV2H)) {
-			struct rzv2h_cpg_param *paramPtr;
-			cpg_base = ioremap(0x10420000, 0x1000);
+			long long div, res, mult;
+			unsigned int pll_s, pll_m, pll_p, csdiv;
+			short pll_k;
+			unsigned long vclk = mode->clock;
+			unsigned int timeout = 10;
 
-			for (i = 0; i < ARRAY_SIZE(rzv2h_resolution_4_lanes_param); i++) {
-				if (paramPtr[i].frequency == mode->clock) {
-					index = i;
-					break;
+find_div:
+			for (csdiv = 2; csdiv <= 32; csdiv = csdiv + 2) {
+				for (pll_p = 1; pll_p <= 4; pll_p++) {
+					for (pll_s = 0; pll_s <= 6; pll_s++) {
+						mult = vclk * csdiv *
+						       (pll_p << pll_s);
+
+						div = mult / 24000;
+						if ((div < 63) || (div > 533))
+							continue;
+
+						res = mult % 24000;
+						if (res >= 12000) {
+							pll_m = div + 1;
+							pll_k = (res - 24000) * 65536 / 24000;
+							if (!(((res - 24000) * 65536) % 24000))
+								goto found;
+						} else {
+							pll_m = div;
+							pll_k = res * 65536 / 24000;
+							if (!((res * 65536) % 24000))
+								goto found;
+						}
+					}
 				}
-			
-				if (paramPtr[i].frequency > mode->clock) {
-					if ((paramPtr[i].frequency - mode->clock) >
-					    (mode->clock - paramPtr[prevIndex].frequency))
-						index = prevIndex;
-					else
-						index = i;
-					break;
-				}
-				prevIndex = i;
 			}
 
-			if (i == ARRAY_SIZE(rzv2h_resolution_4_lanes_param))
-				index = i - 1;
+			dev_info(rcrtc->dev->dev,
+				 "Not found pll setting for %lu (kHz)\n",
+				 vclk);
+
+			/* Round vclk to the nearest freq multiple of 25KHz */
+			if ((vclk % 25) >= 10)
+				vclk = ((vclk / 25) + 1) * 25;
+			else
+				vclk = (vclk / 25) * 25;
+			dev_info(rcrtc->dev->dev,
+				 "Recalculate with nearest vclk %lu (kHz)\n",
+				 vclk);
+
+			goto find_div;
+
+found:
+			csdiv = (csdiv / 2) - 1;
+
+			dev_dbg(rcrtc->dev->dev,
+				"vclk:%lu, pll_k: %hd, pll_m: %d, pll_p: %d, pll_s: %d, csdiv: %d\n",
+				vclk, pll_k, pll_m, pll_p, pll_s, csdiv);
+
+			cpg_base = ioremap(0x10420000, 0x1000);
+
+			/* CPG_PLLDSI_STBY: RESETB=0, SSC_EN=0 */
+			reg_write(cpg_base + 0x0C0, BIT(18)| BIT(16));
 
 			/* CPG_PLLDSI_CLK1: DIV_K, DIV_M and DIV_P */
 			reg_write(cpg_base + 0x0C4,
-				 (paramPtr[index].div_k << 16) |
-				 (paramPtr[index].div_m << 6)  |
-				 (paramPtr[index].div_p));
-			/* CPG_PLLDSI_CLK2: DIV_S */
-			reg_write(cpg_base + 0x0C8, paramPtr[index].div_s);
-                        /* CPG_CSDIV1: CSDIV_2to32_PLLDSI */
-			reg_write(cpg_base + 0x504, BIT(24) |
-				 (paramPtr[index].csdiv_plldsi << 8));
+				 (pll_k << 16) | (pll_m << 6) | (pll_p));
 
-			/* CPG_PLLDSI_STBY: RESETB=1, SSC_EN=0 */
-			reg_write(cpg_base + 0x0C0, BIT(18)| BIT(16) | BIT(0));
+			/* CPG_PLLDSI_CLK2: DIV_S */
+			reg_write(cpg_base + 0x0C8, pll_s);
+
+                        /* CPG_CSDIV1: CSDIV_2to32_PLLDSI */
+			reg_write(cpg_base + 0x504, BIT(24) | (csdiv << 8));
+
+			/* CPG_PLLDSI_STBY: RESETB=1 */
+			reg_write(cpg_base + 0x0C0, BIT(16) | BIT(0));
+
+			/* Wait for PLLDSI locked in and go to normal mode */
+			while (timeout) {
+				if (ioread32(cpg_base + 0x0D0) == 0x11)
+					break;
+
+				udelay(100);
+				timeout--;
+			}
+
+			if (!timeout) {
+				dev_err(rcrtc->dev->dev,
+					"PLLDSI is not in normal mode\n");
+
+				iounmap(cpg_base);
+				return;
+			}
 		} else {
 			struct rzg2l_cpg_param *paramPtr;
 			cpg_base = ioremap(0x11010000, 0x1000);
