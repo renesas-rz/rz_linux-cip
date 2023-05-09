@@ -1213,6 +1213,7 @@ static void clk_core_disable_unprepare(struct clk_core *core)
 	clk_core_unprepare_lock(core);
 }
 
+#ifndef CONFIG_CLK_R9A09G011GBG
 static void __init clk_unprepare_unused_subtree(struct clk_core *core)
 {
 	struct clk_core *child;
@@ -1288,6 +1289,7 @@ unprepare_out:
 	if (core->flags & CLK_OPS_PARENT_ENABLE)
 		clk_core_disable_unprepare(core->parent);
 }
+#endif
 
 static bool clk_ignore_unused __initdata;
 static int __init clk_ignore_unused_setup(char *__unused)
@@ -1297,6 +1299,7 @@ static int __init clk_ignore_unused_setup(char *__unused)
 }
 __setup("clk_ignore_unused", clk_ignore_unused_setup);
 
+#ifndef CONFIG_CLK_R9A09G011GBG
 static int __init clk_disable_unused(void)
 {
 	struct clk_core *core;
@@ -1324,7 +1327,7 @@ static int __init clk_disable_unused(void)
 
 	return 0;
 }
-#ifndef CONFIG_CLK_R9A09G011GBG
+
 late_initcall_sync(clk_disable_unused);
 #endif
 
