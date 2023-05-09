@@ -472,8 +472,6 @@ static void gic_cpu_if_up(struct gic_chip_data *gic)
 
 static void gic_dist_init(struct gic_chip_data *gic)
 {
-	unsigned int i;
-	u32 cpumask;
 	unsigned int gic_irqs = gic->gic_irqs;
 	void __iomem *base = gic_data_dist_base(gic);
 
