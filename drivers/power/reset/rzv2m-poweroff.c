@@ -60,7 +60,6 @@ static int rzv2m_poweroff_reset_handler(struct notifier_block *this,
 				 unsigned long mode, void *cmd)
 {
 	struct rzv2m_powercon *pwcon = rzv2m_poweroff;
-	u32 val;
 
 	dev_info(pwcon->dev, "Restarting system.\n");
 
