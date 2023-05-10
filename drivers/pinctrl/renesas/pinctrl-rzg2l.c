@@ -1504,9 +1504,6 @@ static void rzg2l_gpio_set_direction(struct rzg2l_pinctrl *pctrl, u32 port,
 	unsigned long flags;
 	u16 reg16;
 
-	if (soc_device_match(rzg3s_match))
-		port = rzg3s_find_port_offset(port);
-
 	spin_lock_irqsave(&pctrl->lock, flags);
 
 	reg16 = readw(pctrl->base + PM(port));
@@ -1547,7 +1544,7 @@ static int rzg2l_gpio_direction_input(struct gpio_chip *chip,
 	u8 bit = RZG2L_PIN_ID_TO_PIN(offset);
 
 	if (soc_device_match(rzg3s_match))
-		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(offset));
+		port = rzg3s_find_port_offset(RZG2L_PIN_ID_TO_PORT(offset));
 	else
 		port = RZG2L_PIN_ID_TO_PORT(offset);
 
@@ -1592,7 +1589,7 @@ static int rzg2l_gpio_direction_output(struct gpio_chip *chip,
 	rzg2l_gpio_set(chip, offset, value);
 
 	if (soc_device_match(rzg3s_match))
-		port = rzg3s_find_port_index(RZG2L_PIN_ID_TO_PORT(offset));
+		port = rzg3s_find_port_offset(RZG2L_PIN_ID_TO_PORT(offset));
 	else
 		port = RZG2L_PIN_ID_TO_PORT(offset);
 	rzg2l_gpio_set_direction(pctrl, port, bit, true);
