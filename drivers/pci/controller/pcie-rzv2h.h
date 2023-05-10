@@ -20,7 +20,7 @@
 #define AXI_WINDOW_MASKL_REG(x)					(0x1008 + ((x) * 0x20))
 #define AXI_WINDOW_MASKU_REG(x)					(0x100C + ((x) * 0x20))
 #define AXI_DESTINATIONL_REG(x)					(0x1010 + ((x) * 0x20))
-#define AXI_DESTINATIONH_REG(x)					(0x1014 + ((x) * 0x20))
+#define AXI_DESTINATIONU_REG(x)					(0x1014 + ((x) * 0x20))
 
 /* AXI to PCI Express Access */
 #define PCIE_WINDOW_BASEL_REG(x)					(0x1100 + ((x) * 0x20))
@@ -192,7 +192,7 @@
 #define INT_PCI_INTX_NR	1
 
 #define RZV2H_PCI_MAX_RESOURCES 4
-#define MAX_NR_INBOUND_MAPS		6
+#define MAX_NR_INBOUND_MAPS		8
 
 #define PCIE_CONF_BUS(b)	(((b) & 0xff) << 24)
 #define PCIE_CONF_DEV(d)	(((d) & 0x1f) << 19)

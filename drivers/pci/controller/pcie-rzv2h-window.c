@@ -81,9 +81,12 @@ void rzv2h_pcie_set_inbound(struct rzv2h_pcie *pcie, u64 cpu_addr,
 	 * distinguish between 32 and 64-bit types.
 	 */
 	rzv2h_pci_write_reg(pcie, lower_32_bits(pci_addr), AXI_WINDOW_BASEL_REG(idx));
+	rzv2h_pci_write_reg(pcie, upper_32_bits(pci_addr), AXI_WINDOW_BASEU_REG(idx));
 	pcie->save_reg.axi_window.base_u[idx] = upper_32_bits(pci_addr);
 	rzv2h_pci_write_reg(pcie, lower_32_bits(cpu_addr), AXI_DESTINATIONL_REG(idx));
+	rzv2h_pci_write_reg(pcie, upper_32_bits(cpu_addr), AXI_DESTINATIONU_REG(idx));
 	pcie->save_reg.axi_window.dest_u[idx] = upper_32_bits(cpu_addr);
-	rzv2h_pci_write_reg(pcie, flags, AXI_WINDOW_MASKL_REG(idx));
+	rzv2h_pci_write_reg(pcie, lower_32_bits(flags), AXI_WINDOW_MASKL_REG(idx));
+	rzv2h_pci_write_reg(pcie, upper_32_bits(flags), AXI_WINDOW_MASKU_REG(idx));
 	rzv2h_rmw(pcie, AXI_WINDOW_BASEL_REG(idx), AXI_WINDOW_ENABLE, AXI_WINDOW_ENABLE);
 }
