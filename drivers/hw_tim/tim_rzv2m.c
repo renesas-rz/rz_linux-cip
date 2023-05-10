@@ -1,7 +1,7 @@
 /*
  * Driver for the Renesas RZ/V2M Timer unit(TIM)
  *
- * Copyright (C) 2020 Renesas Electronics Corporation
+ * Copyright (C) 2023 Renesas Electronics Corporation
  *
  *
  * This program is free software; you can redistribute it and/or modify
