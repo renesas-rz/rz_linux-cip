@@ -2785,8 +2785,13 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	if (hcd->driver->reset) {
 		retval = hcd->driver->reset(hcd);
 		if (retval < 0) {
+#ifndef CONFIG_ARCH_R9A09G011GBG
 			dev_err(hcd->self.controller, "can't setup: %d\n",
 					retval);
+#else
+			dev_dbg(hcd->self.controller, "can't setup(dev_dbg): %d\n",
+					retval);
+#endif
 			goto err_hcd_driver_setup;
 		}
 	}
