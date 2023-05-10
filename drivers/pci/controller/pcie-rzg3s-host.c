@@ -341,6 +341,45 @@ static struct pci_ops rzg3s_pcie_ops = {
 	.write	= rzg3s_pcie_write_conf,
 };
 
+static int rzg3s_pcie_set_max_link_speed(struct rzg3s_pcie *pcie)
+{
+	unsigned int timeout = 1000;
+	u32 lcs_reg, lcs2_reg, cs2_reg, ctr2_reg;
+
+	lcs_reg = rzg3s_pci_read_reg(pcie, PCIE_LINK_CTRL_STATUS_REG);
+	cs2_reg = rzg3s_pci_read_reg(pcie, PCIE_CORE_STATUS_2_REG);
+
+	/*
+	 * just return if link speed has reached the maximum (5.0 GT/s) or
+	 * the opposing devices don't support it
+	 */
+	if ((lcs_reg & CURRENT_LINK_SPEED_5_0_GTS) ||
+	    !(cs2_reg & LINK_SPEED_SUPPORT_5_0_GTS))
+		return 0;
+
+	/* set target Link speed to 5.0 GT/s */
+	lcs2_reg = rzg3s_pci_read_reg(pcie, PCIE_LINK_CTRL_STATUS_2_REG);
+	rzg3s_pci_write_reg(pcie, (lcs2_reg & (~LINKCS2_TARGET_LINK_SPEED_MASK)) |
+			    LINKCS2_TARGET_LINK_SPEED_5_0_GTS,
+			    PCIE_LINK_CTRL_STATUS_2_REG);
+
+	/* request link speed change */
+	while (timeout--) {
+		ctr2_reg = rzg3s_pci_read_reg(pcie, PCIE_CORE_CONTROL_2_REG);
+		rzg3s_pci_write_reg(pcie, ctr2_reg | UI_LINK_SPEED_CHANGE_REQ |
+				    UI_LINK_SPEED_CHANGE_5_0_GTS,
+				    PCIE_CORE_CONTROL_2_REG);
+		udelay(100);
+		/* Check completion of speeding up */
+		cs2_reg = rzg3s_pci_read_reg(pcie, PCIE_CORE_STATUS_2_REG);
+		if (cs2_reg & UI_LINK_SPEED_CHANGE_DONE)
+			return 0;
+	}
+
+	/* timed out */
+	return -1;
+}
+
 static void rzg3s_pcie_hw_enable(struct rzg3s_pcie_host *host)
 {
 	struct rzg3s_pcie *pcie = &host->pcie;
@@ -348,6 +387,10 @@ static void rzg3s_pcie_hw_enable(struct rzg3s_pcie_host *host)
 	struct resource_entry *win;
 	LIST_HEAD(res);
 	int i = 0;
+
+	/* Try to set maximum supported link speed (5.0 GT/s) */
+	if (rzg3s_pcie_set_max_link_speed(pcie) != 0)
+		dev_err(pcie->dev, "fail to set link speed to 5.0 GT/s\n");
 
 	/* Setup PCI resources */
 	resource_list_for_each_entry(win, &bridge->windows) {
@@ -1130,7 +1173,7 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 	}
 
 	data = rzg3s_pci_read_reg(pcie, PCIE_CORE_STATUS_2_REG);
-	dev_info(&pdev->dev, "PCIe Linx status [0x%x]n", data);
+	dev_info(&pdev->dev, "PCIe Link status [0x%x]\n", data);
 
 	switch ((data >> 8) & 0xFF) {
 	case 0x01:
