@@ -342,6 +342,85 @@ static struct pci_ops rzv2h_pcie_ops = {
 	.write	= rzv2h_pcie_write_conf,
 };
 
+static void rzv2h_pcie_force_speedup(struct rzv2h_pcie *pcie)
+{
+	struct device *dev = pcie->dev;
+	unsigned int timeout = 1000;
+	u32 pcstat2, pcctrl2, linkcs2;
+	bool is_8_0gts = 0;
+
+	/* Mask Target Link Speed to set it after found the maximum speed */
+	linkcs2 = rzv2h_pci_read_reg(pcie, PCI_RC_LINKCS2);
+	linkcs2 &= (~PCI_RC_LINKCS2_TARGET_LINK_SPEED_MASK);
+
+	/* Check the maximum supported Link speed */
+	pcstat2 = rzv2h_pci_read_reg(pcie, PCIE_CORE_STATUS_2_REG);
+	switch (pcstat2 & PCIE_LINK_DATA_RATE) {
+	case (PCIE_LINK_DATA_RATE_8_0GTS):
+		is_8_0gts = 1;
+		rzv2h_pci_write_reg(pcie, linkcs2 |
+				    PCI_RC_LINKCS2_TARGET_LINK_SPEED_8_0GTS,
+				    PCI_RC_LINKCS2);
+		break;
+	case (PCIE_LINK_DATA_RATE_5_0GTS):
+		rzv2h_pci_write_reg(pcie, linkcs2 |
+				    PCI_RC_LINKCS2_TARGET_LINK_SPEED_5_0GTS,
+				    PCI_RC_LINKCS2);
+		break;
+	default:
+		return;
+	}
+
+	/* Start to setup changing Link Speed:
+	 * - Set speed change reason as intentional change
+	 * - Set expected Link Speed
+	 * - Enable Link Speed Change Request
+	 */
+        pcctrl2 = rzv2h_pci_read_reg(pcie, PCIE_CORE_CONTROL_2_REG);
+        pcctrl2 |= PCIE_LINK_CHANGE_REASON_INTENTIONAL;
+        pcctrl2 |= PCIE_LINK_SPEED_CHANGE_REQ;
+        pcctrl2 &= (~PCIE_LINK_SPEED_CHANGE_MASK);
+        pcctrl2 |= (is_8_0gts) ? PCIE_LINK_SPEED_CHANGE_8_0GTS :
+                   PCIE_LINK_SPEED_CHANGE_5_0GTS;
+
+        rzv2h_pci_write_reg(pcie, pcctrl2, PCIE_CORE_CONTROL_2_REG);
+
+	/* Wait for Link Speed Changing Done */
+        while (timeout--) {
+                if (rzv2h_pci_read_reg(pcie, PCI_RC_PEIS0_REG) &
+                    INT_SPEED_CHANGE_DONE) {
+			u32 linkcs;
+
+                        rzv2h_pci_write_reg(pcie, INT_SPEED_CHANGE_DONE,
+                                            PCI_RC_PEIS0_REG);
+
+			pcctrl2 = rzv2h_pci_read_reg(pcie,
+						     PCIE_CORE_CONTROL_2_REG);
+			pcctrl2 &= (~PCIE_LINK_SPEED_CHANGE_REQ);
+                        rzv2h_pci_write_reg(pcie, pcctrl2,
+					    PCIE_CORE_CONTROL_2_REG);
+
+			/* Confirm current link speed after changing */
+			linkcs = rzv2h_pci_read_reg(pcie, PCI_RC_LINKCS);
+			linkcs &= PCI_RC_LINKCS_CUR_LINK_SPEED_MASK;
+			if (((is_8_0gts) &&
+			     (linkcs == PCI_RC_LINKCS_CUR_LINK_SPEED_8_0GTS)) ||
+			    ((!(is_8_0gts)) &&
+			     (linkcs == PCI_RC_LINKCS_CUR_LINK_SPEED_5_0GTS))) {
+				dev_info(dev, "Current link speed is %s GT/s\n",
+					 is_8_0gts? "8.0" : "5.0");
+				return;
+			}
+                }
+
+                udelay(100);
+        };
+
+        dev_err(dev, "Link Speed change failed\n");
+
+        return;
+};
+
 static void rzv2h_pcie_hw_enable(struct rzv2h_pcie_host *host)
 {
 	struct rzv2h_pcie *pcie = &host->pcie;
@@ -349,6 +428,9 @@ static void rzv2h_pcie_hw_enable(struct rzv2h_pcie_host *host)
 	struct resource_entry *win;
 	LIST_HEAD(res);
 	int i = 0;
+
+	/* Try setting to maximum link speed */
+	rzv2h_pcie_force_speedup(pcie);
 
 	/* Setup PCI resources */
 	resource_list_for_each_entry(win, &bridge->windows) {
