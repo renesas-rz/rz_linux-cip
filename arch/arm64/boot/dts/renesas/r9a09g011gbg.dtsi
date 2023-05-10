@@ -266,7 +266,7 @@
            interrupt-map = <0 0 0 0 &gic GIC_SPI 324 IRQ_TYPE_LEVEL_HIGH>;
        };
        
-       csi0: csi@a4020000 {
+       csi0: spi@a4020000 {
             compatible = "renesas,rzv2m-csi";
             reg = <0x00 0xa4020000 0x0 0x80>;
             interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
@@ -280,7 +280,7 @@
             rx_trigger_lvl = <0x4>;
         };
 
-        csi1: csi@a4020080 {
+        csi1: spi@a4020080 {
             compatible = "renesas,rzv2m-csi";
             reg = <0x00 0xa4020080 0x0 0x80>;
             interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
@@ -294,7 +294,7 @@
             rx_trigger_lvl = <0x4>;
         };
 
-        csi2: csi@a4020100 {
+        csi2: spi@a4020100 {
             compatible = "renesas,rzv2m-csi";
             reg = <0x00 0xa4020100 0x0 0x80>;
             interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
@@ -308,7 +308,7 @@
             rx_trigger_lvl = <0x4>;
         };
 
-        csi3: csi@a4020180 {
+        csi3: spi@a4020180 {
             compatible = "renesas,rzv2m-csi";
             reg = <0x00 0xa4020180 0x0 0x80>;
             interrupts = <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>;
@@ -322,7 +322,7 @@
             rx_trigger_lvl = <0x4>;
         };
 
-        csi4: csi@a4020200 {
+        csi4: spi@a4020200 {
             compatible = "renesas,rzv2m-csi";
             reg = <0x00 0xa4020200 0x0 0x80>;
             interrupts = <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>;
@@ -336,7 +336,7 @@
             rx_trigger_lvl = <0x4>;
         };
 
-        csi5: csi@a4020280 {
+        csi5: spi@a4020280 {
             compatible = "renesas,rzv2m-csi";
             reg = <0x00 0xa4020280 0x0 0x80>;
             interrupts = <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
