@@ -22,6 +22,7 @@
 		i2c5 = &i2c5;
 		i2c6 = &i2c6;
 		i2c7 = &i2c7;
+		i2c8 = &i2c8;
 	};
 
 	/* clock can be either from exclk or crystal oscillator (XIN/XOUT) */
@@ -748,6 +749,28 @@
 			clocks = <&cpg CPG_MOD R9A09G057_ACPU_RIIC7_CKM>;
 			clock-frequency = <100000>;
 			resets = <&cpg R9A09G057_ACPU_RIIC7_MRST>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		i2c8: i2c@11C01000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "renesas,riic-r9a09g057";
+			reg = <0 0x11C01000 0 0x400>;
+			interrupts = <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 523 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 522 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tei", "ri", "ti", "spi", "sti",
+					  "naki", "ali", "tmoi";
+			clocks = <&cpg CPG_MOD R9A09G057_MCPU_RIIC8_CKM>;
+			clock-frequency = <100000>;
+			resets = <&cpg R9A09G057_MCPU_RIIC8_MRST>;
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
