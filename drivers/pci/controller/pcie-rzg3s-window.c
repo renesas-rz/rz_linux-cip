@@ -81,9 +81,12 @@ void rzg3s_pcie_set_inbound(struct rzg3s_pcie *pcie, u64 cpu_addr,
 	 * distinguish between 32 and 64-bit types.
 	 */
 	rzg3s_pci_write_reg(pcie, lower_32_bits(pci_addr), AXI_WINDOW_BASEL_REG(idx));
+	rzg3s_pci_write_reg(pcie, upper_32_bits(pci_addr), AXI_WINDOW_BASEU_REG(idx));
 	pcie->save_reg.axi_window.base_u[idx] = upper_32_bits(pci_addr);
 	rzg3s_pci_write_reg(pcie, lower_32_bits(cpu_addr), AXI_DESTINATIONL_REG(idx));
+	rzg3s_pci_write_reg(pcie, upper_32_bits(cpu_addr), AXI_DESTINATIONU_REG(idx));
 	pcie->save_reg.axi_window.dest_u[idx] = upper_32_bits(cpu_addr);
-	rzg3s_pci_write_reg(pcie, flags, AXI_WINDOW_MASKL_REG(idx));
+	rzg3s_pci_write_reg(pcie, lower_32_bits(flags), AXI_WINDOW_MASKL_REG(idx));
+	rzg3s_pci_write_reg(pcie, upper_32_bits(flags), AXI_WINDOW_MASKU_REG(idx));
 	rzg3s_rmw(pcie, AXI_WINDOW_BASEL_REG(idx), AXI_WINDOW_ENABLE, AXI_WINDOW_ENABLE);
 }
