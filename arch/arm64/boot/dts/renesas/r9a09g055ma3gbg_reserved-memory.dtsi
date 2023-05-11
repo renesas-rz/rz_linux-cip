@@ -41,8 +41,12 @@
         
         open_cv: open_cv {
             reusable;
-            reg = <0x0 0x78000000 0x0 0x8000000>;
+	    reg = <0x0 0x78000000 0x0 0x7d00000>; //125MiB
         };
 
+	codec: codec {
+	    reusable;
+	    reg = <0x0 0x7fd00000 0x0 0x300000>; //3MiB
+	};
     };
 };
