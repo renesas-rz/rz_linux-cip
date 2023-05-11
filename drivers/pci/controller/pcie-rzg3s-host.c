@@ -816,23 +816,22 @@ static void rzg3s_pcie_hw_enable_msi(struct rzg3s_pcie_host *host)
 	unsigned long msi_base_mask;
 	int idx;
 
-	msi->pages = __get_free_pages(GFP_KERNEL | GFP_DMA32, 0);
+	msi->pages = __get_free_pages(GFP_KERNEL | GFP_DMA, 0);
 	base = dma_map_single(pcie->dev, (void *)msi->pages, (MSI_RCV_WINDOW_MASK_MIN+1), DMA_BIDIRECTIONAL);
 
 	msi_base = 0;
-	for (idx = 0; idx < RZG3S_PCI_MAX_RESOURCES; idx++) {
+	for (idx = 0; idx < MAX_NR_INBOUND_MAPS; idx++) {
 		if (!(rzg3s_pci_read_reg(pcie, AXI_WINDOW_BASEL_REG(idx)) & AXI_WINDOW_ENABLE)) {
 			continue;
 		}
 		pci_base = rzg3s_pci_read_reg(pcie, AXI_DESTINATIONL_REG(idx));
+		pci_base |= (((unsigned long)rzg3s_pci_read_reg(pcie,
+								AXI_DESTINATIONU_REG(idx))) << 32);
 		msi_base_mask = rzg3s_pci_read_reg(pcie, AXI_WINDOW_MASKL_REG(idx));
-		if ((pci_base <= base) &&
-			(pci_base + msi_base_mask >= base)) {
-
+		if ((pci_base <= base) && (pci_base + msi_base_mask >= base)) {
 			msi_base  = base & msi_base_mask;
 			msi_base |= rzg3s_pci_read_reg(pcie, AXI_WINDOW_BASEL_REG(idx));
 			msi->virt_pages = msi_base & ~AXI_WINDOW_ENABLE;
-			msi_base |= MSI_RCV_WINDOW_ENABLE;
 			break;
 		}
 	}
@@ -950,32 +949,46 @@ static int rzg3s_pcie_inbound_ranges(struct rzg3s_pcie *pcie,
 				    struct resource_entry *entry,
 				    int *index)
 {
-	u64 restype = entry->res->flags;
 	u64 cpu_addr = entry->res->start;
 	u64 cpu_end = entry->res->end;
 	u64 pci_addr = entry->res->start - entry->offset;
-	u32 flags = LAM_64BIT | LAR_ENABLE;
 	u64 mask;
 	u64 size = resource_size(entry->res);
+	u64 size_idx = 0;
 	int idx = *index;
-
-	if (restype & IORESOURCE_PREFETCH)
-		flags |= LAM_PREFETCH;
 
 	while (cpu_addr < cpu_end) {
 		if (idx >= MAX_NR_INBOUND_MAPS - 1) {
 			dev_err(pcie->dev, "Failed to map inbound regions!\n");
 			return -EINVAL;
 		}
-		mask = size - 1;
-		mask &= ~0xf;
+
+		size = resource_size(entry->res) - size_idx;
+
+		/*
+		 * If the size of the range is larger than the alignment of
+		 * the start address, we have to use multiple entries to
+		 * perform the mapping.
+		 */
+		if (cpu_addr > 0) {
+			unsigned long nr_zeros = __ffs64(cpu_addr);
+			u64 alignment = 1ULL << nr_zeros;
+
+			size = min(size, alignment);
+		}
+
+		/* Supports max 4GB inbound region for each window */
+		size = min(size, 1ULL << 32);
+		mask = roundup_pow_of_two(size) - 1;
+		mask |= 0xfff;
 
 		rzg3s_pcie_set_inbound(pcie, cpu_addr, pci_addr,
-				      lower_32_bits(mask) | flags, idx, true);
+					mask, idx, true);
 
 		pci_addr += size;
 		cpu_addr += size;
-		idx += 2;
+		size_idx = size;
+		idx++;
 	}
 	*index = idx;
 
@@ -1289,34 +1302,6 @@ static struct platform_driver rzg3s_pcie_driver = {
 	.probe = rzg3s_pcie_probe,
 };
 builtin_platform_driver(rzg3s_pcie_driver);
-
-static int rzg3s_pcie_pci_notifier(struct notifier_block *nb,
-				  unsigned long action, void *data)
-{
-	struct device *dev = data;
-
-	switch (action) {
-	case BUS_NOTIFY_BOUND_DRIVER:
-		/* Force the DMA mask to lower 32-bits */
-		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
-		break;
-	default:
-		return NOTIFY_DONE;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block device_nb = {
-	.notifier_call = rzg3s_pcie_pci_notifier,
-};
-
-static int __init register_rzg3s_pcie_pci_notifier(void)
-{
-	return bus_register_notifier(&pci_bus_type, &device_nb);
-}
-
-arch_initcall(register_rzg3s_pcie_pci_notifier);
 
 MODULE_DESCRIPTION("Renesas RZ/G3S PCIe driver");
 MODULE_LICENSE("GPL v2");
