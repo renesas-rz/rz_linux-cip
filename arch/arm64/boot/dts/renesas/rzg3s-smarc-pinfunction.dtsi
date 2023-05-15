@@ -221,6 +221,13 @@
 			 <RZG2L_PORT_PINMUX(6, 1, 1)>; /* OVC */
 	};
 
+	spi1_pins: spi1 {
+		pinmux = <RZG2L_PORT_PINMUX(17, 0, 1)>, /* CK */
+			 <RZG2L_PORT_PINMUX(17, 1, 1)>, /* MOSI */
+			 <RZG2L_PORT_PINMUX(17, 2, 1)>, /* MISO */
+			 <RZG2L_PORT_PINMUX(17, 3, 1)>; /* SSL */
+	};
+
 	xspi_pins: xspi {
 		xspi-data {
 			pins = "XSPI_IO0", "XSPI_IO1", "XSPI_IO2", "XSPI_IO3";
