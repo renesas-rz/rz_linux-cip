@@ -183,4 +183,11 @@
 			 <RZG2L_PORT_PINMUX(18, 4, 8)>, /* TXD */
 			 <RZG2L_PORT_PINMUX(18, 5, 8)>; /* RXD */
 	};
+
+	spi2_pins: spi2 {
+		pinmux = <RZG2L_PORT_PINMUX(11, 0, 4)>, /* CK */
+			 <RZG2L_PORT_PINMUX(11, 1, 4)>, /* MOSI */
+			 <RZG2L_PORT_PINMUX(11, 2, 4)>, /* MISO */
+			 <RZG2L_PORT_PINMUX(11, 3, 4)>; /* SSL */
+	};
 };

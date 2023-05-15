@@ -10,6 +10,14 @@
 #include "rzg3s-dev-pinfunction.dtsi"
 #include "rzg3s-dev-common.dtsi"
 
+/*
+ * RSPI2_PINS_SEL - select between RSPI ch2 and POE3, POEG, GPT pins
+ * RSPI2_LOOPBACK_SEL - select target SPI device
+ * 			(N25Q256A flash with Digilent PMOD SF3 by default)
+ */
+#define RSPI2_PINS_SEL			1
+#define RSPI2_LOOPBACK_SEL		0
+
 / {
 	model = "Renesas Development EVK based on r9a08g045s31 SoC";
 	compatible = "renesas,r9a08g045",
@@ -29,3 +37,39 @@
 	pinctrl-names = "default";
 	status = "okay";
 };
+
+#if RSPI2_SEL
+&spi2 {
+	pinctrl-0 = <&spi2_pins>;
+	pinctrl-names = "default";
+	dmas = <&dmac 0x2ee1>, <&dmac 0x2ee2>;
+	dma-names = "tx", "rx";
+	status = "okay";
+#if RSPI2_LOOPBACK_SEL
+	spidev@0 {
+		compatible = "rohm,dh2228fv";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+	};
+#else
+	flash0: n25q256a@0 {
+		compatible = "micron,n25q256a", "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+		m25p,fast-read;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			scratch@0 {
+				reg = <0x00000000 0x2000000>;
+			};
+		};
+	};
+#endif /* RSPI2_LOOPBACK_SEL */
+};
+#endif /* RSPI2_SEL */
