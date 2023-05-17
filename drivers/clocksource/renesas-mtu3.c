@@ -74,6 +74,7 @@ struct renesas_mtu3_channel {
 struct renesas_mtu3_device {
 	struct platform_device *pdev;
 	void __iomem *mapbase;
+	void __iomem *irq_sel;
 	struct clk *clk;
 	struct reset_control *rstc;
 	unsigned long rate;
@@ -84,6 +85,7 @@ struct renesas_mtu3_device {
 	bool has_clocksource;
 	struct pwm_chip pwm_chip;
 	struct mtu3_pwm_device *pwms;
+	bool is_g3s;
 };
 
 /* 8-bit shared register offsets macros */
@@ -308,6 +310,9 @@ struct renesas_mtu3_device {
 /* Phase counting max values */
 #define PHASE_CNT_16_BIT_MAX	(BIT(15)-1)
 #define PHASE_CNT_32_BIT_MAX	(BIT(31)-1)
+
+#define INTPMSEL0		0
+#define INTPMSEL1		0x4
 
 static const unsigned int channel_offsets[] = {
 	0x100, 0x180, 0x200, 0x000, 0x001, 0xA80, 0x800, 0x801, 0x400
@@ -615,7 +620,8 @@ static int renesas_mtu3_irq_register_by_name(const char *input_name,
 {
 	char irq_name[5];
 	int i, irq, ret;
-	u8 ch_index, tier_val;
+	u8 ch_index, tier_val, irq_sel_offs;
+	u32 irq_sel_val;
 
 	if (strlen(input_name) != 5)
 		goto irq_setting_error;
@@ -628,56 +634,130 @@ static int renesas_mtu3_irq_register_by_name(const char *input_name,
 
 	tier_val = renesas_mtu3_8bit_ch_reg_read(&mtu->channels[ch_index], TIER);
 	if ((ch_index <= 8) && (ch_index != 5)) {
-		if (!strcmp(irq_name, "tgia"))
+		if (!strcmp(irq_name, "tgia")) {
 			renesas_mtu3_8bit_ch_reg_write(&mtu->channels[ch_index],
 						TIER, tier_val | TIER_TGIEA);
-		else if (!strcmp(irq_name, "tgib"))
+			irq_sel_offs = 0;
+		} else if (!strcmp(irq_name, "tgib")) {
 			renesas_mtu3_8bit_ch_reg_write(&mtu->channels[ch_index],
 						TIER, tier_val | TIER_TGIEB);
-		else if (!strcmp(irq_name, "tciv"))
+			irq_sel_offs = 1;
+		} else if (!strcmp(irq_name, "tciv")) {
 			renesas_mtu3_8bit_ch_reg_write(&mtu->channels[ch_index],
 						TIER, tier_val | TIER_TCIEV);
-		else if ((ch_index != 1) && (ch_index != 2)) {
-			if (!strcmp(irq_name, "tgic"))
+			if ((ch_index == 1) || (ch_index == 2))
+				irq_sel_offs = 2;
+			else
+				irq_sel_offs = 4;
+		} else if ((ch_index != 1) && (ch_index != 2)) {
+			if (!strcmp(irq_name, "tgic")) {
 				renesas_mtu3_8bit_ch_reg_write(&mtu->channels[ch_index],
 							TIER, tier_val | TIER_TGIEC);
-			else if (!strcmp(irq_name, "tgid"))
+				irq_sel_offs = 2;
+			} else if (!strcmp(irq_name, "tgid")) {
 				renesas_mtu3_8bit_ch_reg_write(&mtu->channels[ch_index],
 							TIER, tier_val | TIER_TGIED);
-			else if (!strcmp(irq_name, "tciu") && (ch_index == 8))
+				irq_sel_offs = 3;
+			} else if (!strcmp(irq_name, "tciu") && (ch_index == 8)) {
 				renesas_mtu3_8bit_ch_reg_write(&mtu->channels[ch_index],
 							TIER, tier_val | TIER_TCIEU);
-			else if (ch_index == 0) {
+				irq_sel_offs = 5;
+			} else if (ch_index == 0) {
 				tier_val = renesas_mtu3_shared_reg_read(mtu, TIER2);
-				if (!strcmp(irq_name, "tgie"))
+				if (!strcmp(irq_name, "tgie")) {
 					renesas_mtu3_shared_reg_write(mtu, TIER2,
 								tier_val | TIER2_TGIEE);
-				else if (!strcmp(irq_name, "tgif"))
+					irq_sel_offs = 5;
+				} else if (!strcmp(irq_name, "tgif")) {
 					renesas_mtu3_shared_reg_write(mtu, TIER2,
 								tier_val | TIER2_TGIEF);
-				else
+					irq_sel_offs = 6;
+				} else
 					goto irq_setting_error;
 			} else
 				goto irq_setting_error;
-		} else if (!strcmp(irq_name, "tciu"))
+		} else if (!strcmp(irq_name, "tciu")) {
 			renesas_mtu3_8bit_ch_reg_write(&mtu->channels[ch_index],
 						TIER, tier_val | TIER_TCIEU);
-		else
+			irq_sel_offs = 3;
+		} else
 			goto irq_setting_error;
 	} else if (ch_index == 5) {
-		if (!strcmp(irq_name, "tgiu"))
+		if (!strcmp(irq_name, "tgiu")) {
 			renesas_mtu3_8bit_ch_reg_write(&mtu->channels[ch_index],
 						TIER, tier_val | TIER_TGIE5U);
-		else if (!strcmp(irq_name, "tgiv"))
+			irq_sel_offs = 0;
+		} else if (!strcmp(irq_name, "tgiv")) {
 			renesas_mtu3_8bit_ch_reg_write(&mtu->channels[ch_index],
 						TIER, tier_val | TIER_TGIE5V);
-		else if (!strcmp(irq_name, "tgiw"))
+			irq_sel_offs = 1;
+		} else if (!strcmp(irq_name, "tgiw")) {
 			renesas_mtu3_8bit_ch_reg_write(&mtu->channels[ch_index],
 						TIER, tier_val | TIER_TGIE5W);
-		else
+			irq_sel_offs = 2;
+		} else
 			goto irq_setting_error;
 	} else
 		goto irq_setting_error;
+
+	/* In case RZ/G3S, adjust INTPMSEL0/1 registers to select mtu3 irq. */
+	if (mtu->is_g3s) {
+		switch (ch_index) {
+		case 0:
+			irq_sel_val = ioread32(mtu->irq_sel + INTPMSEL0);
+			iowrite32(irq_sel_val | (1 << irq_sel_offs),
+					mtu->irq_sel + INTPMSEL0);
+			break;
+		case 1:
+			irq_sel_val = ioread32(mtu->irq_sel + INTPMSEL0);
+			iowrite32(irq_sel_val | (1 << (irq_sel_offs + 7)),
+					mtu->irq_sel + INTPMSEL0);
+			break;
+		case 2:
+			irq_sel_val = ioread32(mtu->irq_sel + INTPMSEL0);
+			iowrite32(irq_sel_val | (1 << (irq_sel_offs + 11)),
+					mtu->irq_sel + INTPMSEL0);
+			break;
+		case 3:
+			irq_sel_val = ioread32(mtu->irq_sel + INTPMSEL0);
+			iowrite32(irq_sel_val | (1 << (irq_sel_offs + 15)),
+					mtu->irq_sel + INTPMSEL0);
+			break;
+		case 4:
+			irq_sel_val = ioread32(mtu->irq_sel + INTPMSEL0);
+			iowrite32(irq_sel_val | (1 << (irq_sel_offs + 20)),
+					mtu->irq_sel + INTPMSEL0);
+			break;
+		case 5:
+			irq_sel_val = ioread32(mtu->irq_sel + INTPMSEL0);
+			iowrite32(irq_sel_val | (1 << (irq_sel_offs + 25)),
+					mtu->irq_sel + INTPMSEL0);
+			break;
+		case 6:
+			if (!strcmp(irq_name, "tciv")) {
+				irq_sel_val = ioread32(mtu->irq_sel + INTPMSEL1);
+				iowrite32(irq_sel_val | 1, mtu->irq_sel + INTPMSEL1);
+			} else {
+				irq_sel_val = ioread32(mtu->irq_sel + INTPMSEL0);
+				iowrite32(irq_sel_val | (1 << (irq_sel_offs + 28)),
+					  mtu->irq_sel + INTPMSEL0);
+			}
+			break;
+		case 7:
+			irq_sel_val = ioread32(mtu->irq_sel + INTPMSEL1);
+			iowrite32(irq_sel_val | (1 << (irq_sel_offs + 1)),
+					mtu->irq_sel + INTPMSEL1);
+			break;
+		case 8:
+			irq_sel_val = ioread32(mtu->irq_sel + INTPMSEL1);
+			iowrite32(irq_sel_val | (1 << (irq_sel_offs + 6)),
+					mtu->irq_sel + INTPMSEL1);
+			break;
+		default:
+			goto irq_setting_error;
+			break;
+		}
+	}
 
 	irq = platform_get_irq_byname(mtu->pdev, input_name);
 	if (irq < 0)
@@ -880,6 +960,19 @@ static int renesas_mtu3_map_memory(struct renesas_mtu3_device *mtu)
 	mtu->mapbase = ioremap(res->start, resource_size(res));
 	if (mtu->mapbase == NULL)
 		return -ENXIO;
+
+	if (mtu->is_g3s) {
+		res = platform_get_resource(mtu->pdev, IORESOURCE_MEM, 1);
+		if (!res) {
+			dev_err(&mtu->pdev->dev,
+				"failed to get I/O memory for interrupt selection\n");
+			return -ENXIO;
+		}
+
+		mtu->irq_sel = ioremap(res->start, resource_size(res));
+		if (mtu->irq_sel == NULL)
+			return -ENXIO;
+	}
 
 	return 0;
 }
@@ -1998,6 +2091,11 @@ skip_allocate_mtu_pointer:
 	}
 	mtu->rate = clk_get_rate(mtu->clk)/64;
 
+	if (of_device_is_compatible(np, "renesas,r9a08g045-mtu3"))
+		mtu->is_g3s = true;
+	else
+		mtu->is_g3s = false;
+
 	/* Map the memory resource. */
 	ret = renesas_mtu3_map_memory(mtu);
 	if (ret < 0) {
@@ -2127,6 +2225,7 @@ static int renesas_mtu3_remove(struct platform_device *pdev)
 
 static const struct of_device_id renesas_mtu3_of_table[] = {
 	{ .compatible = "renesas,mtu3" },
+	{ .compatible = "renesas,r9a08g045-mtu3" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, renesas_mtu3_of_table);
