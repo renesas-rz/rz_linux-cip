@@ -496,6 +496,9 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	if (!enable)
 		return 0;
 
+	if (!priv->info->has_clk_mon_regs)
+		return 0;
+
 	for (i = 1000; i > 0; --i) {
 		if (((readl(priv->base + CLK_MON_R(reg))) & bitmask))
 			break;
@@ -566,7 +569,10 @@ static int rzg2l_mod_clock_is_enabled(struct clk_hw *hw)
 	if (clock->sibling)
 		return clock->enabled;
 
-	value = readl(priv->base + CLK_MON_R(clock->off));
+	if (priv->info->has_clk_mon_regs)
+		value = readl(priv->base + CLK_MON_R(clock->off));
+	else
+		value = readl(priv->base + clock->off);
 
 	return value & bitmask;
 }
@@ -741,8 +747,16 @@ static int rzg2l_cpg_status(struct reset_controller_dev *rcdev,
 	const struct rzg2l_cpg_info *info = priv->info;
 	unsigned int reg = info->resets[id].off;
 	u32 bitmask = BIT(info->resets[id].bit);
+	s8 monbit = info->resets[id].monbit;
 
-	return !!(readl(priv->base + CLK_MRST_R(reg)) & bitmask);
+	if (info->has_clk_mon_regs) {
+		return !!(readl(priv->base + CLK_MRST_R(reg)) & bitmask);
+	} else if (monbit >= 0) {
+		u32 monbitmask = BIT(monbit);
+
+		return !!(readl(priv->base + CPG_RST_MON) & monbitmask);
+	}
+	return -ENOTSUPP;
 }
 
 static const struct reset_control_ops rzg2l_cpg_reset_ops = {
@@ -961,6 +975,12 @@ static const struct of_device_id rzg2l_cpg_match[] = {
 	{
 		.compatible = "renesas,r9a07g054-cpg",
 		.data = &r9a07g054_cpg_info,
+	},
+#endif
+#ifdef CONFIG_CLK_R9A09G011
+	{
+		.compatible = "renesas,r9a09g011-cpg",
+		.data = &r9a09g011_cpg_info,
 	},
 #endif
 	{ /* sentinel */ }
