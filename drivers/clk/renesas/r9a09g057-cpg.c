@@ -90,6 +90,15 @@ enum clk_ids {
 	CLK_PLLDTY_DIV16,
 	CLK_PLLDTY_RCPU,
 	CLK_PLLDTY_RCPU_DIV4,
+	CLK_PLLCA55,
+	CLK_PLLCA55_0,
+	CLK_PLLCA55_1,
+	CLK_PLLCA55_2,
+	CLK_PLLCA55_3,
+	CLK_PLLCA55_DIV2,
+	CLK_PLLCA55_PERI,
+	CLK_SMUX2_CA55_SCLK0,
+	CLK_SMUX2_CA55_SCLK1,
 	CLK_PLLVDO,
 	CLK_PLLVDO_CRU0,
 	CLK_PLLVDO_CRU1,
@@ -108,11 +117,20 @@ enum clk_ids {
 	CLK_PLLETH_LPCLK,
 	CLK_PLLDSI,
 	CLK_PLLDSI_SDIV2,
+	CLK_PLLDRP,
 	CLK_PLLGPU,
 	CLK_PLLGPU_GEAR,
 
 	/* Module Clocks */
 	MOD_CLK_BASE,
+};
+
+static const struct clk_div_table dtable_1_8[] = {
+	{0, 1},
+	{1, 2},
+	{2, 4},
+	{3, 8},
+	{0, 0},
 };
 
 static const struct clk_div_table dtable_2_4[] = {
@@ -185,6 +203,8 @@ static const char * const smux2_gbe0_txclk[] = { ".plleth_gbe0", "et0_txc_tx_clk
 static const char * const smux2_gbe0_rxclk[] = { ".plleth_gbe0", "et0_rxc_rx_clk" };
 static const char * const smux2_gbe1_txclk[] = { ".plleth_gbe1", "et1_txc_tx_clk" };
 static const char * const smux2_gbe1_rxclk[] = { ".plleth_gbe1", "et1_rxc_rx_clk" };
+static const char * const smux2_ca55_sclk0[] = { ".plldrp", ".plldty" };
+static const char * const smux2_ca55_sclk1[] = { ".smux2_ca55_sclk0", ".pllca55" };
 
 static const struct cpg_core_clk r9a09g057_core_clks[] __initconst = {
 	/* External Clock Inputs */
@@ -247,6 +267,22 @@ static const struct cpg_core_clk r9a09g057_core_clks[] __initconst = {
 	DEF_DIV(".plldty_rcpu", CLK_PLLDTY_RCPU, CLK_PLLDTY,
 		CDDIV3_DIVCTL2, dtable_2_64, CLK_DIVIDER_HIWORD_MASK),
 	DEF_FIXED(".plldty_rcpu_div4", CLK_PLLDTY_RCPU_DIV4, CLK_PLLDTY_RCPU, 1, 4),
+	DEF_SAMPLL(".pllca55", CLK_PLLCA55, CLK_EXTAL, RZ_V2H_PLL_CONF(PLLCA55)),
+	DEF_DIV(".pllca55_0", CLK_PLLCA55_0, CLK_PLLCA55,
+		CDDIV1_DIVCTL0, dtable_1_8, CLK_DIVIDER_HIWORD_MASK),
+	DEF_DIV(".pllca55_1", CLK_PLLCA55_1, CLK_PLLCA55,
+		CDDIV1_DIVCTL1, dtable_1_8, CLK_DIVIDER_HIWORD_MASK),
+	DEF_DIV(".pllca55_2", CLK_PLLCA55_2, CLK_PLLCA55,
+		CDDIV1_DIVCTL2, dtable_1_8, CLK_DIVIDER_HIWORD_MASK),
+	DEF_DIV(".pllca55_3", CLK_PLLCA55_3, CLK_PLLCA55,
+		CDDIV1_DIVCTL3, dtable_1_8, CLK_DIVIDER_HIWORD_MASK),
+	DEF_FIXED(".pllca55_div2", CLK_PLLCA55_DIV2, CLK_PLLCA55, 1, 2),
+	DEF_DIV(".pllca55_peri", CLK_PLLCA55_PERI, CLK_PLLCA55_DIV2,
+		CDDIV2_DIVCTL0, dtable_2_16, CLK_DIVIDER_HIWORD_MASK),
+	DEF_MUX(".smux2_ca55_sclk0", CLK_SMUX2_CA55_SCLK0, SSEL0_SELCTL1,
+		smux2_ca55_sclk0, ARRAY_SIZE(smux2_ca55_sclk0), 0, CLK_MUX_HIWORD_MASK),
+	DEF_MUX(".smux2_ca55_sclk1", CLK_SMUX2_CA55_SCLK1, SSEL0_SELCTL0,
+		smux2_ca55_sclk1, ARRAY_SIZE(smux2_ca55_sclk1), 0, CLK_MUX_HIWORD_MASK),
 	DEF_SAMPLL(".pllvdo", CLK_PLLVDO, CLK_EXTAL, RZ_V2H_PLL_CONF(PLLVDO)),
 	DEF_DIV(".pllvdo_cru0", CLK_PLLVDO_CRU0, CLK_PLLVDO,
 		CDDIV3_DIVCTL3, dtable_2_4, CLK_DIVIDER_HIWORD_MASK),
@@ -278,6 +314,7 @@ static const struct cpg_core_clk r9a09g057_core_clks[] __initconst = {
 	DEF_SAMPLL(".plldsi", CLK_PLLDSI, CLK_EXTAL, RZ_V2H_PLL_CONF(PLLDSI)),
 	DEF_DIV(".plldsi_sdiv2", CLK_PLLDSI_SDIV2, CLK_PLLDSI,
 		CSDIV1_DIVCTL2, dtable_2_32, CLK_DIVIDER_HIWORD_MASK),
+	DEF_SAMPLL(".plldrp", CLK_PLLDRP, CLK_EXTAL, RZ_V2H_PLL_CONF(PLLDRP)),
 	DEF_SAMPLL(".pllgpu", CLK_PLLGPU, CLK_EXTAL, RZ_V2H_PLL_CONF(PLLGPU)),
 	DEF_DIV(".pllgpu_gear", CLK_PLLGPU_GEAR, CLK_PLLGPU,
 		CDDIV3_DIVCTL1, dtable_2_64, CLK_DIVIDER_HIWORD_MASK),
