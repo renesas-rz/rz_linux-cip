@@ -644,8 +644,11 @@ static irqreturn_t rzg3s_pcie_msi_irq(int irq, void *data)
 	unsigned long reg, msi_stat;
 
 	reg = rzg3s_pci_read_reg(pcie, PCI_INTX_RCV_INTERRUPT_STATUS_REG);
-	/* clear the interrupt */
+
+	/* Clear INTx/MSI Interrupts Status */
 	rzg3s_pci_write_reg(pcie, ALL_RECEIVE_INTERRUPT_STATUS, PCI_INTX_RCV_INTERRUPT_STATUS_REG);
+	/* Clear Message Receive Interrupt Status */
+	rzg3s_pci_write_reg(pcie, INT_MR_CLR, PCI_RC_MSGRCVIS_REG);
 
 	// MSI Only
 	if (!(reg & MSI_RECEIVE_INTERRUPT_STATUS))
@@ -894,7 +897,7 @@ static int rzg3s_pcie_enable_msi(struct rzg3s_pcie_host *host)
 	for (i = 0; i < INT_PCI_MSI_NR; i++)
 		irq_create_mapping(msi->domain, i);
 
-	/* Two irqs are for MSI, but they are also used for non-MSI irqs */
+	/* request a shared IRQ for all interrupts */
 	err = devm_request_irq(dev, msi->irq, rzg3s_pcie_msi_irq,
 	/* Temporarily set only shared IRQ flag */
 			       IRQF_SHARED,
