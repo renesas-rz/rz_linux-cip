@@ -10,8 +10,13 @@ Required Properties:
 
  - compatible: must be one or more of the following:
    - "renesas,mtu3" for MTU3 in common Renesas SoC.
+   - "renesas,r9a08g045-mtu3" for MTU3 of R9A08G045(RZ/G3S) SoC. This is
+      necessary for setting MTU3 interrupts a long with specific memory region
+      of INTPMSEL0/1 registers.
 
  - reg: base address and length of the registers block for the timer module.
+   - <0 0x11050080 0 0x08>: This is specific memory region of INTPMSEL0/1
+     registers and must be added right after MTU3 memory region of R9A08G045.
 
  - interrupts: interrupt specifiers for the timer, one for each entry in
    interrupt-names.
