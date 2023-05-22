@@ -217,7 +217,7 @@
 	};
 
 	usb1_pins: usb1 {
-		pinmux = <RZG2L_PORT_PINMUX(5, 4, 1)>, /* OVC */
+		pinmux = <RZG2L_PORT_PINMUX(5, 4, 5)>, /* OVC */
 			 <RZG2L_PORT_PINMUX(6, 0, 1)>; /* VBUS */
 	};
 
