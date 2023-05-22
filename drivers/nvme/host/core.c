@@ -2727,6 +2727,17 @@ static const struct nvme_core_quirk_entry core_quirks[] = {
 		.quirks = NVME_QUIRK_DELAY_BEFORE_CHK_RDY |
 			  NVME_QUIRK_NO_DEEPEST_PS |
 			  NVME_QUIRK_IGNORE_DEV_SUBNQN,
+	},
+	{
+		/*
+		 * The Samsung PM981a MZ-VLB256B SSD has similar quirks to the
+		 * X5 model
+		 */
+		.vid = 0x144d,
+		.mn = "SAMSUNG MZVLB256HBHQ-000H1",
+		.quirks = NVME_QUIRK_DELAY_BEFORE_CHK_RDY |
+			  NVME_QUIRK_NO_DEEPEST_PS |
+			  NVME_QUIRK_IGNORE_DEV_SUBNQN,
 	}
 };
 
