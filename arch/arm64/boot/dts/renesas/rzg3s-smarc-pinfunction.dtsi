@@ -102,7 +102,7 @@
 
 	sd0_pwr_en {
 		gpio-hog;
-		gpios = <RZG2L_GPIO(0, 1) GPIO_ACTIVE_HIGH>;
+		gpios = <RZG2L_GPIO(2, 1) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "sd0_pwr_en";
 	};
@@ -162,20 +162,9 @@
 
 	sd1_pwr_en {
 		gpio-hog;
-		gpios = <RZG2L_GPIO(0, 3) GPIO_ACTIVE_HIGH>;
+		gpios = <RZG2L_GPIO(2, 3) GPIO_ACTIVE_HIGH>; /* SDIO_PWR_EN */
 		output-high;
 		line-name = "sd1_pwr_en";
-	};
-
-	/*
-	 * Set SD1_PWR_SEL to low to select 1.8v for high-speed modes.
-	 * To select 3.3v, set this pin to high level.
-	 */
-	sd1_pwr_sel {
-		gpio-hog;
-		gpios = <RZG2L_GPIO(13, 0) GPIO_ACTIVE_LOW>;
-		output-low;
-		line-name = "sd1_pwr_sel";
 	};
 
 	sdhi1_pins: sd1 {
@@ -196,12 +185,12 @@
 
 	sdhi1_pins_uhs: sd1 {
 		sd1_data_uhs {
-			pins = "SD0_DATA0", "SD0_DATA1", "SD0_DATA2", "SD0_DATA3";
+			pins = "SD1_DATA0", "SD1_DATA1", "SD1_DATA2", "SD1_DATA3";
 			power-source = <1800>;
 		};
 
 		sd1_ctrl_uhs {
-			pins = "SD0_CLK", "SD0_CMD";
+			pins = "SD1_CLK", "SD1_CMD";
 			power-source = <1800>;
 		};
 
