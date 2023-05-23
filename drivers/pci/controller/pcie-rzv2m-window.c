@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  PCIe driver for Renesas RZ/V2M SoCs
+ * PCIe driver for Renesas RZ/V2M Series SoCs
  *  Copyright (C) 2022 Renesas Electronics Europe Ltd
  */
 
@@ -67,8 +67,7 @@ void rzv2m_pcie_set_outbound(struct rzv2m_pcie *pcie, int win,
 	 * keeps things pretty simple.
 	 */
 	size = resource_size(res);
-
-	mask = size - 1;	
+	mask = size - 1;
 
 	if (res->flags & IORESOURCE_IO)
 		res_start = pci_pio_to_address(res->start) - window->offset;

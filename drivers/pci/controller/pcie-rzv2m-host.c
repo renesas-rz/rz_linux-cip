@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  PCIe driver for Renesas RZ/V2M Series SoCs
+ * PCIe driver for Renesas RZ/V2M Series SoCs
  *  Copyright (C) 2022 Renesas Electronics Ltd
  *
  * Based on:
@@ -8,7 +8,6 @@
  *  arch/sh/drivers/pci/ops-sh7786.c
  *  Copyright (C) 2009 - 2011  Paul Mundt
  *
- * Author: Phil Edworthy <phil.edworthy@renesas.com>
  */
 
 #include <linux/bitops.h>
@@ -254,8 +253,8 @@ static int rzv2m_pcie_write_config_access(struct rzv2m_pcie_host *host,
 	if ( pci_is_root_bus(bus) && (devfn == 0) ) {
 		if (dev != 0)
 			return PCIBIOS_DEVICE_NOT_FOUND;
-		
-		if(reg==0x20)
+
+		if (reg==0x20)
 		{
 			r_configuration_space[2] = data;
 		}
@@ -527,7 +526,7 @@ static int rzv2m_pcie_hw_init(struct rzv2m_pcie *pcie)
 	unsigned int timeout = 50;
 
 	/* Set to the PCIe reset state   : step6 */
-	rzv2m_pci_write_reg(pcie, RESET_ALL_ASSERT, PCI_RESET_REG);                  /* Set PCI_RC 310h */
+	rzv2m_pci_write_reg(pcie, RESET_ALL_ASSERT, PCI_RESET_REG);			/* Set PCI_RC 310h */
 
 	/* Set PMA and Phy Register for Lane0 : step7, 9 */
 	PCIE_phyInitialize_L0(pcie);
@@ -536,7 +535,7 @@ static int rzv2m_pcie_hw_init(struct rzv2m_pcie *pcie)
 	PCIE_phyInitialize_L1(pcie);
 
 	/* Release the PCIe reset : step10 : RST_LOAD_B, RST_CFG_B)*/
-	rzv2m_pci_write_reg(pcie, RESET_LOAD_CFG_RELEASE, PCI_RESET_REG);		/* Set PCI_RC 310h */
+	rzv2m_pci_write_reg(pcie, RESET_LOAD_CFG_RELEASE, PCI_RESET_REG);	/* Set PCI_RC 310h */
 
 	/* Setting of HWINT related registers : step11 */
 	PCIE_CFG_Initialize(pcie);
@@ -548,16 +547,16 @@ static int rzv2m_pcie_hw_init(struct rzv2m_pcie *pcie)
 	PCIE_INT_Initialize(pcie);
 
 	/* Release the PCIe reset : step14 : RST_PS_B, RST_GP_B, RST_B */
-	rzv2m_pci_write_reg(pcie, RESET_PS_GP_RELEASE, PCI_RESET_REG);               /* Set PCI_RC 310h */
+	rzv2m_pci_write_reg(pcie, RESET_PS_GP_RELEASE, PCI_RESET_REG);		/* Set PCI_RC 310h */
 
-	/* Wait 500us over : step 15*/
+   /* Wait 500us over : step 15*/
 	msleep(1);
 
-	/* Release the PCIe reset : step16 : RST_OUT_B, RST_RSM_B) */
-	rzv2m_pci_write_reg(pcie, RESET_ALL_DEASSERT,  PCI_RESET_REG);               /* Set PCI_RC 310h */
+   /* Release the PCIe reset : step16 : RST_OUT_B, RST_RSM_B) */
+	rzv2m_pci_write_reg(pcie, RESET_ALL_DEASSERT,  PCI_RESET_REG);		/* Set PCI_RC 310h */
 
-	
-	rzv2m_pci_write_reg(pcie, 0x3ff2,  MODE_SET_1_REG);                             /* Set PCI_RC 318h */
+	rzv2m_pci_write_reg(pcie, 0x3ff2,  MODE_SET_1_REG);						/* Set PCI_RC 318h */
+
 	/* This will timeout if we don't have a link. */
 	while (timeout--) {
 		if (!(rzv2m_pci_read_reg(pcie, PCIE_CORE_STATUS_1_REG) & DL_DOWN_STATUS))
@@ -652,20 +651,19 @@ static irqreturn_t rzv2m_pcie_msi_irq(int irq, void *data)
 	for (i = 0; i < MSI_RCV_NUM; i++) {
 		hwirq = *(unsigned int *)(msi->pages + i*0x4);
 		if (hwirq != MSI_RCV_WINDOW_INVALID) {
-                       	/* Invalidate MSI Window */
-                       	*(unsigned int *)(msi->pages + i*0x4) = MSI_RCV_WINDOW_INVALID;
+			/* Invalidate MSI Window */
+			*(unsigned int *)(msi->pages + i*0x4) = MSI_RCV_WINDOW_INVALID;
 			irq_v = irq_find_mapping(msi->domain, hwirq);
-                       	if (irq_v) {
-                               	if (test_bit(hwirq, msi->used)) {
-                                       	generic_handle_irq(irq_v);
-                                       	ret = IRQ_HANDLED;
-                               	} else
-                                       	dev_info(pcie->dev, "unhandled MSI\n");
-                        } else {
-                                /* Unknown MSI, just clear it */
-                                dev_dbg(pcie->dev, "unexpected MSI\n");
-                        }
-
+			if (irq_v) {
+				if (test_bit(hwirq, msi->used)) {
+					generic_handle_irq(irq_v);
+					ret = IRQ_HANDLED;
+				} else
+					dev_info(pcie->dev, "unhandled MSI\n");
+			} else {
+				/* Unknown MSI, just clear it */
+				dev_dbg(pcie->dev, "unexpected MSI\n");
+			}
 		}
 	}
 
@@ -839,7 +837,7 @@ static void rzv2m_pcie_hw_enable_msi(struct rzv2m_pcie_host *host)
 		dev_err(dev,"MSI Address setting failed (Address:0x%lx)\n",base);
 		goto err;
 	}
-	
+
 	for (idx = 0; idx < MSI_RCV_NUM; idx++)
 		*(unsigned int *)(msi->pages + idx*0x4) = MSI_RCV_WINDOW_INVALID;
 
@@ -964,7 +962,6 @@ static int rzv2m_pcie_inbound_ranges(struct rzv2m_pcie *pcie,
 			dev_err(pcie->dev, "Failed to map inbound regions!\n");
 			return -EINVAL;
 		}
-
 		mask = size - 1;
 		mask &= ~0xf;
 
