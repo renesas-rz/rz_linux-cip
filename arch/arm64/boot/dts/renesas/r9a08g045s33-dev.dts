@@ -38,7 +38,7 @@
 	status = "okay";
 };
 
-#if RSPI2_SEL
+#if RSPI2_PINS_SEL
 &spi2 {
 	pinctrl-0 = <&spi2_pins>;
 	pinctrl-names = "default";
@@ -72,4 +72,4 @@
 	};
 #endif /* RSPI2_LOOPBACK_SEL */
 };
-#endif /* RSPI2_SEL */
+#endif /* RSPI2_PINS_SEL */
