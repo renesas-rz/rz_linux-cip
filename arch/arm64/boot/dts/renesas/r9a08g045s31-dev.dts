@@ -48,7 +48,7 @@
 };
 #endif
 
-#if !RSPI2_SEL
+#if !RSPI2_PINS_SEL
 &poe3 {
 	pinctrl-0 = <&poe3_pins>;
 	pinctrl-names = "default";
@@ -108,7 +108,7 @@
 	};
 #endif /* RSPI2_LOOPBACK_SEL */
 };
-#endif /* !RSPI2_SEL */
+#endif /* !RSPI2_PINS_SEL */
 
 &gpt0 {
 	pinctrl-0 = <&gpt0_pins>;
