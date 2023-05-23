@@ -103,7 +103,17 @@ static struct file_operations hw_tim_cdev_fops =
     .compat_ioctl   = rzv2m_tim_ioctl,
 };
 
+//Regster write wait time
+/* RZ/V2M, V2MA timer inclock is fixed at 2MHz. */
+/* 5 x inclock = 3us is enough for the register reflection time */
+#define DELAY_3u	3
 
+
+static void rzv2m_tim_write_delay(u32 value, volatile void * addr){
+
+	writel(value, addr);
+	udelay(DELAY_3u);
+}
 
 static int rzv2m_tim_start(struct tim_priv *priv)
 {
@@ -111,8 +121,7 @@ static int rzv2m_tim_start(struct tim_priv *priv)
     unsigned long time_left;
 
     if( 0 != (readl( priv->base + TMCD ) & ( TMCD_CE | TMCD_CAE )) ){
-        writel(TMCD_TIM_STOP, priv->base + TMCD);
-        udelay(3);/* delay  5 [0m~W[0m~H1/PCLK[0m~HHz[0m~I[0m~I[0m~K5[0m~W[0m~H1/INCLOCK [0m~HHz[0m~I[0m~I*/
+        rzv2m_tim_write_delay(TMCD_TIM_STOP, priv->base + TMCD);
     }
 
     switch(priv->ioctl_inf.mode)
@@ -126,7 +135,7 @@ static int rzv2m_tim_start(struct tim_priv *priv)
             return -EINVAL;
         }else{
             writel(MAX_TIMCYS, priv->base + CMD);
-            writel((TMCD_CS(priv->ioctl_inf.clk_div) | TMCD_TIM_START), priv->base + TMCD);
+            rzv2m_tim_write_delay((TMCD_CS(priv->ioctl_inf.clk_div) | TMCD_TIM_START), priv->base + TMCD);
         }
 	
         break;
@@ -152,7 +161,7 @@ static int rzv2m_tim_start(struct tim_priv *priv)
 
 static void rzv2m_tim_stop(struct tim_priv *priv)
 {
-    writel(TMCD_TIM_STOP, priv->base + TMCD);
+    rzv2m_tim_write_delay(TMCD_TIM_STOP, priv->base + TMCD);
     return;
 }
 
@@ -188,7 +197,7 @@ static int rzv2m_calc_cycle_div(struct tim_priv *priv)
 
     writel(tim_cmd_val,  priv->base + CMD);
 
-    writel(tim_tmcd_val, priv->base + TMCD);
+    rzv2m_tim_write_delay(tim_tmcd_val, priv->base + TMCD);
 
 
     return 0;
@@ -281,11 +290,11 @@ static irqreturn_t irq_tim_interrupt(int irq, void *dev)
     switch(priv->ioctl_inf.mode)
     {
     case IOCTL_START_FREERUN:
-        writel( INTCLR_INTCLEAR, priv->base + INTCLR);
+        rzv2m_tim_write_delay( INTCLR_INTCLEAR, priv->base + INTCLR);
         break;
     case IOCTL_START_INTERRUPT:
         writel(TMCD_TIM_STOP, priv->base + TMCD);
-        writel( INTCLR_INTCLEAR, priv->base + INTCLR);
+        rzv2m_tim_write_delay( INTCLR_INTCLEAR, priv->base + INTCLR);
         complete(&priv->hw_tim_wait_done);
         break;
     default:
