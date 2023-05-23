@@ -221,6 +221,7 @@
 	#define PCI_RC_VID_ADR						0x00
 	#define PCI_RC_RID_CC_ADR					0x08
 	#define PCI_PM_CAPABILITIES					0x40
+	#define PCI_RC_LINK_CONTROL_STATUS			0x70
 	#define PCI_RC_BARMSK00L_ADR				0xA0
 	#define PCI_RC_BARMSK00U_ADR				0xA4
 	#define PCI_RC_BSIZE00_01_ADR				0xC8

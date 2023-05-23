@@ -443,7 +443,7 @@ static void rzv2m_pcie_fixup_pcibridge(struct pci_dev *pdev)
 	}
 
 }
-//DECLARE_PCI_FIXUP_EARLY(PCIE_CONF_VENDOR_ID, PCIE_CONF_DEVICE_ID, rzv2m_pcie_fixup_pcibridge);
+DECLARE_PCI_FIXUP_EARLY(PCIE_CONF_VENDOR_ID, PCIE_CONF_DEVICE_ID, rzv2m_pcie_fixup_pcibridge);
 
 static void rzv2m_pcie_setting_config(struct rzv2m_pcie *pcie)
 {
@@ -693,7 +693,7 @@ static int rzv2m_msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev
 
 	msi_notice_addr = (unsigned long)msi->virt_pages + (hwirq * sizeof(unsigned int));
 	msg.address_lo = lower_32_bits(msi_notice_addr);
-	msg.address_hi = 0x00;
+	msg.address_hi = upper_32_bits(msi_notice_addr);
 	msg.data = hwirq;
 
 	pci_write_msi_msg(irq, &msg);
@@ -746,7 +746,7 @@ static int rzv2m_msi_setup_irqs(struct msi_controller *chip,
 
 	msi_notice_addr = (unsigned long)msi->virt_pages + (hwirq * sizeof(unsigned int));
 	msg.address_lo = lower_32_bits(msi_notice_addr);
-	msg.address_hi = 0x00;
+	msg.address_hi = upper_32_bits(msi_notice_addr);
 	msg.data = hwirq;
 
 	pci_write_msi_msg(irq, &msg);
@@ -821,13 +821,13 @@ static void rzv2m_pcie_hw_enable_msi(struct rzv2m_pcie_host *host)
 		if( !(rzv2m_pci_read_reg(pcie, AXI_WINDOW_BASE_REG(idx)) & AXI_WINDOW_ENABLE) ) {
 			continue;
 		}
-		pci_base = rzv2m_pci_read_reg(pcie, AXI_DESTINATION_REG(idx));
+		pci_base = rzv2m_pci_read_reg(pcie, AXI_DESTINATION_REG(idx)) + 0x100000000*pcie->save_reg.axi_window.dest_u[idx];
 		msi_base_mask = rzv2m_pci_read_reg(pcie, AXI_WINDOW_MASK_REG(idx));
 		if( (pci_base <= base) && 
 			(pci_base + msi_base_mask >= base) ) {
 			
 			msi_base  = base & msi_base_mask;
-			msi_base |= rzv2m_pci_read_reg(pcie, AXI_WINDOW_BASE_REG(idx));
+			msi_base |= rzv2m_pci_read_reg(pcie, AXI_WINDOW_BASE_REG(idx)) + 0x100000000*pcie->save_reg.axi_window.base_u[idx];
 			msi->virt_pages = msi_base & ~AXI_WINDOW_ENABLE;
 			msi_base |= MSI_RCV_WINDOW_ENABLE;
 			break;
@@ -841,7 +841,7 @@ static void rzv2m_pcie_hw_enable_msi(struct rzv2m_pcie_host *host)
 	for (idx = 0; idx < MSI_RCV_NUM; idx++)
 		*(unsigned int *)(msi->pages + idx*0x4) = MSI_RCV_WINDOW_INVALID;
 
-	rzv2m_pci_write_reg(pcie, msi_base, MSI_RCV_WINDOW_ADDR_REG);
+	rzv2m_pci_write_reg(pcie, lower_32_bits(msi_base), MSI_RCV_WINDOW_ADDR_REG);
 	rzv2m_pci_write_reg(pcie, MSI_RCV_WINDOW_MASK_MIN, MSI_RCV_WINDOW_MASK_REG);
 	rzv2m_rmw(pcie, MSI_RCV_WINDOW_ADDR_REG, MSI_RCV_WINDOW_ENABLE, MSI_RCV_WINDOW_ENABLE);
 
@@ -878,7 +878,6 @@ static int rzv2m_pcie_enable_msi(struct rzv2m_pcie_host *host)
 
 	msi->chip.dev = dev;
 	msi->chip.setup_irq = rzv2m_msi_setup_irq;
-	msi->chip.setup_irqs = rzv2m_msi_setup_irqs;
 	msi->chip.teardown_irq = rzv2m_msi_teardown_irq;
 
 	msi->domain = irq_domain_add_linear(dev->of_node, INT_PCI_MSI_NR,
@@ -1002,7 +1001,7 @@ static int rzv2m_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rzv2m_pcie_host *host;
 	struct rzv2m_pcie *pcie;
-	u32 data;
+	u32 data, data2;
 	int err;
 	struct pci_host_bridge *bridge;
 
@@ -1075,7 +1074,24 @@ static int rzv2m_pcie_probe(struct platform_device *pdev)
 				data = 0xff;
 				break;
 	}
-	dev_info(&pdev->dev, "PCIe x%d: link up Lane number\n",data);
+
+	data2 = rzv2m_read_conf(pcie, PCI_RC_LINK_CONTROL_STATUS);
+	switch((data2 >> 19) & 0xFF)
+	{
+		case 0x01:
+				/*- setting Speed Gen1 -*/
+				data2 = 0x01;
+				break;
+		case 0x02:
+				/*- setting Speed Gen2 -*/
+				data2 = 0x02;
+				break;
+		default:
+				/*- unknown -*/
+				data2 = 0xff;
+				break;
+	}
+	dev_info(&pdev->dev, "PCIe : link up Lane number x%d / Speed Gen %d\n", data, data2);
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		err = rzv2m_pcie_enable_msi(host);
