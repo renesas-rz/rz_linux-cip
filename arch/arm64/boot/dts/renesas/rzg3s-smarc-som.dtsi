@@ -81,6 +81,12 @@
 	};
 };
 
+&adc {
+	pinctrl-0 = <&adc_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
 &extal_clk {
 	clock-frequency = <24000000>;
 };
