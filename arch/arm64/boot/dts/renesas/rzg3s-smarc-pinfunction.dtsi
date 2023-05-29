@@ -129,7 +129,7 @@
 #else
 	sdhi0_pins: sd0 {
 		sd0_data {
-			pins = "SD0_DATA0", "SD0_DATA1", "SD0_DATA2". "SD0_DATA3";
+			pins = "SD0_DATA0", "SD0_DATA1", "SD0_DATA2", "SD0_DATA3";
 			power-source = <3300>;
 		};
 
@@ -139,13 +139,13 @@
 		};
 
 		sd0_mux {
-			pimux = <RZG2L_PORT_PINMUX(0, 0, 1)>; /* SD0_CD */
+			pinmux = <RZG2L_PORT_PINMUX(0, 0, 1)>; /* SD0_CD */
 		};
 	};
 
-	sdhi0_pins_uhs: sd0 {
+	sdhi0_uhs_pins: sd0 {
 		sd0_data_uhs {
-			pins = "SD0_DATA0", "SD0_DATA1", "SD0_DATA2". "SD0_DATA3";
+			pins = "SD0_DATA0", "SD0_DATA1", "SD0_DATA2", "SD0_DATA3";
 			power-source = <1800>;
 		};
 
@@ -155,7 +155,7 @@
 		};
 
 		sd0_mux_uhs {
-			pimux = <RZG2L_PORT_PINMUX(0, 0, 1)>; /* SD0_CD */
+			pinmux = <RZG2L_PORT_PINMUX(0, 0, 1)>; /* SD0_CD */
 		};
 	};
 #endif
@@ -173,13 +173,13 @@
 			power-source = <3300>;
 		};
 
-		sd0_ctrl {
+		sd1_ctrl {
 			pins = "SD1_CLK", "SD1_CMD";
 			power-source = <3300>;
 		};
 
-		sd0_mux {
-			pimux = <RZG2L_PORT_PINMUX(0, 2, 1)>; /* SD1_CD */
+		sd1_mux {
+			pinmux = <RZG2L_PORT_PINMUX(0, 2, 1)>; /* SD1_CD */
 		};
 	};
 
@@ -195,7 +195,7 @@
 		};
 
 		sd1_mux_uhs {
-			pimux = <RZG2L_PORT_PINMUX(0, 2, 1)>; /* SD1_CD */
+			pinmux = <RZG2L_PORT_PINMUX(0, 2, 1)>; /* SD1_CD */
 		};
 	};
 
