@@ -846,7 +846,7 @@ static void rzg3s_pcie_hw_enable_msi(struct rzg3s_pcie_host *host)
 	/* open MSI window */
 	rzg3s_pci_write_reg(pcie, lower_32_bits(base), MSI_RCV_WINDOW_ADDRL_REG);
 	rzg3s_pci_write_reg(pcie, upper_32_bits(base), MSI_RCV_WINDOW_ADDRU_REG);
-	rzg3s_pci_write_reg(pcie, MSI_RCV_WINDOW_MASK_MIN, MSI_RCV_WINDOW_MASK_REG);
+	rzg3s_pci_write_reg(pcie, MSI_RCV_WINDOW_MASK_MIN, MSI_RCV_WINDOW_MASKL_REG);
 	rzg3s_rmw(pcie, MSI_RCV_WINDOW_ADDRL_REG, MSI_RCV_WINDOW_ENABLE, MSI_RCV_WINDOW_ENABLE);
 
 	/* enable all MSI interrupts */
@@ -1229,23 +1229,32 @@ static int rzg3s_pcie_suspend(struct device *dev)
 
 	for (idx = 0; idx < RZG3S_PCI_MAX_RESOURCES; idx++) {
 		/* Save AXI window setting	*/
-		pcie->save_reg.axi_window.base[idx] = rzg3s_pci_read_reg(pcie, AXI_WINDOW_BASEL_REG(idx));
-		pcie->save_reg.axi_window.mask[idx] = rzg3s_pci_read_reg(pcie, AXI_WINDOW_MASKL_REG(idx));
-		pcie->save_reg.axi_window.dest[idx] = rzg3s_pci_read_reg(pcie, AXI_DESTINATIONL_REG(idx));
+		pcie->save_reg.axi_window.base_l[idx] = rzg3s_pci_read_reg(pcie, AXI_WINDOW_BASEL_REG(idx));
+		pcie->save_reg.axi_window.base_u[idx] = rzg3s_pci_read_reg(pcie, AXI_WINDOW_BASEU_REG(idx));
+		pcie->save_reg.axi_window.mask_l[idx] = rzg3s_pci_read_reg(pcie, AXI_WINDOW_MASKL_REG(idx));
+		pcie->save_reg.axi_window.mask_u[idx] = rzg3s_pci_read_reg(pcie, AXI_WINDOW_MASKU_REG(idx));
+		pcie->save_reg.axi_window.dest_l[idx] = rzg3s_pci_read_reg(pcie, AXI_DESTINATIONL_REG(idx));
+		pcie->save_reg.axi_window.dest_u[idx] = rzg3s_pci_read_reg(pcie, AXI_DESTINATIONU_REG(idx));
 
 		/* Save PCIe window setting	*/
-		pcie->save_reg.pci_window.base[idx]   = rzg3s_pci_read_reg(pcie, PCIE_WINDOW_BASEL_REG(idx));
-		pcie->save_reg.pci_window.mask[idx]   = rzg3s_pci_read_reg(pcie, PCIE_WINDOW_MASKL_REG(idx));
+		pcie->save_reg.pci_window.base_l[idx]   = rzg3s_pci_read_reg(pcie, PCIE_WINDOW_BASEL_REG(idx));
+		pcie->save_reg.pci_window.base_u[idx]   = rzg3s_pci_read_reg(pcie, PCIE_WINDOW_BASEU_REG(idx));
+		pcie->save_reg.pci_window.mask_l[idx]   = rzg3s_pci_read_reg(pcie, PCIE_WINDOW_MASKL_REG(idx));
+		pcie->save_reg.pci_window.mask_u[idx]   = rzg3s_pci_read_reg(pcie, PCIE_WINDOW_MASKU_REG(idx));
 		pcie->save_reg.pci_window.dest_u[idx] = rzg3s_pci_read_reg(pcie, PCIE_DESTINATION_HI_REG(idx));
 		pcie->save_reg.pci_window.dest_l[idx] = rzg3s_pci_read_reg(pcie, PCIE_DESTINATION_LO_REG(idx));
 	}
 	/* Save MSI setting*/
 	pcie->save_reg.interrupt.msi_win_addrl	= rzg3s_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDRL_REG);
 	pcie->save_reg.interrupt.msi_win_addru	= rzg3s_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDRU_REG);
-	pcie->save_reg.interrupt.msi_win_mask	= rzg3s_pci_read_reg(pcie, MSI_RCV_WINDOW_MASK_REG);
+	pcie->save_reg.interrupt.msi_win_maskl	= rzg3s_pci_read_reg(pcie, MSI_RCV_WINDOW_MASKL_REG);
+	pcie->save_reg.interrupt.msi_win_masku	= rzg3s_pci_read_reg(pcie, MSI_RCV_WINDOW_MASKU_REG);
 	pcie->save_reg.interrupt.intx_ena	= rzg3s_pci_read_reg(pcie, PCI_INTX_RCV_INTERRUPT_ENABLE_REG);
-	pcie->save_reg.interrupt.msi_ena	= rzg3s_pci_read_reg(pcie, MSG_RCV_INTERRUPT_ENABLE_REG);
+	pcie->save_reg.interrupt.msi_ena	= rzg3s_pci_read_reg(pcie, PCI_RC_MSIRCVE(0));
+	pcie->save_reg.interrupt.msi_mask	= rzg3s_pci_read_reg(pcie, PCI_RC_MSIRCVMSK(0));
+	pcie->save_reg.interrupt.msi_data	= rzg3s_pci_read_reg(pcie, PCI_RC_MSIRMD(0));
 
+	reset_control_assert(host->rst);
 	return 0;
 }
 
@@ -1255,37 +1264,54 @@ static int rzg3s_pcie_resume(struct device *dev)
 	struct rzg3s_pcie *pcie = &host->pcie;
 	int idx, err;
 
+	err = reset_control_deassert(host->rst);
+	if (err) {
+		dev_err(dev, "PCIE failed to deassert reset %d\n", err);
+		return err;
+	}
+	udelay(200);
+
 	rzg3s_pcie_setting_config(pcie);
 
-	if (rzg3s_pci_read_reg(pcie, AXI_WINDOW_BASEL_REG(0)) !=
-		pcie->save_reg.axi_window.base[0]) {
-
-		err = rzg3s_pcie_hw_init(pcie, host->channel);
-		if (err) {
-			dev_info(pcie->dev, "resume PCIe link down\n");
-			return err;
-		}
-
-		for (idx = 0; idx < RZG3S_PCI_MAX_RESOURCES; idx++) {
-			/* Restores AXI window setting	*/
-			rzg3s_pci_write_reg(pcie, pcie->save_reg.axi_window.mask[idx], AXI_WINDOW_MASKL_REG(idx));
-			rzg3s_pci_write_reg(pcie, pcie->save_reg.axi_window.dest[idx], AXI_DESTINATIONL_REG(idx));
-			rzg3s_pci_write_reg(pcie, pcie->save_reg.axi_window.base[idx], AXI_WINDOW_BASEL_REG(idx));
-
-			/* Restores PCIe window setting	*/
-			rzg3s_pci_write_reg(pcie, pcie->save_reg.pci_window.mask[idx], PCIE_WINDOW_MASKL_REG(idx));
-			rzg3s_pci_write_reg(pcie, pcie->save_reg.pci_window.dest_u[idx], PCIE_DESTINATION_HI_REG(idx));
-			rzg3s_pci_write_reg(pcie, pcie->save_reg.pci_window.dest_l[idx], PCIE_DESTINATION_LO_REG(idx));
-			rzg3s_pci_write_reg(pcie, pcie->save_reg.pci_window.base[idx], PCIE_WINDOW_BASEL_REG(idx));
-
-		}
-		/* Restores MSI setting*/
-		rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_win_mask, MSI_RCV_WINDOW_MASK_REG);
-		rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_win_addrl, MSI_RCV_WINDOW_ADDRL_REG);
-		rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_win_addru, MSI_RCV_WINDOW_ADDRU_REG);
-		rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.intx_ena, PCI_INTX_RCV_INTERRUPT_ENABLE_REG);
-		rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_ena, MSG_RCV_INTERRUPT_ENABLE_REG);
+	err = rzg3s_pcie_phy_init(host);
+	if (err) {
+		dev_err(dev, "failed to init PCIe PHY\n");
+		return err;
 	}
+
+	err = rzg3s_pcie_hw_init(pcie, host->channel);
+	if (err) {
+		dev_info(pcie->dev, "resume PCIe link down\n");
+		return err;
+	}
+
+	for (idx = 0; idx < RZG3S_PCI_MAX_RESOURCES; idx++) {
+		/* Restores AXI window setting	*/
+		rzg3s_pci_write_reg(pcie, pcie->save_reg.axi_window.mask_l[idx], AXI_WINDOW_MASKL_REG(idx));
+		rzg3s_pci_write_reg(pcie, pcie->save_reg.axi_window.mask_u[idx], AXI_WINDOW_MASKU_REG(idx));
+		rzg3s_pci_write_reg(pcie, pcie->save_reg.axi_window.dest_l[idx], AXI_DESTINATIONL_REG(idx));
+		rzg3s_pci_write_reg(pcie, pcie->save_reg.axi_window.dest_u[idx], AXI_DESTINATIONU_REG(idx));
+		rzg3s_pci_write_reg(pcie, pcie->save_reg.axi_window.base_l[idx], AXI_WINDOW_BASEL_REG(idx));
+		rzg3s_pci_write_reg(pcie, pcie->save_reg.axi_window.base_u[idx], AXI_WINDOW_BASEU_REG(idx));
+
+		/* Restores PCIe window setting	*/
+		rzg3s_pci_write_reg(pcie, pcie->save_reg.pci_window.mask_l[idx], PCIE_WINDOW_MASKL_REG(idx));
+		rzg3s_pci_write_reg(pcie, pcie->save_reg.pci_window.mask_u[idx], PCIE_WINDOW_MASKU_REG(idx));
+		rzg3s_pci_write_reg(pcie, pcie->save_reg.pci_window.dest_u[idx], PCIE_DESTINATION_HI_REG(idx));
+		rzg3s_pci_write_reg(pcie, pcie->save_reg.pci_window.dest_l[idx], PCIE_DESTINATION_LO_REG(idx));
+		rzg3s_pci_write_reg(pcie, pcie->save_reg.pci_window.base_l[idx], PCIE_WINDOW_BASEL_REG(idx));
+		rzg3s_pci_write_reg(pcie, pcie->save_reg.pci_window.base_u[idx], PCIE_WINDOW_BASEU_REG(idx));
+
+	}
+	/* Restores MSI setting*/
+	rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_win_maskl, MSI_RCV_WINDOW_MASKL_REG);
+	rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_win_masku, MSI_RCV_WINDOW_MASKU_REG);
+	rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_win_addrl, MSI_RCV_WINDOW_ADDRL_REG);
+	rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_win_addru, MSI_RCV_WINDOW_ADDRU_REG);
+	rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.intx_ena, PCI_INTX_RCV_INTERRUPT_ENABLE_REG);
+	rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_ena, PCI_RC_MSIRCVE(0));
+	rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_mask, PCI_RC_MSIRCVMSK(0));
+	rzg3s_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_data, PCI_RC_MSIRMD(0));
 
 	return 0;
 }

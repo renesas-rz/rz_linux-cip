@@ -24,8 +24,10 @@
 
 /* AXI to PCI Express Access */
 #define PCIE_WINDOW_BASEL_REG(x)					(0x1100 + ((x) * 0x20))
+#define PCIE_WINDOW_BASEU_REG(x)					(0x1104 + ((x) * 0x20))
 	#define PCIE_WINDOW_ENABLE					(0x00000001)
 #define PCIE_WINDOW_MASKL_REG(x)					(0x1108 + ((x) * 0x20))
+#define PCIE_WINDOW_MASKU_REG(x)					(0x110C + ((x) * 0x20))
 #define PCIE_DESTINATION_LO_REG(x)				(0x1110 + ((x) * 0x20))
 #define PCIE_DESTINATION_HI_REG(x)				(0x1114 + ((x) * 0x20))
 
@@ -49,7 +51,8 @@
 		#define MSI_RCV_WINDOW_ENABLE			0x00000001
 #define MSI_RCV_WINDOW_ADDRU_REG				0x0104
 
-#define MSI_RCV_WINDOW_MASK_REG					0x0108
+#define MSI_RCV_WINDOW_MASKL_REG					0x0108
+#define MSI_RCV_WINDOW_MASKU_REG					0x010C
 	#define MSI_RCV_NUM							32
 	#define MSI_RCV_WINDOW_SIZE					(MSI_RCV_NUM * sizeof(unsigned int))
 	#define MSI_RCV_WINDOW_MASK_MIN				((unsigned long)MSI_RCV_WINDOW_SIZE - 1)
@@ -78,6 +81,7 @@
 /* MSI receive register group */
 #define PCI_RC_MSIRCVE(x)			(0x600 + 0x10 * (x))
 #define PCI_RC_MSIRCVE_EN			BIT(0)
+#define PCI_RC_MSIRMD(x)			(0x604 + 0x10 * (x))
 #define PCI_RC_MSIRCVMSK(x)			(0x608 + 0x10 * (x))
 #define PCI_RC_MSIRCVMSK_MSI_MASK		0xFFFFFFFF
 #define PCI_RC_MSIRCVSTAT(x)			(0x60C + 0x10 * (x))
@@ -311,16 +315,19 @@
 #define RZ_SIP_SVC_SET_PCIE_RST_RSMB	0x82000013
 
 struct rzg3s_axi_window_set {
-	u32	base[RZG3S_PCI_MAX_RESOURCES];
+	u32	base_l[RZG3S_PCI_MAX_RESOURCES];
 	u32	base_u[RZG3S_PCI_MAX_RESOURCES];
-	u32	mask[RZG3S_PCI_MAX_RESOURCES];
-	u32	dest[RZG3S_PCI_MAX_RESOURCES];
+	u32	mask_l[RZG3S_PCI_MAX_RESOURCES];
+	u32	mask_u[RZG3S_PCI_MAX_RESOURCES];
+	u32	dest_l[RZG3S_PCI_MAX_RESOURCES];
 	u32	dest_u[RZG3S_PCI_MAX_RESOURCES];
 };
 
 struct rzg3s_pci_window_set {
-	u32	base[RZG3S_PCI_MAX_RESOURCES];
-	u32	mask[RZG3S_PCI_MAX_RESOURCES];
+	u32	base_l[RZG3S_PCI_MAX_RESOURCES];
+	u32	base_u[RZG3S_PCI_MAX_RESOURCES];
+	u32	mask_l[RZG3S_PCI_MAX_RESOURCES];
+	u32	mask_u[RZG3S_PCI_MAX_RESOURCES];
 	u32	dest_u[RZG3S_PCI_MAX_RESOURCES];
 	u32	dest_l[RZG3S_PCI_MAX_RESOURCES];
 };
@@ -328,9 +335,12 @@ struct rzg3s_pci_window_set {
 struct rzg3s_interrupt_set {
 	u32	msi_win_addrl;
 	u32	msi_win_addru;
-	u32	msi_win_mask;
+	u32	msi_win_maskl;
+	u32	msi_win_masku;
 	u32	intx_ena;
 	u32	msi_ena;
+	u32	msi_mask;
+	u32	msi_data;
 };
 
 struct rzg3s_save_reg {
