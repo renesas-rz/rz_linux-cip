@@ -206,6 +206,8 @@ static int rzg3s_thermal_probe(struct platform_device *pdev)
 	else
 		priv->calib1 = SW_CALIB1_VAL;
 
+	platform_set_drvdata(pdev, priv);
+
 	/* Get device of ADC driver */
 	ret = rzg3s_get_adc_device(priv);
 
@@ -213,8 +215,6 @@ static int rzg3s_thermal_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to get ADC device");
 		goto err;
 	}
-
-	platform_set_drvdata(pdev, priv);
 
 	ret = rzg3s_thermal_init(priv);
 	if (ret) {
