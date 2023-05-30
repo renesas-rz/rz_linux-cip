@@ -394,7 +394,7 @@ static int xhci_generic_plat_probe(struct platform_device *pdev)
 	return xhci_plat_probe(pdev, sysdev, priv_match);
 }
 
-int xhci_plat_remove(struct platform_device *dev)
+void xhci_plat_remove(struct platform_device *dev)
 {
 	struct usb_hcd	*hcd = platform_get_drvdata(dev);
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
@@ -425,8 +425,6 @@ int xhci_plat_remove(struct platform_device *dev)
 	pm_runtime_disable(&dev->dev);
 	pm_runtime_put_noidle(&dev->dev);
 	pm_runtime_set_suspended(&dev->dev);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(xhci_plat_remove);
 
@@ -540,7 +538,7 @@ MODULE_DEVICE_TABLE(acpi, usb_xhci_acpi_match);
 
 static struct platform_driver usb_generic_xhci_driver = {
 	.probe	= xhci_generic_plat_probe,
-	.remove	= xhci_plat_remove,
+	.remove_new = xhci_plat_remove,
 	.shutdown = usb_hcd_platform_shutdown,
 	.driver	= {
 		.name = "xhci-hcd",
