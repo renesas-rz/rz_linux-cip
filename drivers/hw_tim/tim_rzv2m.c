@@ -60,7 +60,7 @@ struct tim_priv {
 #define TMD     0x00
 #define CMD     0x04
 #define TMCD    0x08
-#define INTCLR  0x10
+#define INTCLR  0x0C
 
 //CMD register field
 #define MAX_TIMCYS      0xFFFFFFFF /* Max value of 32 bits register is ffffffff */
