@@ -65,6 +65,14 @@ config WM831X_BACKUP
 	  Say Y here to enable support for the backup battery charger
 	  in the Wolfson Microelectronics WM831x PMICs.
 
+config VBATTB_DRV_RZG3S
+	tristate "Battery backup function support RZ/G3S"
+	depends on ARCH_RENESAS
+	help
+	  This is a simple vbat driver found on RZ/G3S SoCs2
+	  This driver is designed to enable 32kHz from VBAT and
+	  provide the clock for Realtime clock found on RZ/G3S SoCs.
+
 config WM831X_POWER
 	tristate "WM831X PMU support"
 	depends on MFD_WM831X
