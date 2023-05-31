@@ -22,6 +22,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/reset.h>
 
 #include "../dmaengine.h"
 #include "../virt-dma.h"
@@ -109,6 +110,7 @@ struct rz_dmac {
 	enum dmac_type devtype;
 
 	DECLARE_BITMAP(modules, 1024);
+	struct reset_control *rst;
 };
 
 #define to_rz_dmac(d)	container_of(d, struct rz_dmac, engine)
@@ -1117,6 +1119,12 @@ static int rz_dmac_probe(struct platform_device *pdev)
 		if (IS_ERR(dmac->ext_base))
 			return PTR_ERR(dmac->ext_base);
 	}
+
+	dmac->rst = devm_reset_control_get_optional(&pdev->dev, NULL);
+	if (IS_ERR(dmac->rst))
+		dev_dbg(&pdev->dev, "Failed to get DMAC reset\n");
+
+	reset_control_deassert(dmac->rst);
 
 	/* Register interrupt handler for error */
 	irq = platform_get_irq_byname(pdev, irqname);
