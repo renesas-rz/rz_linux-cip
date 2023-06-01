@@ -262,6 +262,14 @@
 		pinmux = <RZG2L_PORT_PINMUX(0, 6, 1)>, /* I2C8_SDA */
 			 <RZG2L_PORT_PINMUX(0, 7, 1)>; /* I2C8_SCL */
 	};
+
+	usb30_pins: usb30 {
+		pinmux = <RZG2L_PORT_PINMUX(11, 0, 14)>; /* VBUS */
+	};
+
+	usb31_pins: usb31 {
+		pinmux = <RZG2L_PORT_PINMUX(6, 2, 14)>; /* VBUS */
+	};
 };
 
 &extal_clk {
@@ -637,3 +645,20 @@
 		};
 	};
 };
+
+&xhci0 {
+		pinctrl-0 = <&usb30_pins>;
+		pinctrl-names = "default";
+
+		memory-region = <&global_cma>;
+		status = "okay";
+};
+
+&xhci1 {
+		pinctrl-0 = <&usb31_pins>;
+		pinctrl-names = "default";
+
+		memory-region = <&global_cma>;
+		status = "okay";
+};
+
