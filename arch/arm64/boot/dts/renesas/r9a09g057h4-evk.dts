@@ -43,6 +43,10 @@
 
 	aliases {
 		serial0 = &scif0;
+		serial1 = &sci4;
+		serial2 = &sci5;
+		serial3 = &sci8;
+		serial4 = &sci9;
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
 		mmc2 = &sdhi2;
@@ -246,6 +250,26 @@
 		pins =  "SCIF_RXD", "SCIF_TXD";
 	};
 
+	sci4_pins: sci4 {
+		pinmux = <RZG2L_PORT_PINMUX(8, 4, 6)>, /* SCI4_TXD_MOSI_SDA */
+			 <RZG2L_PORT_PINMUX(8, 5, 6)>; /* SCI4_RXD_MISO_SCL */
+	};
+
+	sci5_pins: sci5 {
+		pinmux = <RZG2L_PORT_PINMUX(8, 6, 6)>, /* SCI5_TXD_MOSI_SDA */
+			 <RZG2L_PORT_PINMUX(8, 7, 6)>; /* SCI5_RXD_MISO_SCL */
+	};
+
+	sci8_pins: sci8 {
+		pinmux = <RZG2L_PORT_PINMUX(8, 0, 6)>, /* SCI8_TXD_MOSI_SDA */
+			 <RZG2L_PORT_PINMUX(8, 1, 6)>; /* SCI8_RXD_MISO_SCL */
+	};
+
+	sci9_pins: sci9 {
+		pinmux = <RZG2L_PORT_PINMUX(8, 2, 6)>, /* SCI9_TXD_MOSI_SDA */
+			 <RZG2L_PORT_PINMUX(8, 3, 6)>; /* SCI9_RXD_MISO_SCL */
+	};
+
 	sd0_pwr_en {
 		gpio-hog;
 		gpios = <RZG2L_GPIO(10, 1) GPIO_ACTIVE_HIGH>;
@@ -361,6 +385,30 @@
 	pinctrl-names = "default";
 
 	status = "okay";
+};
+
+&sci4 {
+	pinctrl-0 = <&sci4_pins>;
+	pinctrl-names = "default";
+	status ="okay";
+};
+
+&sci5 {
+	pinctrl-0 = <&sci5_pins>;
+	pinctrl-names = "default";
+	status ="okay";
+};
+
+&sci8 {
+	pinctrl-0 = <&sci8_pins>;
+	pinctrl-names = "default";
+	status ="okay";
+};
+
+&sci9 {
+	pinctrl-0 = <&sci9_pins>;
+	pinctrl-names = "default";
+	status ="okay";
 };
 
 #if (SEL_SD0)
