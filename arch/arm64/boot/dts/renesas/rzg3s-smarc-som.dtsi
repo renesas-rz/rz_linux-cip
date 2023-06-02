@@ -16,6 +16,9 @@
 		serial1 = &scif3;
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
+#if SD2_SEL
+		mmc2 = &sdhi2;
+#endif
 	};
 
 	memory@48000000 {
@@ -165,6 +168,20 @@
 	bus-width = <4>;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
+	max-frequency = <125000000>;
+	status = "okay";
+};
+#endif
+
+#if SD2_SEL
+&sdhi2 {
+	pinctrl-0 = <&sdhi2_pins>;
+	pinctrl-1 = <&sdhi2_pins>;
+	pinctrl-names = "default", "state_uhs";
+
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_3p3v>;
+	bus-width = <4>;
 	max-frequency = <125000000>;
 	status = "okay";
 };
