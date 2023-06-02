@@ -1,13 +1,34 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /*
- * Device Tree Source for the RZ/G3S SMARC-2 board
+ * Device Tree Source for the R9A08G045S33 SMARC-2 board.
  *
  * Copyright (C) 2023 Renesas Electronics Corp.
  */
 
 /dts-v1/;
+
+/*
+ * RSPI1_LOOPBACK_SEL - select target SPI device between virtual loopback
+			and N25Q256A flash on PMOD Digilent SF3 (default)
+ */
+#define RSPI1_LOOPBACK_SEL	0
+
+/*
+ * Switch between CAN and PMOD pins. Set macro SW_GPIO_CAN_PMOD to 1 and
+ * turn switches of SW_GPIO_CAN_PMOD on SMARC-II carrier properly to use
+ * CAN0/1_STB.
+ * - GPIO8_CAN0_STB - GPIO8_PMOD
+ * - GPIO9_CAN1_STB - GPIO9_PMOD
+ */
+#define SW_GPIO_CAN_PMOD	0
+
+/*
+ * Set macro SW_SD0_DEV_SEL to 1 and turn on SOM_CONFIG_SW2 (SW_SD0_DEV_SEL)
+ * to use SD0 slot instead of eMMC.
+ */
+#define SW_SD0_DEV_SEL		0
+
 #include "r9a08g045s33.dtsi"
-#include "rzg3s-smarc-pinfunction.dtsi"
 #include "rzg3s-smarc-som.dtsi"
 #include "rzg3s-smarc.dtsi"
 
@@ -15,10 +36,4 @@
 	model = "Renesas SMARC EVK version2 based on r9a08g045s33 SoC";
 	compatible = "renesas,r9a08g045s33", "renesas,r9a08g045s33-smarc",
 		     "renesas,r9a08g045", "renesas,smarc-evk";
-};
-
-&pcie0 {
-	pinctrl-0 = <&pcie0_pins>;
-	pinctrl-names = "default";
-	status = "okay";
 };

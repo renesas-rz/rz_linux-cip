@@ -10,8 +10,6 @@
 
 / {
 	aliases {
-		ethernet0 = &eth0;
-		ethernet1 = &eth1;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		serial0 = &scif0;
@@ -28,6 +26,12 @@
 	chosen {
 		bootargs = "ignore_loglevel";
 		stdout-path = "serial0:115200n8";
+	};
+
+	x3_clk: x3-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
 	};
 
 	reg_1p8v: regulator0 {
@@ -48,6 +52,7 @@
 		regulator-always-on;
 	};
 
+#if SW_SD0_DEV_SEL
 	vccq_sdhi0: regulator-vccq-sdhi0 {
 		compatible = "regulator-gpio";
 		regulator-name = "SDHI0 VccQ";
@@ -59,6 +64,7 @@
 		gpios-states = <1>;
 		states = <3300000 1>, <1800000 0>;
 	};
+#endif
 
 	vccq_sdhi1: regulator-vccq-sdhi1 {
 		compatible = "regulator-gpio";
@@ -81,14 +87,14 @@
 	};
 };
 
+&extal_clk {
+	clock-frequency = <24000000>;
+};
+
 &adc {
 	pinctrl-0 = <&adc_pins>;
 	pinctrl-names = "default";
 	status = "okay";
-};
-
-&extal_clk {
-	clock-frequency = <24000000>;
 };
 
 &i2c0 {
@@ -131,7 +137,8 @@
 	status = "okay";
 };
 
-#if SW_SD0_DEV_SEL
+#if !SW_SD0_DEV_SEL
+/* eMMC */
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_emmc_pins>;
 	pinctrl-1 = <&sdhi0_emmc_pins>;
@@ -147,6 +154,7 @@
 	status = "okay";
 };
 #else
+/* SD0 slot */
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_pins>;
 	pinctrl-1 = <&sdhi0_uhs_pins>;
@@ -209,7 +217,7 @@
 	timeout-sec = <60>;
 };
 
-&rtc{
+&rtc {
 	status = "okay";
 };
 

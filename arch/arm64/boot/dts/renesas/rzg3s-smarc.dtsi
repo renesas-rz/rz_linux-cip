@@ -1,282 +1,26 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /*
- * Device Tree Source for the RZ/G3S SMARC Carrier Board.
+ * Device Tree Source for the RZ/G3S SMARC-II board
  *
  * Copyright (C) 2023 Renesas Electronics Corp.
  */
 
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/rzg2l-pinctrl.h>
+#include "rz-smarc2-common.dtsi"
+#include "rzg3s-smarc-pinfunction.dtsi"
 
-/*
- * SSI-DA7212
- *
- * These commands are required when Playback/Capture
- *
- *	amixer -q cset name='Aux Switch' on
- *	amixer -q cset name='Mixin Left Aux Left Switch' on
- *	amixer -q cset name='Mixin Right Aux Right Switch' on
- *	amixer -q cset name='ADC Switch' on
- *	amixer -q cset name='Mixout Right Mixin Right Switch' off
- *	amixer -q cset name='Mixout Left Mixin Left Switch' off
- *	amixer -q cset name='Headphone Volume' 70%
- *	amixer -q cset name='Headphone Switch' on
- *	amixer -q cset name='Mixout Left DAC Left Switch' on
- *	amixer -q cset name='Mixout Right DAC Right Switch' on
- *	amixer -q cset name='DAC Left Source MUX' 'DAI Input Left'
- *	amixer -q cset name='DAC Right Source MUX' 'DAI Input Right'
- *	amixer -q sset 'Mic 1 Amp Source MUX' 'MIC_P'
- *	amixer -q sset 'Mic 2 Amp Source MUX' 'MIC_P'
- *	amixer -q sset 'Mixin Left Mic 1' on
- *	amixer -q sset 'Mixin Right Mic 2' on
- *	amixer -q sset 'Mic 1' 90% on
- *	amixer -q sset 'Mic 2' 90% on
- *	amixer -q sset 'Lineout' 80% on
- *	amixer -q set "Headphone" 100% on
- */
-
-/*
- * RSPI1_LOOPBACK_SEL - select target SPI device between virtual loopback
-			and N25Q256A flash on PMOD Digilent SF3 (default)
- */
-#define RSPI1_LOOPBACK_SEL	0
-
-/ {
-	x3_clk: x3-clock {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <24000000>;
-	};
-
-	snd_rzg2l: sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,bitclock-master = <&cpu_dai>;
-		simple-audio-card,frame-master = <&cpu_dai>;
-		simple-audio-card,mclk-fs = <256>;
-
-		cpu_dai: simple-audio-card,cpu {
-			sound-dai = <&ssi3>;
-		};
-
-		codec_dai: simple-audio-card,codec {
-			sound-dai = <&da7212>;
-			clocks = <&versa3 3>;
-		};
-	};
-};
-
-&audio_clk1 {
-	clock-frequency = <11289600>;
-};
-
-&audio_clk2 {
-	clock-frequency = <12288000>;
-};
-
-&i2c0 {
-	status = "okay";
-
-	da7212: codec@1a {
-		compatible = "dlg,da7212";
-
-		#sound-dai-cells = <0>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		reg = <0x1a>;
-
-		clocks = <&versa3 4>;
-		clock-names = "mclk";
-
-		dlg,micbias1-lvl = <2500>;
-		dlg,micbias2-lvl = <2500>;
-		dlg,dmic-data-sel = "lrise_rfall";
-		dlg,dmic-samplephase = "between_clkedge";
-		dlg,dmic-clkrate = <3000000>;
-
-		VDDA-supply = <&reg_1p8v>;
-		VDDSP-supply = <&reg_3p3v>;
-		VDDMIC-supply = <&reg_3p3v>;
-		VDDIO-supply = <&reg_1p8v>;
-	};
-};
-
-&i2c1 {
-	status = "okay";
-
-	versa3: versa3@68 {
-		compatible = "renesas,5p35023";
-		reg = <0x68>;
-		#clock-cells = <1>;
-		clocks = <&x3_clk>;
-		clock-names = "x1";
-		assigned-clocks = <&versa3 0>,
-				   <&versa3 1>,
-				   <&versa3 2>,
-				   <&versa3 3>,
-				   <&versa3 4>,
-				   <&versa3 5>;
-		assigned-clock-rates =	<12288000>, <25000000>,
-					<12000000>, <11289600>,
-					<11289600>, <24000000>;
-		clock-divider-read-only = <1>, <1>, <1>, <1>, <1>;
-		clock-flags = <2176>, <2176>, <2176>, <2052>, <2176>, <2048>;
-	};
-};
-
-&ssi3 {
-	pinctrl-0 = <&ssi3_pins>;
-	pinctrl-names = "default";
-
-	status = "okay";
-};
-
-&canfd {
-	pinctrl-0 = <&can0_pins &can1_pins>;
-	pinctrl-names = "default";
-	status = "okay";
-	channel0 {
-		status = "okay";
-	};
-	channel1 {
-		status = "okay";
-	};
-};
-
-&eth0 {
-	pinctrl-0 = <&eth0_pins>;
-	pinctrl-names = "default";
-	phy-handle = <&phy0>;
-	phy-mode = "rgmii-id";
-	status = "okay";
-
-	phy0: ethernet-phy@7 {
-		reg = <7>;
-		rxc-skew-psec = <2400>;
-		txc-skew-psec = <2400>;
-		rxdv-skew-psec = <0>;
-		txdv-skew-psec = <0>;
-		rxd0-skew-psec = <0>;
-		rxd1-skew-psec = <0>;
-		rxd2-skew-psec = <0>;
-		rxd3-skew-psec = <0>;
-		txd0-skew-psec = <0>;
-		txd1-skew-psec = <0>;
-		txd2-skew-psec = <0>;
-		txd3-skew-psec = <0>;
-
-		interrupt-parent = <&pinctrl>;
-		interrupts = <RZG2L_GPIO(12, 0) IRQ_TYPE_LEVEL_LOW>; /* RZ_IRQ0 */
-	};
-};
-
-&eth1 {
-	pinctrl-0 = <&eth1_pins>;
-	pinctrl-names = "default";
-	phy-handle = <&phy1>;
-	phy-mode = "rgmii-id";
-	status = "okay";
-
-	phy1: ethernet-phy@7 {
-		reg = <7>;
-		rxc-skew-psec = <2400>;
-		txc-skew-psec = <2400>;
-		rxdv-skew-psec = <0>;
-		txdv-skew-psec = <0>;
-		rxd0-skew-psec = <0>;
-		rxd1-skew-psec = <0>;
-		rxd2-skew-psec = <0>;
-		rxd3-skew-psec = <0>;
-		txd0-skew-psec = <0>;
-		txd1-skew-psec = <0>;
-		txd2-skew-psec = <0>;
-		txd3-skew-psec = <0>;
-
-		interrupt-parent = <&pinctrl>;
-		interrupts = <RZG2L_GPIO(12, 1) IRQ_TYPE_LEVEL_LOW>; /* RZ_IRQ1 */
-	};
-};
-
-/* SER0 */
 &scif0 {
 	pinctrl-0 = <&scif0_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
 
-/* SER1 */
 &scif3 {
 	pinctrl-0 = <&scif3_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
 
-&sdhi1 {
-	pinctrl-0 = <&sdhi1_pins>;
-	pinctrl-1 = <&sdhi1_pins_uhs>;
-	pinctrl-names = "default", "state_uhs";
-
-	vmmc-supply = <&reg_3p3v>;
-	vqmmc-supply = <&vccq_sdhi1>;
-	bus-width = <4>;
-
-	sd-uhs-sdr50;
-	sd-uhs-sdr104;
-	max-frequency = <125000000>;
-	status = "okay";
-};
-
-&ehci0 {
-	dr_mode = "otg";
-	status = "okay";
-};
-
-&ehci1 {
-	status = "okay";
-};
-
-&ohci0 {
-	dr_mode = "otg";
-	status = "okay";
-};
-
-&ohci1 {
-	status = "okay";
-};
-
-&hsusb {
-	dr_mode = "otg";
-	status = "okay";
-};
-
-&phyrst {
-	status = "okay";
-};
-
-&usb2_phy0 {
-	pinctrl-0 = <&usb0_pins>;
-	pinctrl-names = "default";
-
-	vbus-supply = <&vbus0_usb2>;
-	status = "okay";
-};
-
-&usb2_phy1 {
-	pinctrl-0 = <&usb1_pins>;
-	pinctrl-names = "default";
-
-	status = "okay";
-};
-
 &spi1 {
-	pinctrl-0 = <&spi1_pins>;
-	pinctrl-names = "default";
-
-	dmas = <&dmac 0x2edd>, <&dmac 0x2ede>;
-	dma-names = "tx", "rx";
-
-	status = "okay";
 #if RSPI1_LOOPBACK_SEL
 	spidev@0 {
 		compatible = "rohm,dh2228fv";
@@ -303,4 +47,42 @@
 		};
 	};
 #endif
+};
+
+&i2c1 {
+	status = "okay";
+
+	versa3: versa3@68 {
+		compatible = "renesas,5p35023";
+		reg = <0x68>;
+		#clock-cells = <1>;
+		clocks = <&x3_clk>;
+		clock-names = "x1";
+		assigned-clocks = <&versa3 0>,
+				   <&versa3 1>,
+				   <&versa3 2>,
+				   <&versa3 3>,
+				   <&versa3 4>,
+				   <&versa3 5>;
+		assigned-clock-rates =	<12288000>, <25000000>,
+					<12000000>, <11289600>,
+					<11289600>, <24000000>;
+		clock-divider-read-only = <1>, <1>, <1>, <1>, <1>;
+		clock-flags = <2176>, <2176>, <2176>, <2052>, <2176>, <2048>;
+	};
+};
+
+&cpu_dai {
+	sound-dai = <&ssi3>;
+};
+
+&codec_dai {
+	clocks = <&versa3 3>;
+};
+
+&ssi3 {
+	pinctrl-0 = <&ssi3_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
 };
