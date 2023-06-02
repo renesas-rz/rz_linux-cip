@@ -85,10 +85,12 @@
 			 <RZG2L_PORT_PINMUX(6, 4, 1)>; /* RXD */
 	};
 
+#if !SD2_SEL
 	scif1_pins: scif1 {
 		pinmux = <RZG2L_PORT_PINMUX(14, 0, 1)>, /* TXD */
 			 <RZG2L_PORT_PINMUX(14, 1, 1)>; /* RXD */
 	};
+#endif
 
 	scif3_pins: scif3 {
 		pinmux = <RZG2L_PORT_PINMUX(17, 3, 7)>, /* TXD */
@@ -193,6 +195,37 @@
 			pinmux = <RZG2L_PORT_PINMUX(0, 2, 1)>; /* SD1_CD */
 		};
 	};
+
+#if SD2_SEL
+	sd2_pwr_en {
+		gpio-hog;
+		gpios = <RZG2L_GPIO(8, 1) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "sd2_pwr_en";
+	};
+
+	sdhi2_pins: sd2 {
+		sd2_data {
+			pins = "SD2_DATA0", "SD2_DATA1", "SD2_DATA2", "SD2_DATA3";
+			input-enable;
+		};
+
+		sd2_ctrl {
+			pins = "SD2_CLK", "SD2_CMD";
+			input-enable;
+		};
+
+		sd2_mux {
+			pinmux = <RZG2L_PORT_PINMUX(11, 0, 8)>, /* SD2_CLK */
+				 <RZG2L_PORT_PINMUX(11, 1, 8)>, /* SD2_CMD */
+				 <RZG2L_PORT_PINMUX(11, 2, 8)>, /* SD2_DATA0 */
+				 <RZG2L_PORT_PINMUX(11, 3, 8)>, /* SD2_DATA1 */
+				 <RZG2L_PORT_PINMUX(12, 0, 8)>, /* SD2_DATA2 */
+				 <RZG2L_PORT_PINMUX(12, 1, 8)>, /* SD2_DATA3 */
+				 <RZG2L_PORT_PINMUX(14, 1, 7)>; /* SD2_CD# */
+		};
+	};
+#endif
 
 	usb0_pins: usb0 {
 		pinmux = <RZG2L_PORT_PINMUX(5, 0, 1)>, /* VBUS */

@@ -28,6 +28,18 @@
  */
 #define SW_SD0_DEV_SEL		0
 
+/*
+ * Select between SD2 and SCIF1/ET0_INT#/ET1_INT# due to pins multiplex
+ *  SD2_CD# (P14_1) muxed with RZ_SCIF1_RXD (SCIF1)
+ *  SD2_DATA2 (P12_0) muxed with ET0_INT# (IRQ0)
+ *  SD2_DATA3 (P12_1) muxed with ET1_INT# (IRQ1)
+ * It is also required to set SW_CONFIG[3] (SW_SD2_EN#) depending on
+ * SD2_SEL value
+ *  SD2_SEL=0 & SW_CONFIG[3]=OFF: enable SCIF1/ET0_INT#/ET1_INT# (default)
+ *  SD2_SEL=1 & SW_CONFIG[3]=ON: enable SD2
+ */
+#define SD2_SEL			0
+
 #include "r9a08g045s33.dtsi"
 #include "rzg3s-smarc-som.dtsi"
 #include "rzg3s-smarc.dtsi"
