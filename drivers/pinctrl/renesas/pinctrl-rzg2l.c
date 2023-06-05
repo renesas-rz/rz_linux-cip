@@ -322,6 +322,23 @@ static const unsigned int rzg3s_port_offset[] = {
 	0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27
 };
 
+static const unsigned int rzg3s_ext_iolh_offs[] = {
+	0x1008, 0x1020, 0x1024, 0x1028, 0x102c, 0x1030,
+	0x1080, 0x1088,	0x108c,	0x1090, 0x1098,
+	0x110c, 0x1114, 0x112c, 0x1154, 0x1184, 0x119c,
+	0x11a4, 0x11ac, 0x11bc
+};
+
+static const unsigned int rzg3s_ext_isel_offs[] = {
+	0x2d0c, 0x2d14, 0x2d2c, 0x2d54, 0x2d84, 0x2d9c,
+	0x2da4, 0x2dac, 0x2dbc
+};
+
+static const unsigned int rzg3s_ext_pupd_offs[] = {
+	0x1d0c, 0x1d14, 0x1d2c, 0x1d54, 0x1d84, 0x1d9c,
+	0x1da4, 0x1dac, 0x1dbc
+};
+
 #define MAX_NUM_PORTS (ARRAY_SIZE(rzg3s_port_offset))
 
 struct rzg2l_dedicated_configs {
@@ -369,9 +386,21 @@ struct rzg2l_pinctrl {
 
 	spinlock_t			lock;
 
+	/* suspend/resume reg backup */
 	uint8_t				p_val[MAX_NUM_PORTS];
 	uint16_t			pm_val[MAX_NUM_PORTS];
 	uint8_t				pmc_val[MAX_NUM_PORTS];
+	uint32_t			pfc_val[MAX_NUM_PORTS];
+	uint32_t			isel_val[MAX_NUM_PORTS];
+	uint32_t			ien_val[MAX_NUM_PORTS];
+	uint32_t			iolh_val[MAX_NUM_PORTS];
+	uint32_t			sr_val[MAX_NUM_PORTS];
+	uint32_t			pupd_val[MAX_NUM_PORTS];
+
+	/* RZ/G3S extra register offsets */
+	uint32_t			g3s_ext_iolh_val[20];
+	uint32_t			g3s_ext_isel_val[9];
+	uint32_t			g3s_ext_pupd_val[9];
 };
 
 static const unsigned int iolh_groupa_mA[] = { 2, 4, 8, 12 };
@@ -2234,19 +2263,86 @@ static int rzg2l_pinctrl_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused rzg2l_pinctrl_suspend_noirq(struct device *dev)
+static int rzg2l_backup_restore_regs(struct rzg2l_pinctrl *pctrl, bool is_backup)
 {
-	struct rzg2l_pinctrl *pctrl = dev_get_drvdata(dev);
+	int i;
+	bool is_g3s = soc_device_match(rzg3s_match);
+	int pwpr = is_g3s? PWPR_G3S : PWPR;
 
-	if (pctrl->data->poffs) {
-		int i;
+	if (!pctrl || !pctrl->data->poffs)
+		return -EINVAL;
 
+	if (is_backup) {
 		for (i = 0; i < pctrl->data->n_ports; i++) {
 			pctrl->p_val[i] = readb(pctrl->base + P(pctrl->data->poffs[i]));
 			pctrl->pm_val[i] = readw(pctrl->base + PM(pctrl->data->poffs[i]));
 			pctrl->pmc_val[i] = readb(pctrl->base + PMC(pctrl->data->poffs[i]));
+
+			pctrl->pfc_val[i] = readl(pctrl->base + PFC(pctrl->data->poffs[i]));
+			pctrl->isel_val[i] = readl(pctrl->base + ISEL(pctrl->data->poffs[i]));
+			pctrl->iolh_val[i] = readl(pctrl->base + IOLH(pctrl->data->poffs[i] + 0x10));
+			pctrl->pupd_val[i] = readl(pctrl->base + PUPD(pctrl->data->poffs[i] + 0x10));
 		}
+
+		/* backup extra registers for RZ/G3S */
+		if (is_g3s) {
+			for (i = 0; i < ARRAY_SIZE(rzg3s_ext_iolh_offs); i++)
+				pctrl->g3s_ext_iolh_val[i] =
+					readl(pctrl->base + rzg3s_ext_iolh_offs[i]);
+
+			for (i = 0; i < ARRAY_SIZE(rzg3s_ext_isel_offs); i++)
+				pctrl->g3s_ext_isel_val[i] =
+					readl(pctrl->base + rzg3s_ext_isel_offs[i]);
+
+			for (i = 0; i < ARRAY_SIZE(rzg3s_ext_pupd_offs); i++)
+				pctrl->g3s_ext_pupd_val[i] =
+					readl(pctrl->base + rzg3s_ext_pupd_offs[i]);
+		}
+
+		return 0;
 	}
+
+	/* Restore registers value */
+
+	/* set the PWPR register to allow PFC register to write */
+	writel(0x0, pctrl->base + pwpr);        /* B0WI=0, PFCWE=0 */
+	writel(PWPR_PFCWE, pctrl->base + pwpr);  /* B0WI=0, PFCWE=1 */
+	for (i = 0; i < pctrl->data->n_ports; i++) {
+		writeb(pctrl->p_val[i], pctrl->base + P(pctrl->data->poffs[i]));
+		writew(pctrl->pm_val[i], pctrl->base + PM(pctrl->data->poffs[i]));
+
+		writeb(0x0, pctrl->base + PMC(pctrl->data->poffs[i]));
+		writel(pctrl->pfc_val[i], pctrl->base + PFC(pctrl->data->poffs[i]));
+		writeb(pctrl->pmc_val[i], pctrl->base + PMC(pctrl->data->poffs[i]));
+
+		writel(pctrl->isel_val[i], pctrl->base + ISEL(pctrl->data->poffs[i]));
+		writel(pctrl->iolh_val[i], pctrl->base + IOLH(pctrl->data->poffs[i] + 0x10));
+		writel(pctrl->pupd_val[i], pctrl->base + PUPD(pctrl->data->poffs[i] + 0x10));
+	}
+	/* set the PWPR register to be write-protected */
+	writel(0x0, pctrl->base + pwpr);        /* B0WI=0, PFCWE=0 */
+	writel(PWPR_B0WI, pctrl->base + pwpr);  /* B0WI=1, PFCWE=0 */
+
+	if (is_g3s) {
+		for (i = 0; i < ARRAY_SIZE(rzg3s_ext_iolh_offs); i++)
+			writel(pctrl->g3s_ext_iolh_val[i], pctrl->base + rzg3s_ext_iolh_offs[i]);
+
+		for (i = 0; i < ARRAY_SIZE(rzg3s_ext_isel_offs); i++)
+			writel(pctrl->g3s_ext_isel_val[i], pctrl->base + rzg3s_ext_isel_offs[i]);
+
+		for (i = 0; i < ARRAY_SIZE(rzg3s_ext_pupd_offs); i++)
+			writel(pctrl->g3s_ext_pupd_val[i], pctrl->base + rzg3s_ext_pupd_offs[i]);
+	}
+
+	return 0;
+}
+
+static int __maybe_unused rzg2l_pinctrl_suspend_noirq(struct device *dev)
+{
+	struct rzg2l_pinctrl *pctrl = dev_get_drvdata(dev);
+
+	if (pctrl->data->poffs)
+		rzg2l_backup_restore_regs(pctrl, 1);
 
 	if (atomic_read(&pctrl->wakeup_path))
 		device_set_wakeup_path(dev);
@@ -2258,16 +2354,8 @@ static int __maybe_unused rzg2l_pinctrl_resume_noirq(struct device *dev)
 {
 	struct rzg2l_pinctrl *pctrl = dev_get_drvdata(dev);
 
-	if (pctrl->data->poffs) {
-		struct rzg2l_pinctrl *pctrl = dev_get_drvdata(dev);
-		int i;
-
-		for (i = 0; i < pctrl->data->n_ports; i++) {
-			writeb(pctrl->p_val[i], pctrl->base + P(pctrl->data->poffs[i]));
-			writew(pctrl->pm_val[i], pctrl->base + PM(pctrl->data->poffs[i]));
-			writeb(pctrl->pmc_val[i], pctrl->base + PMC(pctrl->data->poffs[i]));
-		}
-	}
+	if (pctrl->data->poffs)
+		rzg2l_backup_restore_regs(pctrl, 0);
 
 	return 0;
 }
