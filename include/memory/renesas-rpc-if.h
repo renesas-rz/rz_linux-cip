@@ -61,6 +61,7 @@ enum rpcif_type {
 	RPCIF_RCAR_GEN3,
 	RPCIF_RZ_G2L,
 	XSPI_RZ_G3S,
+	XSPI_RZ_V2H,
 };
 
 struct rpcif {
