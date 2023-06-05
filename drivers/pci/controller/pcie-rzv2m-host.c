@@ -101,21 +101,7 @@ struct rzv2m_pcie_host {
 	struct irq_domain	*intx_domain;
 };
 
-static unsigned long sys_base = 0;
-static unsigned long phy_base = 0;
-
-
 static int rzv2m_pcie_hw_init(struct rzv2m_pcie *pcie);
-
-static void rzv2m_sys_write_reg(unsigned long val,  unsigned long reg)
-{
-	iowrite32(val, sys_base + reg);
-}
-
-static void rzv2m_pciphy_write_reg(unsigned long val,  unsigned long reg)
-{
-	iowrite32(val, phy_base + reg);
-}
 
 static int rzv2m_pcie_request_issue(struct rzv2m_pcie *pcie, struct pci_bus *bus)
 {
@@ -311,7 +297,7 @@ static int rzv2m_pcie_write_config_access(struct rzv2m_pcie_host *host,
 
 	rzv2m_pci_write_reg(pcie, 0, REQUEST_DATA_REG(0) );
 	rzv2m_pci_write_reg(pcie, 0, REQUEST_DATA_REG(1) );
-#if 1 //RAMA
+#if 0 //RAMA
 	if (reg == 0x54)
 		rzv2m_pci_write_reg(pcie, RAMA_ADDRESS, REQUEST_DATA_REG(2) );
 	else
@@ -441,18 +427,36 @@ static int rzv2m_pcie_enable(struct rzv2m_pcie_host *host)
 	return pci_host_probe(bridge);
 }
 
+static void rzv2m_pcie_fixup_pcibridge(struct pci_dev *pdev)
+{
+	u16 linkcap, linkstat;
+
+	pcie_capability_read_word(pdev, PCI_EXP_LNKCAP, &linkcap);
+	if ((linkcap & PCI_EXP_LNKCAP_SLS) <= PCI_EXP_LNKCAP_SLS_2_5GB) {
+		return;
+	}
+
+	pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &linkstat);
+	if ((linkstat & PCI_EXP_LNKSTA_CLS) == PCI_EXP_LNKSTA_CLS_2_5GB) {
+		pcie_capability_set_word(pdev, PCI_EXP_LNKCTL,
+					 PCI_EXP_LNKCTL_RL);
+	}
+
+}
+DECLARE_PCI_FIXUP_EARLY(PCIE_CONF_VENDOR_ID, PCIE_CONF_DEVICE_ID, rzv2m_pcie_fixup_pcibridge);
+
 static void rzv2m_pcie_setting_config(struct rzv2m_pcie *pcie)
 {
-   rzv2m_pci_write_reg(pcie, RESET_CONFIG_DEASSERT, PCI_RC_RESET_REG);
+   rzv2m_pci_write_reg(pcie, RESET_CONFIG_DEASSERT, PCI_RESET_REG);
 
 	// Configuration space(Root complex) setting
-   // Vendor and Device ID      : PCI Express Configuration Registers Adr 6000h
+	// Vendor and Device ID      : PCI Express Configuration Registers Adr 6000h
 	rzv2m_write_conf(pcie,
 			( (PCIE_CONF_DEVICE_ID << 16) |
 			  (PCIE_CONF_VENDOR_ID) ),
 			PCI_RC_VID_ADR);
 
-   // Revision ID and Class Code : PCI Express Configuration Registers Adr 6008h
+	// Revision ID and Class Code : PCI Express Configuration Registers Adr 6008h
 	rzv2m_write_conf(pcie,
 			( (PCIE_CONF_BASE_CLASS   << 24) |
 			  (PCIE_CONF_SUB_CLASS    << 16) |
@@ -467,7 +471,7 @@ static void rzv2m_pcie_setting_config(struct rzv2m_pcie *pcie)
 			PCI_PRIMARY_BUS);
 
 	rzv2m_write_conf(pcie,
-			( (PCIE_CONF_MEMORY_LIMIT << 16) |
+			( (PCIE_CONF_MEMORY_LIMIT << 16) | 
 			  (PCIE_CONF_MEMORY_BASE) ),
 			PCI_MEMORY_BASE);
 
@@ -475,92 +479,15 @@ static void rzv2m_pcie_setting_config(struct rzv2m_pcie *pcie)
 	rzv2m_write_conf(pcie, PCIE_CONF_BAR0_MASK_UP, PCIE_CONF_OFFSET_BAR0_MASK_UP);
 }
 
-static int PCIE_phyInitialize_L0(struct rzv2m_pcie *pcie)
-{
-	rzv2m_sys_write_reg(SET_LANE0, SYS_PCI_LANE_SEL_REG);				// Set Lane0 reg
-
-	/* PHY Initialize setting for Setting of PMA Register */
-	rzv2m_pciphy_write_reg(0x0032, PCI_PHYA_PLLPMSSDIV_REG);			/* PCI_PHYA 0D8h */
-	rzv2m_pciphy_write_reg(0x0001, PCI_PHYA_RXCDRREFDIVSELPLL_REG);		/* PCI_PHYA 480h */
-	rzv2m_pciphy_write_reg(0x0000, PCI_PHYA_RXCDRREFDIVSELDATA_REG);	/* PCI_PHYA 488h */
-	rzv2m_pciphy_write_reg(0x0004, PCI_PHYA_TXDDESKEW_REG);				/* PCI_PHYA 6ECh */
-	rzv2m_pciphy_write_reg(0x0004, PCI_PHYA_TXMISC_REG);				/* PCI_PHYA 73Ch */
-
-	/* PHY parameters for TX : Reference value for signal adjustment */
-	rzv2m_pciphy_write_reg(0x0011, PCI_PHYA_PLLALPFRSELFINE_REG);		/* PCI_PHYA 080h */
-	rzv2m_pciphy_write_reg(0x003F, PCI_PHYA_TXDRVLVCTLG1_REG);			/* PCI_PHYA 404h */
-	rzv2m_pciphy_write_reg(0x001D, PCI_PHYA_TXDRVLVLCTLG2_REG);			/* PCI_PHYA 408h */
-	rzv2m_pciphy_write_reg(0x002B, PCI_PHYA_TXDRVPOSTLVCTLG1_REG);		/* PCI_PHYA 414h */
-	rzv2m_pciphy_write_reg(0x000A, PCI_PHYA_TXDRVPOSTLVCTLG2_REG);		/* PCI_PHYA 418h */
-	rzv2m_pciphy_write_reg(0x0007, PCI_PHYA_TXDRVIDRVEN_REG);			/* PCI_PHYA 42Ch */
-	rzv2m_pciphy_write_reg(0x00B7, PCI_PHYA_ATXDRVIDRVCTL_REG);			/* PCI_PHYA 430h */
-	rzv2m_pciphy_write_reg(0x00FF, PCI_PHYA_TXJEQEVENCTL_REG);			/* PCI_PHYA 44Ch */
-	rzv2m_pciphy_write_reg(0x0000, PCI_PHYA_TXJEQODDCTL_REG);			/* PCI_PHYA 454h */
-	rzv2m_pciphy_write_reg(0x0057, PCI_PHYA_ATXDRVACCDRV_REG);			/* PCI_PHYA 7F0h */
-
-	/* PHY parameters for RX : Reference value for signal adjustment */
-	rzv2m_pciphy_write_reg(0x0073, PCI_PHYA_RXCTLEEN_REG);				/* PCI_PHYA 4B8h */
-	rzv2m_pciphy_write_reg(0x006F, PCI_PHYA_RXCTLEITAILCTLG1_REG);		/* PCI_PHYA 4C0h */
-	rzv2m_pciphy_write_reg(0x006C, PCI_PHYA_RXCTLEITAILCTLG2_REG);		/* PCI_PHYA 4C4h */
-	rzv2m_pciphy_write_reg(0x0013, PCI_PHYA_RXCTLERX1CTLG1_REG);		/* PCI_PHYA 4ECh */
-	rzv2m_pciphy_write_reg(0x00F2, PCI_PHYA_RXCTLERS1CTLG2_REG);		/* PCI_PHYA 4F0h */
-	rzv2m_pciphy_write_reg(0x0007, PCI_PHYA_ARXCTLEIBLEEDCTL_REG);		/* PCI_PHYA 514h */
-	rzv2m_pciphy_write_reg(0x00FF, PCI_PHYA_RXRTERM_REG);				/* PCI_PHYA 5A0h */
-	rzv2m_pciphy_write_reg(0x00F8, PCI_PHYA_RXRTERMVCMEN_REG);			/* PCI_PHYA 5ACh */
-	rzv2m_pciphy_write_reg(0x0065, PCI_PHYA_RXCDRFBBCTL_REG);			/* PCI_PHYA 678h */
-
-	return 0;
-
-} /* End of function PCIE_phyInitialize_L0() */
-
-
-static int PCIE_phyInitialize_L1(struct rzv2m_pcie *pcie)
-{
-	rzv2m_sys_write_reg(SET_LANE1, SYS_PCI_LANE_SEL_REG);				// Set Lane1 reg
-
-	/* PHY Initialize setting for Setting of PMA Register */
-	rzv2m_pciphy_write_reg(0x0032, PCI_PHYA_PLLPMSSDIV_REG);			/* PCI_PHYA 0D8h */
-	rzv2m_pciphy_write_reg(0x0001, PCI_PHYA_RXCDRREFDIVSELPLL_REG);		/* PCI_PHYA 480h */
-	rzv2m_pciphy_write_reg(0x0000, PCI_PHYA_RXCDRREFDIVSELDATA_REG);	/* PCI_PHYA 488h */
-	rzv2m_pciphy_write_reg(0x0004, PCI_PHYA_TXDDESKEW_REG);				/* PCI_PHYA 6ECh */
-	rzv2m_pciphy_write_reg(0x0004, PCI_PHYA_TXMISC_REG);				/* PCI_PHYA 73Ch */
-
-	/* PHY parameters for TX : Reference value for signal adjustment */
-	rzv2m_pciphy_write_reg(0x0011, PCI_PHYA_PLLALPFRSELFINE_REG);		/* PCI_PHYA 080h */
-	rzv2m_pciphy_write_reg(0x003F, PCI_PHYA_TXDRVLVCTLG1_REG);			/* PCI_PHYA 404h */
-	rzv2m_pciphy_write_reg(0x001D, PCI_PHYA_TXDRVLVLCTLG2_REG);			/* PCI_PHYA 408h */
-	rzv2m_pciphy_write_reg(0x002B, PCI_PHYA_TXDRVPOSTLVCTLG1_REG);		/* PCI_PHYA 414h */
-	rzv2m_pciphy_write_reg(0x000A, PCI_PHYA_TXDRVPOSTLVCTLG2_REG);		/* PCI_PHYA 418h */
-	rzv2m_pciphy_write_reg(0x0007, PCI_PHYA_TXDRVIDRVEN_REG);			/* PCI_PHYA 42Ch */
-	rzv2m_pciphy_write_reg(0x00B7, PCI_PHYA_ATXDRVIDRVCTL_REG);			/* PCI_PHYA 430h */
-	rzv2m_pciphy_write_reg(0x00FF, PCI_PHYA_TXJEQEVENCTL_REG);			/* PCI_PHYA 44Ch */
-	rzv2m_pciphy_write_reg(0x0000, PCI_PHYA_TXJEQODDCTL_REG);			/* PCI_PHYA 454h */
-	rzv2m_pciphy_write_reg(0x0057, PCI_PHYA_ATXDRVACCDRV_REG);			/* PCI_PHYA 7F0h */
-
-	/* PHY parameters for RX : Reference value for signal adjustment */
-	rzv2m_pciphy_write_reg(0x0073, PCI_PHYA_RXCTLEEN_REG);				/* PCI_PHYA 4B8h */
-	rzv2m_pciphy_write_reg(0x006F, PCI_PHYA_RXCTLEITAILCTLG1_REG);		/* PCI_PHYA 4C0h */
-	rzv2m_pciphy_write_reg(0x006C, PCI_PHYA_RXCTLEITAILCTLG2_REG);		/* PCI_PHYA 4C4h */
-	rzv2m_pciphy_write_reg(0x0013, PCI_PHYA_RXCTLERX1CTLG1_REG);		/* PCI_PHYA 4ECh */
-	rzv2m_pciphy_write_reg(0x00F2, PCI_PHYA_RXCTLERS1CTLG2_REG);		/* PCI_PHYA 4F0h */
-	rzv2m_pciphy_write_reg(0x0007, PCI_PHYA_ARXCTLEIBLEEDCTL_REG);		/* PCI_PHYA 514h */
-	rzv2m_pciphy_write_reg(0x00FF, PCI_PHYA_RXRTERM_REG);				/* PCI_PHYA 5A0h */
-	rzv2m_pciphy_write_reg(0x00F8, PCI_PHYA_RXRTERMVCMEN_REG);			/* PCI_PHYA 5ACh */
-	rzv2m_pciphy_write_reg(0x0065, PCI_PHYA_RXCDRFBBCTL_REG);			/* PCI_PHYA 678h */
-
-	return 0;
-
-} /* End of function PCIE_phyInitialize_L1() */
-
 static int PCIE_CFG_Initialize(struct rzv2m_pcie *pcie)
 {
-   // Vendor and Device ID      : PCI Express Configuration Registers Adr 6000h
+	// Vendor and Device ID      : PCI Express Configuration Registers Adr 6000h
 	rzv2m_write_conf(pcie,
 			( (PCIE_CONF_DEVICE_ID << 16) |
 			  (PCIE_CONF_VENDOR_ID) ),
 			PCI_RC_VID_ADR);
 
-   // Revision ID and Class Code : PCI Express Configuration Registers Adr 6008h
+	// Revision ID and Class Code : PCI Express Configuration Registers Adr 6008h
 	rzv2m_write_conf(pcie,
 			( (PCIE_CONF_BASE_CLASS   << 24) |
 			  (PCIE_CONF_SUB_CLASS    << 16) |
@@ -568,16 +495,16 @@ static int PCIE_CFG_Initialize(struct rzv2m_pcie *pcie)
 			  (PCIE_CONF_REVISION_ID) ),
 			PCI_RC_RID_CC_ADR);
 
-   // Base Address Register Mask00 (Lower) (Function #1) : PCI Express Configuration Registers Adr 60A0h
+	// Base Address Register Mask00 (Lower) (Function #1) : PCI Express Configuration Registers Adr 60A0h
 	rzv2m_write_conf(pcie, BASEADR_MKL_ALLM, PCI_RC_BARMSK00L_ADR);
 
-   // Base Address Register Mask00 (upper) (Function #1) : PCI Express Configuration Registers Adr 60A4h
+	// Base Address Register Mask00 (upper) (Function #1) : PCI Express Configuration Registers Adr 60A4h
 	rzv2m_write_conf(pcie, BASEADR_MKU_ALLM, PCI_RC_BARMSK00U_ADR);
 
-   // Base Size 00/01 : PCI Express Configuration Registers Adr 60C8h
+	// Base Size 00/01 : PCI Express Configuration Registers Adr 60C8h
 	rzv2m_write_conf(pcie, BASESZ_INIT, PCI_RC_BSIZE00_01_ADR);
 
-   // Bus Number : PCI Express Configuration Registers Adr 6018h
+	// Bus Number : PCI Express Configuration Registers Adr 6018h
 	rzv2m_write_conf(pcie,
 			( (PCIE_CONF_SUBORDINATE_BUS << 16) |
 			  (PCIE_CONF_SECOUNDARY_BUS  <<  8) |
@@ -594,47 +521,12 @@ static int PCIE_CFG_Initialize(struct rzv2m_pcie *pcie)
   return 0;
 }
 
-static int PCIE_INT_Initialize(struct rzv2m_pcie *pcie)
-{
-	/* Clear Event Interrupt Status 0 */
-	rzv2m_pci_write_reg(pcie, INT_ST0_CLR, PCI_RC_PEIS0_REG);		/* Set PCI_RC 0204h */
-
-	/* Set Event Interrupt Enable 0 */
-	rzv2m_pci_write_reg(pcie, INT_EN0_SET, PCI_RC_PEIE0_REG);		/* Set PCI_RC 0200h */
-
-	/* Clear  Event Interrupt Status 1 */
-	rzv2m_pci_write_reg(pcie, INT_ST1_CLR, PCI_RC_PEIS1_REG);		/* Set PCI_RC 020ch */
-
-	/* Set Event Interrupt Enable 1 */
-	rzv2m_pci_write_reg(pcie, INT_EN1_SET, PCI_RC_PEIE1_REG);		/* Set PCI_RC 0208h */
-
-	/* Clear AXI Master Error Interrupt Status */
-	rzv2m_pci_write_reg(pcie, INT_ST_AXIM_CLR, PCI_RC_AMEIS_REG);	/* Set PCI_RC 0214h */
-
-	/* Set AXI Master Error Interrupt Enable */
-	rzv2m_pci_write_reg(pcie, INT_EN_AXIM_SET, PCI_RC_AMEIE_REG);	/* Set PCI_RC 0210h */
-
-	/* Clear AXI Slave Error Interrupt Status */
-	rzv2m_pci_write_reg(pcie, INT_ST_AXIS_CLR, PCI_RC_ASEIS1_REG);	/* Set PCI_RC 0224h */
-
-	/* Set AXI Slave Error Interrupt Enable */
-	rzv2m_pci_write_reg(pcie, INT_EN_AXIS_SET, PCI_RC_ASEIE1_REG);	/* Set PCI_RC 0220h */
-
-	/* Clear Message Receive Interrupt Status */
-	rzv2m_pci_write_reg(pcie, INT_MR_CLR, PCI_RC_MSGRCVIS_REG);		/* Set PCI_RC 0124h */
-
-	/* Set Message Receive Interrupt Enable */
-	rzv2m_pci_write_reg(pcie, INT_MR_SET, PCI_RC_MSGRCVIE_REG);		/* Set PCI_RC 0120h */
-
-	return 0;
-}
-
 static int rzv2m_pcie_hw_init(struct rzv2m_pcie *pcie)
 {
 	unsigned int timeout = 50;
 
 	/* Set to the PCIe reset state   : step6 */
-	rzv2m_pci_write_reg(pcie, RESET_ALL_ASSERT, PCI_RC_RESET_REG); /* Set PCI_RC 310h */
+	rzv2m_pci_write_reg(pcie, RESET_ALL_ASSERT, PCI_RESET_REG);			/* Set PCI_RC 310h */
 
 	/* Set PMA and Phy Register for Lane0 : step7, 9 */
 	PCIE_phyInitialize_L0(pcie);
@@ -643,28 +535,27 @@ static int rzv2m_pcie_hw_init(struct rzv2m_pcie *pcie)
 	PCIE_phyInitialize_L1(pcie);
 
 	/* Release the PCIe reset : step10 : RST_LOAD_B, RST_CFG_B)*/
-	rzv2m_pci_write_reg(pcie, RESET_LOAD_CFG_RELEASE, PCI_RC_RESET_REG); /* Set PCI_RC 310h */
+	rzv2m_pci_write_reg(pcie, RESET_LOAD_CFG_RELEASE, PCI_RESET_REG);	/* Set PCI_RC 310h */
 
 	/* Setting of HWINT related registers : step11 */
 	PCIE_CFG_Initialize(pcie);
 
 	/* Set L1 state                       : step12  */
-	rzv2m_sys_write_reg(SET_ASPM_L1_ST, SYS_PCI_ALLOW_ENTER_L1_REG);  /* Set SYS 064h */
+	rzv2m_sys_write_reg(pcie, SET_ASPM_L1_ST, SYS_PCI_ALLOW_ENTER_L1_REG);		/* Set SYS 064h */
 
 	/* Set Interrupt settings             : step13  */
 	PCIE_INT_Initialize(pcie);
 
 	/* Release the PCIe reset : step14 : RST_PS_B, RST_GP_B, RST_B */
-	rzv2m_pci_write_reg(pcie, RESET_PS_GP_RELEASE, PCI_RC_RESET_REG);     /* Set PCI_RC 310h */
+	rzv2m_pci_write_reg(pcie, RESET_PS_GP_RELEASE, PCI_RESET_REG);		/* Set PCI_RC 310h */
 
    /* Wait 500us over : step 15*/
 	msleep(1);
 
    /* Release the PCIe reset : step16 : RST_OUT_B, RST_RSM_B) */
-	rzv2m_pci_write_reg(pcie, RESET_ALL_DEASSERT,  PCI_RC_RESET_REG);     /* Set PCI_RC 310h */
+	rzv2m_pci_write_reg(pcie, RESET_ALL_DEASSERT,  PCI_RESET_REG);		/* Set PCI_RC 310h */
 
-
-	rzv2m_pci_write_reg(pcie, 0x3ff2,  MODE_SET_1_REG);     /* Set PCI_RC 318h */
+	rzv2m_pci_write_reg(pcie, 0x3ff2,  MODE_SET_1_REG);						/* Set PCI_RC 318h */
 
 	/* This will timeout if we don't have a link. */
 	while (timeout--) {
@@ -734,6 +625,7 @@ static int rzv2m_msi_alloc_region(struct rzv2m_msi *chip, int no_irqs)
 static void rzv2m_msi_free(struct rzv2m_msi *chip, unsigned long irq)
 {
 	mutex_lock(&chip->lock);
+	bitmap_release_region(chip->used, irq, 1);
 	clear_bit(irq, chip->used);
 	mutex_unlock(&chip->lock);
 }
@@ -743,51 +635,50 @@ static irqreturn_t rzv2m_pcie_msi_irq(int irq, void *data)
 	struct rzv2m_pcie_host *host = data;
 	struct rzv2m_pcie *pcie = &host->pcie;
 	struct rzv2m_msi *msi = &host->msi;
-	struct device *dev = pcie->dev;
 	unsigned long reg;
-	unsigned int index;
 	unsigned int irq_v;
+	unsigned int i = 0;
+	unsigned int hwirq;
+	irqreturn_t ret = IRQ_NONE;
 
 	reg = rzv2m_pci_read_reg(pcie, PCI_INTX_RCV_INTERRUPT_STATUS_REG);
 	/* clear the interrupt */
 	rzv2m_pci_write_reg(pcie, ALL_RECEIVE_INTERRUPT_STATUS, PCI_INTX_RCV_INTERRUPT_STATUS_REG);
 
-	// MSI
-	if( reg & MSI_RECEIVE_INTERRUPT_STATUS ) {
-		index = *(unsigned int *)msi->pages;
-	}
-	else {
-		//MSI Only
+	// MSI Only
+	if (!(reg & MSI_RECEIVE_INTERRUPT_STATUS))
 		return IRQ_NONE;
-	}
 
-	/* MSI & INTx share an interrupt */
-	irq_v = irq_find_mapping(msi->domain, index);
-	if (irq_v) {
-		if (test_bit(index, msi->used))
-			generic_handle_irq(irq_v);
-		else {
-			dev_info(pcie->dev, "unhandled MSI\n");
+	for (i = 0; i < MSI_RCV_NUM; i++) {
+		hwirq = *(unsigned int *)(msi->pages + i*0x4);
+		if (hwirq != MSI_RCV_WINDOW_INVALID) {
+			/* Invalidate MSI Window */
+			*(unsigned int *)(msi->pages + i*0x4) = MSI_RCV_WINDOW_INVALID;
+			irq_v = irq_find_mapping(msi->domain, hwirq);
+			if (irq_v) {
+				if (test_bit(hwirq, msi->used)) {
+					generic_handle_irq(irq_v);
+					ret = IRQ_HANDLED;
+				} else
+					dev_info(pcie->dev, "unhandled MSI\n");
+			} else {
+				/* Unknown MSI, just clear it */
+				dev_dbg(pcie->dev, "unexpected MSI\n");
+			}
 		}
-	} else {
-		/* Unknown MSI, just clear it */
-		dev_dbg(pcie->dev, "unexpected MSI\n");
-		return IRQ_NONE;
 	}
 
-	return IRQ_HANDLED;
+	return ret;
 }
 
 static int rzv2m_msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev,
 			      struct msi_desc *desc)
 {
 	struct rzv2m_msi *msi = to_rzv2m_msi(chip);
-	struct rzv2m_pcie_host *host = container_of(chip, struct rzv2m_pcie_host,
-						   msi.chip);
-	struct rzv2m_pcie *pcie = &host->pcie;
 	struct msi_msg msg;
 	unsigned int irq;
 	int hwirq;
+	unsigned long msi_notice_addr;
 
 	hwirq = rzv2m_msi_alloc(msi);
 	if (hwirq < 0)
@@ -801,8 +692,9 @@ static int rzv2m_msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev
 
 	irq_set_msi_desc(irq, desc);
 
-	msg.address_lo = rzv2m_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDR_REG) & ~MSI_RCV_WINDOW_ENABLE;
-	msg.address_hi = 0x00;
+	msi_notice_addr = (unsigned long)msi->virt_pages + (hwirq * sizeof(unsigned int));
+	msg.address_lo = lower_32_bits(msi_notice_addr);
+	msg.address_hi = upper_32_bits(msi_notice_addr);
 	msg.data = hwirq;
 
 	pci_write_msi_msg(irq, &msg);
@@ -814,14 +706,12 @@ static int rzv2m_msi_setup_irqs(struct msi_controller *chip,
 			       struct pci_dev *pdev, int nvec, int type)
 {
 	struct rzv2m_msi *msi = to_rzv2m_msi(chip);
-	struct rzv2m_pcie_host *host = container_of(chip, struct rzv2m_pcie_host,
-						   msi.chip);
-	struct rzv2m_pcie *pcie = &host->pcie;
 	struct msi_desc *desc;
 	struct msi_msg msg;
 	unsigned int irq;
 	int hwirq;
 	int i;
+	unsigned long msi_notice_addr;
 
 	/* MSI-X interrupts are not supported */
 	if (type == PCI_CAP_ID_MSIX)
@@ -855,8 +745,9 @@ static int rzv2m_msi_setup_irqs(struct msi_controller *chip,
 	desc->nvec_used = nvec;
 	desc->msi_attrib.multiple = order_base_2(nvec);
 
-	msg.address_lo = rzv2m_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDR_REG) & ~MSI_RCV_WINDOW_ENABLE;
-	msg.address_hi = 0x00;
+	msi_notice_addr = (unsigned long)msi->virt_pages + (hwirq * sizeof(unsigned int));
+	msg.address_lo = lower_32_bits(msi_notice_addr);
+	msg.address_hi = upper_32_bits(msi_notice_addr);
 	msg.data = hwirq;
 
 	pci_write_msi_msg(irq, &msg);
@@ -916,14 +807,14 @@ static void rzv2m_pcie_hw_enable_msi(struct rzv2m_pcie_host *host)
 	unsigned long pci_base;
 	unsigned long msi_base;
 	unsigned long msi_base_mask;
-	int err, i, idx;
+	int idx;
 
-#if 1 //RAMA
+#if 0 //RAMA
 	msi->pages = ioremap(RAMA_ADDRESS, RAMA_SIZE);
 	base = RAMA_ADDRESS;
 #else
-	msi->pages = __get_free_pages(GFP_KERNEL | GFP_DMA32, 0);
-	base = dma_map_single(pcie->dev, (void *)msi->pages, (MSI_RCV_WINDOW_MASK_MIN+1), DMA_BIDIRECTIONAL);
+	msi->pages = ioremap(PCIE_CMA_ADDRESS, PCIE_CMA_SIZE);
+	base = PCIE_CMA_ADDRESS;
 #endif
 
 	msi_base = 0;
@@ -931,13 +822,13 @@ static void rzv2m_pcie_hw_enable_msi(struct rzv2m_pcie_host *host)
 		if( !(rzv2m_pci_read_reg(pcie, AXI_WINDOW_BASE_REG(idx)) & AXI_WINDOW_ENABLE) ) {
 			continue;
 		}
-		pci_base = rzv2m_pci_read_reg(pcie, AXI_DESTINATION_REG(idx));
+		pci_base = rzv2m_pci_read_reg(pcie, AXI_DESTINATION_REG(idx)) + 0x100000000*pcie->save_reg.axi_window.dest_u[idx];
 		msi_base_mask = rzv2m_pci_read_reg(pcie, AXI_WINDOW_MASK_REG(idx));
-		if( (pci_base <= base) &&
+		if( (pci_base <= base) && 
 			(pci_base + msi_base_mask >= base) ) {
 
 			msi_base  = base & msi_base_mask;
-			msi_base |= rzv2m_pci_read_reg(pcie, AXI_WINDOW_BASE_REG(idx));
+			msi_base |= rzv2m_pci_read_reg(pcie, AXI_WINDOW_BASE_REG(idx)) + 0x100000000*pcie->save_reg.axi_window.base_u[idx];
 			msi->virt_pages = msi_base & ~AXI_WINDOW_ENABLE;
 			msi_base |= MSI_RCV_WINDOW_ENABLE;
 			break;
@@ -945,11 +836,13 @@ static void rzv2m_pcie_hw_enable_msi(struct rzv2m_pcie_host *host)
 	}
 	if (!msi_base) {
 		dev_err(dev,"MSI Address setting failed (Address:0x%lx)\n",base);
-		err = -ENOMEM;
 		goto err;
 	}
 
-	rzv2m_pci_write_reg(pcie, msi_base, MSI_RCV_WINDOW_ADDR_REG);
+	for (idx = 0; idx < MSI_RCV_NUM; idx++)
+		*(unsigned int *)(msi->pages + idx*0x4) = MSI_RCV_WINDOW_INVALID;
+
+	rzv2m_pci_write_reg(pcie, lower_32_bits(msi_base), MSI_RCV_WINDOW_ADDR_REG);
 	rzv2m_pci_write_reg(pcie, MSI_RCV_WINDOW_MASK_MIN, MSI_RCV_WINDOW_MASK_REG);
 	rzv2m_rmw(pcie, MSI_RCV_WINDOW_ADDR_REG, MSI_RCV_WINDOW_ENABLE, MSI_RCV_WINDOW_ENABLE);
 
@@ -958,11 +851,10 @@ static void rzv2m_pcie_hw_enable_msi(struct rzv2m_pcie_host *host)
 					 MSI_RECEIVE_INTERRUPT_ENABLE,
 					 MSI_RECEIVE_INTERRUPT_ENABLE );
 
-	return 0;
+	return;
 
 err:
 	rzv2m_pcie_unmap_msi(host);
-	return err;
 }
 
 static int rzv2m_pcie_enable_msi(struct rzv2m_pcie_host *host)
@@ -987,7 +879,6 @@ static int rzv2m_pcie_enable_msi(struct rzv2m_pcie_host *host)
 
 	msi->chip.dev = dev;
 	msi->chip.setup_irq = rzv2m_msi_setup_irq;
-	msi->chip.setup_irqs = rzv2m_msi_setup_irqs;
 	msi->chip.teardown_irq = rzv2m_msi_teardown_irq;
 
 	msi->domain = irq_domain_add_linear(dev->of_node, INT_PCI_MSI_NR,
@@ -1050,48 +941,6 @@ err_irq:
 	return err;
 }
 
-static int rzv2m_pcie_sys_get_resources(struct rzv2m_pcie_host *host)
-{
-	struct rzv2m_pcie *pcie = &host->pcie;
-	struct device *dev = pcie->dev;
-	struct resource res;
-	int err, i;
-
-	err = of_address_to_resource(dev->of_node, 1, &res);
-	if (err)
-		return err;
-
-	sys_base = devm_ioremap_resource(dev, &res);
-
-	if (IS_ERR(sys_base)) {
-		err = PTR_ERR(sys_base);
-		return err;
-	}
-
-	return 0;
-}
-
-static int rzv2m_pcie_phy_get_resources(struct rzv2m_pcie_host *host)
-{
-	struct rzv2m_pcie *pcie = &host->pcie;
-	struct device *dev = pcie->dev;
-	struct resource res;
-	int err, i;
-
-	err = of_address_to_resource(dev->of_node, 2, &res);
-	if (err)
-		return err;
-
-	phy_base = devm_ioremap_resource(dev, &res);
-
-	if (IS_ERR(phy_base)) {
-		err = PTR_ERR(phy_base);
-		return err;
-	}
-
-	return 0;
-}
-
 static int rzv2m_pcie_inbound_ranges(struct rzv2m_pcie *pcie,
 				    struct resource_entry *entry,
 				    int *index)
@@ -1113,14 +962,6 @@ static int rzv2m_pcie_inbound_ranges(struct rzv2m_pcie *pcie,
 			dev_err(pcie->dev, "Failed to map inbound regions!\n");
 			return -EINVAL;
 		}
-		/*
-		 * If the size of the range is larger than the alignment of
-		 * the start address, we have to use multiple entries to
-		 * perform the mapping.
-		 */
-		/* Hardware supports max 4GiB inbound region */
-		size = min(size, 1ULL << 32);
-
 		mask = size - 1;
 		mask &= ~0xf;
 
@@ -1161,7 +1002,7 @@ static int rzv2m_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rzv2m_pcie_host *host;
 	struct rzv2m_pcie *pcie;
-	u32 data;
+	u32 data, data2;
 	int err;
 	struct pci_host_bridge *bridge;
 
@@ -1189,13 +1030,13 @@ static int rzv2m_pcie_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = rzv2m_pcie_sys_get_resources(host);
+	err = rzv2m_pcie_sys_get_resources(pcie);
 	if (err < 0) {
 		dev_err(dev, "failed to request pci sys resources: %d\n", err);
 		return err;
 	}
 
-	err = rzv2m_pcie_phy_get_resources(host);
+	err = rzv2m_pcie_phy_get_resources(pcie);
 	if (err < 0) {
 		dev_err(dev, "failed to request pci phy resources: %d\n", err);
 		return err;
@@ -1214,7 +1055,7 @@ static int rzv2m_pcie_probe(struct platform_device *pdev)
 	}
 
 	data = rzv2m_pci_read_reg(pcie, PCIE_CORE_STATUS_2_REG);
-	dev_info(&pdev->dev, "PCIe Linx status [0x%lx]n", data);
+	dev_info(&pdev->dev, "PCIe Linx status [0x%x]n", data);
 
     switch((data >> 8) & 0xFF)
 	{
@@ -1234,7 +1075,24 @@ static int rzv2m_pcie_probe(struct platform_device *pdev)
 				data = 0xff;
 				break;
 	}
-	dev_info(&pdev->dev, "PCIe x%d: link up Lane number\n",data);
+
+	data2 = rzv2m_read_conf(pcie, PCI_RC_LINK_CONTROL_STATUS);
+	switch((data2 >> 19) & 0xFF)
+	{
+		case 0x01:
+				/*- setting Speed Gen1 -*/
+				data2 = 0x01;
+				break;
+		case 0x02:
+				/*- setting Speed Gen2 -*/
+				data2 = 0x02;
+				break;
+		default:
+				/*- unknown -*/
+				data2 = 0xff;
+				break;
+	}
+	dev_info(&pdev->dev, "PCIe : link up Lane number x%d / Speed Gen %d\n", data, data2);
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		err = rzv2m_pcie_enable_msi(host);
@@ -1284,7 +1142,7 @@ static int rzv2m_pcie_resume(struct device *dev)
 
 	rzv2m_pcie_setting_config(pcie);
 
-	if( rzv2m_pci_read_reg(pcie, AXI_WINDOW_BASE_REG(0)) !=
+	if( rzv2m_pci_read_reg(pcie, AXI_WINDOW_BASE_REG(0)) != 
 		pcie->save_reg.axi_window.base[0] ) {
 
 		err = rzv2m_pcie_hw_init(pcie);
@@ -1359,3 +1217,6 @@ static int __init register_rzv2m_pcie_pci_notifier(void)
 }
 
 arch_initcall(register_rzv2m_pcie_pci_notifier);
+MODULE_AUTHOR("Phil Edworthy <phil.edworthy@renesas.com>");
+MODULE_DESCRIPTION("Renesas RZ/V2M Series PCIe driver");
+MODULE_LICENSE("GPL v2");
