@@ -11,7 +11,7 @@
  * RSPI1_LOOPBACK_SEL - select target SPI device between virtual loopback
 			and N25Q256A flash on PMOD Digilent SF3 (default)
  */
-#define RSPI1_LOOPBACK_SEL	0
+#define RSPI0_LOOPBACK_SEL	0
 
 /*
  * Switch between CAN and PMOD pins. Set macro SW_GPIO_CAN_PMOD to 1 and

@@ -238,11 +238,11 @@
 			 <RZG2L_PORT_PINMUX(6, 0, 1)>; /* VBUS */
 	};
 
-	spi1_pins: spi1 {
-		pinmux = <RZG2L_PORT_PINMUX(17, 0, 1)>, /* CK */
-			 <RZG2L_PORT_PINMUX(17, 1, 1)>, /* MOSI */
-			 <RZG2L_PORT_PINMUX(17, 2, 1)>, /* MISO */
-			 <RZG2L_PORT_PINMUX(17, 3, 1)>; /* SSL */
+	spi0_pins: spi0 {
+		pinmux = <RZG2L_PORT_PINMUX(15, 0, 1)>, /* CK */
+			 <RZG2L_PORT_PINMUX(15, 1, 1)>, /* MOSI */
+			 <RZG2L_PORT_PINMUX(15, 2, 1)>, /* MISO */
+			 <RZG2L_PORT_PINMUX(15, 3, 1)>; /* SSL */
 	};
 
 	xspi_pins: xspi {
