@@ -148,11 +148,11 @@
 	status = "okay";
 };
 
-&spi1 {
-	pinctrl-0 = <&spi1_pins>;
+&spi0 {
+	pinctrl-0 = <&spi0_pins>;
 	pinctrl-names = "default";
 
-	dmas = <&dmac 0x2edd>, <&dmac 0x2ede>;
+	dmas = <&dmac 0x2ed9>, <&dmac 0x2eda>;
 	dma-names = "tx", "rx";
 
 	status = "okay";

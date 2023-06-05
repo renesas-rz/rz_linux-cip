@@ -36,8 +36,8 @@
 	status = "okay";
 };
 
-&spi1 {
-#if RSPI1_LOOPBACK_SEL
+&spi0 {
+#if RSPI0_LOOPBACK_SEL
 	spidev@0 {
 		compatible = "rohm,dh2228fv";
 		reg = <0>;
