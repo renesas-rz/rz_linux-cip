@@ -2235,7 +2235,7 @@ static int rzg2l_pinctrl_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused rzg2l_pinctrl_suspend(struct device *dev)
+static int __maybe_unused rzg2l_pinctrl_suspend_noirq(struct device *dev)
 {
 	struct rzg2l_pinctrl *pctrl = dev_get_drvdata(dev);
 
@@ -2255,7 +2255,7 @@ static int __maybe_unused rzg2l_pinctrl_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused rzg2l_pinctrl_resume(struct device *dev)
+static int __maybe_unused rzg2l_pinctrl_resume_noirq(struct device *dev)
 {
 	struct rzg2l_pinctrl *pctrl = dev_get_drvdata(dev);
 
@@ -2273,7 +2273,9 @@ static int __maybe_unused rzg2l_pinctrl_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(rzg2l_pinctrl_pm_ops, rzg2l_pinctrl_suspend, rzg2l_pinctrl_resume);
+static const struct dev_pm_ops rzg2l_pinctrl_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(rzg2l_pinctrl_suspend_noirq, rzg2l_pinctrl_resume_noirq)
+};
 
 static struct rzg2l_pinctrl_data r9a07g043_data = {
 	.port_pins = rzg2l_gpio_names,
