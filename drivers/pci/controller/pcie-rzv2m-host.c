@@ -625,6 +625,7 @@ static int rzv2m_msi_alloc_region(struct rzv2m_msi *chip, int no_irqs)
 static void rzv2m_msi_free(struct rzv2m_msi *chip, unsigned long irq)
 {
 	mutex_lock(&chip->lock);
+	bitmap_release_region(chip->used, irq, 1);
 	clear_bit(irq, chip->used);
 	mutex_unlock(&chip->lock);
 }
@@ -812,7 +813,7 @@ static void rzv2m_pcie_hw_enable_msi(struct rzv2m_pcie_host *host)
 	msi->pages = ioremap(RAMA_ADDRESS, RAMA_SIZE);
 	base = RAMA_ADDRESS;
 #else
-	msi->pages = __get_free_pages(GFP_KERNEL | GFP_DMA32, 0);
+	msi->pages = __get_free_pages(GFP_KERNEL, 0);
 	base = dma_map_single(pcie->dev, (void *)msi->pages, (MSI_RCV_WINDOW_MASK_MIN+1), DMA_BIDIRECTIONAL);
 #endif
 
