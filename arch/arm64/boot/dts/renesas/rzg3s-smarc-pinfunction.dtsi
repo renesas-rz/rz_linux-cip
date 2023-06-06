@@ -88,7 +88,9 @@
 #if !SD2_SEL
 	scif1_pins: scif1 {
 		pinmux = <RZG2L_PORT_PINMUX(14, 0, 1)>, /* TXD */
-			 <RZG2L_PORT_PINMUX(14, 1, 1)>; /* RXD */
+			 <RZG2L_PORT_PINMUX(14, 1, 1)>, /* RXD */
+			 <RZG2L_PORT_PINMUX(16, 0, 1)>, /* CTS# */
+			 <RZG2L_PORT_PINMUX(16, 1, 1)>; /* RTS# */
 	};
 #endif
 
