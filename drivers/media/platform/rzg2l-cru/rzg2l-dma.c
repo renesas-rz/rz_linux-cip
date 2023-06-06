@@ -197,10 +197,6 @@ static int prev_slot[CRU_CHANNEL_MAX];
 static int frame_skip[CRU_CHANNEL_MAX];
 static u32 amnmbxaddrl[CRU_CHANNEL_MAX][HW_BUFFER_MAX];
 static u32 amnmbxaddrh[CRU_CHANNEL_MAX][HW_BUFFER_MAX];
-static u32 amnivtaddrl[CRU_CHANNEL_MAX][HW_IVT_MAX];
-static u32 amnivtaddrh[CRU_CHANNEL_MAX][HW_IVT_MAX];
-static bool write_complete[CRU_CHANNEL_MAX];
-static u32 buf_slot[CRU_CHANNEL_MAX];
 
 #define to_buf_list(vb2_buffer) (&container_of(vb2_buffer, \
 						struct rzg2l_cru_buffer, \
@@ -232,24 +228,6 @@ static void rzg2l_cru_get_mb(struct rzg2l_cru_dev *cru,
 			cru->info->regs[AMnMB1ADDRL].offset + bank * 8);
 	*high = ioread32(cru->base +
 			 cru->info->regs[AMnMB1ADDRH].offset + bank * 8);
-}
-
-static void rzg2l_cru_set_ivt(struct rzg2l_cru_dev *cru,
-			      u32 bank, u32 low, u32 high)
-{
-	iowrite32(low,
-		  cru->base + cru->info->regs[AMnIVT0ADDRL].offset + bank * 8);
-	iowrite32(high,
-		  cru->base + cru->info->regs[AMnIVT0ADDRH].offset + bank * 8);
-}
-
-static void rzg2l_cru_get_ivt(struct rzg2l_cru_dev *cru,
-			      u32 bank, u32 *low, u32 *high)
-{
-	*low = ioread32(cru->base +
-			cru->info->regs[AMnIVT0ADDRL].offset + bank * 8);
-	*high = ioread32(cru->base +
-			cru->info->regs[AMnIVT0ADDRH].offset + bank * 8);
 }
 
 /* Need to hold qlock before calling */
@@ -434,7 +412,8 @@ static void rzg2l_cru_set_slot_addr(struct rzg2l_cru_dev *cru,
 		return;
 
 	/* Currently, we just use the buffer in 32 bits address */
-	rzg2l_cru_set_mb(cru, slot, offset, 0);
+	rzg2l_cru_set_mb(cru, slot, lower_32_bits(offset),
+			 upper_32_bits(offset));
 }
 
 /*
@@ -471,6 +450,9 @@ static void rzg2l_cru_fill_hw_slot(struct rzg2l_cru_dev *cru, int slot)
 	}
 
 	rzg2l_cru_set_slot_addr(cru, slot, phys_addr);
+
+	rzg2l_cru_get_mb(cru, slot, &amnmbxaddrl[cru->id][slot],
+			 &amnmbxaddrh[cru->id][slot]);
 }
 
 static int rzg2l_cru_initialize_axi(struct rzg2l_cru_dev *cru)
@@ -483,12 +465,9 @@ static int rzg2l_cru_initialize_axi(struct rzg2l_cru_dev *cru)
 	rzg2l_cru_write(cru, AMnMBVALID, AMnMBVALID_MBVALID(cru->num_buf - 1));
 
 	if (cru->retry_thread) {
-		for (slot = 0; slot < cru->num_buf; slot++) {
+		for (slot = 0; slot < cru->num_buf; slot++)
 			rzg2l_cru_set_mb(cru, slot, amnmbxaddrl[cru->id][slot],
 					 amnmbxaddrh[cru->id][slot]);
-		}
-		rzg2l_cru_set_ivt(cru, 1, amnivtaddrl[cru->id][0],
-				  amnivtaddrh[cru->id][0]);
 	} else {
 		for (slot = 0; slot < cru->num_buf; slot++)
 			rzg2l_cru_fill_hw_slot(cru, slot);
@@ -868,8 +847,7 @@ static int rzg2l_cru_start(struct rzg2l_cru_dev *cru, struct v4l2_subdev *sd)
 		rzg2l_cru_write(cru, CRUnIE, CRUnIE_EFE);
 	else
 		/* Frame End IRQ + AXI-VD Bus Write Completion IRQ 1 */
-		rzg2l_cru_write(cru, CRUnIE2, CRUnIE2_FEE(0) |
-				CRUnIE2_VDADRxWE(1));
+		rzg2l_cru_write(cru, CRUnIE2, CRUnIE2_FEE(0));
 
 	/* Enable AXI master & image_conv reception */
 	rzg2l_cru_write(cru, ICnEN, ICnEN_ICEN);
@@ -913,13 +891,6 @@ static int rzg2l_cru_set_stream(struct rzg2l_cru_dev *cru, int on)
 		rzg2l_cru_get_mb(cru, i, &amnmbxaddrl[cru->id][i],
 				 &amnmbxaddrh[cru->id][i]);
 	}
-
-	/* Use only AMnIVT1ADDRL/H 1 to detect to which data is written. */
-	rzg2l_cru_set_ivt(cru, 1,
-			  amnmbxaddrl[cru->id][0] + cru->format.sizeimage - 1,
-			  amnmbxaddrh[cru->id][0]);
-	rzg2l_cru_get_ivt(cru, 1, &amnivtaddrl[cru->id][0],
-			  &amnivtaddrh[cru->id][0]);
 
 	spin_unlock_irqrestore(&cru->qlock, flags);
 
@@ -1179,7 +1150,6 @@ static int rzg2l_cru_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	/* Initialize value of previous memory bank slot before streaming */
 	prev_slot[cru->id] = -1;
-	write_complete[cru->id] = 0;
 
 	/*
 	 * Workaround to start a thread to restart CRU processing flow
@@ -1285,8 +1255,10 @@ static irqreturn_t rzv2h_cru_irq(int irq, void *data)
 {
 	struct rzg2l_cru_dev *cru = data;
 	unsigned long flags;
-	u32 irq_status;
+	u32 irq_status, slot;
 	unsigned int handled = 0;
+	dma_addr_t phys_addr;
+	bool write_complete;
 
 	spin_lock_irqsave(&cru->qlock, flags);
 
@@ -1304,20 +1276,27 @@ static irqreturn_t rzv2h_cru_irq(int irq, void *data)
 		goto done;
 	}
 
-	/* Prepare for capture and update state */
-	if (!write_complete[cru->id]) {
-		if (irq_status & CRUnINTS2_VDADRxWS_MASK) {
-			buf_slot[cru->id] =
-				(irq_status & CRUnINTS2_VDADRxWS_MASK) >> 17;
-			buf_slot[cru->id] = ffs(buf_slot[cru->id] - 1);
-			write_complete[cru->id] = 1;
-			/* Disable Bus Write Completion Interrupt */
-			rzg2l_cru_write(cru, CRUnIE2,
-					rzg2l_cru_read(cru, CRUnIE2) &
-					(~CRUnIE2_VDADRxWE(4)));
-		} else {
-			goto done;
+	phys_addr = rzg2l_cru_read(cru, AMnMADRSL);
+	phys_addr |= (((unsigned long) rzg2l_cru_read(cru, AMnMADRSH)) << 32);
+
+	/* Check current HW slot based on current MB address */
+	for (slot = 0; slot < cru->num_buf; slot++) {
+		dma_addr_t tmp;
+
+		tmp = amnmbxaddrh[cru->id][slot];
+		tmp = (tmp << 32) | amnmbxaddrl[cru->id][slot];
+
+		tmp = phys_addr - tmp;
+		if (((long) tmp) && (tmp <= cru->format.sizeimage)) {
+			write_complete = 1;
+			break;
 		}
+	}
+
+	/* Prepare for capture and update state */
+	if (!write_complete) {
+		cru_err(cru, "Invalid MB address 0x%llx\n", phys_addr);
+		goto done;
 	}
 
 	/*
@@ -1330,7 +1309,7 @@ static irqreturn_t rzv2h_cru_irq(int irq, void *data)
 				cru_dbg(cru, "Skipping %d frame\n",
 					frame_skip[cru->id]);
 				frame_skip[cru->id]++;
-				goto update_slot;
+				goto done;
 			}
 		}
 
@@ -1339,14 +1318,13 @@ static irqreturn_t rzv2h_cru_irq(int irq, void *data)
 	}
 
 	/* Capture frame */
-	if (cru->queue_buf[buf_slot[cru->id]]) {
-		cru->queue_buf[buf_slot[cru->id]]->field = cru->format.field;
-		cru->queue_buf[buf_slot[cru->id]]->sequence = cru->sequence;
-		cru->queue_buf[buf_slot[cru->id]]->vb2_buf.timestamp =
-								ktime_get_ns();
-		vb2_buffer_done(&cru->queue_buf[buf_slot[cru->id]]->vb2_buf,
+	if (cru->queue_buf[slot]) {
+		cru->queue_buf[slot]->field = cru->format.field;
+		cru->queue_buf[slot]->sequence = cru->sequence;
+		cru->queue_buf[slot]->vb2_buf.timestamp = ktime_get_ns();
+		vb2_buffer_done(&cru->queue_buf[slot]->vb2_buf,
 				VB2_BUF_STATE_DONE);
-		cru->queue_buf[buf_slot[cru->id]] = NULL;
+		cru->queue_buf[slot] = NULL;
 	} else {
 		/* Scratch buffer was used, dropping frame. */
 		cru_dbg(cru, "Dropping frame %u\n", cru->sequence);
@@ -1355,13 +1333,7 @@ static irqreturn_t rzv2h_cru_irq(int irq, void *data)
 	cru->sequence++;
 
 	/* Prepare for next frame */
-	rzg2l_cru_fill_hw_slot(cru, buf_slot[cru->id]);
-
-update_slot:
-	if (buf_slot[cru->id] == (cru->num_buf - 1))
-		buf_slot[cru->id] = 0;
-	else
-		buf_slot[cru->id]++;
+	rzg2l_cru_fill_hw_slot(cru, slot);
 
 done:
 	spin_unlock_irqrestore(&cru->qlock, flags);
