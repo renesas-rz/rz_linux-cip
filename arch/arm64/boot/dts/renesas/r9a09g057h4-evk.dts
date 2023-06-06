@@ -698,6 +698,11 @@
 		status = "okay";
 };
 
+&hsusb {
+		dr_mode = "otg";
+		status = "okay";
+};
+
 &usb2_phy0 {
 		pinctrl-0 = <&usb20_pins>;
 		pinctrl-names = "default";
