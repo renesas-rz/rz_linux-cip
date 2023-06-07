@@ -123,6 +123,7 @@ static int rzg3s_rtc_irq(struct rzg3s_rtc_priv *rtc)
 	unsigned int pending;
 	u8 tmp;
 
+	udelay(80);
 	tmp = readb(rtc->regbase + RSR);
 	pending = tmp & RSR_CF;
 	tmp &= ~RSR_CF;
@@ -290,6 +291,7 @@ static int rzg3s_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	struct rzg3s_rtc_priv *rtc = dev_get_drvdata(dev);
 	unsigned int sec128, sec2, yr, yr100, cf_bit;
 
+	udelay(80);
 	do {
 		u8 tmp;
 
