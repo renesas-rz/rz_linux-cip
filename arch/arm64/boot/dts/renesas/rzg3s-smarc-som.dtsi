@@ -206,3 +206,7 @@
 &rtc{
 	status = "okay";
 };
+
+&vbattb {
+	status = "okay";
+};
