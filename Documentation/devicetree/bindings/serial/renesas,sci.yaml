@@ -26,6 +26,12 @@ properties:
       - items:
           - const: renesas,sci            # generic SCI compatible UART
 
+      - items:
+          - const: renesas,rz-rsci        # generic Renesas SCI compatible UART
+
+      - items:
+          - const: renesas,rz-rscif       # generic Renesas SCIF compatible UART
+
   reg:
     maxItems: 1
 
