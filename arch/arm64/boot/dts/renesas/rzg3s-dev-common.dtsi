@@ -301,6 +301,10 @@
 	};
 };
 
+&vbattb {
+	status = "okay";
+};
+
 &rtc{
 	status = "okay";
 };
