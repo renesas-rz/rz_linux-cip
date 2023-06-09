@@ -40,6 +40,18 @@
  */
 #define SD2_SEL			0
 
+/* Set macro MTU3_PWM_SUPPORT to 1 to enable usage of PWM mode1 at MTIOC7C (GPIO12)
+ * or complementary PWM at MTIOC7D (GPIO13).
+ */
+#define MTU3_PWM_SUPPORT			1
+
+/* Set macro MTU3_COMPLEMENTARY_PWM_SEL to 1 to enable complementary PWM at
+ * MTIOC7D (GPIO13) and POE3 will be used to control output enable at this pin
+ * along with POE10# (GPIO11); otherwise, PWM mode 1 will be used for
+ * MTIOC7C (GPIO12).
+ */
+#define MTU3_COMPLEMENTARY_PWM_SEL		1
+
 #include "r9a08g045s33.dtsi"
 #include "rzg3s-smarc-som.dtsi"
 #include "rzg3s-smarc.dtsi"
