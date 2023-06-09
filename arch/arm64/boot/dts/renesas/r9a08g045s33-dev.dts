@@ -73,3 +73,11 @@
 #endif /* RSPI2_LOOPBACK_SEL */
 };
 #endif /* RSPI2_PINS_SEL */
+
+&usb2_phy0 {
+	pinctrl-0 = <&usb0_pins>;
+	pinctrl-names = "default";
+
+	vbus-supply = <&vbus0_usb2>;
+	status = "okay";
+};
