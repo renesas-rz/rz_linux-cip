@@ -31,6 +31,36 @@
 };
 #endif
 
+&mtu3 {
+#if MTU3_PWM_SUPPORT
+	pinctrl-0 = <&mtu3_pins>;
+	pinctrl-names = "default";
+
+#if MTU3_COMPLEMENTARY_PWM_SEL
+	pwm_complementary = <7 1>;
+#else
+	pwm_mode1 = <7 1>;
+#endif
+#endif
+
+	status = "okay";
+};
+
+#if MTU3_COMPLEMENTARY_PWM_SEL
+&poe3 {
+	pinctrl-0 = <&poe3_pins>;
+	pinctrl-names = "default";
+	poe3_pins_mode = <10 0>;
+
+	status = "okay";
+
+	mtu3_ch67 {
+		mtu3_outputs = <2>;
+		addition_poe3_inputs = <10>;
+	};
+};
+#endif
+
 &scif0 {
 	pinctrl-0 = <&scif0_pins>;
 	pinctrl-names = "default";

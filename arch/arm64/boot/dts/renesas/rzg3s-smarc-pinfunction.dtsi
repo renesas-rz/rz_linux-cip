@@ -80,6 +80,19 @@
 			 <RZG2L_PORT_PINMUX(10, 4, 1)>; /* ET1_LINKSTA */
 	};
 
+#if MTU3_PWM_SUPPORT
+	mtu3_pins: mtu3 {
+		pinmux = <RZG2L_PORT_PINMUX(8, 2, 6)>, /* MTIOC7C - GPIO12 */
+			 <RZG2L_PORT_PINMUX(8, 3, 6)>; /* MTIOC7D - GPIO13 */
+	};
+#endif
+
+#if MTU3_COMPLEMENTARY_PWM_SEL
+	poe3_pins: poe3 {
+		pinmux = <RZG2L_PORT_PINMUX(14, 2, 6)>; /* POE10# - GPIO11 */
+	};
+#endif
+
 	scif0_pins: scif0 {
 		pinmux = <RZG2L_PORT_PINMUX(6, 3, 1)>, /* TXD */
 			 <RZG2L_PORT_PINMUX(6, 4, 1)>; /* RXD */
