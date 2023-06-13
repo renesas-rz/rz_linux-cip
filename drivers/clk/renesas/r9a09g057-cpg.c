@@ -767,6 +767,12 @@ static struct rzg2l_mod_clk r9a09g057_mod_clks[] = {
 					0x658, 8, 0),
 	DEF_MOD("adg_ssi9_clk",		R9A09G057_ADG_SSI9_CLK, CLK_PLLCLN_DIV8,
 					0x658, 9, 0),
+	DEF_MOD("adg_spdif0_clk",	R9A09G057_ADG_SPDIF0_CLK, CLK_PLLCLN_DIV8,
+					0x658, 10, 0),
+	DEF_MOD("adg_spdif1_clk",	R9A09G057_ADG_SPDIF1_CLK, CLK_PLLCLN_DIV8,
+					0x658, 11, 0),
+	DEF_MOD("adg_spdif2_clk",	R9A09G057_ADG_SPDIF2_CLK, CLK_PLLCLN_DIV8,
+					0x658, 12, 0),
 };
 
 static struct rzg2l_reset r9a09g057_resets[] = {
@@ -1235,7 +1241,7 @@ const struct rzg2l_cpg_info r9a09g057_cpg_info = {
 	/* Module Clocks */
 	.mod_clks = r9a09g057_mod_clks,
 	.num_mod_clks = ARRAY_SIZE(r9a09g057_mod_clks),
-	.num_hw_mod_clks = R9A09G057_ADG_SSI9_CLK + 1,
+	.num_hw_mod_clks = R9A09G057_ADG_SPDIF2_CLK + 1,
 
 	/* Resets */
 	.resets = r9a09g057_resets,
