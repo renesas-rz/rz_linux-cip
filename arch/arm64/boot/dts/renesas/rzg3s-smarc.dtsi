@@ -61,6 +61,20 @@
 };
 #endif
 
+&gpt0 {
+	pinctrl-0 = <&gpt0_pins>;
+	pinctrl-names = "default";
+	channel = "both_AB";
+	poeg = <&poega>;
+	status = "okay";
+};
+
+&poega {
+	pinctrl-0 = <&poega_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
 &scif0 {
 	pinctrl-0 = <&scif0_pins>;
 	pinctrl-names = "default";

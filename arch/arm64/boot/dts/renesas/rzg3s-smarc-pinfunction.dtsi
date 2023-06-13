@@ -93,6 +93,15 @@
 	};
 #endif
 
+	gpt0_pins: gpt {
+		pinmux = <RZG2L_PORT_PINMUX(13, 0, 2)>, /* GTIOC0A - GPIO8 */
+			 <RZG2L_PORT_PINMUX(13, 1, 2)>; /* GTIOC0B - GPIO9 */
+	};
+
+	poega_pins: poega {
+		pinmux = <RZG2L_PORT_PINMUX(18, 0, 6)>; /* GTERGA - GPIO4 */
+	};
+
 	scif0_pins: scif0 {
 		pinmux = <RZG2L_PORT_PINMUX(6, 3, 1)>, /* TXD */
 			 <RZG2L_PORT_PINMUX(6, 4, 1)>; /* RXD */
