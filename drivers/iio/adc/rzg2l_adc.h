@@ -17,7 +17,7 @@
 
 #ifdef CONFIG_RZG2L_ADC
 
-#define RZG2L_ADC_MAX_CHANNELS		8
+#define RZG2L_ADC_MAX_CHANNELS		9
 
 struct rzg2l_adc_data {
 	const struct iio_chan_spec *channels;
