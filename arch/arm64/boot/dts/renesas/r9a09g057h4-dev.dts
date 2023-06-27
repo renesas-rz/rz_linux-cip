@@ -295,6 +295,7 @@
 
 	bus-width = <4>;
 	sd-uhs-sdr50;
+	sd-uhs-sdr104;
 	status = "okay";
 };
 #endif
@@ -307,6 +308,7 @@
 	vqmmc-supply = <&vccq_sdhi2>;
 	bus-width = <4>;
 	sd-uhs-sdr50;
+	sd-uhs-sdr104;
 	status = "okay";
 };
 
