@@ -340,6 +340,19 @@ static int rzg2l_cpg_sd_clk_mux_determine_rate(struct clk_hw *hw,
 	return clk_mux_determine_rate_flags(hw, req, CLK_MUX_ROUND_CLOSEST);
 }
 
+static unsigned long rzg3s_cpg_sd_clk_mux_recalc_rate(struct clk_hw *hw,
+						      unsigned long parent_rate)
+{
+	struct sd_hw_data *hwdata = to_sd_hw_data(hw);
+	struct rzg2l_cpg_priv *priv = hwdata->priv;
+	u32 shift = GET_SHIFT(hwdata->conf);
+	u8 div = 1;
+
+	div <<= ((readl(priv->base + CPG_RZG3S_SDHI_DDIV) >> shift) & 0x1);
+
+	return parent_rate / div;
+}
+
 static int rzg2l_cpg_sd_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct sd_hw_data *hwdata = to_sd_hw_data(hw);
@@ -507,6 +520,7 @@ static const struct clk_ops rzg2l_cpg_sd_clk_mux_ops = {
 };
 
 static const struct clk_ops rzg3s_cpg_sd_clk_mux_ops = {
+	.recalc_rate	= rzg3s_cpg_sd_clk_mux_recalc_rate,
 	.determine_rate = rzg2l_cpg_sd_clk_mux_determine_rate,
 	.set_parent	= rzg3s_cpg_sd_clk_mux_set_parent,
 	.get_parent	= rzg3s_cpg_sd_clk_mux_get_parent,
