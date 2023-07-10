@@ -135,8 +135,8 @@
 
 	phy0: ethernet-phy@7 {
 		reg = <7>;
-		rxc-skew-psec = <2400>;
-		txc-skew-psec = <2400>;
+		rxc-skew-psec = <0>;
+		txc-skew-psec = <0>;
 		rxdv-skew-psec = <0>;
 		txdv-skew-psec = <0>;
 		rxd0-skew-psec = <0>;
@@ -162,8 +162,8 @@
 
 	phy1: ethernet-phy@7 {
 		reg = <7>;
-		rxc-skew-psec = <2400>;
-		txc-skew-psec = <2400>;
+		rxc-skew-psec = <0>;
+		txc-skew-psec = <0>;
 		rxdv-skew-psec = <0>;
 		txdv-skew-psec = <0>;
 		rxd0-skew-psec = <0>;
