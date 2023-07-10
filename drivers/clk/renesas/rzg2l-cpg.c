@@ -490,7 +490,7 @@ static u8 rzg3s_cpg_sd_clk_mux_get_parent(struct clk_hw *hw)
 	if (val) {
 		if (val == 1) {
 			/* Prohibited clk source, change it to 266 MHz(reset value) */
-			rzg2l_cpg_sd_clk_mux_set_parent(hw, 2);
+			rzg3s_cpg_sd_clk_mux_set_parent(hw, 2);
 			val = 3;
 		}
 
