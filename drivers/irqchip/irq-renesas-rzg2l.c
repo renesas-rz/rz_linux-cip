@@ -166,12 +166,12 @@ int register_dmac_req_signal(struct platform_device *icu_dev, unsigned int dmac,
 
 EXPORT_SYMBOL(register_dmac_req_signal);
 
-int register_dmac_ack_signal(struct platform_device *icu_dev, int dmac_ack, int dmac_ack_value)
+int register_dmac_ack_signal(struct platform_device *icu_dev, int dmac_ack, int dmac_ack_channel)
 {
 	struct irqc_priv *priv = platform_get_drvdata(icu_dev);
 	u32 reg_position, dmacksel, mask;
 
-	if ((dmac_ack_value < 0) || (dmac_ack_value > 0x4F))
+	if ((dmac_ack_channel < 0) || (dmac_ack_channel > 0x4F))
 		dev_dbg(&icu_dev->dev, "%s: Disable dmac ack signal\n", __func__);
 
 	if ((dmac_ack < 0) || (dmac_ack > 88))
@@ -181,8 +181,8 @@ int register_dmac_ack_signal(struct platform_device *icu_dev, int dmac_ack, int 
 	dmacksel = readl(priv->base + DMACKSEL(reg_position));
 
 	mask = 0x7F << (8 * (dmac_ack % 4));
-	dmac_ack_value <<= (8 * (dmac_ack % 4));
-	dmacksel = (dmacksel  & (~mask)) | dmac_ack_value;
+	dmac_ack_channel <<= (8 * (dmac_ack % 4));
+	dmacksel = (dmacksel  & (~mask)) | dmac_ack_channel;
 
 	writel(dmacksel, priv->base + DMACKSEL(reg_position));
 
