@@ -467,6 +467,7 @@ static void *renesas_rzv2h_eqos_probe(struct platform_device *pdev,
 				struct plat_stmmacenet_data *data,
 				struct stmmac_resources *res)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct renesas_rzv2h_eqos *eqos;
 	int err;
@@ -500,6 +501,9 @@ static void *renesas_rzv2h_eqos_probe(struct platform_device *pdev,
 		err = PTR_ERR(eqos->clk_slave);
 		goto disable_master;
 	}
+
+	if (of_device_is_compatible(np, "renesas,rzv2h-eqos"))
+		data->rx_clk_runs_in_lpi = 1;
 
 	data->stmmac_clk = eqos->clk_slave;
 
