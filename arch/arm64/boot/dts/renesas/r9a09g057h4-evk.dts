@@ -22,8 +22,18 @@
  *		1: QSD0_CD (default);	0: PA_5 (GPIO/Other purposes)
  *	DSW7_QSD1_CD (Pin 2-3):
  *		1: QSD1_CD (default);	0: P9_4 (GPIO/Other purposes)
+ * DSW2:
+ *	DSW2_I2C7_CAN5: Pin 1-3 ON, Pin 2-4 OFF -> support I2C7
+ *			Pin 1-3 OFF, Pin 2-4 ON -> support CAN5
+ *		1: I2C7			0: CAN5
+ * DSW5:
+ *	DSW5_SSI0_CAN4: Pin 2 ON, Pin 1-3 OFF -> support SSI0
+ *			Pin 2 OFF, Pin 1-3 ON -> support CAN4
+ *		1: SSI0			0: CAN4
  */
 #define SEL_SD0		1
+#define DSW2_I2C7_CAN5	1
+#define DSW5_SSI0_CAN4	0
 #define DSW7_QSD0_CD	1
 #define DSW7_QSD1_CD	1
 
@@ -189,6 +199,38 @@
 };
 
 &pinctrl {
+	can0_pins: can0 {
+		pinmux = <RZG2L_PORT_PINMUX(8, 0, 5)>, /* TX */
+			 <RZG2L_PORT_PINMUX(8, 1, 5)>; /* RX */
+	};
+
+	can1_pins: can1 {
+		pinmux = <RZG2L_PORT_PINMUX(8, 2, 5)>, /* TX */
+			 <RZG2L_PORT_PINMUX(8, 3, 5)>; /* RX */
+	};
+
+	can2_pins: can2 {
+		pinmux = <RZG2L_PORT_PINMUX(8, 4, 5)>, /* TX */
+			 <RZG2L_PORT_PINMUX(8, 5, 5)>; /* RX */
+	};
+
+	can3_pins: can3 {
+		pinmux = <RZG2L_PORT_PINMUX(8, 6, 5)>, /* TX */
+			 <RZG2L_PORT_PINMUX(8, 7, 5)>; /* RX */
+	};
+#if (!DSW2_SSI0_CAN4)
+	can4_pins: can4 {
+		pinmux = <RZG2L_PORT_PINMUX(4, 2, 5)>, /* TX */
+			 <RZG2L_PORT_PINMUX(4, 3, 5)>; /* RX */
+	};
+#endif
+
+#if (!DSW2_I2C7_CAN5)
+	can5_pins: can5 {
+		pinmux = <RZG2L_PORT_PINMUX(4, 6, 5)>, /* TX */
+			 <RZG2L_PORT_PINMUX(4, 7, 5)>; /* RX */
+	};
+#endif
 	scif0_pins: scif0 {
 		pins =  "SCIF_RXD", "SCIF_TXD";
 	};
@@ -253,10 +295,12 @@
 			 <RZG2L_PORT_PINMUX(4, 5, 1)>; /* I2C6_SCL */
 	};
 
+#if (DSW2_I2C7_CAN5)
 	i2c7_pins: i2c7 {
 		pinmux = <RZG2L_PORT_PINMUX(4, 6, 1)>, /* I2C7_SDA */
 			 <RZG2L_PORT_PINMUX(4, 7, 1)>; /* I2C7_SCL */
 	};
+#endif
 
 	i2c8_pins: i2c8 {
 		pinmux = <RZG2L_PORT_PINMUX(0, 6, 1)>, /* I2C8_SDA */
@@ -536,6 +580,7 @@
 	};
 };
 
+#if (DSW2_I2C7_CAN5)
 &i2c7 {
 	pinctrl-0 = <&i2c7_pins>;
 	pinctrl-names = "default";
@@ -563,6 +608,7 @@
 		};
 	};
 };
+#endif
 
 &du {
 	status = "okay";
@@ -646,6 +692,7 @@
 	status = "okay";
 };
 
+#if (DSW2_I2C7_CAN5)
 &csi23 {
 	status = "okay";
 
@@ -659,6 +706,7 @@
 		};
 	};
 };
+#endif
 
 &xhci0 {
 		pinctrl-0 = <&usb30_pins>;
@@ -732,3 +780,55 @@
 &rtc {
 	status = "okay";
 };
+
+&canfd {
+	pinctrl-0 = <&can0_pins &can1_pins &can2_pins &can3_pins &can4_pins &can5_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	channel0 {
+		status = "okay";
+	};
+
+	channel1 {
+		status = "okay";
+	};
+
+	channel2 {
+		status = "okay";
+	};
+
+	channel3 {
+		status = "okay";
+	};
+
+	channel4 {
+		status = "okay";
+	};
+
+	channel5 {
+		status = "okay";
+	};
+};
+
+#if (!DSW2_I2C7_CAN5 && DSW5_SSI0_CAN4)
+&canfd {
+	pinctrl-0 = <&can0_pins &can1_pins &can2_pins &can3_pins &can5_pins>;
+	/delete-node/ channel4;
+};
+#endif
+
+#if (DSW2_I2C7_CAN5 && !DSW5_SSI0_CAN4)
+&canfd {
+	pinctrl-0 = <&can0_pins &can1_pins &can2_pins &can3_pins &can4_pins>;
+	/delete-node/ channel5;
+};
+#endif
+
+#if (DSW2_I2C7_CAN5 && DSW5_SSI0_CAN4)
+&canfd {
+	pinctrl-0 = <&can0_pins &can1_pins &can2_pins &can3_pins>;
+	/delete-node/ channel5;
+	/delete-node/ channel4;
+};
+#endif
