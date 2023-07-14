@@ -28,12 +28,21 @@
 #include <linux/usb/ohci_pdriver.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <linux/sys_soc.h>
+#include <linux/arm-smccc.h>
 
 #include "ohci.h"
 
 #define DRIVER_DESC "OHCI generic platform driver"
 #define OHCI_MAX_CLKS 3
 #define hcd_to_ohci_priv(h) ((struct ohci_platform_priv *)hcd_to_ohci(h)->priv)
+
+#define RZ_SIP_SVC_SET_USB_PWRRDY	0x82000014
+
+static const struct soc_device_attribute rzg3s_match[] = {
+	{ .family = "RZ/G3S" },
+	{ /* sentinel*/ }
+};
 
 struct ohci_platform_priv {
 	struct clk *clks[OHCI_MAX_CLKS];
@@ -274,6 +283,7 @@ static int ohci_platform_suspend(struct device *dev)
 	struct usb_ohci_pdata *pdata = dev->platform_data;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ohci_platform_priv *priv = hcd_to_ohci_priv(hcd);
+	struct arm_smccc_res local_res;
 	bool do_wakeup = device_may_wakeup(dev);
 	int ret;
 
@@ -286,6 +296,11 @@ static int ohci_platform_suspend(struct device *dev)
 
 	reset_control_assert(priv->resets);
 
+	/* set PWRRDY down according to HW manual (only for RZ/G3S) */
+	if (soc_device_match(rzg3s_match))
+		arm_smccc_smc(RZ_SIP_SVC_SET_USB_PWRRDY, 0xd70, 0x1,
+				0, 0, 0, 0, 0, &local_res);
+
 	return ret;
 }
 
@@ -295,7 +310,13 @@ static int ohci_platform_resume(struct device *dev)
 	struct usb_ohci_pdata *pdata = dev_get_platdata(dev);
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ohci_platform_priv *priv = hcd_to_ohci_priv(hcd);
+	struct arm_smccc_res local_res;
 	int ret;
+
+	/* turn PWRRDY on according to HW manual (only for RZ/G3S) */
+	if (soc_device_match(rzg3s_match))
+		arm_smccc_smc(RZ_SIP_SVC_SET_USB_PWRRDY, 0xd70,
+				0x0, 0, 0, 0, 0, 0, &local_res);
 
 	ret = reset_control_deassert(priv->resets);
 	if (ret)
