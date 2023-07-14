@@ -16,10 +16,19 @@
 #include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
+#include <linux/sys_soc.h>
+#include <linux/arm-smccc.h>
 #include "common.h"
 #include "rcar2.h"
 #include "rcar3.h"
 #include "rza.h"
+
+#define RZ_SIP_SVC_SET_USB_PWRRDY	0x82000014
+
+static const struct soc_device_attribute rzg3s_match[] = {
+	{ .family = "RZ/G3S" },
+	{ /* sentinel*/ }
+};
 
 /*
  *		image of renesas_usbhs
@@ -792,6 +801,7 @@ static __maybe_unused int usbhsc_suspend(struct device *dev)
 {
 	struct usbhs_priv *priv = dev_get_drvdata(dev);
 	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
+	struct arm_smccc_res local_res;
 
 	if (mod) {
 		usbhs_mod_call(priv, stop, priv);
@@ -803,6 +813,11 @@ static __maybe_unused int usbhsc_suspend(struct device *dev)
 	if (mod || !usbhs_get_dparam(priv, runtime_pwctrl))
 		usbhsc_power_ctrl(priv, 0);
 
+	/* set PWRRDY down according to HW manual (only for RZ/G3S) */
+	if (soc_device_match(rzg3s_match))
+		arm_smccc_smc(RZ_SIP_SVC_SET_USB_PWRRDY, 0xd70,
+				0x1, 0, 0, 0, 0, 0, &local_res);
+
 	return 0;
 }
 
@@ -810,6 +825,12 @@ static __maybe_unused int usbhsc_resume(struct device *dev)
 {
 	struct usbhs_priv *priv = dev_get_drvdata(dev);
 	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
+	struct arm_smccc_res local_res;
+
+	/* turn PWRRDY on according to HW manual (only for RZ/G3S) */
+	if (soc_device_match(rzg3s_match))
+		arm_smccc_smc(RZ_SIP_SVC_SET_USB_PWRRDY, 0xd70,
+				0x0, 0, 0, 0, 0, 0, &local_res);
 
 	reset_control_deassert(priv->rsts);
 
