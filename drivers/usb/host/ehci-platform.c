@@ -35,6 +35,7 @@
 #include <linux/usb/hcd.h>
 #include <linux/usb/ehci_pdriver.h>
 #include <linux/usb/of.h>
+#include <linux/arm-smccc.h>
 
 #include "ehci.h"
 
@@ -46,6 +47,8 @@
 #define bcm_iproc_insnreg01	hostpc[0]
 
 #define	G3S_AHB_BUS_CTR	0x108
+
+#define RZ_SIP_SVC_SET_USB_PWRRDY	0x82000014
 
 struct ehci_platform_priv {
 	struct clk *clks[EHCI_MAX_CLKS];
@@ -440,6 +443,7 @@ static int __maybe_unused ehci_platform_suspend(struct device *dev)
 	struct usb_ehci_pdata *pdata = dev_get_platdata(dev);
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ehci_platform_priv *priv = hcd_to_ehci_priv(hcd);
+	struct arm_smccc_res local_res;
 	bool do_wakeup = device_may_wakeup(dev);
 	int ret;
 
@@ -455,6 +459,11 @@ static int __maybe_unused ehci_platform_suspend(struct device *dev)
 
 	reset_control_assert(priv->rsts);
 
+	/* set PWRRDY down according to HW manual (only for RZ/G3S) */
+	if (soc_device_match(rzg3s_match))
+		arm_smccc_smc(RZ_SIP_SVC_SET_USB_PWRRDY, 0xd70, 0x1,
+				0, 0, 0, 0, 0, &local_res);
+
 	return ret;
 }
 
@@ -465,7 +474,13 @@ static int __maybe_unused ehci_platform_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ehci_platform_priv *priv = hcd_to_ehci_priv(hcd);
 	struct device *companion_dev;
+	struct arm_smccc_res local_res;
 	int ret;
+
+	/* turn PWRRDY on according to HW manual (only for RZ/G3S) */
+	if (soc_device_match(rzg3s_match))
+		arm_smccc_smc(RZ_SIP_SVC_SET_USB_PWRRDY, 0xd70, 0x0,
+				0, 0, 0, 0, 0, &local_res);
 
 	ret = reset_control_deassert(priv->rsts);
 	if (ret)
