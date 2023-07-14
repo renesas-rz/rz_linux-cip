@@ -541,6 +541,7 @@ static int rzg3s_pcie_hw_init(struct rzg3s_pcie *pcie, int channel)
 	unsigned int timeout = 50;
 	struct arm_smccc_res local_res;
 
+	/* Set RST_RSM_B after PCIe power is applied according to HW manual */
 	arm_smccc_smc(RZ_SIP_SVC_SET_PCIE_RST_RSMB, 0xd74, 0x1, 0, 0, 0, 0, 0, &local_res);
 
 	/* Clear all PCIe reset bits */
@@ -1225,6 +1226,7 @@ static int rzg3s_pcie_suspend(struct device *dev)
 {
 	struct rzg3s_pcie_host *host = dev_get_drvdata(dev);
 	struct rzg3s_pcie *pcie = &host->pcie;
+	struct arm_smccc_res local_res;
 	int idx;
 
 	for (idx = 0; idx < RZG3S_PCI_MAX_RESOURCES; idx++) {
@@ -1254,7 +1256,11 @@ static int rzg3s_pcie_suspend(struct device *dev)
 	pcie->save_reg.interrupt.msi_mask	= rzg3s_pci_read_reg(pcie, PCI_RC_MSIRCVMSK(0));
 	pcie->save_reg.interrupt.msi_data	= rzg3s_pci_read_reg(pcie, PCI_RC_MSIRMD(0));
 
+	/* Clear RST_RSM_B before PCIe power is turned off according to HW manual */
+        arm_smccc_smc(RZ_SIP_SVC_SET_PCIE_RST_RSMB, 0xd74, 0x0, 0, 0, 0, 0, 0, &local_res);
+
 	reset_control_assert(host->rst);
+
 	return 0;
 }
 
