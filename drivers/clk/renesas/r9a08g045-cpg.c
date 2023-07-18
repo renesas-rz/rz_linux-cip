@@ -48,6 +48,12 @@
 #define SEL_OCTA_G3S		SEL_PLL_PACK(G3S_CPG_OCTA_SSEL, 0, 2)
 #define SEL_SPI_G3S		SEL_PLL_PACK(G3S_CPG_SPI_SSEL, 0, 2)
 
+/* RZ/G3S PLL1/4/6 output clock setting registers. n = 1/4/6 for PLL1/4/6. */
+#define G3S_CPG_SAMPLL_CLK1(n)	(0x04 + 0x10 * (n - 1))
+#define G3S_CPG_SMAPLL_CLK2(n)	(0x08 + 0x10 * (n - 1))
+#define G3S_PLL146_CONF(n)	(G3S_CPG_SAMPLL_CLK1(n) << 22 | \
+				 G3S_CPG_SMAPLL_CLK2(n) << 12)
+
 enum clk_ids {
 	/* Core Clock Outputs exported to DT */
 	LAST_DT_CORE_CLK = R9A08G045_OSCCLK2,
@@ -126,11 +132,11 @@ static const struct cpg_core_clk r9a08g045_core_clks[] __initconst = {
 	DEF_FIXED(".osc", R9A08G045_OSCCLK, CLK_EXTAL, 1, 1),
 	DEF_FIXED(".osc2", R9A08G045_OSCCLK2, CLK_EXTAL, 1, 3),
 	DEF_FIXED(".osc_div1000", CLK_OSC_DIV1000, CLK_EXTAL, 1, 1000),
-	DEF_FIXED(".pll1", CLK_PLL1, CLK_EXTAL, 575, 12),
+	DEF_SAMPLL(".pll1", CLK_PLL1, CLK_EXTAL, G3S_PLL146_CONF(1)),
+	DEF_SAMPLL(".pll4", CLK_PLL4, CLK_EXTAL, G3S_PLL146_CONF(4)),
+	DEF_SAMPLL(".pll6", CLK_PLL6, CLK_EXTAL, G3S_PLL146_CONF(6)),
 	DEF_FIXED(".pll2", CLK_PLL2, CLK_EXTAL, 200, 3),
 	DEF_FIXED(".pll3", CLK_PLL3, CLK_EXTAL, 200, 3),
-	DEF_FIXED(".pll4", CLK_PLL4, CLK_EXTAL, 100, 3),
-	DEF_FIXED(".pll6", CLK_PLL6, CLK_EXTAL, 125, 6),
 	DEF_FIXED(".pll2_div2", CLK_PLL2_DIV2, CLK_PLL2, 1, 2),
 	DEF_FIXED(".pll2_div2_8", CLK_PLL2_DIV2_8, CLK_PLL2_DIV2, 1, 8),
 	DEF_FIXED(".pll2_div6", CLK_PLL2_DIV6, CLK_PLL2, 1, 6),

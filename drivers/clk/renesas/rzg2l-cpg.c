@@ -47,6 +47,12 @@
 #define PDIV(val)		DIV_RSMASK(val, 0, 0x3f)
 #define SDIV(val)		DIV_RSMASK(val, 0, 0x7)
 
+/* RZ/G3S PLL division */
+#define G3S_NFDIV(val)		DIV_RSMASK(val, 1, 0xfff)
+#define G3S_NIDIV(val)		DIV_RSMASK(val, 13, 0x1ff)
+#define G3S_MDIV(val)		DIV_RSMASK(val, 22, 0xf)
+#define G3S_PDIV(val)		DIV_RSMASK(val, 26, 0x7)
+
 #define CLK_ON_R(reg)		(reg)
 #define CLK_MON_R(reg)		(0x180 + (reg))
 #define CLK_RST_R(reg)		(reg)
@@ -605,8 +611,107 @@ static unsigned long rzg2l_cpg_pll_clk_recalc_rate(struct clk_hw *hw,
 	return DIV_ROUND_CLOSEST_ULL((u64)parent_rate * mult, div);
 }
 
+/*
+ * In RZ/G3S, only PLL1/4/6 clks can be handled by PLLn_CLK1 setting.
+ * We try to set the output clk rate of these PLLs as high as possible
+ * by modifying PLLn_CLK1 registers.
+ */
+static unsigned long rzg3s_cpg_pll_clk_recalc_rate(struct clk_hw *hw,
+						   unsigned long parent_rate)
+{
+	struct pll_clk *pll_clk = to_pll(hw);
+	struct rzg2l_cpg_priv *priv = pll_clk->priv;
+	unsigned int mult, div;
+	unsigned long pll_rate, max_rate;
+	u32 clk1, nir, nfr, mr, pr;
+
+	if (pll_clk->type != CLK_TYPE_SAM_PLL)
+		goto g3s_pll_clk_err;
+
+	/* Input clk rate is restricted from 8MHz to 192MHz. */
+	if ((parent_rate < 8000000) || (parent_rate > 192000000)) {
+		dev_err(priv->dev,
+			"Invalid input clk rate: %d\n", -EINVAL);
+		goto g3s_pll_clk_err;
+	}
+
+	switch (GET_REG_SAMPLL_CLK1(pll_clk->conf)) {
+	case 0x04:
+		max_rate = 1150000000;
+		break;
+	case 0x34:
+		max_rate = 800000000;
+		break;
+	case 0x54:
+		max_rate = 500000000;
+		break;
+	default:
+		goto g3s_pll_clk_err;
+	};
+
+	/* Get initialized value of CLK1 register, and calculate divisors. */
+	clk1 = readl(priv->base + GET_REG_SAMPLL_CLK1(pll_clk->conf));
+	mr = G3S_MDIV(clk1) + 1;
+	pr = (G3S_PDIV(clk1) < 4) ? (0x1 << G3S_PDIV(clk1)) : 16;
+
+	/*
+	 * Restriction of fstd (parent_rate) on mr is from 8MHz to 16MHz,
+	 * and maximum value of mr is 12 according to RZ/G3S hardware document.
+	 */
+	while (((parent_rate / mr) < 8000000) ||
+		((parent_rate / mr) > 16000000 || (mr > 12))) {
+		if ((parent_rate / mr) > 16000000) {
+			if (mr < 12)
+				mr++;
+			else
+				goto g3s_pll_clk1_mr_error;
+		} else {
+			if (mr > 1)
+				mr--;
+			else
+				goto g3s_pll_clk1_mr_error;
+		}
+	}
+
+g3s_pll_recal_division:
+	div = 4096 * pr * mr;
+
+	nir = DIV_ROUND_DOWN_ULL(max_rate * (div / 4096), parent_rate);
+	/* Division is too big, we should reduce to get valid integer part. */
+	if (nir > 375) {
+		pr /= 2;
+		goto g3s_pll_recal_division;
+	}
+
+	nfr = (max_rate * div) / parent_rate - (nir * 4096);
+
+	/* Update PLLn_CLK1 register.*/
+	clk1 = (clk1 & 0) | ((ilog2(pr) & 0x7) << 26) |
+		(((mr - 1) & 0xf) << 22) | (((nir - 1) & 0x1ff) << 13) |
+		((nfr & 0xfff) << 1) | ((parent_rate * nir / mr) > 2000000000 ? 0x1 : 0);
+	writel(clk1, priv->base + GET_REG_SAMPLL_CLK1(pll_clk->conf));
+
+	mult = 4096 * nir + nfr;
+	pll_rate = DIV_ROUND_CLOSEST_ULL((u64)parent_rate * mult, div);
+
+	return pll_rate;
+
+g3s_pll_clk1_mr_error:
+	dev_err(priv->dev,
+		"Failed to set MR divisor sastifying PLLn_CLK1 restriction: %d\n",
+		-EINVAL);
+
+g3s_pll_clk_err:
+	/* In case of PLLn_CLK1 setting failure, return clk without calculation. */
+	return parent_rate;
+}
+
 static const struct clk_ops rzg2l_cpg_pll_ops = {
 	.recalc_rate = rzg2l_cpg_pll_clk_recalc_rate,
+};
+
+static const struct clk_ops rzg3s_cpg_pll_ops = {
+	.recalc_rate = rzg3s_cpg_pll_clk_recalc_rate,
 };
 
 static struct clk * __init
@@ -631,7 +736,10 @@ rzg2l_cpg_pll_clk_register(const struct cpg_core_clk *core,
 
 	parent_name = __clk_get_name(parent);
 	init.name = core->name;
-	init.ops = &rzg2l_cpg_pll_ops;
+	if (priv->is_rzg3s)
+		init.ops = &rzg3s_cpg_pll_ops;
+	else
+		init.ops = &rzg2l_cpg_pll_ops;
 	init.flags = 0;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
