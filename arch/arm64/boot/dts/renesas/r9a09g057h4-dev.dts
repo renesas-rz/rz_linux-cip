@@ -228,6 +228,16 @@
 			 <RZG2L_PORT_PINMUX(8, 7, 14)>; /* OVC */
 	};
 
+	can4_pins: can4 {
+		pinmux = <RZG2L_PORT_PINMUX(4, 2, 5)>, /* TX */
+			 <RZG2L_PORT_PINMUX(4, 3, 5)>; /* RX */
+	};
+
+	can5_pins: can5 {
+		pinmux = <RZG2L_PORT_PINMUX(4, 6, 5)>, /* TX */
+			 <RZG2L_PORT_PINMUX(4, 7, 5)>; /* RX */
+	};
+
 #if (!SEL_SD0)
         /* Support pinctrl for SD function of SDHI0 */
         sdhi0_pins: sd0 {
@@ -553,4 +563,18 @@
 
 &rtc {
 	status = "okay";
+};
+
+&canfd {
+	pinctrl-0 = <&can4_pins &can5_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	channel4 {
+		status = "okay";
+	};
+
+	channel5 {
+		status = "okay";
+	};
 };
