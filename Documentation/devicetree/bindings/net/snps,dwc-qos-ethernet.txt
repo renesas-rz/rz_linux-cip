@@ -15,6 +15,8 @@ Required properties:
     Represents the IP core when integrated into the Axis ARTPEC-6 SoC.
   - "nvidia,tegra186-eqos", "snps,dwc-qos-ethernet-4.10"
     Represents the IP core when integrated into the NVIDIA Tegra186 SoC.
+  - "renesas,rzt2h-eqos", "snps,dwc-qos-ethernet-4.10"
+    Represents the IP core when integrated into the Renesas RZ/T2H SoC.
   - "snps,dwc-qos-ethernet-4.10"
     This combination is deprecated. It should be treated as equivalent to
     "axis,artpec6-eqos", "snps,dwc-qos-ethernet-4.10". It is supported to be
