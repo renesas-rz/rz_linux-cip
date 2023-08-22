@@ -71,3 +71,7 @@ Example:
                 vsc8531,led-1-mode	= <VSC8531_LINK_100_ACTIVITY>;
 		load-save-gpios		= <&gpio 10 GPIO_ACTIVE_HIGH>;
         };
+
+	vsc8541_2: ethernet-phy@0 {
+		compatible = "ethernet-phy-id0007.0772";
+	};
