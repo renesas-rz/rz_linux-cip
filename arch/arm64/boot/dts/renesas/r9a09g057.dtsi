@@ -871,7 +871,7 @@
 
 		usb2_phy0: usb-phy@15800200 {
 			compatible = "renesas,usb2-phy-r9a09g057",
-				     "renesas,rzg2l-usb2-phy";
+				     "renesas,rzv2h-usb2-phy";
 			reg = <0 0x15800200 0 0x700>;
 			interrupts = <GIC_SPI 745 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD R9A09G057_USB2_U2H0_HRESETN>;
@@ -883,7 +883,7 @@
 
 		usb2_phy1: usb-phy@15810200 {
 			compatible = "renesas,usb2-phy-r9a09g057",
-				     "renesas,rzg2l-usb2-phy";
+				     "renesas,rzv2h-usb2-phy";
 			reg = <0 0x15810200 0 0x700>;
 			interrupts = <GIC_SPI 750 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD R9A09G057_USB2_U2H1_HCLK>;
