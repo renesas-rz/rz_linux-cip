@@ -1418,6 +1418,25 @@
 			dma-channels = <16>;
 			status = "disabled";
 		};
+
+		fcpcs: vcp4@16410000 {
+			compatible = "renesas,vcp4-fcpcs";
+			reg = <0 0x16410000 0 0x1000>;
+			renesas,#ch = <0>;
+		};
+
+		vdpb: vcp4@16400000 {
+			compatible = "renesas,vcp4-vdpb";
+			reg = <0 0x16400000 0 0x1000>, <0 0x16420200 0 0xE00>;
+			interrupts = <GIC_SPI 887 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 888 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A09G057_VCD_ACLK>,
+				 <&cpg CPG_MOD R9A09G057_VCD_PCLK>;
+			power-domains = <&cpg>;
+			resets = <&cpg R9A09G057_VCD_RESETN>;
+			renesas,#ch = <0>;
+			renesas,#fcp_ch = <0>;
+		};
 	};
 
 	timer {
