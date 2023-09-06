@@ -339,7 +339,13 @@ static const unsigned int rzg3s_ext_pupd_offs[] = {
 	0x1da4, 0x1dac, 0x1dbc
 };
 
+static const unsigned int rzg3s_mode_offs[] = {
+	0x3004, 0x3008, 0x300c, 0x3010, 0x3014, 0x3018,
+	0x301c, 0x3020
+};
+
 #define MAX_NUM_PORTS (ARRAY_SIZE(rzg3s_port_offset))
+#define MAX_NUM_MODE_REGS (ARRAY_SIZE(rzg3s_mode_offs))
 
 struct rzg2l_dedicated_configs {
 	const char *name;
@@ -401,6 +407,7 @@ struct rzg2l_pinctrl {
 	uint32_t			g3s_ext_iolh_val[20];
 	uint32_t			g3s_ext_isel_val[9];
 	uint32_t			g3s_ext_pupd_val[9];
+	uint32_t			g3s_mode_val[MAX_NUM_MODE_REGS];
 };
 
 static const unsigned int iolh_groupa_mA[] = { 2, 4, 8, 12 };
@@ -2298,6 +2305,9 @@ static int rzg2l_backup_restore_regs(struct rzg2l_pinctrl *pctrl, bool is_backup
 			for (i = 0; i < ARRAY_SIZE(rzg3s_ext_pupd_offs); i++)
 				pctrl->g3s_ext_pupd_val[i] =
 					readl(pctrl->base + rzg3s_ext_pupd_offs[i]);
+
+			for (i = 0; i < MAX_NUM_MODE_REGS; i++)
+				pctrl->g3s_mode_val[i] = readl(pctrl->base + rzg3s_mode_offs[i]);
 		}
 
 		return 0;
@@ -2333,6 +2343,9 @@ static int rzg2l_backup_restore_regs(struct rzg2l_pinctrl *pctrl, bool is_backup
 
 		for (i = 0; i < ARRAY_SIZE(rzg3s_ext_pupd_offs); i++)
 			writel(pctrl->g3s_ext_pupd_val[i], pctrl->base + rzg3s_ext_pupd_offs[i]);
+
+		for (i = 0; i < MAX_NUM_MODE_REGS; i++)
+			writel(pctrl->g3s_mode_val[i], pctrl->base + rzg3s_mode_offs[i]);
 	}
 
 	return 0;
