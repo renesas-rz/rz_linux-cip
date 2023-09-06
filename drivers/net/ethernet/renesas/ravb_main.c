@@ -2874,8 +2874,10 @@ static int __maybe_unused ravb_suspend(struct device *dev)
 		ret = ravb_close(ndev);
 
 	/* RZ/G3S requires reset control assertion */
-	if (soc_device_match(rzg3s_match))
+	if (soc_device_match(rzg3s_match)) {
 		reset_control_assert(priv->rstc);
+		clk_disable_unprepare(priv->refclk);
+	}
 
 	return ret;
 }
@@ -2888,8 +2890,12 @@ static int __maybe_unused ravb_resume(struct device *dev)
 	int ret = 0;
 
 	/* RZ/G3S requires reset control deassertion */
-	if (soc_device_match(rzg3s_match))
+	if (soc_device_match(rzg3s_match)) {
 		reset_control_deassert(priv->rstc);
+		read_poll_timeout(reset_control_status, ret, ret == 0, 1, 200,
+				false, priv->rstc);
+		clk_prepare_enable(priv->refclk);
+	}
 
 	/* If WoL is enabled set reset mode to rearm the WoL logic */
 	if (priv->wol_enabled)
