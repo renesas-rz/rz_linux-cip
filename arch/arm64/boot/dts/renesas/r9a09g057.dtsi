@@ -1497,6 +1497,50 @@
 				status = "disabled";
 			};
 		};
+
+		wdt0: watchdog@11C04000 {
+			compatible = "renesas,r9a09g057-wdt";
+			reg = <0 0x11C00400 0 0x400>;
+			clocks = <&cpg CPG_MOD R9A09G057_MCPU_WDT0_CLKP>,
+				 <&cpg CPG_MOD R9A09G057_MCPU_WDT0_CLK_LOCO>;
+			clock-names = "clkp", "clk_loco";
+			resets = <&cpg R9A09G057_MCPU_WDT0_RESET>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		wdt1: watchdog@14400000 {
+			compatible = "renesas,r9a09g057-wdt";
+			reg = <0 0x14400000 0 0x400>;
+			clocks = <&cpg CPG_MOD R9A09G057_ACPU_WDT0_CLKP>,
+				 <&cpg CPG_MOD R9A09G057_ACPU_WDT0_CLK_LOCO>;
+			clock-names = "clkp", "clk_loco";
+			resets = <&cpg R9A09G057_ACPU_WDT0_RESET>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		wdt2: watchdog@13000000 {
+			compatible = "renesas,r9a09g057-wdt";
+			reg = <0 0x13000000 0 0x400>;
+			clocks = <&cpg CPG_MOD R9A09G057_RCPU_WDT0_CLKP>,
+				 <&cpg CPG_MOD R9A09G057_RCPU_WDT0_CLK_LOCO>;
+			clock-names = "clkp", "clk_loco";
+			resets = <&cpg R9A09G057_RCPU_WDT0_RESET>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		wdt3: watchdog@13000400 {
+			compatible = "renesas,r9a09g057-wdt";
+			reg = <0 0x13000400 0 0x400>;
+			clocks = <&cpg CPG_MOD R9A09G057_RCPU_WDT1_CLKP>,
+				 <&cpg CPG_MOD R9A09G057_RCPU_WDT1_CLK_LOCO>;
+			clock-names = "clkp", "clk_loco";
+			resets = <&cpg R9A09G057_RCPU_WDT1_RESET>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
 	};
 
 	timer {
