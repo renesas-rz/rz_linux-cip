@@ -253,6 +253,7 @@ static int xspi_reg_read(void *context, unsigned int reg, unsigned int *val)
 
 	switch (reg) {
 	case XSPI_CDD0BUF0:
+	case XSPI_CDD1BUF0:
 		switch (xspi->xfer_size) {
 		case 1:
 			*val = readb(xspi->base + reg);
@@ -283,6 +284,7 @@ static int xspi_reg_write(void *context, unsigned int reg, unsigned int val)
 
 	switch (reg) {
 	case XSPI_CDD0BUF0:
+	case XSPI_CDD1BUF0:
 		switch (xspi->xfer_size) {
 		case 1:
 			writeb(val, xspi->base + reg);
@@ -426,17 +428,18 @@ void xspi_prepare(struct rpcif *xspi, const struct rpcif_op *op, u64 *offs,
 		xspi->xferlen = nbytes;
 	}
 
-	if (op->cmd.buswidth == 1)
+	if (op->cmd.buswidth == 1) {
 		if (op->addr.buswidth == 2 || op->data.buswidth == 2)
-				xspi->proto = PROTO_1S_2S_2S;
+			xspi->proto = PROTO_1S_2S_2S;
 		else if (op->addr.buswidth == 4 || op->data.buswidth == 4)
-				xspi->proto = PROTO_1S_4S_4S;
+			xspi->proto = PROTO_1S_4S_4S;
 		else if (op->cmd.buswidth == 2 &&
-				(op->addr.buswidth == 2 || op->data.buswidth == 2))
-		xspi->proto = PROTO_2S_2S_2S;
-	else if (op->cmd.buswidth == 4 &&
-			(op->addr.buswidth == 4 || op->data.buswidth == 4))
+			(op->addr.buswidth == 2 || op->data.buswidth == 2))
+			xspi->proto = PROTO_2S_2S_2S;
+	} else if (op->cmd.buswidth == 4 &&
+			(op->addr.buswidth == 4 || op->data.buswidth == 4)) {
 		xspi->proto = PROTO_4S_4S_4S;
+	}
 }
 EXPORT_SYMBOL(xspi_prepare);
 
@@ -515,7 +518,8 @@ int xspi_manual_xfer(struct rpcif *xspi)
 			u32 nbytes, data[2], *p = data;
 
 			regmap_update_bits(xspi->regmap, XSPI_CDTBUF0,
-					XSPI_CDTBUF_TRTYPE, ~XSPI_CDTBUF_TRTYPE);
+					   XSPI_CDTBUF_TRTYPE,
+					   (u32) ~XSPI_CDTBUF_TRTYPE);
 
 			/* nbytes may only be 1, 2, 4, or 8 */
 			nbytes = bytes_left >= max ? max : (1 << ilog2(bytes_left));
