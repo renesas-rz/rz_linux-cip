@@ -56,16 +56,26 @@
  *	DSW2_I2C7_CAN5: Pin 1-3 ON, Pin 2-4 OFF -> support I2C7
  *			Pin 1-3 OFF, Pin 2-4 ON -> support CAN5
  *		1: I2C7			0: CAN5
+ * DSW3:
+ *	DSW3_CAN01_HEADER:  Pin 1-2-3-4 ON  -> support CAN0 & CAN1
+ *			    Pin 1-2-3-4 OFF -> support External Header Pins
+ *		1: CAN0/1		0: External Header Pin
+ * DSW4:
+ *	DSW4_CAN23_HEADER:  Pin 1-2-3-4 ON  -> support CAN2 & CAN3
+ *			    Pin 1-2-3-4 OFF -> support External Header Pins
+ *		1: CAN2/3		0: External Header Pin
  * DSW5:
  *	DSW5_SSI0_CAN4: Pin 2 ON, Pin 1-3 OFF -> support SSI0
  *			Pin 2 OFF, Pin 1-3 ON -> support CAN4
  *		1: SSI0			0: CAN4
  */
-#define SEL_SD0		1
-#define DSW2_I2C7_CAN5	1
-#define DSW5_SSI0_CAN4	0
-#define DSW7_QSD0_CD	1
-#define DSW7_QSD1_CD	1
+#define SEL_SD0			1
+#define DSW2_I2C7_CAN5		1
+#define DSW3_CAN01_HEADER	1
+#define DSW4_CAN23_HEADER	1
+#define DSW5_SSI0_CAN4		0
+#define DSW7_QSD0_CD		1
+#define DSW7_QSD1_CD		1
 
 / {
 	model = "Renesas EVK Alpha based on r9a09g057h4";
@@ -75,8 +85,6 @@
 		serial0 = &scif0;
 		serial1 = &sci4;
 		serial2 = &sci5;
-		serial3 = &sci8;
-		serial4 = &sci9;
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
 		mmc2 = &sdhi2;
@@ -248,6 +256,7 @@
 		clock-frequency = <24000000>;
 	};
 
+#if (!DSW3_CAN01_HEADER)
 	codec_test0: codec_test {
 		compatible = "linux,snd-soc-dummy";
 		#sound-dai-cells = <0>;
@@ -257,6 +266,7 @@
 		compatible = "linux,snd-soc-dummy";
 		#sound-dai-cells = <0>;
 	};
+#endif
 
 	snd_rzv2h: sound {
 		#address-cells = <1>;
@@ -282,6 +292,7 @@
 			};
 		};
 
+#if (!DSW3_CAN01_HEADER)
 		spdif_link0: simple-audio-card,dai-link@1 {
 			reg = <1>;
 			bitclock-master = <&cpu_dai1>;
@@ -309,6 +320,7 @@
 				sound-dai = <&codec_test1>;
 			};
 		};
+#endif
 	};
 };
 
@@ -325,6 +337,7 @@
 };
 
 &pinctrl {
+#if (DSW3_CAN01_HEADER)
 	can0_pins: can0 {
 		pinmux = <RZG2L_PORT_PINMUX(8, 0, 5)>, /* TX */
 			 <RZG2L_PORT_PINMUX(8, 1, 5)>; /* RX */
@@ -334,7 +347,9 @@
 		pinmux = <RZG2L_PORT_PINMUX(8, 2, 5)>, /* TX */
 			 <RZG2L_PORT_PINMUX(8, 3, 5)>; /* RX */
 	};
+#endif
 
+#if (DSW4_CAN23_HEADER)
 	can2_pins: can2 {
 		pinmux = <RZG2L_PORT_PINMUX(8, 4, 5)>, /* TX */
 			 <RZG2L_PORT_PINMUX(8, 5, 5)>; /* RX */
@@ -344,6 +359,8 @@
 		pinmux = <RZG2L_PORT_PINMUX(8, 6, 5)>, /* TX */
 			 <RZG2L_PORT_PINMUX(8, 7, 5)>; /* RX */
 	};
+#endif
+
 #if (!DSW2_SSI0_CAN4)
 	can4_pins: can4 {
 		pinmux = <RZG2L_PORT_PINMUX(4, 2, 5)>, /* TX */
@@ -357,10 +374,12 @@
 			 <RZG2L_PORT_PINMUX(4, 7, 5)>; /* RX */
 	};
 #endif
+
 	scif0_pins: scif0 {
 		pins =  "SCIF_RXD", "SCIF_TXD";
 	};
 
+#if (!DSW4_CAN23_HEADER)
 	sci4_pins: sci4 {
 		pinmux = <RZG2L_PORT_PINMUX(8, 4, 6)>, /* SCI4_TXD_MOSI_SDA */
 			 <RZG2L_PORT_PINMUX(8, 5, 6)>; /* SCI4_RXD_MISO_SCL */
@@ -370,16 +389,7 @@
 		pinmux = <RZG2L_PORT_PINMUX(8, 6, 6)>, /* SCI5_TXD_MOSI_SDA */
 			 <RZG2L_PORT_PINMUX(8, 7, 6)>; /* SCI5_RXD_MISO_SCL */
 	};
-
-	sci8_pins: sci8 {
-		pinmux = <RZG2L_PORT_PINMUX(8, 0, 6)>, /* SCI8_TXD_MOSI_SDA */
-			 <RZG2L_PORT_PINMUX(8, 1, 6)>; /* SCI8_RXD_MISO_SCL */
-	};
-
-	sci9_pins: sci9 {
-		pinmux = <RZG2L_PORT_PINMUX(8, 2, 6)>, /* SCI9_TXD_MOSI_SDA */
-			 <RZG2L_PORT_PINMUX(8, 3, 6)>; /* SCI9_RXD_MISO_SCL */
-	};
+#endif
 
 	sd0_pwr_en {
 		gpio-hog;
@@ -493,12 +503,20 @@
 		pinmux = <RZG2L_PORT_PINMUX(1, 2, 7)>, /* SSI3_SCK */
 			 <RZG2L_PORT_PINMUX(1, 3, 7)>, /* SSI3_WS */
 			 <RZG2L_PORT_PINMUX(0, 4, 7)>, /* SSI3_SDATA */
-			 <RZG2L_PORT_PINMUX(1, 5, 7)>, /* SSI4_SDATA */
-			 <RZG2L_PORT_PINMUX(8, 0, 8)>, /* SPDIF0_OUT */
-			 <RZG2L_PORT_PINMUX(8, 1, 8)>, /* SPDIF0_IN */
-			 <RZG2L_PORT_PINMUX(8, 2, 8)>, /* SPDIF2_OUT */
+			 <RZG2L_PORT_PINMUX(1, 5, 7)>; /* SSI4_SDATA */
+	};
+
+#if (!DSW3_CAN01_HEADER)
+	spdif0_pins: spdif0 {
+		pinmux = <RZG2L_PORT_PINMUX(8, 0, 8)>, /* SPDIF0_OUT */
+			 <RZG2L_PORT_PINMUX(8, 1, 8)>; /* SPDIF0_IN */
+	};
+
+	spdif2_pins: spdif2 {
+		pinmux = <RZG2L_PORT_PINMUX(8, 2, 8)>, /* SPDIF2_OUT */
 			 <RZG2L_PORT_PINMUX(8, 3, 8)>; /* SPDIF2_IN */
 	};
+#endif
 };
 
 &extal_clk {
@@ -520,29 +538,19 @@
 	status = "okay";
 };
 
+#if (!DSW4_CAN23_HEADER)
 &sci4 {
 	pinctrl-0 = <&sci4_pins>;
 	pinctrl-names = "default";
-	status ="okay";
+	status = "okay";
 };
 
 &sci5 {
 	pinctrl-0 = <&sci5_pins>;
 	pinctrl-names = "default";
-	status ="okay";
+	status = "okay";
 };
-
-&sci8 {
-	pinctrl-0 = <&sci8_pins>;
-	pinctrl-names = "default";
-	status ="okay";
-};
-
-&sci9 {
-	pinctrl-0 = <&sci9_pins>;
-	pinctrl-names = "default";
-	status ="okay";
-};
+#endif
 
 #if (SEL_SD0)
 &sdhi0 {
@@ -1058,6 +1066,8 @@
 	};
 };
 
+#if (DSW3_CAN01_HEADER)
+#if (DSW4_CAN23_HEADER)
 #if (!DSW2_I2C7_CAN5 && DSW5_SSI0_CAN4)
 &canfd {
 	pinctrl-0 = <&can0_pins &can1_pins &can2_pins &can3_pins &can5_pins>;
@@ -1078,6 +1088,101 @@
 	/delete-node/ channel5;
 	/delete-node/ channel4;
 };
+#endif
+#else
+#if (!DSW2_I2C7_CAN5 && DSW5_SSI0_CAN4)
+&canfd {
+	pinctrl-0 = <&can0_pins &can1_pins &can5_pins>;
+	/delete-node/ channel4;
+	/delete-node/ channel3;
+	/delete-node/ channel2;
+};
+#endif
+
+#if (DSW2_I2C7_CAN5 && !DSW5_SSI0_CAN4)
+&canfd {
+	pinctrl-0 = <&can0_pins &can1_pins &can4_pins>;
+	/delete-node/ channel5;
+	/delete-node/ channel3;
+	/delete-node/ channel2;
+};
+#endif
+
+#if (DSW2_I2C7_CAN5 && DSW5_SSI0_CAN4)
+&canfd {
+	pinctrl-0 = <&can0_pins &can1_pins>;
+	/delete-node/ channel5;
+	/delete-node/ channel4;
+	/delete-node/ channel3;
+	/delete-node/ channel2;
+
+	status = "disabled";
+};
+#endif
+#endif
+#else
+#if (DSW4_CAN23_HEADER)
+#if (!DSW2_I2C7_CAN5 && DSW5_SSI0_CAN4)
+&canfd {
+	pinctrl-0 = <&can2_pins &can3_pins &can5_pins>;
+	/delete-node/ channel4;
+	/delete-node/ channel1;
+	/delete-node/ channel0;
+};
+#endif
+
+#if (DSW2_I2C7_CAN5 && !DSW5_SSI0_CAN4)
+&canfd {
+	pinctrl-0 = <&can2_pins &can3_pins &can4_pins>;
+	/delete-node/ channel5;
+	/delete-node/ channel1;
+	/delete-node/ channel0;
+};
+#endif
+
+#if (DSW2_I2C7_CAN5 && DSW5_SSI0_CAN4)
+&canfd {
+	pinctrl-0 = <&can2_pins &can3_pins>;
+	/delete-node/ channel5;
+	/delete-node/ channel4;
+	/delete-node/ channel1;
+	/delete-node/ channel0;
+};
+#endif
+#else
+#if (!DSW2_I2C7_CAN5 && DSW5_SSI0_CAN4)
+&canfd {
+	pinctrl-0 = <&can0_pins &can1_pins &can5_pins>;
+	/delete-node/ channel4;
+	/delete-node/ channel3;
+	/delete-node/ channel2;
+};
+#endif
+
+#if (DSW2_I2C7_CAN5 && !DSW5_SSI0_CAN4)
+&canfd {
+	pinctrl-0 = <&can4_pins>;
+	/delete-node/ channel5;
+	/delete-node/ channel3;
+	/delete-node/ channel2;
+	/delete-node/ channel1;
+	/delete-node/ channel0;
+};
+#endif
+
+#if (DSW2_I2C7_CAN5 && DSW5_SSI0_CAN4)
+&canfd {
+	/delete-property/ pinctrl-0;
+	/delete-property/ pinctrl-names;
+	/delete-node/ channel5;
+	/delete-node/ channel4;
+	/delete-node/ channel3;
+	/delete-node/ channel2;
+	/delete-node/ channel1;
+	/delete-node/ channel0;
+};
+#endif
+#endif
 #endif
 
 &wdt1 {
@@ -1134,7 +1239,11 @@
 };
 
 &rcar_sound {
+#if (!DSW3_CAN01_HEADER)
+	pinctrl-0 = <&sound_clk_pins &sound_pins &spdif0_pins &spdif2_pins>;
+#else
 	pinctrl-0 = <&sound_clk_pins &sound_pins>;
+#endif
 	pinctrl-names = "default";
 
 	status = "okay";
@@ -1152,6 +1261,7 @@
 			capture  = <&ssi4 &src0 &dvc0>;
 		};
 
+#if (!DSW3_CAN01_HEADER)
 		dai1 {
 			playback = <&spdif0>;
 			capture  = <&spdif0>;
@@ -1161,6 +1271,7 @@
 			playback = <&spdif2>;
 			capture  = <&spdif2>;
 		};
+#endif
 	};
 };
 
