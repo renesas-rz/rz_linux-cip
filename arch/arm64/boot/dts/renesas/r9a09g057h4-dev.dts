@@ -578,3 +578,7 @@
 		status = "okay";
 	};
 };
+
+&wdt1 {
+	status = "okay";
+};
