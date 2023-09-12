@@ -335,6 +335,13 @@
 		pinmux = <RZG2L_PORT_PINMUX(6, 6, 14)>, /* VBUS */
 			 <RZG2L_PORT_PINMUX(6, 7, 14)>; /* OVC */
 	};
+
+	spi2_pins: spi2 {
+		pinmux = <RZG2L_PORT_PINMUX(11, 3, 5)>, /* MISO */
+			 <RZG2L_PORT_PINMUX(11, 4, 5)>, /* MOSI */
+			 <RZG2L_PORT_PINMUX(10, 7, 5)>, /* SSL */
+			 <RZG2L_PORT_PINMUX(11, 5, 5)>; /* RSPCK */
+	};
 };
 
 &extal_clk {
@@ -845,5 +852,12 @@
 #endif
 
 &wdt1 {
+	status = "okay";
+};
+
+&spi2 {
+	pinctrl-0 = <&spi2_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 };
