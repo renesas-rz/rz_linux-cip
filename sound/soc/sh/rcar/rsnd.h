@@ -37,11 +37,7 @@
 #define RSND_RZV2H_SSI		3
 #define RSND_RZV2H_SPDIF	4
 
-#ifdef CONFIG_SND_SOC_RZV2H
-#define RSND_BASE_MAX	4
-#else
 #define RSND_BASE_MAX	5
-#endif
 
 /*
  *	pseudo register
