@@ -322,6 +322,11 @@ static const unsigned int rzg3s_port_offset[] = {
 	0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27
 };
 
+static const unsigned int rzg3s_ien_offs[] = {
+	0x1808, 0x1810, 0x1848, 0x1880, 0x1888, 0x188c,
+	0x1890, 0x1898, 0x1918, 0x1920, 0x1980, 0x19a0
+};
+
 static const unsigned int rzg3s_ext_iolh_offs[] = {
 	0x1008, 0x1020, 0x1024, 0x1028, 0x102c, 0x1030,
 	0x1080, 0x1088,	0x108c,	0x1090, 0x1098,
@@ -346,6 +351,7 @@ static const unsigned int rzg3s_mode_offs[] = {
 
 #define MAX_NUM_PORTS (ARRAY_SIZE(rzg3s_port_offset))
 #define MAX_NUM_MODE_REGS (ARRAY_SIZE(rzg3s_mode_offs))
+#define MAX_NUM_IEN_REGS (ARRAY_SIZE(rzg3s_ien_offs))
 
 struct rzg2l_dedicated_configs {
 	const char *name;
@@ -398,7 +404,7 @@ struct rzg2l_pinctrl {
 	uint8_t				pmc_val[MAX_NUM_PORTS];
 	uint32_t			pfc_val[MAX_NUM_PORTS];
 	uint32_t			isel_val[MAX_NUM_PORTS];
-	uint32_t			ien_val[MAX_NUM_PORTS];
+	uint32_t			ien_val[MAX_NUM_IEN_REGS];
 	uint32_t			iolh_val[MAX_NUM_PORTS];
 	uint32_t			sr_val[MAX_NUM_PORTS];
 	uint32_t			pupd_val[MAX_NUM_PORTS];
@@ -2294,6 +2300,10 @@ static int rzg2l_backup_restore_regs(struct rzg2l_pinctrl *pctrl, bool is_backup
 
 		/* backup extra registers for RZ/G3S */
 		if (is_g3s) {
+			for (i = 0; i < MAX_NUM_IEN_REGS; i++)
+				pctrl->ien_val[i] =
+					readl(pctrl->base + rzg3s_ien_offs[i]);
+
 			for (i = 0; i < ARRAY_SIZE(rzg3s_ext_iolh_offs); i++)
 				pctrl->g3s_ext_iolh_val[i] =
 					readl(pctrl->base + rzg3s_ext_iolh_offs[i]);
@@ -2335,6 +2345,9 @@ static int rzg2l_backup_restore_regs(struct rzg2l_pinctrl *pctrl, bool is_backup
 	writel(PWPR_B0WI, pctrl->base + pwpr);  /* B0WI=1, PFCWE=0 */
 
 	if (is_g3s) {
+		for (i = 0; i < MAX_NUM_IEN_REGS; i++)
+			writel(pctrl->ien_val[i], pctrl->base + rzg3s_ien_offs[i]);
+
 		for (i = 0; i < ARRAY_SIZE(rzg3s_ext_iolh_offs); i++)
 			writel(pctrl->g3s_ext_iolh_val[i], pctrl->base + rzg3s_ext_iolh_offs[i]);
 
