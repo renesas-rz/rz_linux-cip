@@ -711,13 +711,17 @@ static int rcar_canfd_reset_controller(struct rcar_canfd_global *gpriv)
 	/* Reset Global error flags */
 	rcar_canfd_write(gpriv->base, RCANFD_GERFL, 0x0);
 
-	/* Set the controller into appropriate mode */
-	if (gpriv->fdmode)
-		rcar_canfd_set_bit(gpriv->base, RCANFD_GRMCFG,
-				   RCANFD_GRMCFG_RCMC);
-	else
-		rcar_canfd_clear_bit(gpriv->base, RCANFD_GRMCFG,
-				     RCANFD_GRMCFG_RCMC);
+	/* Set the controller into appropriate mode
+	 * RZ/G3S does not support Classical CAN only mode
+	 */
+	if (gpriv->chip_id != RENESAS_RZG3S) {
+		if (gpriv->fdmode)
+			rcar_canfd_set_bit(gpriv->base, RCANFD_GRMCFG,
+					   RCANFD_GRMCFG_RCMC);
+		else
+			rcar_canfd_clear_bit(gpriv->base, RCANFD_GRMCFG,
+					     RCANFD_GRMCFG_RCMC);
+	}
 
 	/* Transition all Channels to reset mode */
 	for_each_set_bit(ch, &gpriv->channels_mask, RCANFD_NUM_CHANNELS) {
