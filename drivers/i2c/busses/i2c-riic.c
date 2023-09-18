@@ -47,6 +47,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/sys_soc.h>
+#include <linux/iopoll.h>
 
 #define REGSET_RZG2L	0
 #define REGSET_RZG3S	1
@@ -102,6 +103,7 @@ struct riic_dev {
 	struct completion msg_done;
 	struct i2c_adapter adapter;
 	struct clk *clk;
+	struct reset_control *rstc;
 	int regset;
 };
 
@@ -476,6 +478,7 @@ static int riic_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(rstc))
 		return dev_err_probe(&pdev->dev, PTR_ERR(rstc),
 				     "Error: missing reset ctrl\n");
+	riic->rstc = rstc;
 
 	ret = reset_control_deassert(rstc);
 	if (ret)
@@ -546,6 +549,47 @@ static int riic_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused riic_i2c_suspend(struct device *dev)
+{
+	struct riic_dev *riic = dev_get_drvdata(dev);
+
+	i2c_mark_adapter_suspended(&riic->adapter);
+	if (riic->rstc)
+		reset_control_assert(riic->rstc);
+
+	return 0;
+}
+
+static int __maybe_unused riic_i2c_resume(struct device *dev)
+{
+	struct riic_dev *riic = dev_get_drvdata(dev);
+	int ret = 0;
+	struct i2c_timings i2c_t;
+
+	if (riic->rstc)
+	{
+		reset_control_deassert(riic->rstc);
+		read_poll_timeout(reset_control_status, ret, ret == 0, 1, 200,
+				false, riic->rstc);
+		if (ret) {
+			pr_debug("i2c-riic: failed to reset controller (error %d)\n", ret);
+			return ret;
+		}
+	}
+
+	i2c_parse_fw_timings(dev, &i2c_t, true);
+	ret = riic_init_hw(riic, &i2c_t);
+	if (ret)
+		return ret;
+
+	i2c_mark_adapter_resumed(&riic->adapter);
+	return 0;
+}
+
+static const struct dev_pm_ops riic_i2c_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(riic_i2c_suspend, riic_i2c_resume)
+};
+
 static const struct of_device_id riic_i2c_dt_ids[] = {
 	{ .compatible = "renesas,riic-rz", },
 	{ /* Sentinel */ },
@@ -557,6 +601,7 @@ static struct platform_driver riic_i2c_driver = {
 	.driver		= {
 		.name	= "i2c-riic",
 		.of_match_table = riic_i2c_dt_ids,
+		.pm	= &riic_i2c_pm_ops,
 	},
 };
 
