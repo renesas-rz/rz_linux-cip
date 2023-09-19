@@ -21,7 +21,7 @@
 struct rz_mtu3_priv {
 	void __iomem *mmio;
 	struct reset_control *rstc;
-	raw_spinlock_t lock;
+	spinlock_t lock;
 };
 
 /******* MTU3 registers (original offset is +0x1200) *******/
@@ -175,11 +175,11 @@ void rz_mtu3_shared_reg_update_bit(struct rz_mtu3_channel *ch, u16 offset,
 	struct rz_mtu3_priv *priv = mtu->priv_data;
 	unsigned long tmdr, flags;
 
-	raw_spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->lock, flags);
 	tmdr = rz_mtu3_shared_reg_read(ch, offset);
 	__assign_bit(pos, &tmdr, !!val);
 	rz_mtu3_shared_reg_write(ch, offset, tmdr);
-	raw_spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->lock, flags);
 }
 EXPORT_SYMBOL_GPL(rz_mtu3_shared_reg_update_bit);
 
@@ -251,16 +251,17 @@ static void rz_mtu3_start_stop_ch(struct rz_mtu3_channel *ch, bool start)
 	u16 offset;
 	u8 bitpos;
 
-	/* start stop register shared by multiple timer channels */
-	raw_spin_lock_irqsave(&priv->lock, flags);
-
 	offset = rz_mtu3_get_tstr_offset(ch);
 	bitpos = rz_mtu3_get_tstr_bit_pos(ch);
+
+	/* start stop register shared by multiple timer channels */
+	spin_lock_irqsave(&priv->lock, flags);
+
 	tstr = rz_mtu3_shared_reg_read(ch, offset);
 	__assign_bit(bitpos, &tstr, start);
 	rz_mtu3_shared_reg_write(ch, offset, tstr);
 
-	raw_spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 bool rz_mtu3_is_enabled(struct rz_mtu3_channel *ch)
@@ -268,21 +269,18 @@ bool rz_mtu3_is_enabled(struct rz_mtu3_channel *ch)
 	struct rz_mtu3 *mtu = dev_get_drvdata(ch->dev->parent);
 	struct rz_mtu3_priv *priv = mtu->priv_data;
 	unsigned long flags, tstr;
-	bool ret = false;
 	u16 offset;
 	u8 bitpos;
 
-	/* start stop register shared by multiple timer channels */
-	raw_spin_lock_irqsave(&priv->lock, flags);
-
 	offset = rz_mtu3_get_tstr_offset(ch);
 	bitpos = rz_mtu3_get_tstr_bit_pos(ch);
+
+	/* start stop register shared by multiple timer channels */
+	spin_lock_irqsave(&priv->lock, flags);
 	tstr = rz_mtu3_shared_reg_read(ch, offset);
-	ret = tstr & BIT(bitpos);
+	spin_unlock_irqrestore(&priv->lock, flags);
 
-	raw_spin_unlock_irqrestore(&priv->lock, flags);
-
-	return ret;
+	return tstr & BIT(bitpos);
 }
 EXPORT_SYMBOL_GPL(rz_mtu3_is_enabled);
 
@@ -350,7 +348,7 @@ static int rz_mtu3_probe(struct platform_device *pdev)
 		return PTR_ERR(ddata->clk);
 
 	reset_control_deassert(priv->rstc);
-	raw_spin_lock_init(&priv->lock);
+	spin_lock_init(&priv->lock);
 	platform_set_drvdata(pdev, ddata);
 
 	for (i = 0; i < RZ_MTU_NUM_CHANNELS; i++) {
