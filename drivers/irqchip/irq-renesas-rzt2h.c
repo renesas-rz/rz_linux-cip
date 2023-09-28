@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
+#include <linux/irqchip/icu-t2h.h>
 
 /* Maximum 16 IRQ per driver instance */
 #define IRQC_IRQ_MAX	16
@@ -30,6 +31,9 @@
 #define S_PORTNF_MD		0x0C
 #define NS_PORTNF_MD_INIT	(0x3fffffff)
 #define S_PORTNF_MD_INIT	(0x3F)
+#define DMAC0_RSSELi(i)		(0x7D0 + 0x04 * (i)) /* DMAC Unit 0 Resource Select Register i */
+#define DMAC1_RSSELi(i)        (0x7E8 + 0x04 * (i)) /* DMAC Unit 1 Resource Select Register i */
+#define DMAC2_RSSELi(i)        (0x800 + 0x04 * (i)) /* DMAC Unit 2 Resource Select Register i */
 
 /* Interrupt type support */
 enum {
@@ -108,6 +112,66 @@ static int irqc_irq_set_wake(struct irq_data *d, unsigned int on)
 
 	return 0;
 }
+
+int register_dmac_req_signal(struct platform_device *icu_dev, unsigned int dmac,
+						unsigned int channel, int dmac_req)
+{
+	struct irqc_priv *priv = platform_get_drvdata(icu_dev);
+	u32 i, balance, dmsel;
+	u32 mask = 0x000003FF;
+
+	if ((channel < 0) || (channel > 15)) {
+		dev_dbg(&icu_dev->dev, "%s: Invalid channel\n", __func__);
+		return -EINVAL;
+	}
+	i = channel / 3;
+	balance = channel % 3;
+	switch (dmac) {
+
+	case 0:
+		dmsel = readl(priv->base + DMAC0_RSSELi(i));
+		if (balance == 1) {
+					dmac_req <<= 10;
+					mask <<= 10;
+		}
+		if (balance == 2) {
+					dmac_req <<= 20;
+					mask <<= 20;
+			}
+		dmsel = (dmsel & (~mask)) | dmac_req;
+			writel(dmsel, priv->base + DMAC0_RSSELi(i));
+		break;
+	case 1:
+		dmsel = readl(priv->base + DMAC1_RSSELi(i));
+		if (balance == 1) {
+			dmac_req <<= 10;
+			mask <<= 10;
+		}
+		if (balance == 2) {
+			dmac_req <<= 20;
+			mask <<= 20;
+		}
+		dmsel = (dmsel & (~mask)) | dmac_req;
+		writel(dmsel, priv->base + DMAC1_RSSELi(i));
+		break;
+	case 2:
+		dmsel = readl(priv->base + DMAC2_RSSELi(i));
+		if (balance == 1) {
+			dmac_req <<= 10;
+			mask <<= 10;
+		}
+		if (balance == 2) {
+			dmac_req <<= 20;
+			mask <<= 20;
+		}
+		dmsel = (dmsel & (~mask)) | dmac_req;
+		writel(dmsel, priv->base + DMAC2_RSSELi(i));
+		break;
+	}
+	return 0;
+}
+
+EXPORT_SYMBOL(register_dmac_req_signal);
 
 static irqreturn_t irqc_irq_handler(int irq, void *dev_id)
 {
