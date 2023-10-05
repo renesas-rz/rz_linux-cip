@@ -26,6 +26,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/rspi.h>
 #include <linux/spinlock.h>
+#include <linux/iopoll.h>
 
 #define RSPI_SPCR		0x00	/* Control Register */
 #define RSPI_SSLP		0x01	/* Slave Select Polarity Register */
@@ -211,6 +212,7 @@ struct rspi_data {
 
 	unsigned dma_callbacked:1;
 	unsigned byte_access:1;
+	struct reset_control *rstc;
 };
 
 static void rspi_write8(const struct rspi_data *rspi, u8 data, u16 offset)
@@ -1334,6 +1336,7 @@ static int rspi_mode(struct device *dev)
 
 static int rspi_parse_dt(struct device *dev, struct spi_controller *ctlr)
 {
+	struct rspi_data *rspi = dev_get_drvdata(dev);
 	struct reset_control *rstc;
 	u32 num_cs;
 	int error;
@@ -1348,6 +1351,7 @@ static int rspi_parse_dt(struct device *dev, struct spi_controller *ctlr)
 	ctlr->num_chipselect = num_cs;
 
 	rstc = devm_reset_control_get_optional_exclusive(dev, NULL);
+	rspi->rstc = rstc;
 	if (IS_ERR(rstc))
 		return dev_err_probe(dev, PTR_ERR(rstc),
 					     "failed to get reset ctrl\n");
@@ -1404,6 +1408,9 @@ static int rspi_probe(struct platform_device *pdev)
 	if (ctlr == NULL)
 		return -ENOMEM;
 
+	rspi = spi_controller_get_devdata(ctlr);
+	platform_set_drvdata(pdev, rspi);
+
 	ops = of_device_get_match_data(&pdev->dev);
 	if (ops) {
 		ret = rspi_parse_dt(&pdev->dev, ctlr);
@@ -1418,8 +1425,6 @@ static int rspi_probe(struct platform_device *pdev)
 			ctlr->num_chipselect = 2; /* default */
 	}
 
-	rspi = spi_controller_get_devdata(ctlr);
-	platform_set_drvdata(pdev, rspi);
 	rspi->ops = ops;
 	rspi->ctlr = ctlr;
 
@@ -1525,13 +1530,24 @@ MODULE_DEVICE_TABLE(platform, spi_driver_ids);
 static int rspi_suspend(struct device *dev)
 {
 	struct rspi_data *rspi = dev_get_drvdata(dev);
+	int ret;
 
-	return spi_controller_suspend(rspi->ctlr);
+	ret = spi_controller_suspend(rspi->ctlr);
+	reset_control_assert(rspi->rstc);
+
+	return ret;
 }
 
 static int rspi_resume(struct device *dev)
 {
 	struct rspi_data *rspi = dev_get_drvdata(dev);
+	int ret;
+
+	reset_control_deassert(rspi->rstc);
+	read_poll_timeout(reset_control_status, ret, ret == 0, 1, 200,
+		false, rspi->rstc);
+	if (ret < 0)
+		return ret;
 
 	return spi_controller_resume(rspi->ctlr);
 }
