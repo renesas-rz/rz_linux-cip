@@ -25,6 +25,7 @@
 #include <linux/sh_dma.h>
 #include <linux/spi/spi.h>
 #include <linux/spinlock.h>
+#include <linux/iopoll.h>
 
 #define RSPI_SPCR		0x00	/* Control Register */
 #define RSPI_SSLP		0x01	/* Slave Select Polarity Register */
@@ -201,6 +202,7 @@ struct rspi_data {
 	wait_queue_head_t wait;
 	spinlock_t lock;		/* Protects RMW-access to RSPI_SSLP */
 	struct clk *clk;
+	struct reset_control *rstc;
 	u16 spcmd;
 	u8 spsr;
 	u8 sppcr;
@@ -1321,6 +1323,7 @@ static void rspi_reset_control_assert(void *data)
 
 static int rspi_parse_dt(struct device *dev, struct spi_controller *ctlr)
 {
+	struct rspi_data *rspi = dev_get_drvdata(dev);
 	struct reset_control *rstc;
 	u32 num_cs;
 	int error;
@@ -1338,6 +1341,7 @@ static int rspi_parse_dt(struct device *dev, struct spi_controller *ctlr)
 	if (IS_ERR(rstc))
 		return dev_err_probe(dev, PTR_ERR(rstc),
 					     "failed to get reset ctrl\n");
+	rspi->rstc = rstc;
 
 	error = reset_control_deassert(rstc);
 	if (error) {
@@ -1390,6 +1394,9 @@ static int rspi_probe(struct platform_device *pdev)
 	if (ctlr == NULL)
 		return -ENOMEM;
 
+	rspi = spi_controller_get_devdata(ctlr);
+	platform_set_drvdata(pdev, rspi);
+
 	ops = of_device_get_match_data(&pdev->dev);
 	if (ops) {
 		ret = rspi_parse_dt(&pdev->dev, ctlr);
@@ -1400,8 +1407,6 @@ static int rspi_probe(struct platform_device *pdev)
 		ctlr->num_chipselect = 2; /* default */
 	}
 
-	rspi = spi_controller_get_devdata(ctlr);
-	platform_set_drvdata(pdev, rspi);
 	rspi->ops = ops;
 	rspi->ctlr = ctlr;
 
@@ -1506,13 +1511,24 @@ MODULE_DEVICE_TABLE(platform, spi_driver_ids);
 static int rspi_suspend(struct device *dev)
 {
 	struct rspi_data *rspi = dev_get_drvdata(dev);
+	int ret;
 
-	return spi_controller_suspend(rspi->ctlr);
+	ret = spi_controller_suspend(rspi->ctlr);
+	if (ret)
+		return ret;
+	reset_control_assert(rspi->rstc);
+
+	return 0;
 }
 
 static int rspi_resume(struct device *dev)
 {
 	struct rspi_data *rspi = dev_get_drvdata(dev);
+	int ret;
+
+	ret = reset_control_deassert(rspi->rstc);
+	if (ret < 0)
+		return ret;
 
 	return spi_controller_resume(rspi->ctlr);
 }
