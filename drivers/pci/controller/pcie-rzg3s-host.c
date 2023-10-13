@@ -1286,10 +1286,8 @@ static int rzg3s_pcie_resume(struct device *dev)
 	}
 
 	err = rzg3s_pcie_hw_init(pcie, host->channel);
-	if (err) {
-		dev_info(pcie->dev, "resume PCIe link down\n");
-		return err;
-	}
+	if (err)
+		dev_warn(pcie->dev, "PCIe link down\n");
 
 	for (idx = 0; idx < RZG3S_PCI_MAX_RESOURCES; idx++) {
 		/* Restores AXI window setting	*/
