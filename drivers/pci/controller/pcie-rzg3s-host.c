@@ -1222,7 +1222,7 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 	return rzg3s_pcie_enable(host);
 }
 
-static int rzg3s_pcie_suspend(struct device *dev)
+static int __maybe_unused rzg3s_pcie_suspend(struct device *dev)
 {
 	struct rzg3s_pcie_host *host = dev_get_drvdata(dev);
 	struct rzg3s_pcie *pcie = &host->pcie;
@@ -1264,7 +1264,7 @@ static int rzg3s_pcie_suspend(struct device *dev)
 	return 0;
 }
 
-static int rzg3s_pcie_resume(struct device *dev)
+static int __maybe_unused rzg3s_pcie_resume(struct device *dev)
 {
 	struct rzg3s_pcie_host *host = dev_get_drvdata(dev);
 	struct rzg3s_pcie *pcie = &host->pcie;
@@ -1321,8 +1321,8 @@ static int rzg3s_pcie_resume(struct device *dev)
 }
 
 static struct dev_pm_ops rzg3s_pcie_pm_ops = {
-	.suspend_noirq =	rzg3s_pcie_suspend,
-	.resume_noirq =		rzg3s_pcie_resume,
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(rzg3s_pcie_suspend,
+				      rzg3s_pcie_resume)
 };
 
 static struct platform_driver rzg3s_pcie_driver = {
