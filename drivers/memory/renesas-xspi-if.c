@@ -251,27 +251,6 @@ static int xspi_reg_read(void *context, unsigned int reg, unsigned int *val)
 {
 	struct rpcif *xspi = context;
 
-	switch (reg) {
-	case XSPI_CDD0BUF0:
-		switch (xspi->xfer_size) {
-		case 1:
-			*val = readb(xspi->base + reg);
-			return 0;
-
-		case 2:
-			*val = readw(xspi->base + reg);
-			return 0;
-
-		case 4:
-		case 8:
-			*val = readl(xspi->base + reg);
-			return 0;
-
-		default:
-			return -EILSEQ;
-		}
-	}
-
 	*val = readl(xspi->base + reg);
 	return 0;
 
@@ -280,28 +259,6 @@ static int xspi_reg_read(void *context, unsigned int reg, unsigned int *val)
 static int xspi_reg_write(void *context, unsigned int reg, unsigned int val)
 {
 	struct rpcif *xspi = context;
-
-	switch (reg) {
-	case XSPI_CDD0BUF0:
-		switch (xspi->xfer_size) {
-		case 1:
-			writeb(val, xspi->base + reg);
-			return 0;
-
-		case 2:
-			writew(val, xspi->base + reg);
-			return 0;
-
-		case 4:
-		case 8:
-			writel(val, xspi->base + reg);
-			return 0;
-
-		default:
-			return -EILSEQ;
-		}
-
-	}
 
 	writel(val, xspi->base + reg);
 	return 0;
@@ -487,17 +444,12 @@ int xspi_manual_xfer(struct rpcif *xspi)
 					XSPI_CDTBUF_ADDSIZE(0x7),
 					XSPI_CDTBUF_ADDSIZE(xspi->addr_nbytes));
 
-			xspi->xfer_size = nbytes;
-
 			memcpy(data, xspi->buffer + pos, nbytes);
 
 			if (nbytes > 4) {
-				xspi->xfer_size = 4;
 				regmap_write(xspi->regmap, XSPI_CDD0BUF0, *p++);
-				xspi->xfer_size = 1 << ilog2(nbytes - 4);
 				regmap_write(xspi->regmap, XSPI_CDD1BUF0, *p);
 			} else {
-				xspi->xfer_size = 1 << ilog2(bytes_left);
 				regmap_write(xspi->regmap, XSPI_CDD0BUF0, *p);
 			}
 
@@ -553,12 +505,9 @@ int xspi_manual_xfer(struct rpcif *xspi)
 				goto err_out;
 
 			if (nbytes > 4) {
-				xspi->xfer_size = 4;
 				regmap_read(xspi->regmap, XSPI_CDD0BUF0, p++);
-				xspi->xfer_size = 1 << ilog2(nbytes - 4);
 				regmap_read(xspi->regmap, XSPI_CDD1BUF0, p);
 			} else {
-				xspi->xfer_size = 1 << ilog2(bytes_left);
 				regmap_read(xspi->regmap, XSPI_CDD0BUF0, p);
 			}
 
