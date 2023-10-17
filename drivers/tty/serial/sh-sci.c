@@ -48,6 +48,7 @@
 #include <linux/timer.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
+#include <linux/iopoll.h>
 
 #ifdef CONFIG_SUPERH
 #include <asm/sh_bios.h>
@@ -123,6 +124,7 @@ struct sci_port {
 	unsigned int		sampling_rate_mask;
 	resource_size_t		reg_size;
 	struct mctrl_gpios	*gpios;
+	struct reset_control 	*rstc;
 
 	/* Clocks */
 	struct clk		*clks[SCI_NUM_CLKS];
@@ -3351,6 +3353,7 @@ static struct plat_sci_port *sci_parse_dt(struct platform_device *pdev,
 	}
 
 	sp = &sci_ports[id];
+	sp->rstc = rstc;
 	*dev_id = id;
 
 	p->type = SCI_OF_TYPE(data);
@@ -3488,12 +3491,27 @@ static __maybe_unused int sci_suspend(struct device *dev)
 	if (sport)
 		uart_suspend_port(&sci_uart_driver, &sport->port);
 
+	/* also support "no_console_suspend" */
+	if (console_suspend_enabled)
+		reset_control_assert(sport->rstc);
+
 	return 0;
 }
 
 static __maybe_unused int sci_resume(struct device *dev)
 {
 	struct sci_port *sport = dev_get_drvdata(dev);
+	int ret;
+
+	if (console_suspend_enabled) {
+		reset_control_deassert(sport->rstc);
+		read_poll_timeout(reset_control_status, ret, ret == 0, 1, 200,
+				false, sport->rstc);
+		if (ret) {
+			dev_err(dev, "failed to reset controller (error %d)\n", ret);
+			return ret;
+		}
+	}
 
 	if (sport)
 		uart_resume_port(&sci_uart_driver, &sport->port);
