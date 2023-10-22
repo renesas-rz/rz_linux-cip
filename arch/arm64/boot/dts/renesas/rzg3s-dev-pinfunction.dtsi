@@ -184,6 +184,11 @@
 			 <RZG2L_PORT_PINMUX(18, 5, 8)>; /* RXD */
 	};
 
+	spdif_pins: spdif {
+		pinmux = <RZG2L_PORT_PINMUX(11, 0, 6)>, /* SPDIF_IN  */
+			 <RZG2L_PORT_PINMUX(11, 1, 6)>; /* SPDIF_OUT */
+	};
+
 	spi2_pins: spi2 {
 		pinmux = <RZG2L_PORT_PINMUX(11, 0, 4)>, /* CK */
 			 <RZG2L_PORT_PINMUX(11, 1, 4)>, /* MOSI */
