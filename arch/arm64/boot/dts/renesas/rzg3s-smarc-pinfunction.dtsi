@@ -107,12 +107,17 @@
 			 <RZG2L_PORT_PINMUX(6, 4, 1)>; /* RXD */
 	};
 
-#if !SD2_SEL
+#if !SD2_SEL && !SPDIF_SEL
 	scif1_pins: scif1 {
 		pinmux = <RZG2L_PORT_PINMUX(14, 0, 1)>, /* TXD */
 			 <RZG2L_PORT_PINMUX(14, 1, 1)>, /* RXD */
 			 <RZG2L_PORT_PINMUX(16, 0, 1)>, /* CTS# */
 			 <RZG2L_PORT_PINMUX(16, 1, 1)>; /* RTS# */
+	};
+#elif SPDIF_SEL
+	spdif_pins: spdif {
+		pinmux = <RZG2L_PORT_PINMUX(16, 0, 2)>, /* SPDIF_IN */
+			 <RZG2L_PORT_PINMUX(16, 1, 2)>; /* SPDIF_OUT */
 	};
 #endif
 
