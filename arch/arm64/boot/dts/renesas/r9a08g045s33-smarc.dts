@@ -40,6 +40,16 @@
  */
 #define SD2_SEL			0
 
+/*
+ * Select between SCIF1 and SPDIF due to pins multiplex
+ *  RZ_SCIF1_CTS (P16_0) muxed with SPDIF_IN
+ *  RZ_SCIF1_RTS (P16_1) muxed with SPDIF_OUT
+ * SPDIF_SEL value
+ *  SPDIF_SEL=0: enable SCIF1 (default)
+ *  SPDIF_SEL=1: enable SPDIF
+ */
+#define SPDIF_SEL		0
+
 /* Set macro MTU3_PWM_SUPPORT to 1 to enable usage of PWM mode1 at MTIOC7C (GPIO12)
  * or complementary PWM at MTIOC7D (GPIO13).
  */

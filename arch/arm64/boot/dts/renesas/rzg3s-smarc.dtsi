@@ -82,11 +82,21 @@
 };
 
 /* Be noticed that SW_OP_MUX[4] must be turned on to use SCIF1(SER0) at PMOD1-3A. */
-#if !SD2_SEL
+#if !SD2_SEL && !SPDIF_SEL
 &scif1 {
 	pinctrl-0 = <&scif1_pins>;
 	pinctrl-names = "default";
 	uart-has-rtscts;
+	status = "okay";
+};
+#elif SPDIF_SEL
+&cpu_dai1 {
+	sound-dai = <&spdif>;
+};
+
+&spdif {
+	pinctrl-0 = <&spdif_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 #endif
@@ -154,11 +164,11 @@
 	};
 };
 
-&cpu_dai {
+&cpu_dai0 {
 	sound-dai = <&ssi3>;
 };
 
-&codec_dai {
+&codec_dai0 {
 	clocks = <&versa3 4>;
 };
 
