@@ -129,6 +129,12 @@
 #define XSPI_CDD0BUF2		0x00A8
 #define XSPI_CDD0BUF3		0x00B8
 
+/* xSPI Command Manual Data 1 Buf 0/1/2/3 */
+#define XSPI_CDD1BUF0		0x008C
+#define XSPI_CDD1BUF1		0x009C
+#define XSPI_CDD1BUF2		0x00AC
+#define XSPI_CDD1BUF3		0x00BC
+
 /* xSPI Command Calibration Control Register 0 CS(0/1) */
 #define XSPI_CCCTL0CS0		0x0130
 #define XSPI_CCCTL0CS1		0x0150
@@ -166,6 +172,12 @@
 #define XSPI_COMSTT_MEMACC	BIT(0)
 #define XSPI_COMSTT_PBUFNE	BIT(4)
 #define XSPI_COMSTT_WRBUFNE	BIT(6)
+#define XSPI_COMSTT_ECSCS0	BIT(16)
+#define XSPI_COMSTT_INTCS0	BIT(17)
+#define XSPI_COMSTT_RSTOCS0	BIT(18)
+#define XSPI_COMSTT_ECSCS1	BIT(20)
+#define XSPI_COMSTT_INTCS1	BIT(21)
+#define XSPI_COMSTT_RSTOCS1	BIT(22)
 
 /* xSPI Interrupt Status Register */
 #define XSPI_INTS		0x0190
@@ -175,6 +187,10 @@
 #define XSPI_INTS_PERTO		BIT(3)
 #define XSPI_INTS_DSTOCS0	BIT(4)
 #define XSPI_INTS_DSTOCS1	BIT(5)
+#define XSPI_INTS_ECSCS0	BIT(8)
+#define XSPI_INTS_ECSCS1	BIT(9)
+#define XSPI_INTS_INTCS0	BIT(12)
+#define XSPI_INTS_INTCS1	BIT(13)
 #define XSPI_INTS_BUSERR	BIT(20)
 #define XSPI_INTS_CAFAILCS0	BIT(28)
 #define XSPI_INTS_CAFAILCS1	BIT(29)
@@ -203,6 +219,10 @@
 #define XSPI_INTE_PERTOE	BIT(3)
 #define XSPI_INTE_DSTOCS0E	BIT(4)
 #define XSPI_INTE_DSTOCS1E	BIT(5)
+#define XSPI_INTE_ECSCS0E	BIT(8)
+#define XSPI_INTE_ECSCS1E	BIT(9)
+#define XSPI_INTE_INTCS0E	BIT(12)
+#define XSPI_INTE_INTCS1E	BIT(13)
 #define XSPI_INTE_BUSERRE	BIT(20)
 #define XSPI_INTE_CAFAILCS0E	BIT(28)
 #define XSPI_INTE_CAFAILCS1E	BIT(29)
@@ -213,6 +233,8 @@
 #define MWRSIZE_MAX		64
 
 /* xSPI Protocol mode */
+#define PROTO_1S_2S_2S		0x48
+#define PROTO_2S_2S_2S		0x49
 #define PROTO_1S_4S_4S		0x090
 #define PROTO_4S_4S_4S		0x092
 
@@ -404,9 +426,14 @@ void xspi_prepare(struct rpcif *xspi, const struct rpcif_op *op, u64 *offs,
 		xspi->xferlen = nbytes;
 	}
 
-	if (op->cmd.buswidth == 1 &&
-			(op->addr.buswidth == 4 || op->data.buswidth == 4))
-		xspi->proto = PROTO_1S_4S_4S;
+	if (op->cmd.buswidth == 1) {
+		if (op->addr.buswidth == 2 || op->data.buswidth == 2)
+				xspi->proto = PROTO_1S_2S_2S;
+		else if (op->addr.buswidth == 4 || op->data.buswidth == 4)
+				xspi->proto = PROTO_1S_4S_4S;
+	} else if (op->cmd.buswidth == 2 &&
+				(op->addr.buswidth == 2 || op->data.buswidth == 2))
+				xspi->proto = PROTO_2S_2S_2S;
 	else if (op->cmd.buswidth == 4 &&
 			(op->addr.buswidth == 4 || op->data.buswidth == 4))
 		xspi->proto = PROTO_4S_4S_4S;
@@ -693,6 +720,7 @@ static int xspi_remove(struct platform_device *pdev)
 
 static const struct of_device_id xspi_of_match[] = {
 	{ .compatible = "renesas,g3s-xspi-if", .data = (void *)XSPI_RZ_G3S },
+	{ .compatible = "renesas,v2h-xspi-if", .data = (void *)XSPI_RZ_V2H },
 	{},
 };
 MODULE_DEVICE_TABLE(of, xspi_of_match);
