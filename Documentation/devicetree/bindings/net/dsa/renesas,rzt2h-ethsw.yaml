@@ -1,0 +1,159 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas RZ/T2H Ethernet Switch
+
+description: |
+  The Ethernet switch is present on the Renesas RZ/T2H SoC family and
+  handles 3 ports + 1 CPU management port.
+
+allOf:
+  - $ref: dsa.yaml#/$defs/ethernet-ports
+
+properties:
+  compatible:
+    items:
+      - const: renesas,rzt2h-ethsw
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: Device Level Ring (DLR) interrupt
+      - description: Switch interrupt
+      - description: Parallel Redundancy Protocol (PRP) interrupt
+      - description: Integrated HUB module interrupt
+      - description: Receive Pattern Match interrupt
+
+  interrupt-names:
+    items:
+      - const: dlr
+      - const: switch
+      - const: prp
+      - const: hub
+      - const: ptrn
+
+  power-domains:
+    maxItems: 1
+
+  mdio:
+    $ref: /schemas/net/mdio.yaml#
+    unevaluatedProperties: false
+
+  clocks:
+    items:
+      - description: Switch system clock
+
+  ethernet-ports:
+    type: object
+    properties:
+      '#address-cells':
+        const: 1
+      '#size-cells':
+        const: 0
+
+    patternProperties:
+      "^(ethernet-)?port@[0-3]$":
+        type: object
+        description: Ethernet switch ports
+
+        properties:
+          pcs-handle:
+            maxItems: 1
+            description:
+              phandle pointing to a PCS sub-node compatible with
+              renesas,rzt2h-ethss.yaml#
+
+unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - power-domains
+
+examples:
+  - |
+   #include <dt-bindings/interrupt-controller/arm-gic.h>
+   #include <dt-bindings/clock/r9a09g077-cpg.h>
+
+	ethsw: ethsw@80120000 {
+	        compatible = "renesas,rzt2h-ethsw";
+	        reg =  <0 0x80120000 0 0x10000>;
+	        clocks = <&cpg CPG_MOD R9A09G077_ETHSW_CLK>;
+	        resets = <&cpg R9A09G077_ETHSW_RST>;
+	        power-domains = <&cpg>;
+	        status = "disabled";
+
+	        ethernet-ports {
+	                #address-cells = <1>;
+	                #size-cells = <0>;
+
+	                switch_port0: port@0 {
+	                        reg = <0>;
+	                        pcs-handle = <&mii_conv0>;
+	                        label = "lan0";
+	                        phy-mode = "mii";
+	                        phy-handle = <&phy0>;
+	                        status = "okay";
+	                };
+
+	                switch_port1: port@1 {
+	                        reg = <1>;
+	                        pcs-handle = <&mii_conv1>;
+	                        label = "lan1";
+	                        phy-mode = "mii";
+	                        phy-handle = <&phy1>;
+	                        status = "okay";
+	                };
+
+	                switch_port2: port@2 {
+	                        reg = <2>;
+	                        pcs-handle = <&mii_conv2>;
+	                        label = "lan2";
+	                        phy-mode = "mii";
+	                        phy-handle = <&phy2>;
+	                        status = "okay";
+	                };
+
+	                switch_port3: port@3 {
+	                        reg = <3>;
+	                        ethernet = <&gmac0>;
+	                        label = "cpu";
+	                        phy-mode = "internal";
+	                        status = "okay";
+	                        fixed-link {
+	                                speed = <1000>;
+	                                full-duplex;
+	                        };
+	                };
+	        };
+
+		mdio {
+		        clock-frequency = <2500000>;
+
+		        #address-cells = <1>;
+		        #size-cells = <0>;
+
+		        phy0: ethernet-phy@0 {
+		                compatible = "ethernet-phy-id0007.0772";
+		                phy-mode = "mii";
+		                reg = <0>;
+		        };
+
+		        phy1: ethernet-phy@1 {
+		                compatible = "ethernet-phy-id0007.0772";
+		                phy-mode = "mii";
+		                reg = <1>;
+		        };
+
+		        phy2: ethernet-phy@2 {
+		                compatible = "ethernet-phy-id0007.0772";
+		                phy-mode = "mii";
+		                reg = <2>;
+		        };
+		};
+	};
