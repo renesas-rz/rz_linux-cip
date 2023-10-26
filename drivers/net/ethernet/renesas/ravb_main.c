@@ -2198,6 +2198,10 @@ static int ravb_remove(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct ravb_private *priv = netdev_priv(ndev);
 
+	netif_carrier_off(ndev);
+	netif_tx_disable(ndev);
+	cancel_work_sync(&priv->work);
+
 	/* Stop PTP Clock driver */
 	if (priv->chip_id != RCAR_GEN2)
 		ravb_ptp_stop(ndev);
