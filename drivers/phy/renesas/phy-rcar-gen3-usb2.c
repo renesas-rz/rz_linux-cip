@@ -106,6 +106,7 @@
 
 static const struct soc_device_attribute rzt2h_match[] = {
 	{ .family = "RZ/T2H" },
+	{ .family = "RZ/N2H" },
 	{ /* sentinel*/ }
 };
 
@@ -722,6 +723,10 @@ static const struct of_device_id rcar_gen3_phy_usb2_match_table[] = {
 	},
 	{
 		.compatible = "renesas,rzt2h-usb2-phy",
+		.data = &rz_t2h_phy_usb2_data,
+	},
+	{
+		.compatible = "renesas,rzn2h-usb2-phy",
 		.data = &rz_t2h_phy_usb2_data,
 	},
 	{ /* sentinel */ },
