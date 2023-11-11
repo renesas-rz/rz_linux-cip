@@ -1051,10 +1051,19 @@ static struct rzt2h_pinctrl_data r9a09g077_data = {
 	.n_port_pins = ARRAY_SIZE(rzt2h_gpio_names),
 };
 
+static struct rzt2h_pinctrl_data r9a09g087_data = {
+	.port_pins = rzt2h_gpio_names,
+	.n_port_pins = ARRAY_SIZE(rzt2h_gpio_names),
+};
+
 static const struct of_device_id rzt2h_pinctrl_of_table[] = {
 	{
 		.compatible = "renesas,r9a09g077-pinctrl",
 		.data = &r9a09g077_data,
+	},
+	{
+		.compatible = "renesas,r9a09g087-pinctrl",
+		.data = &r9a09g087_data,
 	},
 	{ /* sentinel */ }
 };
