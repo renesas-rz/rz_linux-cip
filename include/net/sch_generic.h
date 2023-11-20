@@ -195,7 +195,7 @@ nolock_empty:
 		 * Variant of write_seqcount_t_begin() telling lockdep that a
 		 * trylock was attempted.
 		 */
-		raw_write_seqcount_t_begin(s);
+		do_raw_write_seqcount_begin(s);
 		seqcount_acquire(&s->dep_map, 0, 1, _RET_IP_);
 		return true;
 	}
