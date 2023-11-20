@@ -43,6 +43,7 @@ __u64 eventfd_signal(struct eventfd_ctx *ctx, __u64 n);
 __u64 eventfd_signal_mask(struct eventfd_ctx *ctx, __u64 n, unsigned mask);
 int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx, wait_queue_entry_t *wait,
 				  __u64 *cnt);
+void eventfd_ctx_do_read(struct eventfd_ctx *ctx, __u64 *cnt);
 
 static inline bool eventfd_signal_allowed(void)
 {
@@ -86,6 +87,11 @@ static inline int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx,
 static inline bool eventfd_signal_allowed(void)
 {
 	return true;
+}
+
+static inline void eventfd_ctx_do_read(struct eventfd_ctx *ctx, __u64 *cnt)
+{
+
 }
 
 #endif
