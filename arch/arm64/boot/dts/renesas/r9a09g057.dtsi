@@ -1376,7 +1376,7 @@
 				 <&cpg CPG_MOD R9A09G057_PCIE_CLK_PMU>;
 			power-domains = <&cpg>;
 			resets = <&cpg R9A09G057_PCIE_ARESETN>;
-			ranges = <0x03000000 0x0 0x30000000 0x0 0x30000000 0x0 0x08000000>;
+			ranges = <0x02000000 0x0 0x30000000 0x0 0x30000000 0x0 0x00200000>;
 			dma-ranges = <0x42000000 0 0x40000000 0 0x40000000 0 0x80000000>;
 			interrupts = <GIC_SPI 791 IRQ_TYPE_LEVEL_HIGH>;
 			#interrupt-cells = <1>;

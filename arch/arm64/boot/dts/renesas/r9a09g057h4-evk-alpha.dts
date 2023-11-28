@@ -79,7 +79,7 @@
 
 / {
 	model = "Renesas EVK Alpha based on r9a09g057h4";
-	compatible = "renesas,r9a09g057h4-evk", "renesas,r9a09g057h4", "renesas,r9a09g057";
+	compatible = "renesas,r9a09g057h4-evk-alpha", "renesas,r9a09g057h4", "renesas,r9a09g057";
 
 	aliases {
 		serial0 = &scif0;
