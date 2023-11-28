@@ -1151,25 +1151,8 @@ static int rzv2h_pcie_probe(struct platform_device *pdev)
 		return 0;
 	}
 
-	data = rzv2h_pci_read_reg(pcie, PCIE_CORE_STATUS_2_REG);
-	dev_info(&pdev->dev, "PCIe Linx status [0x%x]n", data);
-
-	switch ((data >> 8) & 0xFF) {
-	case 0x01:
-	case 0x02:
-		/*- Detect Lane 0 or Lane 1 -*/
-		data = 0x01;
-		break;
-	case 0x03:
-		/*- Detect Lane 0 and Lane 1 -*/
-		data = 0x02;
-		break;
-	default:
-		/*- unknown -*/
-		data = 0xff;
-		break;
-	}
-	dev_info(&pdev->dev, "PCIe x%d: link up Lane number\n", data);
+	data = rzv2h_pci_read_reg(pcie, PCI_RC_LINKCS);
+	dev_info(&pdev->dev, "PCIe x%d: link up Lane number\n", (data >> 20) & 0x3F);
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		err = rzv2h_pcie_enable_msi(host);
