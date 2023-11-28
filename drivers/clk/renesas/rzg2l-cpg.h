@@ -10,6 +10,7 @@
 #define __RENESAS_RZG2L_CPG_H__
 
 #include <linux/notifier.h>
+#include <linux/clk-provider.h>
 
 #define CPG_SIPLL5_STBY		(0x140)
 #define CPG_SIPLL5_CLK1		(0x144)
@@ -40,6 +41,7 @@
 #define CPG_MHU_MSTOP		(0xB88)
 #define CPG_BUS_MCPU3_MSTOP	(0xB90)
 #define CPG_BUS_PERI_CPU2_MSTOP	(0xB94)
+#define CPG_WDTOVF_RST		(0xB10)
 #define CPG_OTHERFUNC1_REG	(0xBE8)
 
 #define CPG_SIPLL5_STBY_RESETB		BIT(0)
@@ -83,6 +85,8 @@
 #define SEL_GPU2	SEL_PLL_PACK(CPG_PL6_SSEL, 12, 1)
 
 #define EXTAL_FREQ_IN_MEGA_HZ	(24)
+
+#define WDTOVF_WEN(x)	((x) << 16)
 
 /**
  * Definitions of CPG Core Clocks
@@ -353,6 +357,8 @@ struct rzg2l_cpg_info {
 
 	bool has_clk_mon_regs;
 };
+
+unsigned int rzg2l_cpg_wdt_ovf_sysrst(struct clk_hw *hw, int channel);
 
 extern const struct rzg2l_cpg_info r9a07g043_cpg_info;
 extern const struct rzg2l_cpg_info r9a07g044_cpg_info;
