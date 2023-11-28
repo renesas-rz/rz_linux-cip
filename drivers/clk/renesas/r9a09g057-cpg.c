@@ -899,6 +899,8 @@ static struct rzg2l_reset r9a09g057_resets[] = {
 	DEF_RST(R9A09G057_ADC_ADRST_N,			0x93C,  6),
 	DEF_RST(R9A09G057_TSU0_PRESETN,			0x93C,  7),
 	DEF_RST(R9A09G057_TSU1_PRESETN,			0x93C,  8),
+	DEF_RST(R9A09G057_DRP_ARESETN,			0x93C, 12),
+	DEF_RST(R9A09G057_DRPAI_ARESETN,		0x93C, 13),
 };
 
 static const unsigned int r9a09g057_crit_mod_clks[] __initconst = {
@@ -1225,6 +1227,8 @@ static struct rst_mon r9a09g057_rst_mon[] = {
 	DEF_RST_MON(R9A09G057_ADC_ADRST_N,		0xA1C,	 7),
 	DEF_RST_MON(R9A09G057_TSU0_PRESETN,		0xA1C,	 8),
 	DEF_RST_MON(R9A09G057_TSU1_PRESETN,		0xA1C,	 9),
+	DEF_RST_MON(R9A09G057_DRP_ARESETN,		0xA1C,	13),
+	DEF_RST_MON(R9A09G057_DRPAI_ARESETN,		0xA1C,	14),
 };
 
 const struct rzg2l_cpg_info r9a09g057_cpg_info = {
