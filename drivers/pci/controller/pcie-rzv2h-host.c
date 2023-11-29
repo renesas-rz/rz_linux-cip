@@ -1006,8 +1006,8 @@ static void rzv2h_pcie_hw_enable_msi(struct rzv2h_pcie_host *host)
 		msi_base_mask |= (((unsigned long) rzv2h_pci_read_reg(pcie, AXI_WINDOW_MASKU_REG(idx))) << 32);
 		if ((pci_base <= base) && (pci_base + msi_base_mask >= base)) {
 
-			msi_base  = base & msi_base_mask;
 			msi_base |= rzv2h_pci_read_reg(pcie, AXI_WINDOW_BASEL_REG(idx));
+			msi_base |= (((unsigned long) rzv2h_pci_read_reg(pcie, AXI_WINDOW_BASEU_REG(idx))) << 32);
 			msi->virt_pages = msi_base & ~AXI_WINDOW_ENABLE;
 			break;
 		}

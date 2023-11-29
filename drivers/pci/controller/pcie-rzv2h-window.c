@@ -64,11 +64,13 @@ void rzv2h_pcie_set_outbound(struct rzv2h_pcie *pcie, int win,
 	else
 		res_start = res->start - window->offset;
 
-	rzv2h_pci_write_reg(pcie, res_start, PCIE_WINDOW_BASEL_REG(win));
+	rzv2h_pci_write_reg(pcie, upper_32_bits(res_start), PCIE_WINDOW_BASEU_REG(win));
+	rzv2h_pci_write_reg(pcie, lower_32_bits(res_start), PCIE_WINDOW_BASEL_REG(win));
 	rzv2h_pci_write_reg(pcie, upper_32_bits(res_start), PCIE_DESTINATION_HI_REG(win));
 	rzv2h_pci_write_reg(pcie, lower_32_bits(res_start), PCIE_DESTINATION_LO_REG(win));
 
-	rzv2h_pci_write_reg(pcie, mask, PCIE_WINDOW_MASKL_REG(win));
+	rzv2h_pci_write_reg(pcie, upper_32_bits(mask), PCIE_WINDOW_MASKU_REG(win));
+	rzv2h_pci_write_reg(pcie, lower_32_bits(mask), PCIE_WINDOW_MASKL_REG(win));
 
 	rzv2h_rmw(pcie, PCIE_WINDOW_BASEL_REG(win), PCIE_WINDOW_ENABLE, PCIE_WINDOW_ENABLE);
 }

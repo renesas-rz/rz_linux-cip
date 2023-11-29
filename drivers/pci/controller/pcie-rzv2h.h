@@ -25,7 +25,9 @@
 /* AXI to PCI Express Access */
 #define PCIE_WINDOW_BASEL_REG(x)					(0x1100 + ((x) * 0x20))
 	#define PCIE_WINDOW_ENABLE					(0x00000001)
+#define PCIE_WINDOW_BASEU_REG(x)					(0x1104 + ((x) * 0x20))
 #define PCIE_WINDOW_MASKL_REG(x)					(0x1108 + ((x) * 0x20))
+#define PCIE_WINDOW_MASKU_REG(x)					(0x110C + ((x) * 0x20))
 #define PCIE_DESTINATION_LO_REG(x)				(0x1110 + ((x) * 0x20))
 #define PCIE_DESTINATION_HI_REG(x)				(0x1114 + ((x) * 0x20))
 
