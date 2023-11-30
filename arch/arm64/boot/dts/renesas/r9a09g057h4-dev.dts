@@ -133,7 +133,7 @@
 
 		gpios = <&pinctrl RZG2L_GPIO(10, 0) GPIO_ACTIVE_HIGH>;
 
-		gpios-states = <1>;
+		gpios-states = <0>;
 		states = <3300000 0 1800000 1>;
 	};
 
@@ -146,7 +146,7 @@
 
 		gpios = <&pinctrl RZG2L_GPIO(10, 4) GPIO_ACTIVE_HIGH>;
 
-		gpios-states = <1>;
+		gpios-states = <0>;
 		states = <3300000 0 1800000 1>;
 	};
 
