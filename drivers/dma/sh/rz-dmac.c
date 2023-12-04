@@ -1269,6 +1269,7 @@ static struct rz_dmac_hw_info r9a09g077_info = {
 static const struct of_device_id of_rz_dmac_match[] = {
 	{ .compatible = "renesas,rz-dmac", .data = &rz_common_info, },
 	{ .compatible = "renesas,r9a09g077-dmac", .data = &r9a09g077_info, },
+	{ .compatible = "renesas,r9a09g087-dmac", .data = &r9a09g077_info, },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, of_rz_dmac_match);
