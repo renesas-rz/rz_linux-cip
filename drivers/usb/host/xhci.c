@@ -183,24 +183,26 @@ int xhci_reset(struct xhci_hcd *xhci, u64 timeout_us)
 		return 0;
 	}
 
-	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "// Reset the HC");
-	command = readl(&xhci->op_regs->command);
-	command |= CMD_RESET;
-	writel(command, &xhci->op_regs->command);
+	if (!(xhci->quirks & XHCI_BROKEN_HCRST)) {
+		xhci_dbg_trace(xhci, trace_xhci_dbg_init, "// Reset the HC");
+		command = readl(&xhci->op_regs->command);
+		command |= CMD_RESET;
+		writel(command, &xhci->op_regs->command);
 
-	/* Existing Intel xHCI controllers require a delay of 1 mS,
-	 * after setting the CMD_RESET bit, and before accessing any
-	 * HC registers. This allows the HC to complete the
-	 * reset operation and be ready for HC register access.
-	 * Without this delay, the subsequent HC register access,
-	 * may result in a system hang very rarely.
-	 */
-	if (xhci->quirks & XHCI_INTEL_HOST)
-		udelay(1000);
+		/* Existing Intel xHCI controllers require a delay of 1 mS,
+		 * after setting the CMD_RESET bit, and before accessing any
+		 * HC registers. This allows the HC to complete the
+		 * reset operation and be ready for HC register access.
+		 * Without this delay, the subsequent HC register access,
+		 * may result in a system hang very rarely.
+		 */
+		if (xhci->quirks & XHCI_INTEL_HOST)
+			udelay(1000);
 
-	ret = xhci_handshake(&xhci->op_regs->command, CMD_RESET, 0, timeout_us);
-	if (ret)
-		return ret;
+		ret = xhci_handshake(&xhci->op_regs->command, CMD_RESET, 0, timeout_us);
+		if (ret)
+			return ret;
+	}
 
 	if (xhci->quirks & XHCI_ASMEDIA_MODIFY_FLOWCONTROL)
 		usb_asmedia_modifyflowcontrol(to_pci_dev(xhci_to_hcd(xhci)->self.controller));

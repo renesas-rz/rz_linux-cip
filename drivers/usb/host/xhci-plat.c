@@ -19,11 +19,13 @@
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/usb/of.h>
+#include <linux/reset.h>
 
 #include "xhci.h"
 #include "xhci-plat.h"
 #include "xhci-mvebu.h"
 #include "xhci-rcar.h"
+#include "xhci-rzv2h.h"
 
 static struct hc_driver __read_mostly xhci_plat_hc_driver;
 
@@ -133,6 +135,12 @@ static const struct xhci_plat_priv xhci_plat_renesas_rcar_gen3 = {
 	SET_XHCI_PLAT_PRIV_FOR_RCAR(XHCI_RCAR_FIRMWARE_NAME_V3)
 };
 
+static const struct xhci_plat_priv xhci_plat_renesas_rzv2h = {
+	.quirks = XHCI_BROKEN_HCRST,
+	.plat_start = xhci_rzv2h_start,
+	.plat_setup = xhci_rzv2h_setup,
+};
+
 static const struct xhci_plat_priv xhci_plat_brcm = {
 	.quirks = XHCI_RESET_ON_RESUME,
 };
@@ -178,6 +186,9 @@ static const struct of_device_id usb_xhci_of_match[] = {
 	}, {
 		.compatible = "brcm,bcm7445-xhci",
 		.data = &xhci_plat_brcm,
+	}, {
+		.compatible = "renesas,rzv2h-xhci",
+		.data = &xhci_plat_renesas_rzv2h,
 	},
 	{},
 };
@@ -262,6 +273,18 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	hcd->rsrc_len = resource_size(res);
 
 	xhci = hcd_to_xhci(hcd);
+
+	xhci->reset = devm_reset_control_get_optional_exclusive(&pdev->dev,
+								NULL);
+
+	if (IS_ERR(xhci->reset)) {
+		ret = PTR_ERR(xhci->reset);
+		goto put_hcd;
+	}
+
+	ret = reset_control_deassert(xhci->reset);
+	if (ret)
+		goto put_hcd;
 
 	/*
 	 * Not all platforms have clks so it is not an error if the
