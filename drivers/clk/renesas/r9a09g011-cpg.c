@@ -283,6 +283,8 @@ static const struct rzg2l_reset r9a09g011_resets[] = {
 	DEF_RST_MON(R9A09G011_WDT1_PRESETN,	0x614, 13, 19),
 	DEF_RST_MON(R9A09G011_CSI_GPG_PRESETN,  0x614, 6, 24),
 	DEF_RST_MON(R9A09G011_CSI_GPH_PRESETN,  0x614, 7, 25),
+	DEF_RST_MON(R9A09G011_DRPA_ARESETN,     0x620, 0, 14),
+	DEF_RST_MON(R9A09G011_DRPB_ARESETN,     0x624, 0, 15),
 };
 
 static const unsigned int r9a09g011_crit_mod_clks[] __initconst = {
