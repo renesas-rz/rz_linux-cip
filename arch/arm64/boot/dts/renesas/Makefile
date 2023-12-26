@@ -97,3 +97,4 @@ dtb-$(CONFIG_ARCH_R9A07G054) += r9a07g054l2-dev.dtb
 
 dtb-$(CONFIG_ARCH_R9A09G057) += r9a09g057h4-dev.dtb
 dtb-$(CONFIG_ARCH_R9A09G057) += r9a09g057h4-evk-alpha.dtb
+dtb-$(CONFIG_ARCH_R9A09G057) += r9a09g057h4-evk-ver1.dtb
