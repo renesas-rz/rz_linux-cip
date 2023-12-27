@@ -10,12 +10,25 @@
 #include <dt-bindings/pinctrl/rzg2l-pinctrl.h>
 #include <dt-bindings/gpio/gpio.h>
 
+/*
+ * Jumper setting
+ *
+ * Please change the jumper setting corresponding to below Macros:
+ *
+ * SEL_CAN01_HEADER:
+ *	1: CAN0/1	0: External Header Pin
+ */
+
+#define SEL_CAN01_HEADER	1
+
 / {
 	model = "Renesas EVK ver1 based on r9a09g057h4";
 	compatible = "renesas,r9a09g057h4-evk-ver1", "renesas,r9a09g057h4", "renesas,r9a09g057";
 
 	aliases {
 		serial0 = &scif0;
+		serial1 = &sci4;
+		serial2 = &sci5;
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
 		mmc2 = &sdhi2;
@@ -183,6 +196,7 @@
 };
 
 &pinctrl {
+#if (SEL_CAN01_HEADER)
 	can0_pins: can0 {
 		pinmux = <RZG2L_PORT_PINMUX(8, 0, 5)>, /* TX */
 			 <RZG2L_PORT_PINMUX(8, 1, 5)>; /* RX */
@@ -192,9 +206,20 @@
 		pinmux = <RZG2L_PORT_PINMUX(8, 2, 5)>, /* TX */
 			 <RZG2L_PORT_PINMUX(8, 3, 5)>; /* RX */
 	};
+#endif
 
 	scif0_pins: scif0 {
 		pins =  "SCIF_RXD", "SCIF_TXD";
+	};
+
+	sci4_pins: sci4 {
+		pinmux = <RZG2L_PORT_PINMUX(8, 4, 6)>, /* SCI4_TXD_MOSI_SDA */
+			 <RZG2L_PORT_PINMUX(8, 5, 6)>; /* SCI4_RXD_MISO_SCL */
+	};
+
+	sci5_pins: sci5 {
+		pinmux = <RZG2L_PORT_PINMUX(8, 6, 6)>, /* SCI5_TXD_MOSI_SDA */
+			 <RZG2L_PORT_PINMUX(8, 7, 6)>; /* SCI5_RXD_MISO_SCL */
 	};
 
 	sd0_pwr_en {
@@ -278,6 +303,13 @@
 		pinmux = <RZG2L_PORT_PINMUX(6, 6, 14)>, /* VBUS */
 			 <RZG2L_PORT_PINMUX(6, 7, 14)>; /* OVC */
 	};
+
+	spi2_pins: spi2 {
+		pinmux = <RZG2L_PORT_PINMUX(11, 3, 5)>, /* MISO */
+			 <RZG2L_PORT_PINMUX(11, 4, 5)>, /* MOSI */
+			 <RZG2L_PORT_PINMUX(10, 7, 5)>, /* SSL */
+			 <RZG2L_PORT_PINMUX(11, 5, 5)>; /* RSPCK */
+	};
 };
 
 &extal_clk {
@@ -296,6 +328,18 @@
 	pinctrl-0 = <&scif0_pins>;
 	pinctrl-names = "default";
 
+	status = "okay";
+};
+
+&sci4 {
+	pinctrl-0 = <&sci4_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&sci5 {
+	pinctrl-0 = <&sci5_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
@@ -699,6 +743,7 @@
 		status = "okay";
 };
 
+#if (SEL_CAN01_HEADER)
 &canfd {
 	pinctrl-0 = <&can0_pins &can1_pins>;
 	pinctrl-names = "default";
@@ -710,5 +755,63 @@
 
 	channel1 {
 		status = "okay";
+	};
+};
+#endif
+
+&rtc {
+	status = "okay";
+};
+
+&wdt1 {
+	status = "okay";
+};
+
+&spi2 {
+	pinctrl-0 = <&spi2_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&xspi {
+	status = "okay";
+
+	flash@0 {
+		compatible = "micron,mt25qu512a", "jedec,spi-nor";
+		reg = <0>;
+		m25p,fast-read;
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@000000 {
+				label = "bl2";
+				reg = <0x00000000 0x0001D200>;
+				read-only;
+			};
+
+			partition@01D200 {
+				label = "fip";
+				reg = <0x0001D200 0x001C2E00>;
+				read-only;
+			};
+
+			partition@1E0000 {
+				label = "env";
+				reg = <0x001E0000 0x00020000>;
+				read-only;
+			};
+
+			partition@200000 {
+				label = "test-area";
+				reg = <0x00200000 0x00E00000>;
+			};
+		};
 	};
 };
