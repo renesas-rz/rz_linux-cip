@@ -82,7 +82,12 @@
 
 		opencva_reserved: OpenCVA@C0000000 {
 			reusable;
-			reg = <0x0 0xC0000000 0x0 0x8000000>;
+			reg = <0x0 0xC0000000 0x0 0x7D00000>;
+		};
+
+		drp_codec: DRP-Codec@C7D00000 {
+			reusable;
+			reg = <0x0 0xC7D00000 0x0 0x300000>;
 		};
 
 		drp_reserved: DRP-AI@240000000 {
