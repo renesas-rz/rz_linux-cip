@@ -848,49 +848,13 @@ static int vc3_probe(struct i2c_client *client,
 	}
 
 	/* The following writes should move to bootloader */
-	regmap_write(vc3->regmap, 0x00, 0x20);
-	regmap_write(vc3->regmap, 0x01, 0x00);
-	regmap_write(vc3->regmap, 0x02, 0x11);
-	regmap_write(vc3->regmap, 0x03, 0x19);
-	regmap_write(vc3->regmap, 0x04, 0x00);
-	regmap_write(vc3->regmap, 0x05, 0x32);
-	regmap_write(vc3->regmap, 0x06, 0x5C);
-	regmap_write(vc3->regmap, 0x07, 0x27);
-	regmap_write(vc3->regmap, 0x08, 0x19);
-	regmap_write(vc3->regmap, 0x09, 0x4C);
-	regmap_write(vc3->regmap, 0x0a, 0xE2);
-	regmap_write(vc3->regmap, 0x0b, 0x1A);
-	regmap_write(vc3->regmap, 0x0c, 0x5F);
-	regmap_write(vc3->regmap, 0x0d, 0x22);
-	regmap_write(vc3->regmap, 0x0e, 0xF0);
-	regmap_write(vc3->regmap, 0x0f, 0xAE);
-	regmap_write(vc3->regmap, 0x10, 0x00);
-	regmap_write(vc3->regmap, 0x11, 0x80);
-	regmap_write(vc3->regmap, 0x12, 0x00);
-	regmap_write(vc3->regmap, 0x13, 0x00);
-	regmap_write(vc3->regmap, 0x14, 0x00);
-	regmap_write(vc3->regmap, 0x15, 0x00);
-	regmap_write(vc3->regmap, 0x16, 0x00);
-	regmap_write(vc3->regmap, 0x17, 0x00);
-	regmap_write(vc3->regmap, 0x18, 0x0E);
-	regmap_write(vc3->regmap, 0x19, 0x0C);
-	regmap_write(vc3->regmap, 0x1a, 0x19);
-	regmap_write(vc3->regmap, 0x1b, 0x22);
-	regmap_write(vc3->regmap, 0x1c, 0x3F);
+	regmap_write(vc3->regmap, 0x11, 0x14);
+	regmap_write(vc3->regmap, 0x12, 0x7a);
+	regmap_write(vc3->regmap, 0x13, 0xe1);
+	regmap_write(vc3->regmap, 0x1b, 0xbb);
 	regmap_write(vc3->regmap, 0x1d, 0x30);
-	regmap_write(vc3->regmap, 0x1e, 0x90);
-	regmap_write(vc3->regmap, 0x1f, 0xC6);
-	regmap_write(vc3->regmap, 0x20, 0xA0);
-	regmap_write(vc3->regmap, 0x21, 0x80);
-	regmap_write(vc3->regmap, 0x22, 0xB0);
-	regmap_write(vc3->regmap, 0x23, 0xB0);
-	regmap_write(vc3->regmap, 0x24, 0x8D);
-	regmap_write(vc3->regmap, 0x25, 0x6E);
-	regmap_write(vc3->regmap, 0x26, 0x48);
-	regmap_write(vc3->regmap, 0x27, 0xD8);
-	regmap_write(vc3->regmap, 0x28, 0x9A);
-	regmap_write(vc3->regmap, 0x29, 0x7F);
-	regmap_write(vc3->regmap, 0x2a, 0x00);
+	regmap_write(vc3->regmap, 0x1f, 0xb6);
+	regmap_write(vc3->regmap, 0x24, 0x95);
 
 	/* Register clock ref */
 	memset(&init, 0, sizeof(init));
