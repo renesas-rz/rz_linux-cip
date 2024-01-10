@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "EtherCat drivers"
+
+config NET_ETHERCAT_SLAVE
+	tristate "EtherCat Slave support"
+	depends on OF
+	select PHYLINK
+	help
+	  This config enable Linux kernel supports the EtherCat Slave Controller.
+	  EtherCAT slave controller (ESC) uses an EtherCAT Slave Controller
+	  IP Core made by Beckhoff Automation GmbH, Germany.
+	  The ESC handles EtherCAT communications as an interface between
+	  the EtherCAT field bus and slave applications.
+
+	  To compile this driver as a module, choose M here.
+endmenu
