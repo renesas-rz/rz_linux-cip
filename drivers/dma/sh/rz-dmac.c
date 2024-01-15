@@ -1185,7 +1185,7 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	engine->device_pause = rz_dmac_device_pause;
 
 	engine->copy_align = DMAENGINE_ALIGN_1_BYTE;
-	dma_set_max_seg_size(engine->dev, U32_MAX);
+	dma_set_max_seg_size(engine->dev, U32_MAX - 1);
 
 	ret = dma_async_device_register(engine);
 	if (ret < 0) {
