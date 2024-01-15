@@ -164,6 +164,7 @@ struct vc3_driver_data {
 	unsigned char clk_in;
 
 	bool is_32k_used;
+	bool is_otp_burned;
 };
 
 static const char * const vc3_pfd_mux_names[] = {
@@ -831,7 +832,17 @@ static void vc3_mux_type_parse_dt(struct device *dev,
 		vc3->is_32k_used = true;
 	else
 		vc3->is_32k_used = false;
+}
 
+static void vc3_parse_dt(struct device *dev,
+			 struct vc3_driver_data *vc3)
+{
+	struct device_node *np = dev->of_node;
+
+	if (of_property_read_bool(np, "otp-burned"))
+		vc3->is_otp_burned = true;
+	else
+		vc3->is_otp_burned = false;
 }
 
 static int vc3_probe(struct i2c_client *client,
@@ -865,14 +876,17 @@ static int vc3_probe(struct i2c_client *client,
 		return PTR_ERR(vc3->regmap);
 	}
 
+	vc3_parse_dt(&client->dev, vc3);
 	/* The following writes should move to bootloader */
-	regmap_write(vc3->regmap, 0x11, 0x14);
-	regmap_write(vc3->regmap, 0x12, 0x7a);
-	regmap_write(vc3->regmap, 0x13, 0xe1);
-	regmap_write(vc3->regmap, 0x1b, 0xbb);
-	regmap_write(vc3->regmap, 0x1d, 0x30);
-	regmap_write(vc3->regmap, 0x1f, 0xb6);
-	regmap_write(vc3->regmap, 0x24, 0x95);
+	if (!vc3->is_otp_burned) {
+		regmap_write(vc3->regmap, 0x11, 0x14);
+		regmap_write(vc3->regmap, 0x12, 0x7a);
+		regmap_write(vc3->regmap, 0x13, 0xe1);
+		regmap_write(vc3->regmap, 0x1b, 0xbb);
+		regmap_write(vc3->regmap, 0x1d, 0x30);
+		regmap_write(vc3->regmap, 0x1f, 0xb6);
+		regmap_write(vc3->regmap, 0x24, 0x95);
+	}
 
 	/* Register clock ref */
 	memset(&init, 0, sizeof(init));
