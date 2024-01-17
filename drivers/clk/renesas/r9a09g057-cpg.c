@@ -1272,7 +1272,7 @@ const struct rzg2l_cpg_info r9a09g057_cpg_info = {
 
 	/* Clocks Monitoring */
 	.clk_mons = r9a09g057_clk_mon,
-	.num_clk_mon = R9A09G057_RCPU_DMAC_1_ACLK + 1,
+	.num_clk_mon = ARRAY_SIZE(r9a09g057_clk_mon),
 
 	/* Reset Monitoring */
 	.rst_mons = r9a09g057_rst_mon,
