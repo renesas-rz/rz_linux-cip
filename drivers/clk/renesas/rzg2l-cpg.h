@@ -257,7 +257,7 @@ struct rzg2l_reset {
  * @clk_bit: clk monitoring bit
  */
 struct clk_mon {
-	u16 clk_off;
+	s16 clk_off;
 	u8 clk_bit;
 };
 

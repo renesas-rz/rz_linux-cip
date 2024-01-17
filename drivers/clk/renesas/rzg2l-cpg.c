@@ -632,7 +632,7 @@ struct mstp_clock {
 	struct clk_hw hw;
 	u16 off;
 	u8 bit;
-	u16 mon_off;
+	s16 mon_off;
 	u8 mon_bit;
 	bool enabled;
 	u32 mstop;
@@ -687,8 +687,11 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 
 	for (i = 1000; i > 0; --i) {
 		if (priv->info->clk_mons) {
-			if ((readl(priv->base + clock->mon_off)) &
-			      BIT(clock->mon_bit))
+			if (clock->mon_off > 0) {
+				if ((readl(priv->base + clock->mon_off)) &
+				     BIT(clock->mon_bit))
+					break;
+			} else
 				break;
 		} else {
 			if (((readl(priv->base + CLK_MON_R(reg))) & bitmask))
@@ -763,9 +766,12 @@ static int rzg2l_mod_clock_is_enabled(struct clk_hw *hw)
 	if (clock->sibling)
 		return clock->enabled;
 
-	if (priv->info->clk_mons)
-		value = readl(priv->base + clock->mon_off);
-	else
+	if (priv->info->clk_mons) {
+		if (clock->mon_off > 0)
+			value = readl(priv->base + clock->mon_off);
+		else
+			return 1;
+	 } else
 		value = readl(priv->base + CLK_MON_R(clock->off));
 
 	if (clock->mstop) {
@@ -864,9 +870,13 @@ rzg2l_cpg_register_mod_clk(const struct rzg2l_mod_clk *mod,
 	clock->off = mod->off;
 	clock->bit = mod->bit;
 	if (info->clk_mons) {
-		clock->mon_off = info->clk_mons[id - priv->num_core_clks].clk_off;
-		clock->mon_bit = info->clk_mons[id - priv->num_core_clks].clk_bit;
+		if ((id - priv->num_core_clks) < info->num_clk_mon) {
+			clock->mon_off = info->clk_mons[id - priv->num_core_clks].clk_off;
+			clock->mon_bit = info->clk_mons[id - priv->num_core_clks].clk_bit;
+		} else
+			clock->mon_off = -1;
 	}
+
 	clock->mstop = mod->mstop;
 	clock->priv = priv;
 	clock->hw.init = &init;
