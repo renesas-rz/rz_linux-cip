@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
+#include <linux/of_device.h>
 
 #include <linux/irqchip/icu-v2h.h>
 
@@ -57,6 +58,11 @@ enum {
 	IRQC_NMI,
 };
 
+struct rzg2l_hw_info {
+	bool has_clrsr_reg;
+	u16 iptsr_offset;
+};
+
 struct irqc_irq {
 	int hw_irq;
 	int requested_irq;
@@ -72,7 +78,7 @@ struct irqc_priv {
 	struct irq_domain *irq_domain;
 	atomic_t wakeup_path;
 	struct reset_control *rstc;
-	bool has_clrsr_reg;
+	const struct rzg2l_hw_info *data;
 };
 
 static struct irqc_priv *irq_data_to_priv(struct irq_data *data)
@@ -104,15 +110,15 @@ static int irqc_irq_set_type(struct irq_data *d, unsigned int type)
 
 	if (priv->irq[hw_irq].type == IRQC_NMI) {
 		writel(irqc_nmi_sense[type],
-		       priv->base + NITSR(priv->has_clrsr_reg));
+		       priv->base + NITSR(priv->data->has_clrsr_reg));
 	} else if (priv->irq[hw_irq].type == IRQC_IRQ) {
 		unsigned char value = irqc_irq_sense[type];
 		u32 tmp;
 
-		tmp = readl(priv->base + IITSR(priv->has_clrsr_reg));
+		tmp = readl(priv->base + IITSR(priv->data->has_clrsr_reg));
 		tmp &= ~(0x3 << (hw_irq * 2));
 		tmp |= (value << (hw_irq * 2));
-		writel(tmp, priv->base + IITSR(priv->has_clrsr_reg));
+		writel(tmp, priv->base + IITSR(priv->data->has_clrsr_reg));
 	}
 
 	return 0;
@@ -207,13 +213,13 @@ static irqreturn_t irqc_irq_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 	val = readl(priv->base + reg);
 	if (val & bit) {
-		if (priv->has_clrsr_reg) {
+		if (priv->data->has_clrsr_reg) {
 			if (irqc->type == IRQC_NMI)
 				reg = NSCLR;
 			else
 				reg = ISCLR;
 		}
-		writel((priv->has_clrsr_reg) ? bit : (~bit), priv->base + reg);
+		writel((priv->data->has_clrsr_reg) ? bit : (~bit), priv->base + reg);
 		generic_handle_irq(irq_find_mapping(priv->irq_domain,
                                                 irqc->hw_irq));
 		return IRQ_HANDLED;
@@ -266,6 +272,10 @@ static int irqc_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
+	priv->data = of_device_get_match_data(&pdev->dev);
+	if (!priv->data)
+		return -EINVAL;
+
 	platform_set_drvdata(pdev, priv);
 
 	priv->rstc = devm_reset_control_get(dev, NULL);
@@ -277,8 +287,6 @@ static int irqc_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
-
-	priv->has_clrsr_reg = device_property_read_bool(dev, "has-clrsr-register");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->base = devm_ioremap_resource(dev, res);
@@ -335,7 +343,7 @@ static int irqc_probe(struct platform_device *pdev)
 	priv->gc->chip_types[0].chip.flags = IRQCHIP_SET_TYPE_MASKED;
 
 	/* Initialized with BOTH_EDGE_LEVEL */
-	writel(IITSR_INIT, priv->base + IITSR(priv->has_clrsr_reg));
+	writel(IITSR_INIT, priv->base + IITSR(priv->data->has_clrsr_reg));
 
 	/* request interrupts one by one */
 	for (k = 0; k < priv->number_of_irqs; k++) {
@@ -388,11 +396,21 @@ static int __maybe_unused irqc_suspend(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(irqc_pm_ops, irqc_suspend, NULL);
 
+static const struct rzg2l_hw_info rzg2l_params = {
+	.has_clrsr_reg = false,
+	.iptsr_offset = 0,
+};
+
+static const struct rzg2l_hw_info rzv2h_params = {
+	.has_clrsr_reg = true,
+	.iptsr_offset = 0x60,
+};
+
 static const struct of_device_id irqc_dt_ids[] = {
-	{ .compatible = "renesas,rzg2l-irqc", },
-	{ .compatible = "renesas,rzv2l-irqc", },
-	{ .compatible = "renesas,rzg2ul-irqc", },
-	{ .compatible = "renesas,rzv2h-irqc", },
+	{ .compatible = "renesas,rzg2l-irqc", .data = &rzg2l_params, },
+	{ .compatible = "renesas,rzv2l-irqc", .data = &rzg2l_params, },
+	{ .compatible = "renesas,rzg2ul-irqc", .data = &rzg2l_params,},
+	{ .compatible = "renesas,rzv2h-irqc", .data = &rzv2h_params, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, irqc_dt_ids);
