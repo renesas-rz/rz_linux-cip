@@ -283,6 +283,15 @@ struct rzg2l_dedicated_configs {
 	u32 config;
 };
 
+struct rzg2l_backup_data {
+	uint8_t  *p_reg;
+	uint8_t  *pmc_reg;
+	uint16_t *pm_reg;
+	uint32_t *pfc_reg;
+	uint32_t *isel_reg;
+	u8 oen_reg;
+};
+
 struct rzg2l_pinctrl_data {
 	const char * const *port_pins;
 	const u32 *port_pin_configs;
@@ -295,6 +304,8 @@ struct rzg2l_pinctrl_data {
 	u32 extended_reg_offset;
 	bool have_clrirq_reg;
 	u32 pwpr;
+	u32 oen_reg_offset;
+	unsigned int n_ports;
 };
 
 struct rzg2l_pinctrl {
@@ -324,6 +335,7 @@ struct rzg2l_pinctrl {
 
 	spinlock_t			lock; /* lock read/write registers */
 	struct mutex			mutex; /* serialize adding groups and functions */
+	void				*backup;
 };
 
 static const unsigned int iolh_groupa_mA[] = { 2, 4, 8, 12 };
@@ -2045,6 +2057,42 @@ static void rzg2l_pinctrl_clk_disable(void *data)
 	clk_disable_unprepare(data);
 }
 
+static int rzg2l_pinctrl_prepare_mem_suspend(struct rzg2l_pinctrl *pctrl)
+{
+	struct device *dev = pctrl->dev;
+	struct rzg2l_backup_data *backup;
+	u32 nports = pctrl->data->n_ports;
+
+	backup = devm_kzalloc(dev, sizeof(*backup), GFP_KERNEL);
+	if (!backup)
+		goto err;
+
+	backup->p_reg = devm_kzalloc(dev, nports * sizeof(*(backup->p_reg)), GFP_KERNEL);
+	if (!backup->p_reg)
+		goto err;
+
+	backup->pm_reg = devm_kzalloc(dev, nports * sizeof(*(backup->pm_reg)), GFP_KERNEL);
+	if (!backup->pm_reg)
+		goto err;
+
+	backup->pmc_reg = devm_kzalloc(dev, nports * sizeof(*(backup->pmc_reg)), GFP_KERNEL);
+	if (!backup->pmc_reg)
+		goto err;
+
+	backup->pfc_reg  = devm_kzalloc(dev, nports * sizeof(*(backup->pfc_reg)), GFP_KERNEL);
+	if (!backup->pfc_reg)
+		goto err;
+
+	backup->isel_reg = devm_kzalloc(dev, nports * sizeof(*(backup->isel_reg)), GFP_KERNEL);
+	if (!backup->isel_reg)
+		goto err;
+
+	pctrl->backup = backup;
+	return 0;
+err:
+	return -ENOMEM;
+}
+
 static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 {
 	struct rzg2l_pinctrl *pctrl;
@@ -2064,6 +2112,10 @@ static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 	pctrl->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pctrl->base))
 		return PTR_ERR(pctrl->base);
+
+	ret = rzg2l_pinctrl_prepare_mem_suspend(pctrl);
+	if (ret < 0)
+		return ret;
 
 	pctrl->clk = devm_clk_get_optional(pctrl->dev, NULL);
 	if (IS_ERR(pctrl->clk)) {
@@ -2164,9 +2216,102 @@ static int rzg2l_pinctrl_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused rzg2l_pinctrl_suspend(struct device *dev)
+static void rzv2h_pinctrl_backup(struct rzg2l_pinctrl *pctrl)
+{
+	struct rzg2l_backup_data *backup = pctrl->backup;
+
+	backup->oen_reg = readb(pctrl->base + pctrl->data->oen_reg_offset);
+}
+
+static void rzg2l_pinctrl_backup(struct rzg2l_pinctrl *pctrl)
+{
+	const u32 *port_pin_configs = pctrl->data->port_pin_configs;
+	struct rzg2l_backup_data *backup;
+	u32 pwpr = pctrl->data->pwpr;
+	u32 port_offset;
+	int i;
+
+	backup = (struct rzg2l_backup_data *)pctrl->backup;
+
+	for (i = 0; i < pctrl->data->n_ports; i++) {
+		port_offset = RZG2L_GPIO_PORT_GET_INDEX(port_pin_configs[i]) + 0x10;
+
+		backup->p_reg[i] = readb(pctrl->base + P(port_offset));
+		backup->pm_reg[i] = readw(pctrl->base + PM(port_offset));
+		backup->pmc_reg[i] = readb(pctrl->base + PMC(port_offset));
+		backup->pfc_reg[i] = readl(pctrl->base + PFC(port_offset));
+		backup->isel_reg[i] = readl(pctrl->base + ISEL(port_offset));
+	}
+
+	if (pwpr == PWPR_RZ_V2H)
+		rzv2h_pinctrl_backup(pctrl);
+}
+
+static void rzv2h_pinctrl_restore(struct rzg2l_pinctrl *pctrl)
+{
+	struct rzg2l_backup_data *backup = pctrl->backup;
+	u32 pwpr = pctrl->data->pwpr;
+
+	/* Enable writing to the OEN register */
+	writel(readl(pctrl->base + pwpr) | PWPR_REGWE_B,
+					pctrl->base + pwpr);
+
+	writeb(backup->oen_reg, pctrl->base + pctrl->data->oen_reg_offset);
+
+	/* Disable writing to the OEN register */
+	writel(readl(pctrl->base + pwpr) & ~PWPR_REGWE_B,
+					pctrl->base + pwpr);
+}
+
+static void rzg2l_pinctrl_restore(struct rzg2l_pinctrl *pctrl)
+{
+	const u32 *port_pin_configs = pctrl->data->port_pin_configs;
+	struct rzg2l_backup_data *backup;
+	u32 port_offset;
+	u32 pwpr = pctrl->data->pwpr;
+	int i;
+
+	backup = (struct rzg2l_backup_data *)pctrl->backup;
+
+	/* set the PWPR register to allow PFC register to write */
+	if (pwpr == PWPR) {
+		writel(0x0, pctrl->base + pwpr);
+		writel(PWPR_PFCWE, pctrl->base + pwpr);
+	} else if (pwpr == PWPR_RZ_V2H) {
+		writel(readl(pctrl->base + pwpr) | PWPR_REGWE_A,
+					pctrl->base + pwpr);
+	}
+
+	/* Backup common registers */
+	for (i = 0; i < pctrl->data->n_ports; i++) {
+		port_offset = RZG2L_GPIO_PORT_GET_INDEX(port_pin_configs[i]) + 0x10;
+
+		writeb(backup->p_reg[i], pctrl->base + P(port_offset));
+		writew(backup->pm_reg[i], pctrl->base + PM(port_offset));
+		writeb(backup->pmc_reg[i], pctrl->base + PMC(port_offset));
+		writel(backup->pfc_reg[i], pctrl->base + PFC(port_offset));
+		writel(backup->isel_reg[i], pctrl->base + ISEL(port_offset));
+	}
+
+	/* set the PWPR register to de-allow PFC register to write */
+	if (pwpr == PWPR) {
+		writel(0x0, pctrl->base + PWPR);
+		writel(PWPR_B0WI, pctrl->base + PWPR);
+	} else if (pwpr == PWPR_RZ_V2H) {
+		writel(readl(pctrl->base + pwpr) & ~PWPR_REGWE_A,
+				pctrl->base + pwpr);
+	}
+
+	/* Restore platform-specific registers */
+	if (pwpr == PWPR_RZ_V2H)
+		rzv2h_pinctrl_restore(pctrl);
+}
+
+static int __maybe_unused rzg2l_pinctrl_suspend_noirq(struct device *dev)
 {
 	struct rzg2l_pinctrl *pctrl = dev_get_drvdata(dev);
+
+	rzg2l_pinctrl_backup(pctrl);
 
 	if (atomic_read(&pctrl->wakeup_path))
 		device_set_wakeup_path(dev);
@@ -2174,7 +2319,19 @@ static int __maybe_unused rzg2l_pinctrl_suspend(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(rzg2l_pinctrl_pm_ops, rzg2l_pinctrl_suspend, NULL);
+static int __maybe_unused rzg2l_pinctrl_resume_noirq(struct device *dev)
+{
+	struct rzg2l_pinctrl *pctrl = dev_get_drvdata(dev);
+
+	rzg2l_pinctrl_restore(pctrl);
+
+	return 0;
+}
+
+static const struct dev_pm_ops rzg2l_pinctrl_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(rzg2l_pinctrl_suspend_noirq, NULL)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(rzg2l_pinctrl_suspend_noirq, rzg2l_pinctrl_resume_noirq)
+};
 
 static struct rzg2l_pinctrl_data r9a07g043_data = {
 	.port_pins = rzg2l_gpio_names,
@@ -2231,6 +2388,8 @@ static struct rzg2l_pinctrl_data r9a09g057_data = {
 	.extended_reg_offset = 0x10,
 	.have_clrirq_reg = true,
 	.pwpr = PWPR_RZ_V2H,
+	.oen_reg_offset = 0x3C40,
+	.n_ports = ARRAY_SIZE(r9a09g057_gpio_configs),
 };
 
 static const struct of_device_id rzg2l_pinctrl_of_table[] = {
