@@ -63,6 +63,11 @@ struct rzg2l_hw_info {
 	u16 iptsr_offset;
 };
 
+struct irqc_backup_data {
+	u32 iitsr;
+	u32 iptsr;
+};
+
 struct irqc_irq {
 	int hw_irq;
 	int requested_irq;
@@ -79,6 +84,7 @@ struct irqc_priv {
 	atomic_t wakeup_path;
 	struct reset_control *rstc;
 	const struct rzg2l_hw_info *data;
+	void *backup_data;
 };
 
 static struct irqc_priv *irq_data_to_priv(struct irq_data *data)
@@ -254,6 +260,19 @@ static int irqc_request_irq(struct platform_device *pdev,
 	return k;
 }
 
+static int irqc_prepare_mem_suspend(struct platform_device *pdev,
+					struct irqc_priv *priv)
+{
+	struct irqc_backup_data *irqc_backup;
+
+	irqc_backup = devm_kzalloc(&pdev->dev, sizeof(*irqc_backup), GFP_KERNEL);
+	if (!irqc_backup)
+		return -ENOMEM;
+
+	priv->backup_data = irqc_backup;
+	return 0;
+}
+
 static int irqc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -275,6 +294,10 @@ static int irqc_probe(struct platform_device *pdev)
 	priv->data = of_device_get_match_data(&pdev->dev);
 	if (!priv->data)
 		return -EINVAL;
+
+	ret = irqc_prepare_mem_suspend(pdev, priv);
+	if (ret < 0)
+		return ret;
 
 	platform_set_drvdata(pdev, priv);
 
@@ -384,9 +407,33 @@ static int irqc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void irqc_backup(struct irqc_priv *p)
+{
+	struct irqc_backup_data *irqc_backup = p->backup_data;
+	const struct rzg2l_hw_info *priv_data = p->data;
+
+	irqc_backup->iitsr = readl(p->base + IITSR(priv_data->has_clrsr_reg));
+
+	if (priv_data->iptsr_offset)
+		irqc_backup->iptsr = readl(p->base + priv_data->iptsr_offset);
+}
+
+static void irqc_restore(struct irqc_priv *p)
+{
+	struct irqc_backup_data *irqc_backup = p->backup_data;
+	const struct rzg2l_hw_info *priv_data = p->data;
+
+	if (priv_data->iptsr_offset)
+		writel(irqc_backup->iptsr, p->base + priv_data->iptsr_offset);
+
+	writel(irqc_backup->iitsr, p->base + IITSR(priv_data->has_clrsr_reg));
+}
+
 static int __maybe_unused irqc_suspend(struct device *dev)
 {
 	struct irqc_priv *p = dev_get_drvdata(dev);
+
+	irqc_backup(p);
 
 	if (atomic_read(&p->wakeup_path))
 		device_set_wakeup_path(dev);
@@ -394,7 +441,19 @@ static int __maybe_unused irqc_suspend(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(irqc_pm_ops, irqc_suspend, NULL);
+int __maybe_unused irqc_resume(struct device *dev)
+{
+	struct irqc_priv *p = dev_get_drvdata(dev);
+
+	irqc_restore(p);
+
+	return 0;
+}
+
+static const struct dev_pm_ops irqc_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(irqc_suspend, NULL)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(NULL, irqc_resume)
+};
 
 static const struct rzg2l_hw_info rzg2l_params = {
 	.has_clrsr_reg = false,
