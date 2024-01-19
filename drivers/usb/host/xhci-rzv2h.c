@@ -235,3 +235,10 @@ int xhci_rzv2h_setup(struct usb_hcd *hcd)
 
 	return 0;
 };
+
+int xhci_rzv2h_resume(struct usb_hcd *hcd)
+{
+	xhci_rzv2h_setup(hcd);
+	xhci_rzv2h_start(hcd);
+	return 0;
+}

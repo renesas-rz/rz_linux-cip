@@ -136,9 +136,10 @@ static const struct xhci_plat_priv xhci_plat_renesas_rcar_gen3 = {
 };
 
 static const struct xhci_plat_priv xhci_plat_renesas_rzv2h = {
-	.quirks = XHCI_BROKEN_HCRST,
+	.quirks = XHCI_BROKEN_HCRST | XHCI_RESET_ON_RESUME,
 	.plat_start = xhci_rzv2h_start,
 	.plat_setup = xhci_rzv2h_setup,
+	.resume_quirk = xhci_rzv2h_resume,
 };
 
 static const struct xhci_plat_priv xhci_plat_brcm = {
