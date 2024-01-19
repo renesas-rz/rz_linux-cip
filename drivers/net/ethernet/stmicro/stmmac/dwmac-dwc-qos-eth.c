@@ -50,6 +50,8 @@ struct renesas_rzv2h_eqos {
 
 	struct reset_control *rst;
 	struct gpio_desc *reset;
+
+	bool suspend;
 };
 
 static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
@@ -452,6 +454,8 @@ static void renesas_rzv2h_eqos_fix_speed(void *priv, unsigned int speed)
 
 static int renesas_rzv2h_eqos_init(struct platform_device *pdev, void *priv)
 {
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct stmmac_priv *stmpriv = netdev_priv(ndev);
 	struct renesas_rzv2h_eqos *eqos = priv;
 	unsigned long rate;
 	u32 value;
@@ -460,7 +464,20 @@ static int renesas_rzv2h_eqos_init(struct platform_device *pdev, void *priv)
 	value = (rate / 1000000) - 1;
 	writel(value, eqos->regs + GMAC_1US_TIC_COUNTER);
 
+	if (eqos->suspend) {
+		/* Force disabling eee feature */
+		stmpriv->eee_enabled = false;
+		eqos->suspend = false;
+	}
+
 	return 0;
+}
+
+static void renesas_rzv2h_eqos_exit(struct platform_device *pdev, void *priv)
+{
+	struct renesas_rzv2h_eqos *eqos = priv;
+
+	eqos->suspend = true;
 }
 
 static void *renesas_rzv2h_eqos_probe(struct platform_device *pdev,
@@ -630,6 +647,7 @@ static void *renesas_rzv2h_eqos_probe(struct platform_device *pdev,
 bypass_clk_reset_gpio:
 	data->fix_mac_speed = renesas_rzv2h_eqos_fix_speed;
 	data->init = renesas_rzv2h_eqos_init;
+	data->exit = renesas_rzv2h_eqos_exit;
 	data->bsp_priv = eqos;
 	data->sph_disable = 1;
 
