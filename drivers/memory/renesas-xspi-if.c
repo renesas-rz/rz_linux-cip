@@ -687,6 +687,7 @@ static int xspi_remove(struct platform_device *pdev)
 static const struct of_device_id xspi_of_match[] = {
 	{ .compatible = "renesas,g3s-xspi-if", .data = (void *)XSPI_RZ_G3S },
 	{ .compatible = "renesas,v2h-xspi-if", .data = (void *)XSPI_RZ_V2H },
+	{ .compatible = "renesas,g3e-xspi-if", .data = (void *)XSPI_RZ_V2H },
 	{},
 };
 MODULE_DEVICE_TABLE(of, xspi_of_match);

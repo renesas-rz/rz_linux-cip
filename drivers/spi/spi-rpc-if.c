@@ -176,7 +176,8 @@ static int rpcif_spi_probe(struct platform_device *pdev)
 	rpc = spi_controller_get_devdata(ctlr);
 
 	if (of_device_is_compatible(parent->of_node, "renesas,g3s-xspi-if") ||
-	    of_device_is_compatible(parent->of_node, "renesas,v2h-xspi-if"))
+	    of_device_is_compatible(parent->of_node, "renesas,v2h-xspi-if") ||
+	    of_device_is_compatible(parent->of_node, "renesas,g3e-xspi-if"))
 		rpc->ops = &xspi_ops;
 	else
 		rpc->ops = &rpc_ops;
