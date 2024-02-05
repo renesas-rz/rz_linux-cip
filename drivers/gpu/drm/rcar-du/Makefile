@@ -26,3 +26,5 @@ DTC_FLAGS_rcar_du_of_lvds_r8a7791 += -Wno-graph_endpoint
 DTC_FLAGS_rcar_du_of_lvds_r8a7793 += -Wno-graph_endpoint
 DTC_FLAGS_rcar_du_of_lvds_r8a7795 += -Wno-graph_endpoint
 DTC_FLAGS_rcar_du_of_lvds_r8a7796 += -Wno-graph_endpoint
+
+obj-$(CONFIG_DRM_RZG2L_MIPI_DSI)	+= rzg2l_mipi_dsi.o

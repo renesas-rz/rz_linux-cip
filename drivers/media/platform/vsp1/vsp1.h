@@ -22,6 +22,7 @@
 struct clk;
 struct device;
 struct rcar_fcp_device;
+struct reset_control;
 
 struct vsp1_drm;
 struct vsp1_entity;
@@ -44,16 +45,17 @@ struct vsp1_uif;
 #define VSP1_MAX_UIF		2
 #define VSP1_MAX_WPF		4
 
-#define VSP1_HAS_LUT		(1 << 1)
-#define VSP1_HAS_SRU		(1 << 2)
-#define VSP1_HAS_BRU		(1 << 3)
-#define VSP1_HAS_CLU		(1 << 4)
-#define VSP1_HAS_WPF_VFLIP	(1 << 5)
-#define VSP1_HAS_WPF_HFLIP	(1 << 6)
-#define VSP1_HAS_HGO		(1 << 7)
-#define VSP1_HAS_HGT		(1 << 8)
-#define VSP1_HAS_BRS		(1 << 9)
-#define VSP1_HAS_EXT_DL		(1 << 10)
+#define VSP1_HAS_LUT		BIT(1)
+#define VSP1_HAS_SRU		BIT(2)
+#define VSP1_HAS_BRU		BIT(3)
+#define VSP1_HAS_CLU		BIT(4)
+#define VSP1_HAS_WPF_VFLIP	BIT(5)
+#define VSP1_HAS_WPF_HFLIP	BIT(6)
+#define VSP1_HAS_HGO		BIT(7)
+#define VSP1_HAS_HGT		BIT(8)
+#define VSP1_HAS_BRS		BIT(9)
+#define VSP1_HAS_EXT_DL		BIT(10)
+#define VSP1_HAS_NON_ZERO_LBA	BIT(11)
 
 struct vsp1_device_info {
 	u32 version;
@@ -66,6 +68,7 @@ struct vsp1_device_info {
 	unsigned int uif_count;
 	unsigned int wpf_count;
 	unsigned int num_bru_inputs;
+	u8 soc;
 	bool uapi;
 };
 
@@ -79,6 +82,7 @@ struct vsp1_device {
 	void __iomem *mmio;
 	struct rcar_fcp_device *fcp;
 	struct device *bus_master;
+	struct reset_control *rstc;
 
 	struct vsp1_brx *brs;
 	struct vsp1_brx *bru;

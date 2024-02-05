@@ -41,6 +41,15 @@
 		regulator-always-on;
 	};
 
+	reg_1p1v: regulator-vdd-core {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-1.1V";
+		regulator-min-microvolt = <1100000>;
+		regulator-max-microvolt = <1100000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	vccq_sdhi0: regulator-vccq-sdhi0 {
 		compatible = "regulator-gpio";
 
@@ -89,6 +98,10 @@
 
 &extal_clk {
 	clock-frequency = <24000000>;
+};
+
+&gpu {
+	mali-supply = <&reg_1p1v>;
 };
 
 &i2c2 {
@@ -278,11 +291,6 @@
 };
 
 &wdt1 {
-	status = "okay";
-	timeout-sec = <60>;
-};
-
-&wdt2 {
 	status = "okay";
 	timeout-sec = <60>;
 };
