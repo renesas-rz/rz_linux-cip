@@ -2661,19 +2661,26 @@ done:
 
 		/* Enable Serial Extended Mode Register (SEMR) */
 		if ((sci_getreg(port, MDDR)->size) && (sci_getreg(port, SEMR)->size)
-				&& baud == 921600) {
+				&& baud > 115200) {
 			unsigned int mddr, prediv;
 			unsigned long freq = s->port.type != PORT_HSCIF ?
 				s->clk_rates[SCI_FCK]*2 : s->clk_rates[SCI_FCK];
 
+
+			prediv = (srr + 1) * (1 << (2 * cks + 1));
+			mddr = DIV_ROUND_CLOSEST((long)prediv * baud * 256 * (brr + 1), freq);
+			while (((mddr < 128) || (mddr >= 256)) && (brr > 0)) {
+				brr -= 1;
+				mddr = DIV_ROUND_CLOSEST((long)prediv * baud * 256 * (brr + 1), freq);
+			}
+
+			mddr = clamp(mddr, 128U, 256U);
+
+			sci_serial_out(port, SCBRR, brr);
 			sci_serial_out(port, SEMR,
 					sci_serial_in(port, SEMR) | (SEMR_BRME | SEMR_MDDRS));
 			sci_serial_out(port, SCSCR,
 					sci_serial_in(port, SCSCR) & (~(SCSCR_TE | SCSCR_RE)));
-
-			prediv = (srr + 1) * (1 << (2 * cks + 1));
-			mddr = DIV_ROUND_CLOSEST((long)prediv * baud * 256 * (brr + 1), freq);
-			mddr = clamp(mddr, 128U, 256U);
 
 			sci_serial_out(port, MDDR, mddr);
 			sci_serial_out(port, SCSCR,
