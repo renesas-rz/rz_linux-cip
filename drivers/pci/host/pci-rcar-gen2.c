@@ -278,10 +278,23 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 	return 1;
 }
 
+static int rcar_pci_config_write(struct pci_bus *bus, unsigned int devfn,
+	int where, int size, u32 val)
+{
+	u32 mask = 0xf9000146;
+	u32 fixed_val = 1 << 25;
+
+	/* keep fixed values of readonly bits of H'04 of USB2.0 like HW manual */
+	if (where == PCI_COMMAND)
+		val = (val & mask) | fixed_val;
+
+	return pci_generic_config_write(bus, devfn, where, size, val);
+}
+
 static struct pci_ops rcar_pci_ops = {
 	.map_bus = rcar_pci_cfg_base,
 	.read	= pci_generic_config_read,
-	.write	= pci_generic_config_write,
+	.write	= rcar_pci_config_write,
 };
 
 static int rcar_pci_probe(struct platform_device *pdev)
