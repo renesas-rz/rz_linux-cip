@@ -223,13 +223,18 @@ static int rz_mtu3_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
 	ch = priv - rz_mtu3_pwm->channel_data;
-	val = RZ_MTU3_TIOR_OC_IOB_TOGGLE | RZ_MTU3_TIOR_OC_IOA_H_COMP_MATCH;
+
+	val = RZ_MTU3_TIOR_OC_IOB_TOGGLE;
 
 	rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TMDR1, RZ_MTU3_TMDR1_MD_PWMMODE1);
 	if (priv->map->base_pwm_number == pwm->hwpwm)
-		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TIORH, val);
+		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TIORH,
+			(rz_mtu3_8bit_ch_read(priv->mtu, RZ_MTU3_TIORH)
+						& RZ_MTU3_TIOR_IOA) | val);
 	else
-		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TIORL, val);
+		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TIORL,
+			(rz_mtu3_8bit_ch_read(priv->mtu, RZ_MTU3_TIORL)
+						& RZ_MTU3_TIOR_IOA) | val);
 
 	mutex_lock(&rz_mtu3_pwm->lock);
 	if (!rz_mtu3_pwm->enable_count[ch])
@@ -324,7 +329,7 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	u64 duty_cycles;
 	u8 prescale;
 	u16 pv, dc;
-	u8 val;
+	u8 val, val_polarity;
 	u32 ch;
 
 	priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
@@ -395,6 +400,20 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			rz_mtu3_enable(priv->mtu);
 	}
 
+	if (state->polarity == PWM_POLARITY_NORMAL)
+		val_polarity = RZ_MTU3_TIOR_OC_IOA_H_COMP_MATCH;
+	else
+		val_polarity = RZ_MTU3_TIOR_OC_IOA_L_COMP_MATCH;
+
+	if (priv->map->base_pwm_number == pwm->hwpwm)
+		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TIORH,
+			(rz_mtu3_8bit_ch_read(priv->mtu, RZ_MTU3_TIORH)
+					& RZ_MTU3_TIOR_IOB) | val_polarity);
+	else
+		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TIORL,
+			(rz_mtu3_8bit_ch_read(priv->mtu, RZ_MTU3_TIORL)
+					& RZ_MTU3_TIOR_IOB) | val_polarity);
+
 	/* If the PWM is not enabled, turn the clock off again to save power. */
 	if (!pwm->state.enabled)
 		pm_runtime_put(pwmchip_parent(chip));
@@ -408,9 +427,6 @@ static int rz_mtu3_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
 	bool enabled = pwm->state.enabled;
 	int ret;
-
-	if (state->polarity != PWM_POLARITY_NORMAL)
-		return -EINVAL;
 
 	if (!state->enabled) {
 		if (enabled)
