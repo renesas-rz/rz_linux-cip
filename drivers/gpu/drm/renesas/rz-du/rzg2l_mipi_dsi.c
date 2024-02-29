@@ -1251,6 +1251,8 @@ static const struct of_device_id rzg2l_mipi_dsi_of_table[] = {
 	  .data = &rzg2l_mipi_dsi_info, },
 	{ .compatible = "renesas,rzv2h-mipi-dsi",
 	  .data = &rzv2h_mipi_dsi_info, },
+	{ .compatible = "renesas,rzg3e-mipi-dsi",
+	  .data = &rzv2h_mipi_dsi_info, },
 	{ /* sentinel */ }
 };
 
