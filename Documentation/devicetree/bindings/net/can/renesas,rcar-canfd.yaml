@@ -40,6 +40,7 @@ properties:
 
       - const: renesas,r8a779a0-canfd      # R-Car V3U
       - const: renesas,r9a09g057-canfd     # RZ/V2H
+      - const: renesas,r9a09g047-canfd     # RZ/G3E
 
   reg:
     maxItems: 1
