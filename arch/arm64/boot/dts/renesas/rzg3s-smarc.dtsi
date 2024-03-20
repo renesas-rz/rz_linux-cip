@@ -244,6 +244,17 @@
 		pinmux = <RZG2L_PORT_PINMUX(18, 0, 6)>; /* GTERGA - GPIO4 */
 	};
 
+	mtu3_pins: mtu3 {
+		mtu3-pwm {
+			pinmux = <RZG2L_PORT_PINMUX(8, 2, 6)>, /* MTIOC7C - GPIO12 */
+				 <RZG2L_PORT_PINMUX(8, 3, 6)>; /* MTIOC7D - GPIO13 */
+		};
+	};
+
+	poe3_pins: poe3 {
+		pinmux = <RZG2L_PORT_PINMUX(14, 2, 6)>; /* POE10# - GPIO11 */
+	};
+
 	scif0_pins: scif0 {
 		pinmux = <RZG2L_PORT_PINMUX(6, 3, 1)>, /* RXD */
 			 <RZG2L_PORT_PINMUX(6, 4, 1)>; /* TXD */
@@ -411,6 +422,13 @@
 	status = "okay";
 };
 
+&mtu3 {
+	pinctrl-0 = <&mtu3_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
 &ssi3 {
 	pinctrl-0 = <&ssi3_pins>;
 	pinctrl-names = "default";
@@ -501,4 +519,17 @@
 
 	pinctrl-0 = <&pcie0_pins>;
 	pinctrl-names = "default";
+};
+
+&poe3 {
+	pinctrl-0 = <&poe3_pins>;
+	pinctrl-names = "default";
+	poe3_pins_mode = <10 0>;
+
+	status = "okay";
+
+	mtu3_ch67 {
+		mtu3_outputs = <1>; /* MTIOC7B-MTIOC7D */
+		addition_poe3_inputs = <0 10>;
+	};
 };
