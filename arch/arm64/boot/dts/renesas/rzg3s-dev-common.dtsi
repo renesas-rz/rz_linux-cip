@@ -432,6 +432,21 @@
 		input-enable;
 	};
 
+#if MTU3_PINS_SEL
+	mtu3_pins: mtu3 {
+		pinmux = <RZG2L_PORT_PINMUX(5, 0, 3)>, /* MTIOC7A - JP1036 */
+			 <RZG2L_PORT_PINMUX(5, 2, 3)>; /* MTIOC7C - JP1038 */
+	};
+#endif
+
+#if POE3_SUPPORT
+	/* Note: POE pins can be tested via J17 of SD2, but must turn off SW58. */
+	poe3_pins: poe3 {
+		pinmux = <RZG2L_PORT_PINMUX(11, 0, 2)>, /* POE0# - SD2_CLK - J17_6 */
+			 <RZG2L_PORT_PINMUX(11, 1, 2)>; /* POE4# - SD2_CMD - J17_8 */
+	};
+#endif
+
 	ssi3_pins: ssi3 {
 		pinmux = <RZG2L_PORT_PINMUX(18, 2, 8)>, /* BCK */
 			 <RZG2L_PORT_PINMUX(18, 3, 8)>, /* RCK */
@@ -440,10 +455,12 @@
 	};
 
 	usb0_pins: usb0 {
+#if !MTU3_PINS_SEL
 		peri {
 			pinmux = <RZG2L_PORT_PINMUX(5, 0, 1)>, /* VBUS */
 				 <RZG2L_PORT_PINMUX(5, 2, 1)>; /* OVC */
 		};
+#endif
 
 		otg {
 			pinmux = <RZG2L_PORT_PINMUX(5, 3, 1)>; /* OTG_ID */
@@ -674,6 +691,19 @@
 	pinctrl-names = "default";
 	status = "okay";
 };
+
+#if POE3_SUPPORT
+&poe3 {
+	pinctrl-0 = <&poe3_pins>;
+	pinctrl-names = "default";
+	poe3_pins_mode = <0 0>, <4 0>;
+	status = "okay";
+	mtu3_ch67 {
+	       mtu3_outputs = <1>;
+	       addition_poe3_inputs = <0 4>;
+	};
+};
+#endif
 #endif
 
 &gpt0 {
@@ -730,5 +760,13 @@
 	pinctrl-0 = <&adc_pins>;
 	pinctrl-names = "default";
 
+	status = "okay";
+};
+
+&mtu3 {
+#if MTU3_PINS_SEL
+	pinctrl-0 = <&mtu3_pins>;
+	pinctrl-names = "default";
+#endif
 	status = "okay";
 };

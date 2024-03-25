@@ -8,6 +8,20 @@
 /dts-v1/;
 
 /*
+ * Select between USB2 phy0 and MTU3 pins which are multiplexed
+ * MTU3 pins are NOT required, if only use clocksource/clockevent
+ * functions.
+ */
+#define MTU3_PINS_SEL			0
+
+/*
+ * POE3_SUPPORT is used to enable POE0/4 to control Hi-Z state of complementary PWM
+ * signals at MTIOC7A-MTIOC7C. Note: This macro must be enabled along with macros
+ * COMMON_PINS_SEL=3 to fully take effect.
+ */
+#define POE3_SUPPORT			0
+
+/*
  * RSPI2_PINS_SEL - select between RSPI ch2 and POEG, GPT pins
  * RSPI2_LOOPBACK_SEL - select target SPI device
  * 			(N25Q256A flash with Digilent PMOD SF3 by default)
