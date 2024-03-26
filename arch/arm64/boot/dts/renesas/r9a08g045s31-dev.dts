@@ -7,6 +7,12 @@
 
 /dts-v1/;
 
+/* Some interrupts of MTU3 and GPT are mixed on RZ/G3S.
+ * MTU3_INTERRUPT_SUPPORT is used to switch between MTU3 and GPT interrupts.
+ * By default, this macro is disabled due to higher priory of GPT's interrupts.
+ */
+#define MTU3_INTERRUPT_SUPPORT		0
+
 /*
  * Select between USB2 phy0 and MTU3 pins which are multiplexed
  * MTU3 pins are NOT required, if only use clocksource/clockevent
