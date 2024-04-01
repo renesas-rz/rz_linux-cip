@@ -21,6 +21,13 @@
 #define MTU3_PINS_SEL		0
 
 /*
+ * Select between pcie0 and MTU3 phase counting pins which are multiplexed.
+ * This macro must be enabled along with macro MTU3_PINS_SEL to fully take
+ * effect. By default, this macro is disabled for enabling pcie0 pins.
+ */
+#define MTU3_PHASE_COUNTING_SEL		0
+
+/*
  * POE3_SUPPORT is used to enable POE0/4 to control Hi-Z state of complementary PWM
  * signals at MTIOC7A-MTIOC7C. Note: This macro must be enabled along with macros
  * COMMON_PINS_SEL=3 to fully take effect.
@@ -51,8 +58,10 @@
 		     "renesas,r9a08g045s33", "renesas,r9a08g045s33-dev";
 };
 
+#if !MTU3_PHASE_COUNTING_SEL
 &pcie0 {
 	pinctrl-0 = <&pcie0_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
+#endif
