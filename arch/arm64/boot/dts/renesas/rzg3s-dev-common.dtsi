@@ -434,8 +434,17 @@
 
 #if MTU3_PINS_SEL
 	mtu3_pins: mtu3 {
-		pinmux = <RZG2L_PORT_PINMUX(5, 0, 3)>, /* MTIOC7A - JP1036 */
-			 <RZG2L_PORT_PINMUX(5, 2, 3)>; /* MTIOC7C - JP1038 */
+#if MTU3_PHASE_COUNTING_SEL
+		mtu3-ext-clk-input-pin {
+			pinmux = <RZG2L_PORT_PINMUX(15, 2, 8)>, /* MTCLKC - JP1025 */
+				 <RZG2L_PORT_PINMUX(15, 3, 8)>; /* MTCLKD - JP1032 */
+		};
+#endif
+
+		mtu3-pwm {
+			pinmux = <RZG2L_PORT_PINMUX(5, 0, 3)>, /* MTIOC7A - JP1036 */
+				 <RZG2L_PORT_PINMUX(5, 2, 3)>; /* MTIOC7C - JP1038 */
+		};
 	};
 #endif
 
@@ -512,10 +521,12 @@
 		};
 	};
 
+#if !MTU3_PHASE_COUNTING_SEL
 	pcie0_pins: pcie0 {
 		pinmux = <RZG2L_PORT_PINMUX(13, 3, 2)>, /* PCIE_CLKREQ_N */
 			 <RZG2L_PORT_PINMUX(15, 3, 6)>; /* PCIE_RST_OUT# */
 	};
+#endif
 };
 
 &i2c0 {
