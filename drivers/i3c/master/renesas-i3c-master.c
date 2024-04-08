@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
+#include <linux/units.h>
 
 #define PRTS			0x00
 #define PRTS_PRTMD		BIT(0)
@@ -357,8 +358,11 @@ struct renesas_i3c_master {
 	enum i3c_internal_state internal_state;
 	u16 maxdevs;
 	u32 free_pos;
+	u32 master_dyn_addr;
+	u32 DATBASn[8];
 	u32 i2c_STDBR;
 	u32 i3c_STDBR;
+	u8 refclk_divider;
 	u8 addrs[RENESAS_I3C_MAX_DEVS];
 	struct {
 		struct list_head list;
@@ -368,6 +372,7 @@ struct renesas_i3c_master {
 	void __iomem *regs;
 	struct clk *tclk;
 	struct clk *pclk;
+	struct reset_control *rstc;
 };
 
 struct renesas_i3c_i2c_dev_data {
@@ -605,6 +610,56 @@ static void renesas_i3c_master_bus_enable(struct i3c_master_controller *m, bool 
 	i3c_reg_set_bit(master->regs, BCTL, BCTL_BUSE);
 }
 
+static void renesas_i3c_master_hw_init(struct renesas_i3c_master *master)
+{
+	u32 val;
+	unsigned long rate;
+
+	rate = clk_get_rate(master->tclk);
+
+	i3c_reg_write(master->regs, SVCTL, 0);
+
+	/* Initialize Queue/Buffer threshold. */
+	i3c_reg_write(master->regs, NQTHCTL, NQTHCTL_IBIDSSZ(6) |
+							NQTHCTL_CMDQTH(1));
+	i3c_reg_write(master->regs, NTBTHCTL0, 0);
+	i3c_reg_write(master->regs, NRQTHCTL, 0);
+
+	/* Enable Status setting. */
+	i3c_reg_write(master->regs, BSTE, BSTE_ALL_FLAG);
+	i3c_reg_write(master->regs, NTSTE, NTSTE_ALL_FLAG);
+
+	/* Enable Interrupt setting. */
+	i3c_reg_write(master->regs, INIE, INIE_INEIE);
+	i3c_reg_write(master->regs, BIE, BIE_NACKDIE | BIE_TENDIE);
+	i3c_reg_write(master->regs, NTIE, NTIE_RSQFIE |
+					  NTIE_IBIQEFIE | NTIE_RDBFIE0);
+
+	/* Clear Status register */
+	i3c_reg_write(master->regs, NTST, 0);
+	i3c_reg_write(master->regs, INST, 0);
+	i3c_reg_write(master->regs, BST, 0);
+
+	/* Hot-Join Acknowlege setting. */
+	i3c_reg_update_bit(master->regs, BCTL, BCTL_HJACKCTL, BCTL_HJACKCTL);
+
+	i3c_reg_write(master->regs, IBINCTL, IBINCTL_NRHJCTL | IBINCTL_NRMRCTL |
+							IBINCTL_NRSIRCTL);
+
+	i3c_reg_write(master->regs, SCSTLCTL, 0);
+	i3c_reg_set_bit(master->regs, SCSTRCTL, SCSTRCTL_ACKTWE);
+
+	/* Bus condition timing */
+	val = DIV_ROUND_UP(I3C_BUS_FREE_TIME_NS, GIGA / rate);
+	i3c_reg_write(master->regs, BFRECDT, BFRECDT_FRECYC(val));
+
+	val = DIV_ROUND_UP(I3C_BUS_AVAL_TIME_NS, GIGA / rate);
+	i3c_reg_write(master->regs, BAVLCDT, BAVLCDT_AVLCYC(val));
+
+	val = DIV_ROUND_UP(I3C_BUS_IDEL_TIME_NS, GIGA / rate);
+	i3c_reg_write(master->regs, BIDLCDT, BIDLCDT_IDLCYC(val));
+}
+
 static int renesas_i3c_master_bus_init(struct i3c_master_controller *m)
 {
 	struct renesas_i3c_master *master = to_renesas_i3c_master(m);
@@ -648,7 +703,7 @@ static int renesas_i3c_master_bus_init(struct i3c_master_controller *m)
 			pp_high_ticks = ((i3c_total_ticks * 5) / 10);
 		else
 			pp_high_ticks = DIV_ROUND_UP(I3C_BUS_THIGH_MIXED_NS,
-							   1000000000 / rate);
+							   GIGA / rate);
 		pp_low_ticks = i3c_total_ticks - pp_high_ticks;
 
 		if (((od_low_ticks / 2) <= 0xFF) && (pp_low_ticks < 0x3F))
@@ -678,8 +733,8 @@ static int renesas_i3c_master_bus_init(struct i3c_master_controller *m)
 			STDBR_SBRLP(pp_low_ticks) |
 			STDBR_SBRHP(pp_high_ticks);
 
-	od_low_ticks -= scl_fall_ns / (1000000000 / rate) + 1;
-	od_high_ticks -= scl_rise_ns / (1000000000 / rate) + 1;
+	od_low_ticks -= scl_fall_ns / (GIGA / rate) + 1;
+	od_high_ticks -= scl_rise_ns / (GIGA / rate) + 1;
 	master->i2c_STDBR = (double_SBR ? STDBR_DSBRPO : 0) |
 			STDBR_SBRLO(double_SBR, od_low_ticks) |
 			STDBR_SBRHO(double_SBR, od_high_ticks) |
@@ -694,48 +749,10 @@ static int renesas_i3c_master_bus_init(struct i3c_master_controller *m)
 					   EXTBR_EBRHP(pp_high_ticks));
 
 	i3c_reg_write(master->regs, REFCKCTL, REFCKCTL_IREFCKS(cks));
+	master->refclk_divider = cks;
 
-	i3c_reg_write(master->regs, SVCTL, 0);
-
-	/* Initialize Queue/Buffer threshold. */
-	i3c_reg_write(master->regs, NQTHCTL, NQTHCTL_IBIDSSZ(6) |
-							NQTHCTL_CMDQTH(1));
-	i3c_reg_write(master->regs, NTBTHCTL0, 0);
-	i3c_reg_write(master->regs, NRQTHCTL, 0);
-
-	/* Enable Status setting. */
-	i3c_reg_write(master->regs, BSTE, BSTE_ALL_FLAG);
-	i3c_reg_write(master->regs, NTSTE, NTSTE_ALL_FLAG);
-
-	/* Enable Interrupt setting. */
-	i3c_reg_write(master->regs, INIE, INIE_INEIE);
-	i3c_reg_write(master->regs, BIE, BIE_NACKDIE | BIE_TENDIE);
-	i3c_reg_write(master->regs, NTIE, NTIE_RSQFIE |
-					  NTIE_IBIQEFIE | NTIE_RDBFIE0);
-
-	/* Clear Status register */
-	i3c_reg_write(master->regs, NTST, 0);
-	i3c_reg_write(master->regs, INST, 0);
-	i3c_reg_write(master->regs, BST, 0);
-
-	/* Hot-Join Acknowlege setting. */
-	i3c_reg_update_bit(master->regs, BCTL, BCTL_HJACKCTL, BCTL_HJACKCTL);
-
-	i3c_reg_write(master->regs, IBINCTL, IBINCTL_NRHJCTL | IBINCTL_NRMRCTL |
-							IBINCTL_NRSIRCTL);
-
-	i3c_reg_write(master->regs, SCSTLCTL, 0);
-	i3c_reg_set_bit(master->regs, SCSTRCTL, SCSTRCTL_ACKTWE);
-
-	/* Bus condition timing */
-	val = DIV_ROUND_UP(I3C_BUS_FREE_TIME_NS, 1000000000 / rate);
-	i3c_reg_write(master->regs, BFRECDT, BFRECDT_FRECYC(val));
-
-	val = DIV_ROUND_UP(I3C_BUS_AVAL_TIME_NS, 1000000000 / rate);
-	i3c_reg_write(master->regs, BAVLCDT, BAVLCDT_AVLCYC(val));
-
-	val = DIV_ROUND_UP(I3C_BUS_IDEL_TIME_NS, 1000000000 / rate);
-	i3c_reg_write(master->regs, BIDLCDT, BIDLCDT_IDLCYC(val));
+	/* I3C hw init*/
+	renesas_i3c_master_hw_init(master);
 
 	/* Get an address for I3C master. */
 	ret = i3c_master_get_free_addr(m, 0);
@@ -743,6 +760,7 @@ static int renesas_i3c_master_bus_init(struct i3c_master_controller *m)
 		return ret;
 
 	/* Setting Master Dynamic Address. */
+	master->master_dyn_addr = ret;
 	i3c_reg_write(master->regs, MSDVAD,
 			MSDVAD_MDYAD(ret) | MSDVAD_MDYADV);
 
@@ -1445,7 +1463,6 @@ static int renesas_i3c_master_probe(struct platform_device *pdev)
 {
 	struct renesas_i3c_master *master;
 	struct resource *res;
-	struct reset_control *treset, *preset;
 	int ret, irq, i;
 
 	master = devm_kzalloc(&pdev->dev, sizeof(*master), GFP_KERNEL);
@@ -1464,21 +1481,12 @@ static int renesas_i3c_master_probe(struct platform_device *pdev)
 	if (IS_ERR(master->tclk))
 		return PTR_ERR(master->tclk);
 
-	treset = devm_reset_control_get_optional_exclusive(&pdev->dev, "tresetn");
-	if (IS_ERR(treset))
-		return dev_err_probe(&pdev->dev, PTR_ERR(treset),
-				     "Error: missing tresetn ctrl\n");
+	master->rstc = devm_reset_control_array_get_optional_exclusive(&pdev->dev);
+	if (IS_ERR(master->rstc))
+		return dev_err_probe(&pdev->dev, PTR_ERR(master->rstc),
+				     "Error: missing reset ctrl\n");
 
-	ret = reset_control_deassert(treset);
-	if (ret)
-		return ret;
-
-	preset = devm_reset_control_get_optional_exclusive(&pdev->dev, "presetn");
-	if (IS_ERR(preset))
-		return dev_err_probe(&pdev->dev, PTR_ERR(preset),
-				     "Error: missing presetn ctrl\n");
-
-	ret = reset_control_deassert(preset);
+	ret = reset_control_deassert(master->rstc);
 	if (ret)
 		return ret;
 
@@ -1556,12 +1564,63 @@ static const struct of_device_id renesas_i3c_master_of_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, renesas_i3c_master_of_match);
 
+static int renesas_i3c_suspend(struct device *dev)
+{
+	int i;
+	struct renesas_i3c_master *master = dev_get_drvdata(dev);
+
+	/* Store Device Address Table values. */
+	for (i = 0; i < 8; i++)
+		master->DATBASn[i] = i3c_reg_read(master->regs, DATBAS(i));
+
+	i2c_mark_adapter_suspended(&master->base.i2c);
+
+	if (master->rstc)
+		reset_control_assert(master->rstc);
+
+	clk_disable_unprepare(master->pclk);
+	clk_disable_unprepare(master->tclk);
+
+	return 0;
+}
+
+static int renesas_i3c_resume(struct device *dev)
+{
+	struct renesas_i3c_master *master = dev_get_drvdata(dev);
+	int i;
+
+	reset_control_deassert(master->rstc);
+	clk_prepare_enable(master->pclk);
+	clk_prepare_enable(master->tclk);
+
+	/* Re-store I3C registers value. */
+	i3c_reg_write(master->regs, REFCKCTL,
+			REFCKCTL_IREFCKS(master->refclk_divider));
+	i3c_reg_write(master->regs, MSDVAD, MSDVAD_MDYADV |
+				MSDVAD_MDYAD(master->master_dyn_addr));
+
+	for (i = 0; i < 8; i++)
+		i3c_reg_write(master->regs, DATBAS(i),
+					master->DATBASn[i]);
+	/* I3C hw init. */
+	renesas_i3c_master_hw_init(master);
+
+	i2c_mark_adapter_resumed(&master->base.i2c);
+
+	return 0;
+}
+
+static const struct dev_pm_ops renesas_i3c_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(renesas_i3c_suspend, renesas_i3c_resume)
+};
+
 static struct platform_driver renesas_i3c_master = {
 	.probe = renesas_i3c_master_probe,
 	.remove = renesas_i3c_master_remove,
 	.driver = {
 		.name = "renesas-i3c-master",
 		.of_match_table = renesas_i3c_master_of_ids,
+		.pm	= &renesas_i3c_pm_ops,
 	},
 };
 module_platform_driver(renesas_i3c_master);
