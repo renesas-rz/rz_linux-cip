@@ -27,12 +27,13 @@ properties:
     oneOf:
       - items:
           - enum:
-              - sifive,rocket0
+              - andestech,ax45mp
               - sifive,e5
               - sifive,e51
-              - sifive,u54-mc
-              - sifive,u54
+              - sifive,rocket0
               - sifive,u5
+              - sifive,u54
+              - sifive,u54-mc
           - const: riscv
       - const: riscv    # Simulator only
     description:
