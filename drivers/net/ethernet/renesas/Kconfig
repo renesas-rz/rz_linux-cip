@@ -36,6 +36,7 @@ config RAVB
 	select MII
 	select MDIO_BITBANG
 	select PHYLIB
+	select RESET_CONTROLLER
 	imply PTP_1588_CLOCK
 	help
 	  Renesas Ethernet AVB device driver.
