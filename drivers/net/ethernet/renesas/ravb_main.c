@@ -1284,7 +1284,7 @@ static int ravb_poll(struct napi_struct *napi, int budget)
 	int mask = BIT(q);
 	int quota = budget;
 	unsigned int entry;
-	bool unmask = false;
+	bool unmask;
 
 	if (!gptp) {
 		entry = priv->cur_rx[q] % priv->num_rx_ring[q];
@@ -1293,9 +1293,8 @@ static int ravb_poll(struct napi_struct *napi, int budget)
 	/* Processing RX Descriptor Ring */
 	/* Clear RX interrupt */
 	ravb_write(ndev, ~(mask | RIS0_RESERVED), RIS0);
-	if (gptp || desc->die_dt != DT_FEMPTY) {
+	if (gptp || desc->die_dt != DT_FEMPTY)
 		unmask = !ravb_rx(ndev, &quota, q);
-	}
 
 	/* Processing TX Descriptor Ring */
 	spin_lock_irqsave(&priv->lock, flags);
@@ -1305,8 +1304,9 @@ static int ravb_poll(struct napi_struct *napi, int budget)
 	netif_wake_subqueue(ndev, q);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	if (!unmask)
-		goto out;
+	if (gptp || desc->die_dt != DT_FEMPTY)
+		if (!unmask)
+			goto out;
 
 	napi_complete(napi);
 
