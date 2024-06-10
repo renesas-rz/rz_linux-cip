@@ -32,6 +32,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/pwm.h>
 #include <linux/time.h>
+#include <linux/reset.h>
 
 #define RZ_MTU3_MAX_COMP_PWM_CHANNEL	4
 #define RZ_MTU3_MAX_PWM_MODE1_CHANNELS	12
@@ -101,6 +102,7 @@ struct rz_mtu3_pwm_chip {
 	u32 enable_count[RZ_MTU3_MAX_HW_CHANNELS];
 	u8 prescale[RZ_MTU3_MAX_HW_CHANNELS];
 	struct rz_mtu3_pwm_channel channel_data[RZ_MTU3_MAX_HW_CHANNELS];
+	struct reset_control *rstc;
 };
 
 /*
@@ -534,7 +536,7 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	else if (rz_mtu3_pwm->channel_data[ch].function ==
 					       MTU3_PWM_COMPLEMENTARY)
 		period_cycles = mul_u64_u32_div(state->period / 2,
-					        rz_mtu3_pwm->rate, NSEC_PER_SEC);
+						rz_mtu3_pwm->rate, NSEC_PER_SEC);
 
 	prescale = rz_mtu3_pwm_calculate_prescale(rz_mtu3_pwm, period_cycles);
 
@@ -793,13 +795,12 @@ static ssize_t mtu67_pwm_deadtime_show(struct device *dev,
 
 static DEVICE_ATTR_RW(mtu67_pwm_deadtime);
 
-
-#ifdef CONFIG_PM_SLEEP
 static int rz_mtu3_pwm_pm_runtime_suspend(struct device *dev)
 {
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = dev_get_drvdata(dev);
 
 	clk_disable_unprepare(rz_mtu3_pwm->clk);
+	reset_control_assert(rz_mtu3_pwm->rstc);
 
 	return 0;
 }
@@ -807,10 +808,25 @@ static int rz_mtu3_pwm_pm_runtime_suspend(struct device *dev)
 static int rz_mtu3_pwm_pm_runtime_resume(struct device *dev)
 {
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = dev_get_drvdata(dev);
+	int ret;
 
-	return clk_prepare_enable(rz_mtu3_pwm->clk);
+	ret = reset_control_deassert(rz_mtu3_pwm->rstc);
+	if (ret) {
+		dev_err(dev, "failed to deassert reset control\n");
+		reset_control_assert(rz_mtu3_pwm->rstc);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(rz_mtu3_pwm->clk);
+	if (ret) {
+		dev_err(dev, "failed to enable clock\n");
+		clk_disable_unprepare(rz_mtu3_pwm->clk);
+		reset_control_assert(rz_mtu3_pwm->rstc);
+		return ret;
+	}
+
+	return 0;
 }
-#endif
 
 static const struct dev_pm_ops rz_mtu3_pwm_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(rz_mtu3_pwm_pm_runtime_suspend,
@@ -839,6 +855,16 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	rz_mtu3_pwm->clk = parent_ddata->clk;
+
+	rz_mtu3_pwm->rstc = devm_reset_control_get_shared(pdev->dev.parent, NULL);
+	if (IS_ERR(rz_mtu3_pwm->rstc)) {
+		dev_err(dev, "cannot get reset control\n");
+		return PTR_ERR(rz_mtu3_pwm->rstc);
+	}
+
+	ret = reset_control_deassert(rz_mtu3_pwm->rstc);
+	if (ret)
+		goto assert_rstc;
 
 	for (i = 0; i < RZ_MTU_NUM_CHANNELS; i++) {
 		if (i == RZ_MTU3_CHAN_5 || i == RZ_MTU3_CHAN_8)
@@ -925,6 +951,8 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 
 disable_clock:
 	clk_disable_unprepare(rz_mtu3_pwm->clk);
+assert_rstc:
+	reset_control_assert(rz_mtu3_pwm->rstc);
 	return ret;
 }
 
