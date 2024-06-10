@@ -78,15 +78,6 @@ static int rz_mtu3_clk_enable(struct rz_mtu3_clk_channel_priv *ch)
 {
 	unsigned long periodic;
 	unsigned long rate;
-	int ret;
-
-	/* enable clock */
-	ret = clk_enable(ch->mtu->clk);
-	if (ret) {
-		dev_err(&ch->mtu->pdev->dev, "ch%u: cannot enable clock\n",
-			ch->index);
-		return ret;
-	}
 
 	/* make sure channel is disabled */
 	rz_mtu3_disable(ch->chan);
@@ -123,8 +114,6 @@ static void rz_mtu3_clk_disable(struct rz_mtu3_clk_channel_priv *ch)
 {
 	/* disable channel */
 	rz_mtu3_disable(ch->chan);
-	/* stop clock */
-	clk_disable(ch->mtu->clk);
 	dev_pm_syscore_device(&ch->mtu->pdev->dev, false);
 	pm_runtime_put(&ch->mtu->pdev->dev);
 }
@@ -275,20 +264,35 @@ static void rz_mtu3_clk_clocksource_suspend(struct clocksource *cs)
 {
 	struct rz_mtu3_clk_channel_priv *ch = cs_to_sh_mtu(cs);
 
-	if (!ch->cs_enabled)
-		return;
-	rz_mtu3_clk_stop(ch, FLAG_CLOCKSOURCE);
+	if (ch->cs_enabled)
+		rz_mtu3_clk_stop(ch, FLAG_CLOCKSOURCE);
 	pm_genpd_syscore_poweroff(&ch->mtu->pdev->dev);
+	clk_disable_unprepare(ch->mtu->clk);
+	reset_control_assert(ch->mtu->rstc);
 }
 
 static void rz_mtu3_clk_clocksource_resume(struct clocksource *cs)
 {
 	struct rz_mtu3_clk_channel_priv *ch = cs_to_sh_mtu(cs);
+	int ret;
 
-	if (!ch->cs_enabled)
+	ret = reset_control_deassert(ch->mtu->rstc);
+	if (ret) {
+		dev_err(&ch->mtu->pdev->dev, "failed to deassert reset control\n");
+		reset_control_assert(ch->mtu->rstc);
 		return;
+	}
+
+	if (clk_prepare_enable(ch->mtu->clk)) {
+		dev_err(&ch->mtu->pdev->dev, "failed to enable clock\n");
+		clk_disable_unprepare(ch->mtu->clk);
+		reset_control_assert(ch->mtu->rstc);
+		return;
+	}
+
 	pm_genpd_syscore_poweron(&ch->mtu->pdev->dev);
-	rz_mtu3_clk_start(ch, FLAG_CLOCKSOURCE);
+	if (ch->cs_enabled)
+		rz_mtu3_clk_start(ch, FLAG_CLOCKSOURCE);
 }
 
 static void rz_mtu3_clk_register_clockevent(struct rz_mtu3_clk_channel_priv *ch,
@@ -420,6 +424,17 @@ static int rz_mtu3_clk_setup(struct rz_mtu3_clk_device *mtu,
 	mtu->pdev = pdev;
 	raw_spin_lock_init(&mtu->lock);
 
+	/* Get hold of reset control */
+	mtu->rstc = devm_reset_control_get_shared(pdev->dev.parent, NULL);
+
+	if (IS_ERR(mtu->rstc)) {
+		dev_err(&mtu->pdev->dev, "cannot get reset control\n");
+		return PTR_ERR(mtu->rstc);
+	}
+	ret = reset_control_deassert(mtu->rstc);
+	if (ret < 0)
+		goto err_rstc_assert;
+
 	/* Get hold of clock. */
 	mtu->clk = ddata->clk;
 	if (IS_ERR(mtu->clk)) {
@@ -436,7 +451,7 @@ static int rz_mtu3_clk_setup(struct rz_mtu3_clk_device *mtu,
 		goto err_clk_unprepare;
 
 	mtu->rate = clk_get_rate(mtu->clk) / 64;
-	clk_disable(mtu->clk);
+
 	/* Allocate and setup the channels. */
 	mtu->has_clockevent = true;
 	mtu->has_clocksource = false;
@@ -468,8 +483,6 @@ static int rz_mtu3_clk_setup(struct rz_mtu3_clk_device *mtu,
 		}
 	}
 
-	clk_disable(mtu->clk);
-
 	platform_set_drvdata(pdev, mtu);
 
 	return 0;
@@ -481,6 +494,8 @@ err_clk_unprepare:
 	clk_unprepare(mtu->clk);
 err_clk_put:
 	clk_put(mtu->clk);
+err_rstc_assert:
+	reset_control_assert(mtu->rstc);
 	return ret;
 }
 
