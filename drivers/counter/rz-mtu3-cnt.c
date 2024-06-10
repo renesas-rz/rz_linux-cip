@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/types.h>
+#include <linux/reset.h>
 
 /*
  * Register descriptions
@@ -71,6 +72,14 @@
  * @count_is_enabled: Enabled state of Counter value channel
  * @mtu_16bit_max: Cache for 16-bit counters
  * @mtu_32bit_max: Cache for 32-bit counters
+ * @counter: MTU3 counter device
+ * @rstc: reset control
+ * @mtu1_val: value of MTU1 counter to be saved before S2R
+ * @mtu2_val: value of MTU2 counter to be saved before S2R
+ * @mtu12_val: value of cascade MTU1-2 counter to be saved before S2R
+ * @tmdr3: value of TMDR3 register to be saved before S2R
+ * @mtu1_tmdr1: value of MTU1.TMDR1 register to be saved before S2R
+ * @mtu2_tmdr1: value of MTU2.TMDR1 register to be saved before S2R
  */
 struct rz_mtu3_cnt {
 	struct clk *clk;
@@ -81,6 +90,14 @@ struct rz_mtu3_cnt {
 		u16 mtu_16bit_max[RZ_MTU3_MAX_HW_CNTR_CHANNELS];
 		u32 mtu_32bit_max;
 	};
+	struct counter_device *counter;
+	struct reset_control *rstc;
+	u64 mtu1_val;
+	u64 mtu2_val;
+	u64 mtu12_val;
+	unsigned long tmdr3;
+	unsigned long mtu1_tmdr1;
+	unsigned long mtu2_tmdr1;
 };
 
 static const enum counter_function rz_mtu3_count_functions[] = {
@@ -799,18 +816,114 @@ static struct counter_comp rz_mtu3_device_ext[] = {
 
 static int rz_mtu3_cnt_pm_runtime_suspend(struct device *dev)
 {
-	struct clk *const clk = dev_get_drvdata(dev);
+	struct rz_mtu3_cnt *const priv = dev_get_drvdata(dev);
+	struct counter_device *counter = priv->counter;
+	struct counter_count *count = counter->counts;
+	size_t num_counts = counter->num_counts;
+	struct rz_mtu3_channel *ch1 = rz_mtu3_get_ch(counter, 0);
+	struct rz_mtu3_channel *ch2 = rz_mtu3_get_ch(counter, 1);
+	size_t i;
 
-	clk_disable_unprepare(clk);
+	/* Save TMDR3 value */
+	priv->tmdr3 = rz_mtu3_shared_reg_read(priv->ch, RZ_MTU3_TMDR3);
+	/* Save MTU1.TMDR1 value */
+	priv->mtu1_tmdr1 = rz_mtu3_8bit_ch_read(ch1, RZ_MTU3_TMDR1);
+	/* Save MTU2.TMDR2 value */
+	priv->mtu2_tmdr1 = rz_mtu3_8bit_ch_read(ch2, RZ_MTU3_TMDR1);
 
+	for (i = 0; i < num_counts; i++) {
+		if (priv->count_is_enabled[count->id]) {
+			/* Save counter value */
+			struct rz_mtu3_channel *ch = rz_mtu3_get_ch(counter, count->id);
+
+			if (count->id == RZ_MTU3_16_BIT_MTU1_CH)
+				priv->mtu1_val = rz_mtu3_16bit_ch_read(ch, RZ_MTU3_TCNT);
+			else if (count->id == RZ_MTU3_16_BIT_MTU2_CH)
+				priv->mtu2_val = rz_mtu3_16bit_ch_read(ch, RZ_MTU3_TCNT);
+			else if (count->id == RZ_MTU3_32_BIT_CH)
+				priv->mtu12_val = rz_mtu3_32bit_ch_read(ch, RZ_MTU3_TCNTLW);
+		}
+		count++;
+	}
+
+	clk_disable_unprepare(priv->clk);
+	reset_control_assert(priv->rstc);
 	return 0;
 }
 
 static int rz_mtu3_cnt_pm_runtime_resume(struct device *dev)
 {
-	struct clk *const clk = dev_get_drvdata(dev);
+	struct rz_mtu3_cnt *const priv = dev_get_drvdata(dev);
+	struct counter_device *counter = priv->counter;
+	struct counter_count *count = counter->counts;
+	size_t num_counts = counter->num_counts;
+	struct rz_mtu3_channel *ch1 = rz_mtu3_get_ch(counter, 0);
+	struct rz_mtu3_channel *ch2 = rz_mtu3_get_ch(counter, 1);
+	int ret;
+	size_t i;
+	u64 ceiling;
 
-	clk_prepare_enable(clk);
+	ret = reset_control_deassert(priv->rstc);
+	if (ret) {
+		dev_err(dev, "Failed to deassert reset control\n");
+		reset_control_assert(priv->rstc);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(priv->clk);
+	if (ret) {
+		dev_err(dev, "Failed to enable clock\n");
+		clk_disable_unprepare(priv->clk);
+		reset_control_assert(priv->rstc);
+		return ret;
+	}
+
+	/* Restore TMDR3 register */
+	rz_mtu3_shared_reg_write(ch1, RZ_MTU3_TMDR3, priv->tmdr3);
+	/* Restore MTU1.TMDR1 register */
+	rz_mtu3_8bit_ch_write(ch1, RZ_MTU3_TMDR1, priv->mtu1_tmdr1);
+	/* Restore MTU2.TMDR1 register */
+	rz_mtu3_8bit_ch_write(ch2, RZ_MTU3_TMDR1, priv->mtu2_tmdr1);
+
+	for (i = 0; i < num_counts; i++) {
+		if (priv->count_is_enabled[count->id]) {
+			struct rz_mtu3_channel *ch = rz_mtu3_get_ch(counter, count->id);
+
+			/* Restore ceiling value */
+			ret = rz_mtu3_count_ceiling_read(counter, count, &ceiling);
+			if (ret)
+				return ret;
+
+			ret = rz_mtu3_count_ceiling_write(counter, count, ceiling);
+			if (ret)
+				return ret;
+
+			/* Restore counter value, configuration setting and enable channels */
+			if (count->id == RZ_MTU3_16_BIT_MTU1_CH) {
+				rz_mtu3_16bit_ch_write(ch, RZ_MTU3_TCNT, priv->mtu1_val);
+				rz_mtu3_8bit_ch_write(ch, RZ_MTU3_TCR, RZ_MTU3_TCR_CCLR_TGRA);
+				rz_mtu3_8bit_ch_write(ch, RZ_MTU3_TIOR, RZ_MTU3_TIOR_NO_OUTPUT);
+
+				rz_mtu3_enable(ch);
+
+			} else if (count->id == RZ_MTU3_16_BIT_MTU2_CH) {
+				rz_mtu3_16bit_ch_write(ch, RZ_MTU3_TCNT, priv->mtu2_val);
+				rz_mtu3_8bit_ch_write(ch, RZ_MTU3_TCR, RZ_MTU3_TCR_CCLR_TGRA);
+				rz_mtu3_8bit_ch_write(ch, RZ_MTU3_TIOR, RZ_MTU3_TIOR_NO_OUTPUT);
+
+				rz_mtu3_enable(ch);
+
+			} else if (count->id == RZ_MTU3_32_BIT_CH) {
+				rz_mtu3_32bit_ch_write(ch, RZ_MTU3_TCNTLW, priv->mtu12_val);
+				rz_mtu3_8bit_ch_write(ch1, RZ_MTU3_TCR, RZ_MTU3_TCR_CCLR_TGRA);
+				rz_mtu3_8bit_ch_write(ch1, RZ_MTU3_TIOR, RZ_MTU3_TIOR_IC_BOTH);
+
+				rz_mtu3_enable(ch1);
+				rz_mtu3_enable(ch2);
+			}
+		}
+		count++;
+	}
 
 	return 0;
 }
@@ -846,6 +959,17 @@ static int rz_mtu3_cnt_probe(struct platform_device *pdev)
 	priv->clk = ddata->clk;
 	priv->mtu_32bit_max = U32_MAX;
 	priv->ch = &ddata->channels[RZ_MTU3_CHAN_1];
+	priv->counter = counter;
+	priv->rstc = devm_reset_control_get_shared(pdev->dev.parent, NULL);
+	if (IS_ERR(priv->rstc)) {
+		dev_err(&pdev->dev, "cannot get reset control\n");
+		return PTR_ERR(priv->rstc);
+	}
+
+	ret = reset_control_deassert(priv->rstc);
+	if (ret < 0)
+		goto assert_rstc;
+
 	ch = &priv->ch[0];
 	for (i = 0; i < RZ_MTU3_MAX_HW_CNTR_CHANNELS; i++) {
 		ch->dev = dev;
@@ -854,8 +978,11 @@ static int rz_mtu3_cnt_probe(struct platform_device *pdev)
 	}
 
 	mutex_init(&priv->lock);
-	platform_set_drvdata(pdev, priv->clk);
-	clk_prepare_enable(priv->clk);
+	platform_set_drvdata(pdev, priv);
+	ret = clk_prepare_enable(priv->clk);
+	if (ret < 0)
+		goto disable_clock;
+
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 	ret = devm_add_action_or_reset(&pdev->dev, rz_mtu3_cnt_pm_disable, dev);
@@ -883,7 +1010,8 @@ static int rz_mtu3_cnt_probe(struct platform_device *pdev)
 
 disable_clock:
 	clk_disable_unprepare(priv->clk);
-
+assert_rstc:
+	reset_control_assert(priv->rstc);
 	return ret;
 }
 
