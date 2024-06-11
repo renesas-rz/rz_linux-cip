@@ -195,6 +195,7 @@
 
 		clocks = <&x2>;
 		clock-names = "xin";
+		reset-output;
 	};
 };
 
