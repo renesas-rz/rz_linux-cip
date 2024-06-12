@@ -132,6 +132,9 @@ Optional properties:
     - reg: phy id used to communicate to phy.
     - device_type: Must be "ethernet-phy".
     - fixed-mode device tree subnode: see fixed-link.txt in the same directory
+- ethsw_ptp_timer = <arg1 arg2> : Specify ETHSW Timer for RZT2H GMAC PTP
+    - arg1 : Specify GMAC index.
+    - arg2 : Specify which ETHSW timer to use for PTP.
 
 The MAC address will be determined using the optional properties
 defined in ethernet.txt.
