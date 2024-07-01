@@ -14,6 +14,18 @@ config NET_ETHERCAT_SLAVE
 
 	  To compile this driver as a module, choose M here.
 
+config NET_ETHERCAT_RZT2H_ESC
+	tristate "T2H EtherCat Slave support"
+	depends on NET_ETHERCAT_SLAVE
+	depends on NET_ETHERCAT_SOES
+	help
+	  This config enable driver supports the EtherCat Slave Controller
+	  on T2H board. On RZT2H boards, it use EtherCAT Slave Controller
+	  IP Core made by Beckhoff Automation GmbH, Germany.
+	  This ESC driver on T2H will use SOES for its functions.
+
+	  To compile this driver as a module, choose M here.
+
 source "drivers/net/ethercat/soes/Kconfig"
 
 endmenu
