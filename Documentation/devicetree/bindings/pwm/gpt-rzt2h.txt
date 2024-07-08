@@ -1,0 +1,56 @@
+* Renesas RZ/T2H GPT Timer Controller
+
+Required Properties:
+- compatible: Must be "renesas,gpt-r9a09g077".
+- reg: Base address and length of the registers block for the PWM.
+- #pwm-cells: Should be 2. See pwm.txt in this directory for a description of
+  the cells format.
+- interrupts: IRQ line for GPT.
+- interrupt-names: Name of IRQ lines.
+- clocks: Clock phandle and specifier pair.
+- clock-names: Name of clocks.
+- pinctrl-0: phandle, referring to a default pin configuration node.
+- pinctrl-names: Set to "default".
+- channel : Output channel for GPT, to set this refer to output pin and
+ one of the following:
+	- "channel_A": use only channel A for output
+	- "channel_B": use only channel B for output
+	- "both_AB": use both channel A and B for output, this is double output mode
+
+
+Optional properties:
+- poeg: referring to a poeg node, if not set this property, GPT not
+  use poeg
+
+Example:
+
+gpt02_0: gpt02_0@90004000 {
+	compatible = "renesas,gpt-r9a09g077";
+	reg = <0 0x90004000 0 0x100>,
+		<0 0x80290000 0 0x0c>,
+		<0 0x802a0000 0 0x1000>,
+		<0 0x812a0000 0 0x100>;
+	reg-names = "base1", "base2",
+		    "ns_int_base", "s_int_base";
+	#pwm-cells = <2>;
+	interrupts = <GIC_SPI 887 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 888 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 147 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 148 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 149 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 150 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 151 IRQ_TYPE_EDGE_RISING>;
+	interrupt-names = "adtrga", "adtrgb", "int0", "int1",
+			  "int2", "int3", "int4";
+	clocks = <&cpg CPG_MOD R9A09G077_GPT2_PCLK>;
+	power-domains = <&cpg>;
+	status = "disabled";
+};
+
+&gpt02_0 {
+	pinctrl-0 = <&gpt02_0_pins>;
+	pinctrl-names = "default";
+	channel = "both_AB";
+	poeg = <&poegd>;
+	status = "okay";
+};
