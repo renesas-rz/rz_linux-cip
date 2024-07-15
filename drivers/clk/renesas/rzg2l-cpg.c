@@ -1148,6 +1148,7 @@ rzg2l_cpg_pll_clk_register(const struct cpg_core_clk *core,
 	struct clk_init_data init;
 	const char *parent_name;
 	struct pll_clk *pll_clk;
+	int ret;
 
 	parent = clks[core->parent & 0xffff];
 	if (IS_ERR(parent))
@@ -1171,7 +1172,11 @@ rzg2l_cpg_pll_clk_register(const struct cpg_core_clk *core,
 	pll_clk->type = core->type;
 	pll_clk->default_rate = core->default_rate;
 
-	return clk_register(NULL, &pll_clk->hw);
+	ret = devm_clk_hw_register(dev, &pll_clk->hw);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return pll_clk->hw.clk;
 }
 
 static struct clk
@@ -1228,6 +1233,7 @@ rzg2l_cpg_register_core_clk(const struct cpg_core_clk *core,
 	struct device *dev = priv->dev;
 	unsigned int id = core->id, div = core->div;
 	const char *parent_name;
+	struct clk_hw *clk_hw;
 
 	WARN_DEBUG(id >= priv->num_core_clks);
 	WARN_DEBUG(PTR_ERR(priv->clks[id]) != -ENOENT);
@@ -1245,9 +1251,13 @@ rzg2l_cpg_register_core_clk(const struct cpg_core_clk *core,
 		}
 
 		parent_name = __clk_get_name(parent);
-		clk = clk_register_fixed_factor(NULL, core->name,
-						parent_name, CLK_SET_RATE_PARENT,
-						core->mult, div);
+		clk_hw = devm_clk_hw_register_fixed_factor(dev, core->name, parent_name,
+							   CLK_SET_RATE_PARENT,
+							   core->mult, div);
+		if (IS_ERR(clk_hw))
+			clk = ERR_CAST(clk_hw);
+		else
+			clk = clk_hw->clk;
 		break;
 	case CLK_TYPE_SAM_PLL:
 		clk = rzg2l_cpg_pll_clk_register(core, priv->clks, priv->base, priv,
@@ -1457,6 +1467,7 @@ rzg2l_cpg_register_mod_clk(const struct rzg2l_mod_clk *mod,
 	struct clk *parent, *clk;
 	const char *parent_name;
 	unsigned int i;
+	int ret;
 
 	WARN_DEBUG(id < priv->num_core_clks);
 	WARN_DEBUG(id >= priv->num_core_clks + priv->num_mod_clks);
@@ -1495,10 +1506,13 @@ rzg2l_cpg_register_mod_clk(const struct rzg2l_mod_clk *mod,
 	clock->priv = priv;
 	clock->hw.init = &init;
 
-	clk = clk_register(NULL, &clock->hw);
-	if (IS_ERR(clk))
+	ret = devm_clk_hw_register(dev, &clock->hw);
+	if (ret) {
+		clk = ERR_PTR(ret);
 		goto fail;
+	}
 
+	clk = clock->hw.clk;
 	dev_dbg(dev, "Module clock %pC at %lu Hz\n", clk, clk_get_rate(clk));
 	priv->clks[id] = clk;
 
