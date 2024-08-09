@@ -68,8 +68,6 @@ properties:
           - devantech,srf10
             # DA9053: flexible system level PMIC with multicore support
           - dlg,da9053
-            # DA9063: system PMIC for quad-core application processors
-          - dlg,da9063
             # DMARD09: 3-axis Accelerometer
           - domintech,dmard09
             # DMARD10: 3-axis Accelerometer

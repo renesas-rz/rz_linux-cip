@@ -367,6 +367,7 @@ static int mfd_remove_devices_fn(struct device *dev, void *data)
 {
 	struct platform_device *pdev;
 	const struct mfd_cell *cell;
+	struct mfd_of_node_entry *of_entry, *tmp;
 	int *level = data;
 
 	if (dev->type != &mfd_dev_type)
@@ -377,6 +378,12 @@ static int mfd_remove_devices_fn(struct device *dev, void *data)
 
 	if (level && cell->level > *level)
 		return 0;
+
+	list_for_each_entry_safe(of_entry, tmp, &mfd_of_node_list, list)
+		if (of_entry->dev == &pdev->dev) {
+			list_del(&of_entry->list);
+			kfree(of_entry);
+		}
 
 	regulator_bulk_unregister_supply_alias(dev, cell->parent_supplies,
 					       cell->num_parent_supplies);
