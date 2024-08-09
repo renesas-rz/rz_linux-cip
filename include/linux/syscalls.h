@@ -445,7 +445,7 @@ asmlinkage long sys_fstatfs(unsigned int fd, struct statfs __user *buf);
 asmlinkage long sys_fstatfs64(unsigned int fd, size_t sz,
 				struct statfs64 __user *buf);
 asmlinkage long sys_truncate(const char __user *path, long length);
-asmlinkage long sys_ftruncate(unsigned int fd, unsigned long length);
+asmlinkage long sys_ftruncate(unsigned int fd, off_t length);
 #if BITS_PER_LONG == 32
 asmlinkage long sys_truncate64(const char __user *path, loff_t length);
 asmlinkage long sys_ftruncate64(unsigned int fd, loff_t length);
@@ -1318,18 +1318,6 @@ extern long do_sys_ftruncate(unsigned int fd, loff_t length, int small);
 static inline long ksys_ftruncate(unsigned int fd, loff_t length)
 {
 	return do_sys_ftruncate(fd, length, 1);
-}
-
-extern int __close_fd(struct files_struct *files, unsigned int fd);
-
-/*
- * In contrast to sys_close(), this stub does not check whether the syscall
- * should or should not be restarted, but returns the raw error codes from
- * __close_fd().
- */
-static inline int ksys_close(unsigned int fd)
-{
-	return __close_fd(current->files, fd);
 }
 
 extern long do_sys_truncate(const char __user *pathname, loff_t length);
