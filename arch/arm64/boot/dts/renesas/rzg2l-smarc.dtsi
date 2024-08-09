@@ -40,17 +40,7 @@
 	status = "okay";
 
 	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@0 {
-			reg = <0>;
-			dsi0_in: endpoint {
-			};
-		};
-
 		port@1 {
-			reg = <1>;
 			dsi0_out: endpoint {
 				data-lanes = <1 2 3 4>;
 				remote-endpoint = <&adv7535_in>;
@@ -59,11 +49,17 @@
 	};
 };
 
+&du {
+	status = "okay";
+};
+
 &i2c1 {
 	adv7535: hdmi@3d {
 		compatible = "adi,adv7535";
 		reg = <0x3d>;
 
+		interrupt-parent = <&pinctrl>;
+		interrupts = <RZG2L_GPIO(2, 1) IRQ_TYPE_EDGE_FALLING>;
 		clocks = <&osc1>;
 		clock-names = "cec";
 		avdd-supply = <&reg_1p8v>;
