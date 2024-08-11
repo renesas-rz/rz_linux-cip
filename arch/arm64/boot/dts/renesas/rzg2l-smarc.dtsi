@@ -8,6 +8,9 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rzg2l-pinctrl.h>
 
+#define OV5645_PARENT_I2C i2c0
+#include "rz-smarc-cru-csi-ov5645.dtsi"
+
 / {
 	aliases {
 		serial1 = &scif2;
@@ -145,6 +148,11 @@
 	status = "disabled";
 };
 #endif /* PMOD_MTU3 */
+
+&ov5645 {
+	enable-gpios = <&pinctrl RZG2L_GPIO(2, 0) GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&pinctrl RZG2L_GPIO(40, 2) GPIO_ACTIVE_LOW>;
+};
 
 /*
  * To enable SCIF2 (SER0) on PMOD1 (CN7)

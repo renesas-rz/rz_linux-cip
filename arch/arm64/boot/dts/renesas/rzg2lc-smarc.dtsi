@@ -11,6 +11,9 @@
 #include "rzg2lc-smarc-pinfunction.dtsi"
 #include "rz-smarc-common.dtsi"
 
+#define OV5645_PARENT_I2C i2c0
+#include "rz-smarc-cru-csi-ov5645.dtsi"
+
 / {
 	aliases {
 		serial1 = &scif1;
@@ -154,6 +157,11 @@
 	status = "disabled";
 };
 #endif
+
+&ov5645 {
+	enable-gpios = <&pinctrl RZG2L_GPIO(0, 1) GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&pinctrl RZG2L_GPIO(5, 2) GPIO_ACTIVE_LOW>;
+};
 
 /*
  * To enable SCIF1 (SER0) on PMOD1 (CN7), On connector board

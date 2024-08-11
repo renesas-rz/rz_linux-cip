@@ -1477,6 +1477,15 @@ config REGULATOR_UNIPHIER
 	help
 	  Support for regulators implemented on Socionext UniPhier SoCs.
 
+config REGULATOR_RZG2L_VBCTRL
+	tristate "Renesas RZ/G2L USB VBUS regulator driver"
+	depends on RESET_RZG2L_USBPHY_CTRL || COMPILE_TEST
+	depends on OF
+	select REGMAP_MMIO
+	default RESET_RZG2L_USBPHY_CTRL
+	help
+	  Support for VBUS regulators implemented on Renesas RZ/G2L SoCs.
+
 config REGULATOR_VCTRL
 	tristate "Voltage controlled regulators"
 	depends on OF
