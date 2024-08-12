@@ -330,21 +330,6 @@ static int rzv2m_csi_wait_for_interrupt(struct rzv2m_csi_priv *csi,
 	return ret;
 }
 
-static int rzv2m_csi_wait_for_tx_empty(struct rzv2m_csi_priv *csi)
-{
-	int ret;
-
-	if (readl(csi->base + CSI_OFIFOL) == 0)
-		return 0;
-
-	ret = rzv2m_csi_wait_for_interrupt(csi, CSI_INT_TREND, CSI_CNT_TREND_E);
-
-	if (ret == -ETIMEDOUT)
-		csi->errors |= TX_TIMEOUT_ERROR;
-
-	return ret;
-}
-
 static inline int rzv2m_csi_wait_for_rx_ready(struct rzv2m_csi_priv *csi)
 {
 	int ret;
