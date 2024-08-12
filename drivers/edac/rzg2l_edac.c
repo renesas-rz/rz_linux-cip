@@ -128,7 +128,7 @@ unsigned long v2l_ddrmc_regs[] = {
 
 struct rzg2l_edac_priv_data {
 	void __iomem *base;
-	unsigned long *regs;
+	const unsigned long *regs;
 
 	/* debugfs entries */
 	struct dentry *dir;
@@ -492,7 +492,7 @@ static int rzg2l_edac_mc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	void __iomem *base;
-	unsigned long *regs;
+	const unsigned long *regs;
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer layers[1];
 	const struct of_device_id *id;
