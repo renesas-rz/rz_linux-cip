@@ -1056,7 +1056,6 @@ static int rzv2m_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rzv2m_pcie_host *host;
 	struct rzv2m_pcie *pcie;
-	u32 reg;
 	int err;
 	struct pci_host_bridge *bridge;
 
@@ -1232,7 +1231,7 @@ static void rzv2m_pcie_hw_enable_msi(struct rzv2m_pcie_host *host)
 	bool has_64bits_regs = host->has_64bits_regs;
 
 	if (host->info->flags & PCIE_SRAM_USE) {
-		msi->pages = ioremap(RAMA_ADDRESS, RAMA_SIZE);
+		msi->pages = (unsigned long) ioremap(RAMA_ADDRESS, RAMA_SIZE);
 		base = RAMA_ADDRESS;
 	} else {
 		msi->pages = __get_free_pages(GFP_KERNEL, 0);
@@ -1592,7 +1591,6 @@ static int rzv2m_pcie_resume(struct device *dev)
 	struct rzv2m_pcie_host *host = dev_get_drvdata(dev);
 	struct rzv2m_pcie *pcie = &host->pcie;
 	int idx, err;
-	u32 data;
 	bool has_64bits_regs = host->has_64bits_regs;
 
 	if (host->info->flags & PCIE_HAS_RST_CTRL) {
