@@ -40,6 +40,7 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -65,6 +66,8 @@
 #define ICMR3_ACKBT	0x08
 
 #define ICFER_FMPE	0x80
+#define ICFER_SCLE	0x40
+#define ICFER_NFE	0x20
 
 #define ICIER_TIE	0x80
 #define ICIER_TEIE	0x40
@@ -141,7 +144,7 @@ static int riic_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	struct device *dev = adap->dev.parent;
 	unsigned long time_left;
 	int i, ret;
-	u8 start_bit;
+	u8 start_bit, val;
 
 	ret = pm_runtime_resume_and_get(dev);
 	if (ret)
@@ -175,6 +178,15 @@ static int riic_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 			break;
 
 		start_bit = ICCR2_RS;
+	}
+
+	/* Should check bus state after finishing transfer */
+	if (!riic->err) {
+		time_left = readb_relaxed_poll_timeout(riic->base + riic->info->regs[RIIC_ICCR2],
+						       val, !(val & ICCR2_BBSY), 10, 100);
+		if (time_left)
+			dev_warn(riic->adapter.dev.parent,
+				 "The i2c bus is still busy\n");
 	}
 
  out:
@@ -320,7 +332,7 @@ static int riic_init_hw(struct riic_dev *riic)
 
 	if ((!fast_mode_plus && t->bus_freq_hz > I2C_MAX_FAST_MODE_FREQ) ||
 	    (fast_mode_plus && t->bus_freq_hz > I2C_MAX_FAST_MODE_PLUS_FREQ)) {
-		dev_err(&riic->adapter.dev,
+		dev_err(riic->adapter.dev.parent,
 			"unsupported bus speed (%dHz). %d max\n",
 			t->bus_freq_hz,
 			fast_mode_plus ? I2C_MAX_FAST_MODE_PLUS_FREQ :
@@ -330,6 +342,8 @@ static int riic_init_hw(struct riic_dev *riic)
 
 	rate = clk_get_rate(riic->clk);
 
+	riic_clear_set_bit(riic, 0, ICFER_SCLE | ICFER_NFE,
+				riic->info->regs[RIIC_ICFER]);
 	/*
 	 * Assume the default register settings:
 	 *  FER.SCLE = 1 (SCL sync circuit enabled, adds 2 or 3 cycles)
@@ -343,16 +357,18 @@ static int riic_init_hw(struct riic_dev *riic)
 	/*
 	 * Determine reference clock rate. We must be able to get the desired
 	 * frequency with only 62 clock ticks max (31 high, 31 low).
-	 * Aim for a duty of 60% LOW, 40% HIGH.
+	 * Aim for a duty of:
+	 * - Below 50kHz: 50% LOW, 50% HIGH.
+	 * - Above 50kHz: 60% LOW, 40% HIGH
 	 */
 	total_ticks = DIV_ROUND_UP(rate, t->bus_freq_hz ?: 1);
 
-	for (cks = 0; cks < 7; cks++) {
+	for (cks = 0; cks < 8; cks++) {
 		/*
-		 * 60% low time must be less than BRL + 2 + 1
+		 * Period of low time (60% or 50%) must be less than BRL + 2 + 1
 		 * BRL max register value is 0x1F.
 		 */
-		brl = ((total_ticks * 6) / 10);
+		brl = ((total_ticks * ((t->bus_freq_hz >= 50000) ? 6 : 5)) / 10);
 		if (brl <= (0x1F + 3))
 			break;
 
@@ -361,7 +377,7 @@ static int riic_init_hw(struct riic_dev *riic)
 	}
 
 	if (brl > (0x1F + 3)) {
-		dev_err(&riic->adapter.dev, "invalid speed (%lu). Too slow.\n",
+		dev_err(riic->adapter.dev.parent, "invalid speed (%lu). Too slow.\n",
 			(unsigned long)t->bus_freq_hz);
 		return -EINVAL;
 	}
