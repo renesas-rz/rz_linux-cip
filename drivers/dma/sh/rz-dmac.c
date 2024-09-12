@@ -28,9 +28,16 @@
 #include "../dmaengine.h"
 #include "../virt-dma.h"
 
+#include <linux/irqchip/icu-v2h.h>
+
 enum  rz_dmac_prep_type {
 	RZ_DMAC_DESC_MEMCPY,
 	RZ_DMAC_DESC_SLAVE_SG,
+};
+
+enum dmac_type {
+	RZ_COMMON_DMAC,
+	RZ_V2H_DMAC,
 };
 
 struct rz_lmdesc {
@@ -74,6 +81,8 @@ struct rz_dmac_chan {
 	u32 chcfg;
 	u32 chctrl;
 	int mid_rid;
+	int dmac_req;
+	int dmac_ack;
 
 	struct list_head ld_free;
 	struct list_head ld_queue;
@@ -95,9 +104,11 @@ struct rz_dmac {
 	struct reset_control *rstc;
 	void __iomem *base;
 	void __iomem *ext_base;
+	struct platform_device *icu_dev;
 
 	unsigned int n_channels;
 	struct rz_dmac_chan *channels;
+	enum dmac_type devtype;
 
 	DECLARE_BITMAP(modules, 1024);
 };
@@ -154,7 +165,9 @@ struct rz_dmac {
 #define CHCFG_FILL_HIEN(a)		(((a) & BIT(0)) << 5)
 
 #define MID_RID_MASK			GENMASK(9, 0)
+#define DMAC_REQ_MASK			GENMASK(9, 0)
 #define CHCFG_MASK			GENMASK(15, 10)
+#define DMAC_ACK_MASK			GENMASK(22, 16)
 #define CHCFG_DS_INVALID		0xFF
 #define DCTRL_LVINT			BIT(1)
 #define DCTRL_PR			BIT(0)
@@ -324,7 +337,8 @@ static void rz_dmac_prepare_desc_for_memcpy(struct rz_dmac_chan *channel)
 	lmdesc->chext = 0;
 	lmdesc->header = HEADER_LV;
 
-	rz_dmac_set_dmars_register(dmac, channel->index, 0);
+	if (dmac->devtype == RZ_COMMON_DMAC)
+		rz_dmac_set_dmars_register(dmac, channel->index, 0);
 
 	channel->chcfg = chcfg;
 	channel->chctrl = CHCTRL_STG | CHCTRL_SETEN;
@@ -375,7 +389,15 @@ static void rz_dmac_prepare_descs_for_slave_sg(struct rz_dmac_chan *channel)
 
 	channel->lmdesc.tail = lmdesc;
 
-	rz_dmac_set_dmars_register(dmac, channel->index, channel->mid_rid);
+	if (dmac->devtype == RZ_V2H_DMAC) {
+		if (register_dmac_req_signal(dmac->icu_dev, dmac->dev->id,
+					channel->index, channel->dmac_req) < 0)
+			dev_info(dmac->dev, "%s: Register dmac req fail\n", __func__);
+		if (register_dmac_ack_signal(dmac->icu_dev, channel->dmac_ack, 0) < 0)
+			dev_info(dmac->dev, "%s: Register dmac ack fail\n", __func__);
+	} else
+		rz_dmac_set_dmars_register(dmac, channel->index, channel->mid_rid);
+
 	channel->chctrl = CHCTRL_SETEN;
 }
 
@@ -455,6 +477,16 @@ static void rz_dmac_free_chan_resources(struct dma_chan *chan)
 	if (channel->mid_rid >= 0) {
 		clear_bit(channel->mid_rid, dmac->modules);
 		channel->mid_rid = -EINVAL;
+	}
+
+	if (channel->dmac_req >= 0) {
+		clear_bit(channel->dmac_req, dmac->modules);
+		channel->dmac_req = 0x3FF;
+	}
+
+	if (channel->dmac_ack >= 0) {
+		clear_bit(channel->dmac_ack, dmac->modules);
+		channel->dmac_ack = 0X7F;
 	}
 
 	spin_unlock_irqrestore(&channel->vc.lock, flags);
@@ -644,7 +676,14 @@ static void rz_dmac_device_synchronize(struct dma_chan *chan)
 	if (ret < 0)
 		dev_warn(dmac->dev, "DMA Timeout");
 
-	rz_dmac_set_dmars_register(dmac, channel->index, 0);
+	if (dmac->devtype == RZ_V2H_DMAC) {
+		if (register_dmac_req_signal(dmac->icu_dev, dmac->dev->id,
+					channel->index, 0x3FF) < 0)
+			dev_info(dmac->dev, "%s: Unregister dmac req fail\n", __func__);
+		if (register_dmac_ack_signal(dmac->icu_dev, channel->dmac_ack, 0x7F) < 0)
+			dev_info(dmac->dev, "%s: Unregister dmac ack fail\n", __func__);
+	} else
+		rz_dmac_set_dmars_register(dmac, channel->index, 0);
 }
 
 /*
@@ -725,12 +764,20 @@ static bool rz_dmac_chan_filter(struct dma_chan *chan, void *arg)
 	struct of_phandle_args *dma_spec = arg;
 	u32 ch_cfg;
 
-	channel->mid_rid = dma_spec->args[0] & MID_RID_MASK;
+	if (dmac->devtype == RZ_V2H_DMAC) {
+		channel->dmac_req = dma_spec->args[0] & DMAC_REQ_MASK;
+		channel->dmac_ack = (dma_spec->args[0] & DMAC_ACK_MASK) >> 16;
+	} else
+		channel->mid_rid = dma_spec->args[0] & MID_RID_MASK;
+
 	ch_cfg = (dma_spec->args[0] & CHCFG_MASK) >> 10;
 	channel->chcfg = CHCFG_FILL_TM(ch_cfg) | CHCFG_FILL_AM(ch_cfg) |
 			 CHCFG_FILL_LVL(ch_cfg) | CHCFG_FILL_HIEN(ch_cfg);
 
-	return !test_and_set_bit(channel->mid_rid, dmac->modules);
+	if (dmac->devtype == RZ_COMMON_DMAC)
+		return !test_and_set_bit(channel->mid_rid, dmac->modules);
+	else
+		return !test_and_set_bit(channel->dmac_req, dmac->modules);
 }
 
 static struct dma_chan *rz_dmac_of_xlate(struct of_phandle_args *dma_spec,
@@ -765,6 +812,8 @@ static int rz_dmac_chan_probe(struct rz_dmac *dmac,
 
 	channel->index = index;
 	channel->mid_rid = -EINVAL;
+	channel->dmac_req = 0x3FF;
+	channel->dmac_ack = 0x7F;
 
 	/* Request the channel interrupt. */
 	sprintf(pdev_irqname, "ch%u", index);
@@ -844,6 +893,9 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	const char *irqname = "error";
 	struct dma_device *engine;
 	struct rz_dmac *dmac;
+	struct device_node *np = pdev->dev.of_node;
+	struct device_node *icu_np;
+	struct platform_device *icu_dev_np;
 	int channel_num;
 	unsigned int i;
 	int ret;
@@ -860,6 +912,8 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	dmac->devtype = (enum dmac_type)of_device_get_match_data(&pdev->dev);
+
 	dmac->channels = devm_kcalloc(&pdev->dev, dmac->n_channels,
 				      sizeof(*dmac->channels), GFP_KERNEL);
 	if (!dmac->channels)
@@ -870,9 +924,11 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	if (IS_ERR(dmac->base))
 		return PTR_ERR(dmac->base);
 
-	dmac->ext_base = devm_platform_ioremap_resource(pdev, 1);
-	if (IS_ERR(dmac->ext_base))
-		return PTR_ERR(dmac->ext_base);
+	if (dmac->devtype == RZ_COMMON_DMAC) {
+		dmac->ext_base = devm_platform_ioremap_resource(pdev, 1);
+		if (IS_ERR(dmac->ext_base))
+			return PTR_ERR(dmac->ext_base);
+	}
 
 	/* Register interrupt handler for error */
 	irq = platform_get_irq_byname(pdev, irqname);
@@ -945,6 +1001,26 @@ static int rz_dmac_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "unable to register\n");
 		goto dma_register_err;
 	}
+
+	if (dmac->devtype == RZ_V2H_DMAC) {
+		ret = of_property_read_u32_index(np, "peripheral-request", 1, &dmac->dev->id);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "failed to get peripheral-request number (%d)\n",
+				dmac->dev->id);
+			return -EINVAL;
+		}
+
+		icu_np = of_parse_phandle(pdev->dev.of_node, "peripheral-request", 0);
+		if (icu_np != NULL) {
+			icu_dev_np = of_find_device_by_node(icu_np);
+			if (icu_dev_np) {
+				dmac->icu_dev = icu_dev_np;
+				dev_dbg(&pdev->dev, "DMAC using %s\n", dmac->icu_dev->name);
+			} else
+				dev_dbg(&pdev->dev, "DMAC not relate ICU\n");
+		}
+	}
+
 	return 0;
 
 dma_register_err:
@@ -992,7 +1068,9 @@ static int rz_dmac_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id of_rz_dmac_match[] = {
-	{ .compatible = "renesas,rz-dmac", },
+	{ .compatible = "renesas,rz-dmac", .data = (void *)RZ_COMMON_DMAC },
+	{ .compatible = "renesas,r9a09g057-dmac", .data = (void *)RZ_V2H_DMAC },
+	{ .compatible = "renesas,r9a09g047-dmac", .data = (void *)RZ_V2H_DMAC },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, of_rz_dmac_match);
