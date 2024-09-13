@@ -300,7 +300,7 @@
 				reg = <0x00000000 0x0001c000>;
 			};
 
-			partition@01d00 {
+			partition@1d00 {
 			/* fip is at offset 0x200 */
 				label = "fip";
 				reg = <0x0001d000 0x7e3000>;
