@@ -17,6 +17,15 @@
  * SW_SD0_DEV_SEL:
  *      0 - SD0 is connected to eMMC (default)
  *      1 - SD0 is connected to uSD0 card
+ *
+ *
+ * SW #5 states:
+ *
+ * Please change the corresponding selection to below Macros:
+ *
+ * SW_PDM_EN:
+ *	0 - Connects to Carrier for CAN1 (default)
+ *	1 - Connects to MEMS Microphone
  */
 
 / {

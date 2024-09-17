@@ -15,6 +15,18 @@
  * SW_SDIO_M2E:
  *	0 - Smarc SDIO signal is connected to uSD1
  *	1 - Smarc SDIO signal is connected to M.2 Key E connector
+ *
+ * SW_GPIO_CAN_PMOD states:
+ *
+ * Please change the corresponding selection to below Macros:
+ *
+ * SW_GPIO8_CAN0_STB:
+ *	0 - Connect to GPIO8 PMOD (default)
+ *	1 - Connect to CAN0 transceiver STB pin
+ *
+ * SW_GPIO9_CAN1_STB:
+ *	0 - Connect to GPIO9 PMOD (default)
+ *	1 - Connect to CAN1 transceiver STB pin
  */
 
 / {
@@ -41,6 +53,40 @@
 };
 
 &pinctrl {
+#if ((!SW_LCD_EN) && (SW_GPIO8_CAN0_STB))
+	can0-stb-hog {
+		gpio-hog;
+		gpios = <RZV2H_GPIO(5, 4) GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "can0_stb";
+	};
+#endif
+
+#if ((!SW_LCD_EN) && (SW_GPIO9_CAN1_STB))
+	can1-stb-hog {
+		gpio-hog;
+		gpios = <RZV2H_GPIO(5, 5) GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "can1_stb";
+	};
+#endif
+
+	canfd_pins: canfd {
+#if (!SW_PDM_EN)
+		can1_pins: can1 {
+			pinmux = <RZV2H_PORT_PINMUX(L, 2, 3)>, /* RX */
+				 <RZV2H_PORT_PINMUX(L, 3, 3)>; /* TX */
+		};
+#endif
+
+#if (!SW_LCD_EN)
+		can4_pins: can4 {
+			pinmux = <RZV2H_PORT_PINMUX(5, 2, 3)>, /* RX */
+				 <RZV2H_PORT_PINMUX(5, 3, 3)>; /* TX */
+		};
+#endif
+	};
+
 #if (!SW_SDIO_M2E)
 	sd1_pwr_en {
 		gpio-hog;
@@ -83,4 +129,23 @@
 	sd-uhs-sdr104;
 
 	status = "okay";
+};
+&canfd {
+#if ((!SW_PDM_EN) || (!SW_LCD_EN))
+	pinctrl-0 = <&canfd_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+#endif
+
+#if (!SW_PDM_EN)
+	channel1 {
+		status = "okay";
+	};
+#endif
+
+#if (!SW_LCD_EN)
+	channel4 {
+		status = "okay";
+	};
+#endif
 };
