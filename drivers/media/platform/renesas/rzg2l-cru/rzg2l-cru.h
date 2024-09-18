@@ -43,6 +43,7 @@ enum rzg2l_cru_common_regs {
 	AMnMBS,		/* Memory Bank Status for CRU Image Data */
 	AMnMADRSL,	/* VD Memory Address Lower Status Register */
 	AMnMADRSH,	/* VD Memory Address Higher Status Register */
+	AMnAXIATTR,	/* AXI-VD Bus Master Transfer Setting Register */
 	AMnFIFOPNTR,	/* AXI Master FIFO Pointer for CRU Image Data */
 	AMnAXISTP,	/* AXI Master Transfer Stop for CRU Image Data */
 	AMnAXISTPACK,	/* AXI Master Transfer Stop Status for CRU Image Data */
