@@ -113,10 +113,22 @@
 		};
 	};
 #endif
+
+	gpt0_1_pins: gpt0_1 {
+			pinmux = <RZV2H_PORT_PINMUX(3, 2, 10)>,
+				 <RZV2H_PORT_PINMUX(3, 3, 10)>;
+	};
 };
 
 &scif {
 	status = "okay";
+};
+
+&gpt0_1 {
+        pinctrl-0 = <&gpt0_1_pins>;
+        pinctrl-names = "default";
+        channel = "both_AB";
+        status = "okay";
 };
 
 &sdhi1 {
