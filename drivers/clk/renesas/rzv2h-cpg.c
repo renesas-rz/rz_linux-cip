@@ -115,19 +115,19 @@ struct mod_clock {
 #define to_mod_clock(_hw) container_of(_hw, struct mod_clock, hw)
 
 /**
- * struct ddiv_clk - DDIV clock
+ * struct sddiv_clk - Static/Dynamic DIV clock
  *
  * @priv: CPG private data
  * @div: divider clk
  * @mon: monitor bit in CPG_CLKSTATUS0 register
  */
-struct ddiv_clk {
+struct sddiv_clk {
 	struct rzv2h_cpg_priv *priv;
 	struct clk_divider div;
-	u8 mon;
+	s8 mon;
 };
 
-#define to_ddiv_clock(_div) container_of(_div, struct ddiv_clk, div)
+#define to_sddiv_clock(_div) container_of(_div, struct sddiv_clk, div)
 
 static unsigned long rzv2h_cpg_pll_clk_recalc_rate(struct clk_hw *hw,
 						   unsigned long parent_rate)
@@ -194,8 +194,8 @@ rzv2h_cpg_pll_clk_register(const struct cpg_core_clk *core,
 	return pll_clk->hw.clk;
 }
 
-static unsigned long rzv2h_ddiv_recalc_rate(struct clk_hw *hw,
-					    unsigned long parent_rate)
+static unsigned long rzv2h_sddiv_recalc_rate(struct clk_hw *hw,
+					     unsigned long parent_rate)
 {
 	struct clk_divider *divider = to_clk_divider(hw);
 	unsigned int val;
@@ -207,8 +207,8 @@ static unsigned long rzv2h_ddiv_recalc_rate(struct clk_hw *hw,
 				   divider->flags, divider->width);
 }
 
-static long rzv2h_ddiv_round_rate(struct clk_hw *hw, unsigned long rate,
-				  unsigned long *prate)
+static long rzv2h_sddiv_round_rate(struct clk_hw *hw, unsigned long rate,
+				   unsigned long *prate)
 {
 	struct clk_divider *divider = to_clk_divider(hw);
 
@@ -216,8 +216,8 @@ static long rzv2h_ddiv_round_rate(struct clk_hw *hw, unsigned long rate,
 				  divider->width, divider->flags);
 }
 
-static int rzv2h_ddiv_determine_rate(struct clk_hw *hw,
-				     struct clk_rate_request *req)
+static int rzv2h_sddiv_determine_rate(struct clk_hw *hw,
+				      struct clk_rate_request *req)
 {
 	struct clk_divider *divider = to_clk_divider(hw);
 
@@ -230,15 +230,16 @@ static inline int rzv2h_cpg_wait_ddiv_clk_update_done(void __iomem *base, u8 mon
 	u32 bitmask = BIT(mon);
 	u32 val;
 
-	return readl_poll_timeout_atomic(base + CPG_CLKSTATUS0, val, !(val & bitmask), 10, 200);
+	return readl_poll_timeout_atomic(base + CPG_CLKSTATUS0, val,
+					!(val & bitmask), 10, 200);
 }
 
-static int rzv2h_ddiv_set_rate(struct clk_hw *hw, unsigned long rate,
-			       unsigned long parent_rate)
+static int rzv2h_sddiv_set_rate(struct clk_hw *hw, unsigned long rate,
+			        unsigned long parent_rate)
 {
 	struct clk_divider *divider = to_clk_divider(hw);
-	struct ddiv_clk *ddiv = to_ddiv_clock(divider);
-	struct rzv2h_cpg_priv *priv = ddiv->priv;
+	struct sddiv_clk *sddiv = to_sddiv_clock(divider);
+	struct rzv2h_cpg_priv *priv = sddiv->priv;
 	unsigned long flags = 0;
 	int value;
 	u32 val;
@@ -251,18 +252,26 @@ static int rzv2h_ddiv_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	spin_lock_irqsave(divider->lock, flags);
 
-	ret = rzv2h_cpg_wait_ddiv_clk_update_done(priv->base, ddiv->mon);
-	if (ret)
-		goto ddiv_timeout;
+	/* Only ddiv support monitor register */
+	if (sddiv->mon >= 0) {
+		ret = rzv2h_cpg_wait_ddiv_clk_update_done(priv->base,
+							  sddiv->mon);
+		if (ret)
+			goto ddiv_timeout;
+	}
 
 	val = readl(divider->reg) | DDIV_DIVCTL_WEN(divider->shift);
 	val &= ~(clk_div_mask(divider->width) << divider->shift);
 	val |= (u32)value << divider->shift;
 	writel(val, divider->reg);
 
-	ret = rzv2h_cpg_wait_ddiv_clk_update_done(priv->base, ddiv->mon);
-	if (ret)
-		goto ddiv_timeout;
+	/* Only ddiv support monitor register */
+	if (sddiv->mon >= 0) {
+		ret = rzv2h_cpg_wait_ddiv_clk_update_done(priv->base,
+							  sddiv->mon);
+		if (ret)
+			goto ddiv_timeout;
+	}
 
 	spin_unlock_irqrestore(divider->lock, flags);
 
@@ -273,26 +282,26 @@ ddiv_timeout:
 	return ret;
 }
 
-static const struct clk_ops rzv2h_ddiv_clk_divider_ops = {
-	.recalc_rate = rzv2h_ddiv_recalc_rate,
-	.round_rate = rzv2h_ddiv_round_rate,
-	.determine_rate = rzv2h_ddiv_determine_rate,
-	.set_rate = rzv2h_ddiv_set_rate,
+static const struct clk_ops rzv2h_sddiv_clk_divider_ops = {
+	.recalc_rate = rzv2h_sddiv_recalc_rate,
+	.round_rate = rzv2h_sddiv_round_rate,
+	.determine_rate = rzv2h_sddiv_determine_rate,
+	.set_rate = rzv2h_sddiv_set_rate,
 };
 
 static struct clk * __init
-rzv2h_cpg_ddiv_clk_register(const struct cpg_core_clk *core,
+rzv2h_cpg_sddiv_clk_register(const struct cpg_core_clk *core,
 			    struct rzv2h_cpg_priv *priv)
 {
-	struct ddiv cfg_ddiv = core->cfg.ddiv;
+	struct sddiv cfg_sddiv = core->cfg.sddiv;
 	struct clk_init_data init = {};
 	struct device *dev = priv->dev;
-	u8 shift = cfg_ddiv.shift;
-	u8 width = cfg_ddiv.width;
+	u8 shift = cfg_sddiv.shift;
+	u8 width = cfg_sddiv.width;
 	const struct clk *parent;
 	const char *parent_name;
 	struct clk_divider *div;
-	struct ddiv_clk *ddiv;
+	struct sddiv_clk *sddiv;
 	int ret;
 
 	parent = priv->clks[core->parent];
@@ -304,19 +313,19 @@ rzv2h_cpg_ddiv_clk_register(const struct cpg_core_clk *core,
 	if ((shift + width) > 16)
 		return ERR_PTR(-EINVAL);
 
-	ddiv = devm_kzalloc(priv->dev, sizeof(*ddiv), GFP_KERNEL);
-	if (!ddiv)
+	sddiv = devm_kzalloc(priv->dev, sizeof(*sddiv), GFP_KERNEL);
+	if (!sddiv)
 		return ERR_PTR(-ENOMEM);
 
 	init.name = core->name;
-	init.ops = &rzv2h_ddiv_clk_divider_ops;
+	init.ops = &rzv2h_sddiv_clk_divider_ops;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
-	ddiv->priv = priv;
-	ddiv->mon = cfg_ddiv.monbit;
-	div = &ddiv->div;
-	div->reg = priv->base + cfg_ddiv.offset;
+	sddiv->priv = priv;
+	sddiv->mon = cfg_sddiv.monbit;
+	div = &sddiv->div;
+	div->reg = priv->base + cfg_sddiv.offset;
 	div->shift = shift;
 	div->width = width;
 	div->flags = core->flag;
@@ -412,8 +421,9 @@ rzv2h_cpg_register_core_clk(const struct cpg_core_clk *core,
 	case CLK_TYPE_PLL:
 		clk = rzv2h_cpg_pll_clk_register(core, priv, &rzv2h_cpg_pll_ops);
 		break;
+	case CLK_TYPE_SDIV:
 	case CLK_TYPE_DDIV:
-		clk = rzv2h_cpg_ddiv_clk_register(core, priv);
+		clk = rzv2h_cpg_sddiv_clk_register(core, priv);
 		break;
 	default:
 		goto fail;

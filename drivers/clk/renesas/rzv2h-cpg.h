@@ -9,31 +9,65 @@
 #define __RENESAS_RZV2H_CPG_H__
 
 /**
- * struct ddiv - Structure for dynamic switching divider
+ * struct ddiv - Structure for static/dynamic switching divider
  *
  * @offset: register offset
  * @shift: position of the divider bit
  * @width: width of the divider
  * @monbit: monitor bit in CPG_CLKSTATUS0 register
  */
-struct ddiv {
+struct sddiv {
 	unsigned int offset:11;
 	unsigned int shift:4;
 	unsigned int width:4;
-	unsigned int monbit:5;
+	s8 monbit;
 };
 
 #define DDIV_PACK(_offset, _shift, _width, _monbit) \
-	((struct ddiv){ \
+	((struct sddiv){ \
 		.offset = _offset, \
 		.shift = _shift, \
 		.width = _width, \
 		.monbit = _monbit \
 	})
 
-#define CPG_CDDIV0		(0x400)
+#define SDIV_PACK(_offset, _shift, _width) \
+	((struct sddiv){ \
+		.offset = _offset, \
+		.shift = _shift, \
+		.width = _width, \
+		.monbit = -1 \
+	})
 
-#define CDDIV0_DIVCTL2	DDIV_PACK(CPG_CDDIV0, 8, 3, 2)
+#define CPG_CDDIV(x)		(0x400 + 4 * (x))
+#define CPG_CSDIV(x)		(0x500 + 4 * (x))
+
+#define CDDIV0_DIVCTL0	DDIV_PACK(CPG_CDDIV(0),  0, 3,  0)
+#define CDDIV0_DIVCTL1	DDIV_PACK(CPG_CDDIV(0),  4, 3,  1)
+#define CDDIV0_DIVCTL2	DDIV_PACK(CPG_CDDIV(0),  8, 3,  2)
+#define CDDIV0_DIVCTL3	DDIV_PACK(CPG_CDDIV(0), 12, 2,  3)
+#define CDDIV1_DIVCTL0	DDIV_PACK(CPG_CDDIV(1),  0, 2,  4)
+#define CDDIV1_DIVCTL1	DDIV_PACK(CPG_CDDIV(1),  4, 2,  5)
+#define CDDIV1_DIVCTL2	DDIV_PACK(CPG_CDDIV(1),  8, 2,  6)
+#define CDDIV1_DIVCTL3	DDIV_PACK(CPG_CDDIV(1), 12, 2,  7)
+#define CDDIV2_DIVCTL0	DDIV_PACK(CPG_CDDIV(2),  0, 2,  8)
+#define CDDIV2_DIVCTL1	DDIV_PACK(CPG_CDDIV(2),  4, 3,  9)
+#define CDDIV2_DIVCTL2	DDIV_PACK(CPG_CDDIV(2),  8, 3, 10)
+#define CDDIV2_DIVCTL3	DDIV_PACK(CPG_CDDIV(2), 12, 3, 11)
+#define CDDIV3_DIVCTL0	DDIV_PACK(CPG_CDDIV(3),  0, 3, 12)
+#define CDDIV3_DIVCTL1	DDIV_PACK(CPG_CDDIV(3),  4, 3, 13)
+#define CDDIV3_DIVCTL2	DDIV_PACK(CPG_CDDIV(3),  8, 3, 14)
+#define CDDIV3_DIVCTL3	DDIV_PACK(CPG_CDDIV(3), 12, 1, 15)
+#define CDDIV4_DIVCTL0	DDIV_PACK(CPG_CDDIV(4),  0, 1, 16)
+#define CDDIV4_DIVCTL1	DDIV_PACK(CPG_CDDIV(4),  4, 1, 17)
+#define CDDIV4_DIVCTL2	DDIV_PACK(CPG_CDDIV(4),  8, 1, 18)
+#define CSDIV0_DIVCTL0	SDIV_PACK(CPG_CSDIV(0),  0, 2)
+#define CSDIV0_DIVCTL1	SDIV_PACK(CPG_CSDIV(0),  4, 2)
+#define CSDIV0_DIVCTL2	SDIV_PACK(CPG_CSDIV(0),  8, 2)
+#define CSDIV0_DIVCTL3	SDIV_PACK(CPG_CSDIV(0), 12, 2)
+#define CSDIV1_DIVCTL0	SDIV_PACK(CPG_CSDIV(1),  0, 1)
+#define CSDIV1_DIVCTL1	SDIV_PACK(CPG_CSDIV(1),  4, 2)
+#define CSDIV1_DIVCTL2	SDIV_PACK(CPG_CSDIV(1),  8, 4)
 
 /**
  * Definitions of CPG Core Clocks
@@ -52,7 +86,7 @@ struct cpg_core_clk {
 	unsigned int type;
 	union {
 		unsigned int conf;
-		struct ddiv ddiv;
+		struct sddiv sddiv;
 	} cfg;
 	const struct clk_div_table *dtable;
 	u32 flag;
@@ -64,6 +98,7 @@ enum clk_types {
 	CLK_TYPE_FF,		/* Fixed Factor Clock */
 	CLK_TYPE_PLL,
 	CLK_TYPE_DDIV,		/* Dynamic Switching Divider */
+	CLK_TYPE_SDIV,		/* Static Switching Divider */
 };
 
 /* BIT(31) indicates if CLK1/2 are accessible or not */
@@ -84,7 +119,13 @@ enum clk_types {
 	DEF_BASE(_name, _id, CLK_TYPE_FF, _parent, .div = _div, .mult = _mult)
 #define DEF_DDIV(_name, _id, _parent, _ddiv_packed, _dtable) \
 	DEF_TYPE(_name, _id, CLK_TYPE_DDIV, \
-		.cfg.ddiv = _ddiv_packed, \
+		.cfg.sddiv = _ddiv_packed, \
+		.parent = _parent, \
+		.dtable = _dtable, \
+		.flag = CLK_DIVIDER_HIWORD_MASK)
+#define DEF_SDIV(_name, _id, _parent, _sdiv_packed, _dtable) \
+	DEF_TYPE(_name, _id, CLK_TYPE_SDIV, \
+		.cfg.sddiv = _sdiv_packed, \
 		.parent = _parent, \
 		.dtable = _dtable, \
 		.flag = CLK_DIVIDER_HIWORD_MASK)
