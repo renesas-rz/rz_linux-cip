@@ -9,6 +9,25 @@
 #define __RENESAS_RZV2H_CPG_H__
 
 /**
+ * struct mux - Structure for static mux switching
+ *
+ * @offset: register offset
+ * @shift: position of the mux switching bit
+ * @width: width of the mux switching
+ * @mux_flags: flags for mux switching clock.
+ * @parent_names: name of parent clocks
+ * @num_parents: number of parent clocks.
+ */
+struct mux {
+	unsigned int offset:11;
+	unsigned int shift:4;
+	unsigned int width:4;
+	int mux_flags;
+	const char * const *parent_names;
+	int num_parents;
+};
+
+/**
  * struct ddiv - Structure for static/dynamic switching divider
  *
  * @offset: register offset
@@ -22,6 +41,13 @@ struct sddiv {
 	unsigned int width:4;
 	s8 monbit;
 };
+
+#define SSEL_PACK(_offset, _shift, _width) \
+	((struct mux){ \
+		.offset = _offset, \
+		.shift = _shift, \
+		.width = _width, \
+	})
 
 #define DDIV_PACK(_offset, _shift, _width, _monbit) \
 	((struct sddiv){ \
@@ -39,9 +65,18 @@ struct sddiv {
 		.monbit = -1 \
 	})
 
+#define CPG_SSEL(x)		(0x300 + 4 * (x))
 #define CPG_CDDIV(x)		(0x400 + 4 * (x))
 #define CPG_CSDIV(x)		(0x500 + 4 * (x))
 
+#define SSEL0_SELCTL0	SSEL_PACK(CPG_SSEL(0),  0, 1)
+#define SSEL0_SELCTL1	SSEL_PACK(CPG_SSEL(0),  4, 1)
+#define SSEL0_SELCTL2	SSEL_PACK(CPG_SSEL(0),  8, 1)
+#define SSEL0_SELCTL3	SSEL_PACK(CPG_SSEL(0), 12, 1)
+#define SSEL1_SELCTL0	SSEL_PACK(CPG_SSEL(1),  0, 1)
+#define SSEL1_SELCTL1	SSEL_PACK(CPG_SSEL(1),  4, 1)
+#define SSEL1_SELCTL2	SSEL_PACK(CPG_SSEL(1),  8, 1)
+#define SSEL1_SELCTL3	SSEL_PACK(CPG_SSEL(1), 12, 1)
 #define CDDIV0_DIVCTL0	DDIV_PACK(CPG_CDDIV(0),  0, 3,  0)
 #define CDDIV0_DIVCTL1	DDIV_PACK(CPG_CDDIV(0),  4, 3,  1)
 #define CDDIV0_DIVCTL2	DDIV_PACK(CPG_CDDIV(0),  8, 3,  2)
@@ -87,6 +122,7 @@ struct cpg_core_clk {
 	union {
 		unsigned int conf;
 		struct sddiv sddiv;
+		struct mux mux;
 	} cfg;
 	const struct clk_div_table *dtable;
 	u32 flag;
@@ -99,6 +135,7 @@ enum clk_types {
 	CLK_TYPE_PLL,
 	CLK_TYPE_DDIV,		/* Dynamic Switching Divider */
 	CLK_TYPE_SDIV,		/* Static Switching Divider */
+	CLK_TYPE_MUX,		/* Static Mux Switching */
 };
 
 /* BIT(31) indicates if CLK1/2 are accessible or not */
@@ -129,6 +166,12 @@ enum clk_types {
 		.parent = _parent, \
 		.dtable = _dtable, \
 		.flag = CLK_DIVIDER_HIWORD_MASK)
+#define DEF_MUX(_name, _id, _mux_packed, _parent_names) \
+	DEF_TYPE(_name, _id, CLK_TYPE_MUX, \
+		.cfg.mux = _mux_packed, \
+		.cfg.mux.parent_names = _parent_names, \
+		.cfg.mux.num_parents = ARRAY_SIZE(_parent_names), \
+		.cfg.mux.mux_flags = CLK_MUX_HIWORD_MASK)
 
 /**
  * struct rzv2h_mod_clk - Module Clocks definitions
