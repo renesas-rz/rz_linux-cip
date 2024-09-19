@@ -1,0 +1,86 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the RZ/G3E SMARC Carrier-II Board.
+ *
+ * Copyright (C) 2024 Renesas Electronics Corp.
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rzv2h-pinctrl.h>
+#include <dt-bindings/interrupt-controller/irqc-rzg2l.h>
+
+/*
+ * Please change the corresponding selection to below Macros:
+ *
+ * SW_SDIO_M2E:
+ *	0 - Smarc SDIO signal is connected to uSD1
+ *	1 - Smarc SDIO signal is connected to M.2 Key E connector
+ */
+
+/ {
+	aliases {
+		serial0 = &scif;
+#if (!SW_SDIO_M2E)
+		mmc1 = &sdhi1;
+#endif
+	};
+#if (!SW_SDIO_M2E)
+	vccq_sdhi1: regulator-vccq-sdhi1 {
+		compatible = "regulator-gpio";
+
+		regulator-name = "SDHI1 VccQ";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpios = <&pinctrl RZV2H_GPIO(1, 5) GPIO_ACTIVE_HIGH>;
+
+		gpios-states = <0>;
+		states = <3300000 0 1800000 1>;
+	};
+#endif
+};
+
+&pinctrl {
+#if (!SW_SDIO_M2E)
+	sd1_pwr_en {
+		gpio-hog;
+		gpios = <RZV2H_GPIO(1, 6) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "sd1_pwr_en";
+	};
+
+	sdhi1_pins: sd1 {
+		sd1_mux {
+			pinmux = <RZV2H_PORT_PINMUX(1, 4, 8)>; /* QSD1_CD */
+		};
+
+		sd1_data {
+			pinmux = <RZV2H_PORT_PINMUX(G, 2, 1)>, /* QSD1_DAT0 */
+				 <RZV2H_PORT_PINMUX(G, 3, 1)>, /* QSD1_DAT1 */
+				 <RZV2H_PORT_PINMUX(G, 4, 1)>, /* QSD1_DAT2 */
+				 <RZV2H_PORT_PINMUX(G, 5, 1)>; /* QSD1_DAT3 */
+		};
+
+		sd1_ctrl {
+			pinmux = <RZV2H_PORT_PINMUX(G, 0, 1)>, /* QSD2_CLK */
+				 <RZV2H_PORT_PINMUX(G, 1, 1)>; /* QSD2_CMD */
+		};
+	};
+#endif
+};
+
+&scif {
+	status = "okay";
+};
+
+&sdhi1 {
+	pinctrl-0 = <&sdhi1_pins>;
+	pinctrl-names = "default";
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&vccq_sdhi1>;
+	bus-width = <4>;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+
+	status = "okay";
+};

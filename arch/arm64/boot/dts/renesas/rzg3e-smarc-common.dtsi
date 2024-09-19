@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the RZ/G3E SMARC EVK common parts
+ *
+ * Copyright (C) 2024 Renesas Electronics Corp.
+ */
+
+#include "r9a09g047.dtsi"
+#include "rzg3e-smarc-som.dtsi"
+#include "rzg3e-smarc.dtsi"
+
+/ {
+	model = "Renesas SMARC EVK based on r9a09g047e54";
+	compatible = "renesas,r9a09g047e54-smarc", "renesas,r9a09g047e54", "renesas,r9a09g047";
+};

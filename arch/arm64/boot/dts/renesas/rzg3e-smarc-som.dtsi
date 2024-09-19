@@ -1,0 +1,177 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the R9A09G047E54 SMARC Carrier-II's SoM board.
+ *
+ * Copyright (C) 2024 Renesas Electronics Corp.
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rzv2h-pinctrl.h>
+#include <dt-bindings/interrupt-controller/irqc-rzg2l.h>
+
+/*
+ * SW #4 states:
+ *
+ * Please change the corresponding selection to below Macros:
+ *
+ * SW_SD0_DEV_SEL:
+ *      0 - SD0 is connected to eMMC (default)
+ *      1 - SD0 is connected to uSD0 card
+ */
+
+/ {
+	compatible = "renesas,rzg3e-smarc", "renesas,r9a09g047e54", "renesas,r9a09g047";
+
+	aliases {
+		mmc0 = &sdhi0;
+		mmc2 = &sdhi2;
+	};
+
+	chosen {
+		bootargs = "ignore_loglevel";
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@48000000 {
+		device_type = "memory";
+		/* first 128MB is reserved for secure area. */
+		reg = <0x0 0x48000000 0x0 0xF8000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		global_cma: linux,cma@58000000 {
+			compatible = "shared-dma-pool";
+			linux,cma-default;
+			reusable;
+			reg = <0x0 0x58000000 0x0 0x10000000>;
+		};
+	};
+
+	reg_1p8v: regulator0 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "fixed-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	reg_3p3v: regulator1 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vccq_sdhi2: regulator-vccq-sdhi2 {
+		compatible = "regulator-gpio";
+
+		regulator-name = "SDHI2 VccQ";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpios = <&pinctrl RZV2H_GPIO(K, 1) GPIO_ACTIVE_HIGH>;
+
+		gpios-states = <1>;
+		states = <3300000 1 1800000 0>;
+	};
+};
+
+&pinctrl {
+	sd2_pwr_en {
+		gpio-hog;
+		gpios = <RZV2H_GPIO(K, 2) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "sd2_pwr_en";
+	};
+
+#if (SW_SD0_DEV_SEL)
+	/* Support pinctrl for SD function of SDHI0 */
+	sdhi0_pins: sd0 {
+		sd0_mux {
+			pinmux = <RZV2H_PORT_PINMUX(5, 0, 8)>; /* SD0_CD */
+		};
+	};
+#endif
+
+	sdhi2_pins: sd2 {
+		sd2_mux {
+			pinmux = <RZV2H_PORT_PINMUX(K, 0, 1)>; /* QSD2_CD */
+		};
+
+		sd2_data {
+			pinmux = <RZV2H_PORT_PINMUX(H, 2, 1)>, /* QSD2_DAT0 */
+				 <RZV2H_PORT_PINMUX(H, 3, 1)>, /* QSD2_DAT1 */
+				 <RZV2H_PORT_PINMUX(H, 4, 1)>, /* QSD2_DAT2 */
+				 <RZV2H_PORT_PINMUX(H, 5, 1)>; /* QSD2_DAT3 */
+		};
+
+		sd2_ctrl {
+			pinmux = <RZV2H_PORT_PINMUX(H, 0, 1)>, /* QSD2_CLK */
+				 <RZV2H_PORT_PINMUX(H, 1, 1)>; /* QSD2_CMD */
+		};
+	};
+
+};
+
+&qextal_clk {
+	clock-frequency = <24000000>;
+};
+
+&sdhi0 {
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_1p8v>;
+	bus-width = <8>;
+	mmc-hs200-1_8v;
+	non-removable;
+	fixed-emmc-driver-type = <1>;
+	status = "okay";
+};
+
+#if (SW_SD0_DEV_SEL)
+/* SD0 slot */
+&sdhi0 {
+	pinctrl-0 = <&sdhi0_pins>;
+	pinctrl-names = "default";
+
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_1p8v>;
+
+	bus-width = <4>;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+
+	status = "okay";
+};
+#else
+/* eMMC */
+&sdhi0 {
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_1p8v>;
+	bus-width = <8>;
+	mmc-hs200-1_8v;
+	non-removable;
+	fixed-emmc-driver-type = <1>;
+	status = "okay";
+};
+#endif
+
+&sdhi2 {
+	pinctrl-0 = <&sdhi2_pins>;
+	pinctrl-names = "default";
+
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&vccq_sdhi2>;
+	bus-width = <4>;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	status = "okay";
+};
