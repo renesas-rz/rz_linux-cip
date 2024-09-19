@@ -539,7 +539,7 @@ static int rzv2h_mipi_dsi_dphy_init(struct rzg2l_mipi_dsi *dsi,
 	u32 ulpsexit;
 	u32 phytclksetr, phythssetr, phytlpxsetr, phycr;
 	unsigned long lpclk_rate = clk_get_rate(dsi->lpclk);
-	long long div, res, mult;
+	u64 div, fout, fvco;
 	short pll_k;
 	unsigned int pll_s, pll_m, pll_p;
 
@@ -606,40 +606,39 @@ static int rzv2h_mipi_dsi_dphy_init(struct rzg2l_mipi_dsi *dsi,
 	rzg2l_mipi_dsi_phy_write(dsi, PHYCR, phycr);
 
 	/* Setting all PLL Registers */
-find_div:
 	for (pll_p = 1; pll_p <= 4; pll_p++) {
 		for (pll_s = 0; pll_s <= 5; pll_s++) {
-			mult = hsfreq * (pll_p << pll_s);
-
-			div = mult / 24000;
-			if ((div < 64) || (div > 1023))
+			fout = hsfreq;
+			if ((fout > 1500000) || (fout < 80000))
 				continue;
 
-			res = mult % 24000;
-			if (res >= 12000) {
-				pll_m = div + 1;
-				pll_k = (res - 24000) * 65536 / 24000;
-				if (!(((res - 24000) * 65536) % 24000))
-					goto found;
-			} else {
-				pll_m = div;
-				pll_k = res * 65536 / 24000;
-				if (!((res * 65536) % 24000))
-					goto found;
+			fvco = fout * (1 << pll_s);
+			if ((fvco > 2100000) || (fvco < 1050000))
+				continue;
+
+			div = 24000 / (pll_p * (1 << pll_s));
+			pll_m = fout / div;
+			pll_k = fout % div;
+
+			/* Check available range of PLL_K */
+			if (pll_k >= (div / 2)) {
+				pll_m++;
+				pll_k = pll_k - div;
 			}
+			/* Check available range of PLL_M */
+			if ((pll_m < 64) || (pll_m > 1023))
+				continue;
+
+			pll_k = div_s64(((s64)pll_k << 16), div);
+
+			goto found_pll;
 		}
 	}
 
-	dev_info(dsi->dev,
-		 "Not found pll setting for %lu (kHz)\n", hsfreq);
-	/* Round hsfreq to the nearest freq multiple of 200KHz */
-	hsfreq = ((hsfreq / 200) + 1) * 200;
-	dev_info(dsi->dev,
-		 "Round to the nearest hsfreq %lu (kHz)\n", hsfreq);
-
-	goto find_div;
-
-found:
+	dev_err(dsi->dev,
+		"Failed to find MIPI DSI PLL parameters\n");
+	return -EINVAL;
+found_pll:
 	dev_dbg(dsi->dev,
 		"pll_k: %hd, pll_m: %d, pll_p: %d, pll_s: %d\n",
 		pll_k, pll_m, pll_p, pll_s);
