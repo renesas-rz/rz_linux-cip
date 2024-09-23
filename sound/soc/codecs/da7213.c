@@ -1912,8 +1912,45 @@ static int da7213_probe(struct snd_soc_component *component)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int da7213_suspend(struct snd_soc_component *component)
+{
+	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
+
+	regcache_cache_only(da7213->regmap, true);
+	regulator_bulk_disable(DA7213_NUM_SUPPLIES, da7213->supplies);
+
+	return 0;
+}
+
+static int da7213_resume(struct snd_soc_component *component)
+{
+	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	ret = regulator_bulk_enable(DA7213_NUM_SUPPLIES, da7213->supplies);
+	if (ret < 0)
+		return ret;
+
+	regcache_cache_only(da7213->regmap, false);
+	regcache_sync_region(da7213->regmap, 0x21, 0x2b);
+	regcache_sync_region(da7213->regmap, 0x30, 0x3a);
+	regcache_sync_region(da7213->regmap, 0x40, 0x4c);
+	regcache_sync_region(da7213->regmap, 0x50, 0x51);
+	regcache_sync_region(da7213->regmap, 0x60, 0x6f);
+	regcache_sync_region(da7213->regmap, 0x90, 0xb2);
+
+	return 0;
+}
+#else
+#define da7213_suspend NULL
+#define da7213_resume NULL
+#endif
+
 static const struct snd_soc_component_driver soc_component_dev_da7213 = {
 	.probe			= da7213_probe,
+	.suspend		= da7213_suspend,
+	.resume			= da7213_resume,
 	.set_bias_level		= da7213_set_bias_level,
 	.controls		= da7213_snd_controls,
 	.num_controls		= ARRAY_SIZE(da7213_snd_controls),
@@ -1999,6 +2036,7 @@ static int da7213_i2c_probe(struct i2c_client *i2c,
 		dev_err(&i2c->dev, "Failed to register da7213 component: %d\n",
 			ret);
 	}
+
 	return ret;
 }
 
