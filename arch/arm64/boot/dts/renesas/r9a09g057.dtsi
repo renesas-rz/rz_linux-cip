@@ -78,6 +78,23 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu0>;
+				};
+				core1 {
+					cpu = <&cpu1>;
+				};
+				core2 {
+					cpu = <&cpu2>;
+				};
+				core3 {
+					cpu = <&cpu3>;
+				};
+			};
+		};
+
 		cpu0: cpu@0 {
 			compatible = "arm,cortex-a55";
 			reg = <0>;
@@ -114,7 +131,6 @@
 			compatible = "cache";
 			cache-unified;
 			cache-size = <0x100000>;
-			cache-level = <3>;
 		};
 	};
 
