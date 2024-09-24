@@ -45,6 +45,10 @@ enum clk_ids {
 	CLK_PLLCM33_ADC_ADCLK,
 	CLK_PLLCM33_ADC_PCLK_DIV2,
 	CLK_PLLCM33_DIV4_DDIV2,
+	CLK_SMUX2_XSPI_CLK0,
+	CLK_SMUX2_XSPI_CLK1,
+	CLK_PLLCM33_XSPI,
+	CLK_PLLCM33_XSPI_DIV2,
 	CLK_PLLCLN_DIV2,
 	CLK_PLLCLN_DIV4,
 	CLK_PLLCLN_DIV8,
@@ -160,6 +164,8 @@ static const struct clk_div_table dtable_16_128[] = {
 	{0,   0},
 };
 
+static const char * const smux2_xspi_clk0[] = { ".pllcm33_div3", ".pllcm33_div4" };
+static const char * const smux2_xspi_clk1[] = { ".smux2_xspi_clk0", ".pllcm33_div5" };
 static const char * const smux2_gbe0_txclk[] = { ".plleth_gbe0", "et0_txc_tx_clk" };
 static const char * const smux2_gbe0_rxclk[] = { ".plleth_gbe0", "et0_rxc_rx_clk" };
 static const char * const smux2_gbe1_txclk[] = { ".plleth_gbe1", "et1_txc_tx_clk" };
@@ -200,6 +206,11 @@ static const struct cpg_core_clk r9a09g047_core_clks[] __initconst = {
 		 CSDIVx_DIVCTLy(1, 1, 2), dtable_2_16_geometric),
 	DEF_DDIV(".pllcm33_div4_ddiv2", CLK_PLLCM33_DIV4_DDIV2, CLK_PLLCM33_DIV4,
 		 CDDIVx_DIVCTLy(0, 1, 3), dtable_2_64),
+	DEF_MUX(".smux2_xspi_clk0", CLK_SMUX2_XSPI_CLK0, SSELx_SELCTLy(1, 2), smux2_xspi_clk0),
+	DEF_MUX(".smux2_xspi_clk1", CLK_SMUX2_XSPI_CLK1, SSELx_SELCTLy(1, 3), smux2_xspi_clk1),
+	DEF_SDIV(".pllcm33_xspi", CLK_PLLCM33_XSPI, CLK_SMUX2_XSPI_CLK1,
+		 CSDIVx_DIVCTLy(0, 3, 2), dtable_2_16_geometric),
+	DEF_FIXED(".pllcm33_xspi_div2", CLK_PLLCM33_XSPI_DIV2, CLK_PLLCM33_XSPI, 1, 2),
 	DEF_FIXED(".pllcln_div2", CLK_PLLCLN_DIV2, CLK_PLLCLN, 1, 2),
 	DEF_FIXED(".pllcln_div4", CLK_PLLCLN_DIV4, CLK_PLLCLN, 1, 4),
 	DEF_FIXED(".pllcln_div8", CLK_PLLCLN_DIV8, CLK_PLLCLN, 1, 8),
@@ -355,6 +366,10 @@ static const struct rzv2h_mod_clk r9a09g047_mod_clks[] __initconst = {
 	DEF_MOD("canfd_pclk",			CLK_PLLCLN_DIV16, 9, 12, 4, 28),
 	DEF_MOD("canfd_clk_ram",		CLK_PLLCLN_DIV8, 9, 13, 4, 29),
 	DEF_MOD("canfd_clkc",			CLK_PLLCLN_DIV20, 9, 14, 4, 30),
+	DEF_MOD("spi_hclk",			CLK_PLLCM33_DIV4_DDIV2, 9, 15, 4, 31),
+	DEF_MOD("spi_aclk",			CLK_PLLCM33_DIV4_DDIV2, 10, 0, 5, 0),
+	DEF_MOD("spi_clk_spi",			CLK_PLLCM33_XSPI_DIV2, 10, 1, 5, 1),
+	DEF_MOD("spi_clk_spix2",		CLK_PLLCM33_XSPI, 10, 2, 5, 2),
 	DEF_MOD("sdhi_0_imclk",			CLK_PLLCLN_DIV8, 10, 3, 5, 3),
 	DEF_MOD("sdhi_0_imclk2",		CLK_PLLCLN_DIV8, 10, 4, 5, 4),
 	DEF_MOD("sdhi_0_clk_hs",		CLK_PLLCLN_DIV2, 10, 5, 5, 5),
@@ -488,6 +503,8 @@ static const struct rzv2h_reset r9a09g047_resets[] __initconst = {
 	DEF_RST(10, 0, 4, 17),		/* RIIC_8_MRST */
 	DEF_RST(10, 1, 4, 18),		/* CANFD_RSTP_N */
 	DEF_RST(10, 2, 4, 19),		/* CANFD_RSTC_N */
+	DEF_RST(10, 3, 4, 20),		/* SPI_HRESETN */
+	DEF_RST(10, 4, 4, 21),		/* SPI_ARESETN */
 	DEF_RST(10, 7, 4, 24),		/* SDHI_0_IXRST */
 	DEF_RST(10, 8, 4, 25),		/* SDHI_1_IXRST */
 	DEF_RST(10, 9, 4, 26),		/* SDHI_2_IXRST */
