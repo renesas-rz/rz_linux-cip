@@ -46,6 +46,12 @@ config ARCH_RZG2L
 	select PM_GENERIC_DOMAINS
 	select RENESAS_RZG2L_IRQC
 
+config ARCH_RZV2H
+	bool
+	select PM
+	select PM_GENERIC_DOMAINS
+	select RENESAS_RZG2L_IRQC
+
 config ARCH_RZN1
 	bool
 	select PM
@@ -340,13 +346,13 @@ config ARCH_R9A09G011
 
 config ARCH_R9A09G047
 	bool "ARM64 Platform support for RZ/G3E"
-	select ARCH_RZG2L
+	select ARCH_RZV2H
 	help
 	  This enables support for the Renesas RZ/G3E SoC variants.
 
 config ARCH_R9A09G057
 	bool "ARM64 Platform support for RZ/V2H"
-	select ARCH_RZG2L
+	select ARCH_RZV2H
 	help
 	  This enables support for the Renesas RZ/V2H SoC variants.
 
