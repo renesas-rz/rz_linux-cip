@@ -893,6 +893,7 @@ static const struct spi_ops rspi_t2h_ops = {
 static const struct of_device_id rspi_of_match[] = {
 	/* RSPI on T2H */
 	{ .compatible = "renesas,rspi-t2h", .data = &rspi_t2h_ops },
+	{ .compatible = "renesas,rspi-n2h", .data = &rspi_t2h_ops },
 	{ /* sentinel */ }
 };
 
