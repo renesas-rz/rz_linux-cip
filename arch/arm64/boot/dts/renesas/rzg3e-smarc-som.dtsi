@@ -293,6 +293,10 @@
 	status = "okay";
 };
 
+&adc {
+       status = "okay";
+};
+
 &ostm0 {
 	status = "okay";
 };
