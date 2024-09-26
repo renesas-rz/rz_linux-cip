@@ -339,6 +339,7 @@ static SIMPLE_DEV_PM_OPS(irqc_pm_ops, irqc_suspend, NULL);
 
 static const struct of_device_id irqc_dt_ids[] = {
 	{ .compatible = "renesas,rzt2h-irqc", },
+	{ .compatible = "renesas,rzn2h-irqc", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, irqc_dt_ids);
