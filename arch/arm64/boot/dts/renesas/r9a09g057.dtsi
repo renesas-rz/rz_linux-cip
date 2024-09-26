@@ -239,7 +239,7 @@
 					  "ch4", "ch5", "ch6", "ch7",
 					  "ch8", "ch9", "ch10", "ch11",
 					  "ch12", "ch13", "ch14", "ch15";
-			clocks = <&cpg 1>;
+			clocks = <&cpg CPG_MOD 1>;
 			power-domains = <&cpg>;
 			resets = <&cpg 50>;
 			#dma-cells = <1>;
@@ -340,7 +340,7 @@
 					  "ch4", "ch5", "ch6", "ch7",
 					  "ch8", "ch9", "ch10", "ch11",
 					  "ch12", "ch13", "ch14", "ch15";
-			clocks = <&cpg 4>;
+			clocks = <&cpg CPG_MOD 4>;
 			power-domains = <&cpg>;
 			resets = <&cpg 53>;
 			#dma-cells = <1>;
