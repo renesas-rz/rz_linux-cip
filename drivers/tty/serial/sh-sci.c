@@ -322,11 +322,12 @@ static const struct sci_port_params sci_port_params[SCIx_NR_REGTYPES] = {
 	},
 
 	/*
-	 * The "SCIF" that is in RZ/V2H(P) SoC is similar to one found on RZ/G2L SoC
-	 * with below differences,
+	 * The "SCIF" that is in RZ/V2H(P) SoC, RZ/G3E is similar to one found
+	 * on RZ/G2L SoC with below differences,
 	 * - Break out of interrupts are different: ERI, BRI, RXI, TXI, TEI, DRI,
 	 *   TEI-DRI, RXI-EDGE and TXI-EDGE.
-	 * - SCSMR register does not have CM bit (BIT(7)) ie it does not support synchronous mode.
+	 * - SCSMR register does not have CM bit (BIT(7)) ie it does not support
+	 *   synchronous mode.
 	 * - SCFCR register does not have SCFCR_MCE bit.
 	 * - SCSPTR register has only bits SCSPTR_SPB2DT and SCSPTR_SPB2IO.
 	 */
@@ -3287,6 +3288,10 @@ static const struct of_device_id of_sci_match[] = {
 		.compatible = "renesas,scif-r9a09g057",
 		.data = SCI_OF_DATA(PORT_SCIF, SCIx_RZV2H_SCIF_REGTYPE),
 	},
+	{
+		.compatible = "renesas,scif-r9a09g047",
+		.data = SCI_OF_DATA(PORT_SCIF, SCIx_RZV2H_SCIF_REGTYPE),
+	},
 	/* Family-specific types */
 	{
 		.compatible = "renesas,rcar-gen1-scif",
@@ -3639,6 +3644,7 @@ OF_EARLYCON_DECLARE(scif, "renesas,scif", scif_early_console_setup);
 OF_EARLYCON_DECLARE(scif, "renesas,scif-r7s9210", rzscifa_early_console_setup);
 OF_EARLYCON_DECLARE(scif, "renesas,scif-r9a07g044", rzscifa_early_console_setup);
 OF_EARLYCON_DECLARE(scif, "renesas,scif-r9a09g057", rzv2hscif_early_console_setup);
+OF_EARLYCON_DECLARE(scif, "renesas,scif-r9a09g047", rzv2hscif_early_console_setup);
 OF_EARLYCON_DECLARE(scifa, "renesas,scifa", scifa_early_console_setup);
 OF_EARLYCON_DECLARE(scifb, "renesas,scifb", scifb_early_console_setup);
 OF_EARLYCON_DECLARE(hscif, "renesas,hscif", hscif_early_console_setup);
