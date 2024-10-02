@@ -16,6 +16,7 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
@@ -63,6 +64,7 @@
 #define PMC(n)			(0x400 + 0x001 * (n))
 #define PFC(n)			(0x600 + 0x008 * (n))
 #define PIN(n)			(0x800 + 0x001 * (n))
+#define DRCTL(n)		(0xA00 + 0x008 * (n))
 
 #define RSELPSR			0x1F04
 
@@ -70,6 +72,10 @@
 #define PFC_MASK		0x3FULL
 #define PM_INPUT		0x1
 #define PM_OUTPUT		0x2
+#define SR_MASK			0x01
+#define SCHMITT_MASK		0x01
+#define IOLH_MASK		0x03
+#define PUPD_MASK		0x03
 
 #define RZT2H_PIN_ID_TO_PORT(id)	((id) / RZT2H_PINS_PER_PORT)
 #define RZT2H_PIN_ID_TO_PORT_OFFSET(id)	(RZT2H_PIN_ID_TO_PORT(id) + 0x10)
@@ -99,6 +105,7 @@ struct rzt2h_pinctrl {
 
 	int safety_region;
 	spinlock_t			lock;
+	struct mutex                    mutex;
 };
 
 static void rzt2h_pinctrl_writeb(struct rzt2h_pinctrl *pctrl, u8 port, u8 val, u16 offset)
@@ -116,6 +123,14 @@ static void rzt2h_pinctrl_writew(struct rzt2h_pinctrl *pctrl, u8 port, u16 val, 
 		writew(val, pctrl->base + offset);
 	else
 		writew(val, pctrl->base1 + offset);
+};
+
+static void rzt2h_pinctrl_writel(struct rzt2h_pinctrl *pctrl, u8 port, u32 val, u16 offset)
+{
+	if (port > 12)
+		writel(val, pctrl->base + offset);
+	else
+		writel(val, pctrl->base1 + offset);
 };
 
 static void rzt2h_pinctrl_writeq(struct rzt2h_pinctrl *pctrl, u8 port, u64 val, u16 offset)
@@ -141,6 +156,14 @@ static u16 rzt2h_pinctrl_readw(struct rzt2h_pinctrl *pctrl, u8 port, u16 offset)
 		return readw(pctrl->base1 + offset);
 	else
 		return readw(pctrl->base + offset);
+};
+
+static u32 rzt2h_pinctrl_readl(struct rzt2h_pinctrl *pctrl, u8 port, u16 offset)
+{
+	if (port < 13)
+		return readl(pctrl->base1 + offset);
+	else
+		return readl(pctrl->base + offset);
 };
 
 static u64 rzt2h_pinctrl_readq(struct rzt2h_pinctrl *pctrl, u8 port, u16 offset)
@@ -293,6 +316,9 @@ static int rzt2h_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	if (num_pins)
 		nmaps += num_pins;
 
+	if (configs && num_pinmux)
+		nmaps += 1;
+
 	maps = krealloc_array(maps, nmaps, sizeof(*maps), GFP_KERNEL);
 	if (!maps) {
 		ret = -ENOMEM;
@@ -335,11 +361,13 @@ static int rzt2h_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		psel_val[i] = MUX_FUNC(value);
 	}
 
+	mutex_lock(&pctrl->mutex);
+
 	/* Register a single pin group listing all the pins we read from DT */
 	gsel = pinctrl_generic_add_group(pctldev, np->name, pins, num_pinmux, NULL);
 	if (gsel < 0) {
 		ret = gsel;
-		goto done;
+		goto unlock;
 	}
 
 	/*
@@ -354,10 +382,22 @@ static int rzt2h_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		goto remove_group;
 	}
 
+	mutex_unlock(&pctrl->mutex);
+
 	maps[idx].type = PIN_MAP_TYPE_MUX_GROUP;
 	maps[idx].data.mux.group = np->name;
 	maps[idx].data.mux.function = np->name;
 	idx++;
+
+	if (num_configs) {
+		ret = rzt2h_map_add_config(&maps[idx], np->name,
+					   PIN_MAP_TYPE_CONFIGS_GROUP,
+					   configs, num_configs);
+		if (ret < 0)
+			goto remove_group;
+
+		idx++;
+	};
 
 	dev_dbg(pctrl->dev, "Parsed %pOF with %d pins\n", np, num_pinmux);
 	ret = 0;
@@ -365,6 +405,10 @@ static int rzt2h_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 
 remove_group:
 	pinctrl_generic_remove_group(pctldev, gsel);
+
+unlock:
+	mutex_unlock(&pctrl->mutex);
+
 done:
 	*index = idx;
 	kfree(configs);
@@ -430,6 +474,211 @@ done:
 	return ret;
 }
 
+static int rzt2h_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
+				     unsigned int _pin,
+				     unsigned long *config)
+{
+	struct rzt2h_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
+	enum pin_config_param param = pinconf_to_config_param(*config);
+	unsigned int arg = 0;
+	u32 port = RZT2H_PIN_ID_TO_PORT(_pin);
+	u8 bit = RZT2H_PIN_ID_TO_PIN(_pin);
+	u32 addr = 0;
+
+	if (bit >= 4) {
+		bit -= 4;
+		addr += 4;
+	}
+
+	arg = rzt2h_pinctrl_readl(pctrl, port, DRCTL(port) + addr);
+
+	switch (param) {
+	case PIN_CONFIG_DRIVE_STRENGTH: {
+		arg = (arg >> (8 * bit)) & IOLH_MASK;
+		break;
+	}
+
+	case PIN_CONFIG_SLEW_RATE: {
+		arg = (arg >> (8 * bit + 5)) & SR_MASK;
+		break;
+	}
+
+	case PIN_CONFIG_BIAS_DISABLE:
+	case PIN_CONFIG_BIAS_PULL_UP:
+	case PIN_CONFIG_BIAS_PULL_DOWN: {
+		arg = (arg  >> (8 * bit + 2)) & PUPD_MASK;
+		if ((arg == 0 && param != PIN_CONFIG_BIAS_DISABLE) ||
+		    (arg == 0x1 && param != PIN_CONFIG_BIAS_PULL_UP) ||
+		    (arg == 0x2 && param != PIN_CONFIG_BIAS_PULL_DOWN))
+			return -EINVAL;
+
+		break;
+	}
+
+	case PIN_CONFIG_INPUT_SCHMITT_ENABLE: {
+		arg = (arg >> (8 * bit + 4)) & SCHMITT_MASK;
+		if (!arg)
+			return -EINVAL;
+		break;
+	}
+
+	default:
+		return -ENOTSUPP;
+	}
+
+	*config = pinconf_to_config_packed(param, arg);
+
+	return 0;
+};
+
+static int rzt2h_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
+				     unsigned int _pin,
+				     unsigned long *_configs,
+				     unsigned int num_configs)
+{
+	struct rzt2h_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
+	enum pin_config_param param;
+	unsigned int i;
+	u32 port = RZT2H_PIN_ID_TO_PORT(_pin);
+	u8 bit = RZT2H_PIN_ID_TO_PIN(_pin);
+	u32 drctl;
+	u32 addr = 0;
+	unsigned long flags;
+
+	if (bit >= 4) {
+		bit -= 4;
+		addr += 4;
+	}
+
+	for (i = 0; i < num_configs; i++) {
+		drctl = rzt2h_pinctrl_readl(pctrl, port, DRCTL(port) + addr);
+		param = pinconf_to_config_param(_configs[i]);
+
+		switch (param) {
+		case PIN_CONFIG_DRIVE_STRENGTH: {
+			unsigned int arg =
+					pinconf_to_config_argument(_configs[i]);
+
+			if (arg > IOLH_MASK)
+				return -EINVAL;
+
+			drctl = drctl & ~(IOLH_MASK << (bit * 8));
+			drctl |= (arg << (bit * 8));
+			spin_lock_irqsave(&pctrl->lock, flags);
+			rzt2h_pinctrl_writel(pctrl, port, drctl,
+					     DRCTL(port) + addr);
+			spin_unlock_irqrestore(&pctrl->lock, flags);
+			break;
+		}
+
+		case PIN_CONFIG_SLEW_RATE: {
+			unsigned int arg =
+					pinconf_to_config_argument(_configs[i]);
+
+			drctl = drctl & ~(SR_MASK << ((bit * 8) + 5));
+			drctl |= (!!arg << (bit * 8 + 5));
+			spin_lock_irqsave(&pctrl->lock, flags);
+			rzt2h_pinctrl_writel(pctrl, port, drctl,
+					     DRCTL(port) + addr);
+			spin_unlock_irqrestore(&pctrl->lock, flags);
+			break;
+		}
+
+		case PIN_CONFIG_BIAS_DISABLE:
+		case PIN_CONFIG_BIAS_PULL_UP:
+		case PIN_CONFIG_BIAS_PULL_DOWN: {
+			u32 bias;
+
+			if (param == PIN_CONFIG_BIAS_DISABLE)
+				bias = 0;
+			else if (param == PIN_CONFIG_BIAS_PULL_UP)
+				bias = 1;
+			else if (param == PIN_CONFIG_BIAS_PULL_DOWN)
+				bias = 2;
+			else
+				return -EOPNOTSUPP;
+
+			drctl = drctl & ~(PUPD_MASK << ((bit * 8) + 2));
+			drctl |= (bias << (bit * 8 + 2));
+			spin_lock_irqsave(&pctrl->lock, flags);
+			rzt2h_pinctrl_writel(pctrl, port, drctl,
+					     DRCTL(port) + addr);
+			spin_unlock_irqrestore(&pctrl->lock, flags);
+			break;
+		}
+
+		case PIN_CONFIG_INPUT_SCHMITT_ENABLE: {
+			u32 arg = pinconf_to_config_argument(_configs[i]);
+
+			drctl = drctl & ~(SCHMITT_MASK << ((bit * 8) + 4));
+			drctl |= (!!arg << (bit * 8 + 4));
+			spin_lock_irqsave(&pctrl->lock, flags);
+			rzt2h_pinctrl_writel(pctrl, port, drctl,
+					     DRCTL(port) + addr);
+			spin_unlock_irqrestore(&pctrl->lock, flags);
+			break;
+		}
+
+		default:
+			return -EOPNOTSUPP;
+		}
+	}
+
+	return 0;
+}
+
+
+static int rzt2h_pinctrl_pinconf_group_set(struct pinctrl_dev *pctldev,
+					   unsigned int group,
+					   unsigned long *configs,
+					   unsigned int num_configs)
+{
+	const unsigned int *pins;
+	unsigned int i, npins;
+	int ret;
+
+	ret = pinctrl_generic_get_group_pins(pctldev, group, &pins, &npins);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < npins; i++) {
+		ret = rzt2h_pinctrl_pinconf_set(pctldev, pins[i], configs,
+						num_configs);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+};
+
+static int rzt2h_pinctrl_pinconf_group_get(struct pinctrl_dev *pctldev,
+					   unsigned int group,
+					   unsigned long *config)
+{
+	const unsigned int *pins;
+	unsigned int i, npins, prev_config = 0;
+	int ret;
+
+	ret = pinctrl_generic_get_group_pins(pctldev, group, &pins, &npins);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < npins; i++) {
+		ret = rzt2h_pinctrl_pinconf_get(pctldev, pins[i], config);
+		if (ret) {
+			return ret;
+		}
+
+		/* Check config matching between to pin  */
+		if (i && prev_config != *config)
+			return -EOPNOTSUPP;
+
+		prev_config = *config;
+	}
+
+	return 0;
+};
+
 static const struct pinctrl_ops rzt2h_pinctrl_pctlops = {
 	.get_groups_count = pinctrl_generic_get_group_count,
 	.get_group_name = pinctrl_generic_get_group_name,
@@ -444,6 +693,15 @@ static const struct pinmux_ops rzt2h_pinctrl_pmxops = {
 	.get_function_groups = pinmux_generic_get_function_groups,
 	.set_mux = rzt2h_pinctrl_set_mux,
 	.strict = true,
+};
+
+static const struct pinconf_ops rzt2h_pinctrl_confops = {
+	.is_generic = true,
+	.pin_config_get = rzt2h_pinctrl_pinconf_get,
+	.pin_config_set = rzt2h_pinctrl_pinconf_set,
+	.pin_config_group_set = rzt2h_pinctrl_pinconf_group_set,
+	.pin_config_group_get = rzt2h_pinctrl_pinconf_group_get,
+	.pin_config_config_dbg_show = pinconf_generic_dump_config,
 };
 
 static int rzt2h_gpio_request(struct gpio_chip *chip, unsigned int offset)
@@ -572,7 +830,7 @@ static int rzt2h_gpio_get(struct gpio_chip *chip, unsigned int offset)
 
 static void rzt2h_gpio_free(struct gpio_chip *chip, unsigned int offset)
 {
-	pinctrl_gpio_free(chip, offset)
+	pinctrl_gpio_free(chip, offset);
 
 	/*
 	 * Set the GPIO as an input to ensure that the next GPIO request won't
@@ -682,6 +940,7 @@ static int rzt2h_pinctrl_register(struct rzt2h_pinctrl *pctrl)
 	pctrl->desc.npins = pctrl->data->n_port_pins;
 	pctrl->desc.pctlops = &rzt2h_pinctrl_pctlops;
 	pctrl->desc.pmxops = &rzt2h_pinctrl_pmxops;
+	pctrl->desc.confops = &rzt2h_pinctrl_confops;
 	pctrl->desc.owner = THIS_MODULE;
 
 	pins = devm_kcalloc(pctrl->dev, pctrl->desc.npins, sizeof(*pins), GFP_KERNEL);
@@ -761,7 +1020,7 @@ static int rzt2h_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	spin_lock_init(&pctrl->lock);
-
+	mutex_init(&pctrl->mutex);
 	platform_set_drvdata(pdev, pctrl);
 
 	ret = clk_prepare_enable(pctrl->clk);
