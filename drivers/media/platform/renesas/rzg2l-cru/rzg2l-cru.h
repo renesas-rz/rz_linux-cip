@@ -11,6 +11,7 @@
 #include <linux/reset.h>
 
 #include <media/v4l2-async.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
 #include <media/videobuf2-v4l2.h>
@@ -75,6 +76,8 @@ struct rzg2l_cru_ip {
  * @num_buf:		Holds the current number of buffers enabled
  * @notifier:		V4L2 asynchronous subdevs notifier
  *
+ * @ctrl_handler:	V4L2 control handler associated with CRU
+ *
  * @ip:			Image processing subdev info
  * @csi:		CSI info
  * @mdev:		media device
@@ -112,6 +115,8 @@ struct rzg2l_cru_dev {
 	u8 num_buf;
 
 	struct v4l2_async_notifier notifier;
+
+	struct v4l2_ctrl_handler ctrl_handler;
 
 	struct rzg2l_cru_ip ip;
 	struct rzg2l_cru_csi csi;
