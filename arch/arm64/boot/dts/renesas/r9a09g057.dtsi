@@ -639,6 +639,57 @@
 			#size-cells = <0>;
 			status = "disabled";
 		};
+
+		tsu0: thermal@11000000 {
+			compatible = "renesas,tsu-r9a09g057";
+			reg = <0 0x11000000 0 0x1000>;
+			clocks = <&cpg CPG_MOD 265>;
+			resets = <&cpg 247>;
+			power-domains = <&cpg>;
+			tsu,channel = <0>;
+			#thermal-sensor-cells = <1>;
+		};
+
+		tsu1: thermal@14002000 {
+			compatible = "renesas,tsu-r9a09g057";
+			reg = <0 0x14002000 0 0x1000>;
+			clocks = <&cpg CPG_MOD 266>;
+			resets = <&cpg 248>;
+			power-domains = <&cpg>;
+			tsu,channel = <1>;
+			#thermal-sensor-cells = <1>;
+		};
+	};
+
+	thermal-zones {
+		sensor_thermal0: sensor-thermal0 {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&tsu0 0>;
+
+			trips {
+				sensor0_crit: sensor0-crit {
+					temperature = <120000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+
+			};
+		};
+
+		sensor_thermal1: sensor-thermal1 {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&tsu1 0>;
+
+			trips {
+				sensor1_crit: sensor1-crit {
+					temperature = <120000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+		};
 	};
 
 	timer {
