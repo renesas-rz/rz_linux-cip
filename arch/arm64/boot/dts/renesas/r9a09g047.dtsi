@@ -639,6 +639,32 @@
 			#size-cells = <0>;
 			status = "disabled";
 		};
+
+		tsu: thermal@14002000 {
+			compatible = "renesas,tsu-r9a09g047";
+			reg = <0 0x14002000 0 0x1000>;
+			clocks = <&cpg CPG_MOD 266>;
+			resets = <&cpg 248>;
+			power-domains = <&cpg>;
+			tsu,channel = <1>;
+			#thermal-sensor-cells = <1>;
+		};
+	};
+
+	thermal-zones {
+		sensor_thermal: sensor-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&tsu 0>;
+
+			trips {
+				sensor_crit: sensor-crit {
+					temperature = <120000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+		};
 	};
 
 	timer {
