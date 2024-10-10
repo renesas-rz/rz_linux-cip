@@ -88,6 +88,14 @@ enum clk_ids {
 	MOD_CLK_BASE,
 };
 
+static const struct clk_div_table dtable_1_8[] = {
+	{0, 1},
+	{1, 2},
+	{2, 4},
+	{3, 8},
+	{0, 0},
+};
+
 static const struct clk_div_table dtable_2_4[] = {
 	{0, 2},
 	{1, 4},
@@ -254,6 +262,14 @@ static const struct cpg_core_clk r9a09g047_core_clks[] __initconst = {
 	/* Core Clocks */
 	DEF_FIXED("sys_0_pclk", R9A09G047_SYS_0_PCLK, CLK_QEXTAL, 1, 1),
 	DEF_FIXED("iotop_0_shclk", R9A09G047_IOTOP_0_SHCLK, CLK_PLLCM33_DIV16, 1, 1),
+	DEF_DDIV(".ca55_0_coreclk0", R9A09G047_CA55_0_CORE_CLK0,
+		 CLK_PLLCA55, CDDIVx_DIVCTLy(1, 0, 2), dtable_1_8),
+	DEF_DDIV(".ca55_0_coreclk1", R9A09G047_CA55_0_CORE_CLK1,
+		 CLK_PLLCA55, CDDIVx_DIVCTLy(1, 1, 2), dtable_1_8),
+	DEF_DDIV(".ca55_0_coreclk2", R9A09G047_CA55_0_CORE_CLK2,
+		 CLK_PLLCA55, CDDIVx_DIVCTLy(1, 2, 2), dtable_1_8),
+	DEF_DDIV(".ca55_0_coreclk3", R9A09G047_CA55_0_CORE_CLK3,
+		 CLK_PLLCA55, CDDIVx_DIVCTLy(1, 3, 2), dtable_1_8),
 };
 
 static const struct rzv2h_mod_clk r9a09g047_mod_clks[] __initconst = {
