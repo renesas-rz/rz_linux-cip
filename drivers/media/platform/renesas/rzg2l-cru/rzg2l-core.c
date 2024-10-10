@@ -271,12 +271,15 @@ static int rzg2l_cru_media_init(struct rzg2l_cru_dev *cru)
 static int rzg2l_cru_probe(struct platform_device *pdev)
 {
 	struct rzg2l_cru_dev *cru;
+	struct device *dev = &pdev->dev;
 	struct v4l2_ctrl *ctrl;
 	int ret;
 
 	cru = devm_kzalloc(&pdev->dev, sizeof(*cru), GFP_KERNEL);
 	if (!cru)
 		return -ENOMEM;
+
+	cru->info = of_device_get_match_data(dev);
 
 	cru->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cru->base))
@@ -368,8 +371,49 @@ static int rzg2l_cru_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const u16 rzg2l_cru_regs[CRU_REGS_END] = {
+	[CRUnCTRL] = 0x0,
+	[CRUnIE] = 0x4,
+	[CRUnINTS] = 0x8,
+	[CRUnRST] = 0xC,
+	[AMnMB1ADDRL] = 0x100,
+	[AMnMB1ADDRH] = 0x104,
+	[AMnMB2ADDRL] = 0x108,
+	[AMnMB2ADDRH] = 0x10C,
+	[AMnMB3ADDRL] = 0x110,
+	[AMnMB3ADDRH] = 0x114,
+	[AMnMB4ADDRL] = 0x118,
+	[AMnMB4ADDRH] = 0x11C,
+	[AMnMB5ADDRL] = 0x120,
+	[AMnMB5ADDRH] = 0x124,
+	[AMnMB6ADDRL] = 0x128,
+	[AMnMB6ADDRH] = 0x12C,
+	[AMnMB7ADDRL] = 0x130,
+	[AMnMB7ADDRH] = 0x134,
+	[AMnMB8ADDRL] = 0x138,
+	[AMnMB8ADDRH] = 0x13C,
+	[AMnMBVALID] = 0x148,
+	[AMnMBS] = 0x14C,
+	[AMnFIFOPNTR] = 0x168,
+	[AMnAXISTP] = 0x174,
+	[AMnAXISTPACK] = 0x178,
+	[ICnEN] = 0x200,
+	[ICnMC] = 0x208,
+	[ICnMS] = 0x254,
+	[ICnDMR] = 0x26C,
+};
+
+static const struct rzg2l_cru_info rzg2l_cru_info = {
+	.regs = rzg2l_cru_regs,
+	.max_width = 2800,
+	.max_height = 4095,
+};
+
+
 static const struct of_device_id rzg2l_cru_of_id_table[] = {
-	{ .compatible = "renesas,rzg2l-cru", },
+	{ .compatible = "renesas,rzg2l-cru",
+	  .data = &rzg2l_cru_info,
+	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rzg2l_cru_of_id_table);
