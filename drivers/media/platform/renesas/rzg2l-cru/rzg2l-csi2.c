@@ -969,6 +969,10 @@ static const struct of_device_id rzg2l_csi2_of_table[] = {
 		.compatible = "renesas,rzv2h-csi2",
 		.data = &rzv2h_csi2_info,
 	},
+	{
+		.compatible = "renesas,rzg3e-csi2",
+		.data = &rzv2h_csi2_info,
+	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rzg2l_csi2_of_table);
