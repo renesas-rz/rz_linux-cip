@@ -9,6 +9,19 @@
 #define __RENESAS_RZV2H_CPG_H__
 
 /**
+ * struct pll - Structure for PLL
+ *
+ * @conf: pll conf
+ * @min: pll minimum frequency in MHz
+ * @max: pll maximum frequency in MHz
+ */
+struct pll {
+	unsigned int conf;
+	unsigned long min;
+	unsigned long max;
+};
+
+/**
  * struct mux - Structure for static mux switching
  *
  * @offset: register offset
@@ -42,6 +55,13 @@ struct sddiv {
 	s8 monbit;
 };
 
+#define PLL_PACK(_conf, _min, _max)	\
+	((struct pll){ \
+		.conf = _conf, \
+		.min = _min, \
+		.max = _max, \
+	})
+
 #define SSEL_PACK(_offset, _shift, _width) \
 	((struct mux){ \
 		.offset = _offset, \
@@ -73,6 +93,8 @@ struct sddiv {
 #define CDDIVx_DIVCTLy(x, y, w)		DDIV_PACK(CPG_CDDIV(x), (y) * 4, w, (x) * 4 + (y))
 #define CSDIVx_DIVCTLy(x, y, w)		SDIV_PACK(CPG_CSDIV(x), (y) * 4, w)
 
+#define EXTAL_FREQ_IN_MEGA_HZ   (24)
+
 /**
  * Definitions of CPG Core Clocks
  *
@@ -92,8 +114,11 @@ struct cpg_core_clk {
 		unsigned int conf;
 		struct sddiv sddiv;
 		struct mux mux;
+		struct pll pll;
 	} cfg;
 	const struct clk_div_table *dtable;
+	unsigned long min;
+	unsigned long max;
 	u32 flag;
 };
 
@@ -102,23 +127,31 @@ enum clk_types {
 	CLK_TYPE_IN,		/* External Clock Input */
 	CLK_TYPE_FF,		/* Fixed Factor Clock */
 	CLK_TYPE_PLL,
+	CLK_TYPE_PLLDSI,
 	CLK_TYPE_DDIV,		/* Dynamic Switching Divider */
 	CLK_TYPE_SDIV,		/* Static Switching Divider */
 	CLK_TYPE_MUX,		/* Static Mux Switching */
+	CLK_TYPE_PLLDSI_SDIV,
 };
 
 /* BIT(31) indicates if CLK1/2 are accessible or not */
 #define PLL_CONF(n)		(BIT(31) | ((n) & ~GENMASK(31, 16)))
 #define PLL_CLK_ACCESS(n)	((n) & BIT(31) ? 1 : 0)
+#define PLL_STBY_OFFSET(n)	(((n) & ~GENMASK(31, 16)) - (0x4))
 #define PLL_CLK1_OFFSET(n)	((n) & ~GENMASK(31, 16))
 #define PLL_CLK2_OFFSET(n)	(((n) & ~GENMASK(31, 16)) + (0x4))
+#define PLL_MON_OFFSET(n)	(((n) & ~GENMASK(31, 16)) + (0xC))
 
 #define DEF_TYPE(_name, _id, _type...) \
 	{ .name = _name, .id = _id, .type = _type }
 #define DEF_BASE(_name, _id, _type, _parent...) \
 	DEF_TYPE(_name, _id, _type, .parent = _parent)
-#define DEF_PLL(_name, _id, _parent, _conf) \
-	DEF_TYPE(_name, _id, CLK_TYPE_PLL, .parent = _parent, .cfg.conf = _conf)
+#define DEF_PLL(_name, _id, _parent, _pll_packed) \
+	DEF_TYPE(_name, _id, CLK_TYPE_PLL, .parent = _parent, \
+		.cfg.pll = _pll_packed)
+#define DEF_PLLDSI(_name, _id, _parent, _pll_packed) \
+	DEF_TYPE(_name, _id, CLK_TYPE_PLLDSI, .parent = _parent, \
+		.cfg.pll = _pll_packed)
 #define DEF_INPUT(_name, _id) \
 	DEF_TYPE(_name, _id, CLK_TYPE_IN)
 #define DEF_FIXED(_name, _id, _parent, _mult, _div) \
@@ -141,6 +174,19 @@ enum clk_types {
 		.cfg.mux.parent_names = _parent_names, \
 		.cfg.mux.num_parents = ARRAY_SIZE(_parent_names), \
 		.cfg.mux.mux_flags = CLK_MUX_HIWORD_MASK)
+#define DEF_PLLDSI_SDIV(_name, _id, _parent, _sdiv_packed, _dtable) \
+	DEF_TYPE(_name, _id, CLK_TYPE_PLLDSI_SDIV, \
+		 .cfg.sddiv = _sdiv_packed, \
+		 .dtable = _dtable, \
+		 .parent = _parent, \
+		 .flag = CLK_DIVIDER_HIWORD_MASK)
+#define DEF_MUX_FLAGS(_name, _id, _mux_packed, _parent_names, _flags) \
+	DEF_TYPE(_name, _id, CLK_TYPE_MUX, \
+		 .cfg.mux = _mux_packed, \
+		 .cfg.mux.parent_names = _parent_names, \
+		 .cfg.mux.num_parents = ARRAY_SIZE(_parent_names), \
+		 .cfg.mux.mux_flags = CLK_MUX_HIWORD_MASK, \
+		 .flag = _flags)
 
 /**
  * struct rzv2h_mod_clk - Module Clocks definitions

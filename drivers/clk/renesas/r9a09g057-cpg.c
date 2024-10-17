@@ -193,10 +193,10 @@ static const struct cpg_core_clk r9a09g057_core_clks[] __initconst = {
 	DEF_FIXED(".plldty", CLK_PLLDTY, CLK_QEXTAL, 200, 3),
 	DEF_FIXED(".pllvdo", CLK_PLLVDO, CLK_QEXTAL, 210, 4),
 	DEF_FIXED(".plleth", CLK_PLLETH, CLK_QEXTAL, 250, 6),
-	DEF_PLL(".pllca55", CLK_PLLCA55, CLK_QEXTAL, PLL_CONF(0x64)),
-	DEF_PLL(".plldsi", CLK_PLLDSI, CLK_QEXTAL, PLL_CONF(0xC4)),
-	DEF_PLL(".pllgpu", CLK_PLLGPU, CLK_QEXTAL, PLL_CONF(0x124)),
-	DEF_PLL(".plldrp", CLK_PLLDRP, CLK_QEXTAL, PLL_CONF(0x144)),
+	DEF_PLL(".pllca55", CLK_PLLCA55, CLK_QEXTAL, PLL_PACK(PLL_CONF(0x64), 1100, 1800)),
+	DEF_PLLDSI(".plldsi", CLK_PLLDSI, CLK_QEXTAL, PLL_PACK(PLL_CONF(0xC4), 25, 375)),
+	DEF_PLL(".pllgpu", CLK_PLLGPU, CLK_QEXTAL, PLL_PACK(PLL_CONF(0x124), 1000, 1260)),
+	DEF_PLL(".plldrp", CLK_PLLDRP, CLK_QEXTAL, PLL_PACK(PLL_CONF(0x144), 1260, 1260)),
 
 	/* Internal Core Clocks */
 	DEF_FIXED(".pllcm33_div2", CLK_PLLCM33_DIV2, CLK_PLLCM33, 1, 2),
@@ -261,7 +261,7 @@ static const struct cpg_core_clk r9a09g057_core_clks[] __initconst = {
 	DEF_MUX(".smux2_gbe1_rxclk", CLK_SMUX2_GBE1_RXCLK, SSELx_SELCTLy(1, 1), smux2_gbe1_rxclk),
 	DEF_SDIV(".plleth_lpclk", CLK_PLLETH_LPCLK, CLK_PLLETH_DIV4,
 		 CSDIVx_DIVCTLy(0, 2, 2), dtable_16_128),
-	DEF_SDIV(".plldsi_sdiv2", CLK_PLLDSI_SDIV2, CLK_PLLDSI,
+	DEF_PLLDSI_SDIV(".plldsi_sdiv2", CLK_PLLDSI_SDIV2, CLK_PLLDSI,
 		 CSDIVx_DIVCTLy(1, 2, 4), dtable_2_32),
 	DEF_DDIV(".pllgpu_gear", CLK_PLLGPU_GEAR, CLK_PLLGPU,
 		 CDDIVx_DIVCTLy(3, 1, 3), dtable_2_64),
