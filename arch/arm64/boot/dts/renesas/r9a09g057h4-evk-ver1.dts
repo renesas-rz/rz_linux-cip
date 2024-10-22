@@ -332,6 +332,10 @@
 	status = "okay";
 };
 
+&adc {
+	status = "okay";
+};
+
 &xspi {
 	status = "okay";
 
