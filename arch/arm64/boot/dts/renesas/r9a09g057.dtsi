@@ -889,6 +889,22 @@
 			status = "disabled";
 		};
 
+		rtc: rtc@11c00800 {
+			compatible = "renesas,r9a09g057-rtc", "renesas,rtca-3";
+			reg = <0 0x11C00800 0 0x400>;
+			interrupts = <GIC_SPI 525 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 526 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 524 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "periodic", "carry", "alarm";
+			clocks = <&cpg CPG_MOD 83>;
+			clock-names = "fck";
+			resets = <&cpg 121>,
+				<&cpg 122>;
+			reset-names = "rtc", "rtc_v";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
 		xspi: spi@11030000 {
 			compatible = "renesas,v2h-xspi-if";
 			reg = <0 0x11030000 0 0x10000>,
