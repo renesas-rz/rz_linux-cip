@@ -400,8 +400,6 @@ static const struct rzv2h_mod_clk r9a09g047_mod_clks[] __initconst = {
 	DEF_MOD("sdhi_2_aclk",			CLK_PLLDTY_ACPU_DIV4, 10, 14, 5, 14),
 	DEF_MOD("usb30_aclk",			CLK_PLLDTY_DIV8, 10, 15, 5, 15),
 	DEF_MOD("usb30_pclk_usbtst",		CLK_PLLDTY_ACPU_DIV4, 11, 0, 5, 16),
-	DEF_MOD("usb31_aclk",			CLK_PLLDTY_DIV8, 11, 1, 5, 17),
-	DEF_MOD("usb31_pclk_usbtst",		CLK_PLLDTY_ACPU_DIV4, 11, 2, 5, 18),
 	DEF_MOD("usb2_u2h0_hclk",		CLK_PLLDTY_DIV8, 11, 3, 5, 19),
 	DEF_MOD("usb2_u2h1_hclk",		CLK_PLLDTY_DIV8, 11, 4, 5, 20),
 	DEF_MOD("usb2_u2p_exr_cpuclk",		CLK_PLLDTY_ACPU_DIV4, 11, 5, 5, 21),
@@ -424,7 +422,6 @@ static const struct rzv2h_mod_clk r9a09g047_mod_clks[] __initconst = {
 	DEF_MOD("cru0_aclk",			CLK_PLLDTY_ACPU_DIV2, 13, 2, 6, 18),
 	DEF_MOD("cru0_vclk",			CLK_PLLVDO_CRU0, 13, 3, 6, 19),
 	DEF_MOD("cru0_pclk",			CLK_PLLDTY_DIV16, 13, 4, 6, 20),
-	DEF_MOD("cru0_m_xi",			CLK_QEXTAL, 13, 14, 6, 30),
 	DEF_MOD("vcd_aclk",			CLK_PLLDTY_DIV4, 15, 3, 7, 19),
 	DEF_MOD("vcd_pclk",			CLK_PLLDTY_DIV8, 15, 4, 7, 20),
 	DEF_MOD("ssif_clk",			CLK_PLLCLN_DIV8, 15, 5, 7, 21),
@@ -525,7 +522,6 @@ static const struct rzv2h_reset r9a09g047_resets[] __initconst = {
 	DEF_RST(10, 8, 4, 25),		/* SDHI_1_IXRST */
 	DEF_RST(10, 9, 4, 26),		/* SDHI_2_IXRST */
 	DEF_RST(10, 10, 4, 27),		/* USB30_ARESETN */
-	DEF_RST(10, 11, 4, 28),		/* USB31_ARESETN */
 	DEF_RST(10, 12, 4, 29),		/* USB2_U2H0_HRESETN */
 	DEF_RST(10, 13, 4, 30),		/* USB2_U2H1_HRESETN */
 	DEF_RST(10, 14, 4, 31),		/* USB2_U2P_EXL_SYSRST */
@@ -536,17 +532,6 @@ static const struct rzv2h_reset r9a09g047_resets[] __initconst = {
 	DEF_RST(12, 5, 5, 22),		/* CRU0_PRESETN	*/
 	DEF_RST(12, 6, 5, 23),		/* CRU0_ARESETN	*/
 	DEF_RST(12, 7, 5, 24),		/* CRU0_S_RESETN */
-	DEF_RST(12, 8, 5, 25),		/* CRU1_PRESETN */
-	DEF_RST(12, 9, 5, 26),		/* CRU1_ARESETN	*/
-	DEF_RST(12, 10, 5, 27),		/* CRU1_S_RESETN */
-	DEF_RST(12, 11, 5, 28),		/* CRU2_PRESETN */
-	DEF_RST(12, 12, 5, 29),		/* CRU2_ARESETN */
-	DEF_RST(12, 13, 5, 30),		/* CRU2_S_RESETN */
-	DEF_RST(12, 14, 5, 31),		/* CRU3_PRESETN */
-	DEF_RST(12, 15, 6, 0),		/* CRU3_ARESETN */
-	DEF_RST(13, 0, 6, 1),		/* CRU3_S_RESETN */
-	DEF_RST(13, 5, 6, 6),		/* ISU_ARESETN */
-	DEF_RST(13, 6, 6, 7),		/* ISU_PRESETN */
 	DEF_RST(13, 7, 6, 8),		/* DSI_PRESETN */
 	DEF_RST(13, 8, 6, 9),		/* DSI_ARESETN */
 	DEF_RST(13, 12, 6, 13),		/* LCDC_RESET_N */
