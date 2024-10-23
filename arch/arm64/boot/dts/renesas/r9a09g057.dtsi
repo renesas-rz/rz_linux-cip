@@ -986,6 +986,38 @@
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
+
+		cmtw0: timer@11C01800 {
+			compatible = "renesas,rzv2h-cmtw";
+			reg = <0 0x11C01800 0 0x1000>;
+			interrupts = <GIC_SPI 455 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 456 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 457 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 458 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD 59>, <&cpg CPG_MOD 60>,
+				 <&cpg CPG_MOD 61>, <&cpg CPG_MOD 62>;
+			clock-names = "fck0", "fck1", "fck2", "fck3";
+			resets = <&cpg 101>, <&cpg 102>,
+				 <&cpg 103>, <&cpg 104>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		cmtw1: timer@13000C00 {
+			compatible = "renesas,rzv2h-cmtw";
+			reg = <0 0x13000C00 0 0x1000>;
+			interrupts = <GIC_SPI 459 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 460 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 461 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 462 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD 63>, <&cpg CPG_MOD 64>,
+				 <&cpg CPG_MOD 65>, <&cpg CPG_MOD 66>;
+			clock-names = "fck0", "fck1", "fck2", "fck3";
+			resets = <&cpg 105>, <&cpg 106>,
+				 <&cpg 107>, <&cpg 108>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
 	};
 
 	thermal-zones {
