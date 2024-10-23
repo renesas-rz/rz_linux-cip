@@ -58,6 +58,7 @@ enum clk_ids {
 	CLK_PLLCLN_DIV64,
 	CLK_PLLCLN_DIV256,
 	CLK_PLLCLN_DIV1024,
+	CLK_PLLDTY_DIV2,
 	CLK_PLLDTY_DIV4,
 	CLK_PLLDTY_DIV8,
 	CLK_PLLDTY_DIV16,
@@ -228,6 +229,7 @@ static const struct cpg_core_clk r9a09g047_core_clks[] __initconst = {
 	DEF_FIXED(".pllcln_div64", CLK_PLLCLN_DIV64, CLK_PLLCLN, 1, 64),
 	DEF_FIXED(".pllcln_div256", CLK_PLLCLN_DIV256, CLK_PLLCLN, 1, 256),
 	DEF_FIXED(".pllcln_div1024", CLK_PLLCLN_DIV1024, CLK_PLLCLN, 1, 1024),
+	DEF_FIXED(".plldty_div2", CLK_PLLDTY_DIV2, CLK_PLLDTY, 1, 2),
 	DEF_FIXED(".plldty_div4", CLK_PLLDTY_DIV4, CLK_PLLDTY, 1, 4),
 	DEF_FIXED(".plldty_div8", CLK_PLLDTY_DIV8, CLK_PLLDTY, 1, 8),
 	DEF_FIXED(".plldty_div16", CLK_PLLDTY_DIV16, CLK_PLLDTY, 1, 16),
@@ -439,6 +441,12 @@ static const struct rzv2h_mod_clk r9a09g047_mod_clks[] __initconst = {
 	DEF_MOD("adc_pclk",			CLK_PLLCM33_ADC_PCLK_DIV2, 16, 7, 8, 7),
 	DEF_MOD("adc_adclk",			CLK_PLLCM33_ADC_ADCLK, 16, 8, 8, 8),
 	DEF_MOD("tsu_pclk",			CLK_QEXTAL, 16, 10, 8, 10),
+	DEF_MOD("vspi_clk_m",			CLK_PLLDTY_DIV2, 26, 5, 10, 27),
+	DEF_MOD("vspi_clk_a",                   CLK_PLLDTY_DIV4, 26, 6, 10, 28),
+	DEF_MOD("vspi_clk_p",                   CLK_PLLDTY_DIV8, 26, 7, 10, 29),
+	DEF_MOD("fdp1_clk_m",			CLK_PLLDTY_DIV2, 27, 1, 11, 7),
+	DEF_MOD("fdp1_clk_a",			CLK_PLLDTY_DIV4, 27, 2, 11, 8),
+	DEF_MOD("fdp1_clk_p",			CLK_PLLDTY_DIV8, 27, 3, 11, 9),
 };
 
 static const struct rzv2h_reset r9a09g047_resets[] __initconst = {
@@ -558,6 +566,12 @@ static const struct rzv2h_reset r9a09g047_resets[] __initconst = {
 	DEF_RST(15, 1, 7, 2),		/* SPDIF2_RST */
 	DEF_RST(15, 6, 7, 7),		/* ADC_ADRST_N */
 	DEF_RST(15, 8, 7, 9),		/* TSU_PRESETN */
+	DEF_RST(17, 11, 8, 12),		/* VSPI_SMRESET_VSPISS */
+	DEF_RST(17, 12, 8, 13),		/* VSPI_SRESET_VSP1Z */
+	DEF_RST(17, 13, 8, 14),		/* VSPI_SPRESET_FCPVI0 */
+	DEF_RST(18, 4, 9, 4),		/* FDP1_BRDG_RESETN */
+	DEF_RST(18, 5, 9, 5),		/* FDP1_FDP1_RESETN */
+	DEF_RST(18, 6, 9, 6),		/* FDP1_FCPF1_RESETP */
 };
 
 const struct rzv2h_cpg_info r9a09g047_cpg_info __initconst = {
