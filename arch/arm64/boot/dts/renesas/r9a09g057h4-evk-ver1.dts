@@ -218,6 +218,11 @@
 		pinmux = <RZV2H_PORT_PINMUX(6, 6, 14)>, /* VBUS */
 			 <RZV2H_PORT_PINMUX(6, 7, 14)>; /* OVC */
 	};
+
+	gpt0_0_pins: gpt0_0 {
+		pinmux = <RZV2H_PORT_PINMUX(7, 0, 9)>, /* Channel A */
+			 <RZV2H_PORT_PINMUX(7, 1, 9)>; /* Channel B */
+	};
 };
 
 &qextal_clk {
@@ -329,6 +334,13 @@
 };
 
 &ostm1 {
+	status = "okay";
+};
+
+&gpt0_0 {
+	pinctrl-0 = <&gpt0_0_pins>;
+	pinctrl-names = "default";
+	channel = "both_AB";
 	status = "okay";
 };
 
