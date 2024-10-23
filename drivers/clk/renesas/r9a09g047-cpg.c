@@ -585,7 +585,7 @@ const struct rzv2h_cpg_info r9a09g047_cpg_info __initconst = {
 	/* Module Clocks */
 	.mod_clks = r9a09g047_mod_clks,
 	.num_mod_clks = ARRAY_SIZE(r9a09g047_mod_clks),
-	.num_hw_mod_clks = 25 * 16,
+	.num_hw_mod_clks = 28 * 16,
 
 	/* Resets */
 	.resets = r9a09g047_resets,
