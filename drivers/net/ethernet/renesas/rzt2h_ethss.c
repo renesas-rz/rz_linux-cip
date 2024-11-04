@@ -59,6 +59,12 @@
 #define ETHSS_PTPMCTRL                  0x00C
 #define ETHSS_PTPMCTRL_GMAC(gmac)       BIT(gmac)
 
+#define ESC_ECATOFFADR			0x200
+#define ESC_ECATOPMOD			0x204
+#define ESC_ECATDBGC			0x208
+#define ESC_ECATRESOUT			0x210
+#define ESC_ECATRESOUT_RST_MASK		BIT(0)
+
 #define ETHSS_MAX_NR_PORTS		4
 
 #define ETHSS_MODCTRL_CONF_CONV_NUM	5
@@ -344,6 +350,26 @@ int ethss_gmac_ptp_timer(struct ethss *ethss, int gmac, int ethsw_timer)
 	return 0;
 }
 EXPORT_SYMBOL(ethss_gmac_ptp_timer);
+
+int ethss_esc_config(struct ethss *ethss, int eeprom_size, int phy_offset,
+		     int port_delay)
+{
+	ethss_reg_writel(ethss, ESC_ECATOFFADR, phy_offset);
+	ethss_reg_writel(ethss, ESC_ECATOPMOD, eeprom_size);
+	ethss_reg_writel(ethss, ESC_ECATDBGC, (port_delay << 4)
+			 | (port_delay << 2) | (port_delay << 0));
+
+	return 0;
+}
+EXPORT_SYMBOL(ethss_esc_config);
+
+int ethss_esc_reset_out(struct ethss *ethss, int rst_val)
+{
+	ethss_reg_rmw(ethss, ESC_ECATRESOUT, ESC_ECATRESOUT_RST_MASK, rst_val);
+
+	return 0;
+}
+EXPORT_SYMBOL(ethss_esc_reset_out);
 
 static int ethss_init_hw(struct ethss *ethss, u32 cfg_mode)
 {

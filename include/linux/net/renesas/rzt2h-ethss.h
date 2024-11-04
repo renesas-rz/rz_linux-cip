@@ -38,6 +38,9 @@ void ethss_link_up(struct ethss_port *ethss_port, phy_interface_t interface,
 int ethss_config(struct ethss_port *ethss_port, phy_interface_t interface);
 void ethss_switchcore_adjust(struct ethss_port *ethss_port, int duplex, int speed);
 int ethss_gmac_ptp_timer(struct ethss *ethss, int gmac, int ethsw_timer);
+int ethss_esc_config(struct ethss *ethss, int eeprom_size, int phy_offset,
+		     int port_delay);
+int ethss_esc_reset_out(struct ethss *ethss, int rst_val);
 
 /**
  * struct renesas_rzt2h_eqos - GMAC ethernet struct
