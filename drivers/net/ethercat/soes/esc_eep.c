@@ -1,0 +1,133 @@
+/*
+ * Licensed under the GNU General Public License version 2 with exceptions. See
+ * LICENSE file in the project root for full license information
+ */
+
+/** \file
+ * \brief
+ * ESI EEPROM emulator module.
+ */
+
+#include "include/sys/gcc/cc.h"
+#include "esc.h"
+#include "esc_eep.h"
+
+#include <linux/string.h>
+
+static u8 eep_buf[8];
+static u16 eep_read_size = 8U;
+static void (*eep_reload_ptr)(struct eep_stat_t *stat);
+
+/** EPP periodic task of ESC side EEPROM emulation.
+ *
+ */
+void EEP_process(void)
+{
+	struct eep_stat_t stat;
+
+	/* check for eeprom event */
+	if ((ESCvar.ALevent & ESCREG_ALEVENT_EEP) == 0)
+		return;
+
+	while (1) {
+		/* read eeprom status */
+		ESC_read(ESCREG_EECONTSTAT, &stat, sizeof(struct eep_stat_t));
+		stat.contstat.reg = etohs(stat.contstat.reg);
+		stat.addr = etohl(stat.addr);
+
+		/* check busy flag, exit if job finished */
+		if (!stat.contstat.bits.busy)
+			return;
+
+		/* clear error bits */
+		stat.contstat.bits.csumErr = 0;
+		stat.contstat.bits.eeLoading = 0;
+		stat.contstat.bits.ackErr = 0;
+		stat.contstat.bits.wrErr = 0;
+
+		/* process commands */
+		switch (stat.contstat.bits.cmdReg) {
+		case EEP_CMD_IDLE:
+			break;
+
+		case EEP_CMD_READ:
+			/* handle read request */
+			if (EEP_read(stat.addr * 2U /* sizeof(u16) */, eep_buf, eep_read_size) != 0)
+				stat.contstat.bits.ackErr = 1;
+			else
+				ESC_write(ESCREG_EEDATA, eep_buf, eep_read_size);
+			break;
+
+		case EEP_CMD_RELOAD:
+			/* user defined reload if set */
+			if (eep_reload_ptr) {
+				/* Reload function is responsible to update
+				 * control status register bits.
+				 */
+				(*eep_reload_ptr)(&stat);
+			} else {
+				if (eep_read_size == 8U) {
+					/* handle reload request */
+					if (EEP_read(stat.addr * 2U /* sizeof(u16) */,
+						     eep_buf,
+						     eep_read_size) != 0)
+						stat.contstat.bits.ackErr = 1;
+					else
+						ESC_write(ESCREG_EEDATA, eep_buf, eep_read_size);
+				} else {
+					/* Default handler of reload request for 4 Byte read,
+					 * load config alias. To support other ESC behavior,
+					 * implement user defined reload.
+					 */
+					if (EEP_read(EEP_CONFIG_ALIAS_WORD_OFFSET * 2U
+					    /* sizeof(u16) */,
+					    eep_buf,
+					    2U /* 2 Bytes config alias*/) != 0)
+						stat.contstat.bits.ackErr = 1;
+					else
+						ESC_write(ESCREG_EEDATA, eep_buf, 2U
+							  /* 2 Bytes config alias*/);
+				}
+			}
+			break;
+
+		case EEP_CMD_WRITE:
+			/* handle write request */
+			ESC_read(ESCREG_EEDATA, eep_buf, EEP_WRITE_SIZE);
+			if (EEP_write(stat.addr * 2U /* sizeof(u16) */,
+				      eep_buf,
+				      EEP_WRITE_SIZE) != 0)
+				stat.contstat.bits.ackErr = 1;
+
+			break;
+
+		default:
+			stat.contstat.bits.ackErr = 1;
+		}
+
+		/* acknowledge command */
+		stat.contstat.reg = htoes(stat.contstat.reg);
+		ESC_write(ESCREG_EECONTSTAT, &stat.contstat.reg, sizeof(u16));
+	}
+}
+
+/** EPP Set read size, 4 Byte or 8 Byte depending on ESC.
+ *  Default 8 Byte.
+ */
+void EEP_set_read_size(u16 read_size)
+{
+	if (read_size == 8U || read_size == 4U)
+		eep_read_size = read_size;
+}
+
+/** EPP Set reload function pointer.
+ *  Function shall update current stat accordingly.
+ *  Eg. on CRC error reload function shall set
+ *   stat.contstat.bits.csumErr = 1
+ *   stat.contstat.bits.ackErr = 1
+ *
+ */
+void EEP_set_reload_function_pointer(void (*reload_ptr)(struct eep_stat_t *stat))
+{
+	eep_reload_ptr = reload_ptr;
+}

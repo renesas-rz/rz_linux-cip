@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "EtherCat Slave OpenSource"
+
+config NET_ETHERCAT_SOES
+	tristate "EtherCat SOES support"
+	help
+	  This config enable SOES supports the EtherCat Slave Controller.
+	  SOES (Simple OpenSource EtherCAT Slave Stack) is an opensource
+	  slave stack that is very easy to use and provides a small
+	  footprint.
+
+	  To compile this driver as a module, choose M here.
+endmenu

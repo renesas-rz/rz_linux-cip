@@ -13,4 +13,7 @@ config NET_ETHERCAT_SLAVE
 	  the EtherCAT field bus and slave applications.
 
 	  To compile this driver as a module, choose M here.
+
+source "drivers/net/ethercat/soes/Kconfig"
+
 endmenu
