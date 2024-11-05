@@ -74,6 +74,7 @@ static int rzg2l_cru_group_notify_complete(struct v4l2_async_notifier *notifier)
 		return ret;
 	}
 	cru->csi.channel = 0;
+	cru->svc_channel = cru->csi.channel;
 	cru->ip.remote = cru->csi.subdev;
 
 	/* Create media device link between CRU IP <-> CRU OUTPUT */
@@ -403,16 +404,70 @@ static const u16 rzg2l_cru_regs[CRU_REGS_END] = {
 	[ICnDMR] = 0x26C,
 };
 
+static const u16 rzv2h_cru_regs[CRU_REGS_END] = {
+	[CRUnCTRL] = 0x0,
+	[CRUnIE] = 0x4,
+	[CRUnIE2] = 0x8,
+	[CRUnINTS] = 0xC,
+	[CRUnINTS2] = 0x10,
+	[CRUnRST] = 0x18,
+	[AMnMB1ADDRL] = 0x40,
+	[AMnMB1ADDRH] = 0x44,
+	[AMnMB2ADDRL] = 0x48,
+	[AMnMB2ADDRH] = 0x4C,
+	[AMnMB3ADDRL] = 0x50,
+	[AMnMB3ADDRH] = 0x54,
+	[AMnMB4ADDRL] = 0x58,
+	[AMnMB4ADDRH] = 0x5c,
+	[AMnMB5ADDRL] = 0x60,
+	[AMnMB5ADDRH] = 0x64,
+	[AMnMB6ADDRL] = 0x68,
+	[AMnMB6ADDRH] = 0x6C,
+	[AMnMB7ADDRL] = 0x70,
+	[AMnMB7ADDRH] = 0x74,
+	[AMnMB8ADDRL] = 0x78,
+	[AMnMB8ADDRH] = 0x7C,
+	[AMnMBVALID] = 0x88,
+	[AMnMADRSL] = 0x8C,
+	[AMnMADRSH] = 0x90,
+	[AMnFIFOPNTR] = 0xF8,
+	[AMnAXISTP] = 0x110,
+	[AMnAXISTPACK] = 0x114,
+	[AMnIS] = 0x128,
+	[ICnEN] = 0x1F0,
+	[ICnSVCNUM] = 0x1F8,
+	[ICnSVC] = 0x1FC,
+	[ICnIPMC_C0] = 0x200,
+	[ICnMS] = 0x2D8,
+	[ICnDMR] = 0x304,
+	[ICnTICTRL1] = 0x35C,
+	[ICnTICTRL2] = 0x360,
+	[ICnTISIZE1] = 0x364,
+	[ICnTISIZE2] = 0x368,
+};
+
 static const struct rzg2l_cru_info rzg2l_cru_info = {
+	.cru_type = RZG2L_CRU_TYPE,
 	.regs = rzg2l_cru_regs,
 	.max_width = 2800,
 	.max_height = 4095,
 };
 
+static const struct rzg2l_cru_info rzv2h_cru_info = {
+	.cru_type = RZV2H_CRU_TYPE,
+	.regs = rzv2h_cru_regs,
+	.max_width = 4095,
+	.max_height = 4095,
+};
 
 static const struct of_device_id rzg2l_cru_of_id_table[] = {
-	{ .compatible = "renesas,rzg2l-cru",
-	  .data = &rzg2l_cru_info,
+	{
+		.compatible = "renesas,rzg2l-cru",
+		.data = &rzg2l_cru_info,
+	},
+	{
+		.compatible = "renesas,rzv2h-cru",
+		.data = &rzv2h_cru_info,
 	},
 	{ /* sentinel */ }
 };
