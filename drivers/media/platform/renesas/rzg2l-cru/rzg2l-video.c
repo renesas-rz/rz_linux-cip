@@ -130,6 +130,20 @@ static u32 rzg2l_cru_read(struct rzg2l_cru_dev *cru, u32 offset)
 	return ioread32(cru->base + regs[offset]);
 }
 
+static void rzg2l_cru_set_mb(struct rzg2l_cru_dev *cru,
+			     u32 slot, dma_addr_t addr)
+{
+	rzg2l_cru_write(cru, AMnMBxADDRL(AMnMB1ADDRL, slot), lower_32_bits(addr));
+	rzg2l_cru_write(cru, AMnMBxADDRH(AMnMB1ADDRH, slot), upper_32_bits(addr));
+}
+
+static void rzg2l_cru_get_mb(struct rzg2l_cru_dev *cru,
+			     u32 slot, u32 *low, u32 *high)
+{
+	*low = rzg2l_cru_read(cru, AMnMBxADDRL(AMnMB1ADDRL, slot));
+	*high = rzg2l_cru_read(cru, AMnMBxADDRH(AMnMB1ADDRH, slot));
+}
+
 /* Need to hold qlock before calling */
 static void return_unused_buffers(struct rzg2l_cru_dev *cru,
 				  enum vb2_buffer_state state)
@@ -249,11 +263,10 @@ static void rzg2l_cru_set_slot_addr(struct rzg2l_cru_dev *cru,
 	if (WARN_ON((addr) & RZG2L_CRU_HW_BUFFER_MASK))
 		return;
 
-	rzg2l_cru_write(cru, AMnMBxADDRL(AMnMB1ADDRL, slot), lower_32_bits(addr));
-	rzg2l_cru_write(cru, AMnMBxADDRH(AMnMB1ADDRH, slot), upper_32_bits(addr));
+	rzg2l_cru_set_mb(cru, slot, addr);
 
-	amnmbxaddrl[slot] = lower_32_bits(addr);
-	amnmbxaddrh[slot] = upper_32_bits(addr);
+	amnmbxaddrl[cru->id][slot] = lower_32_bits(addr);
+	amnmbxaddrh[cru->id][slot] = upper_32_bits(addr);
 }
 
 /*
@@ -290,6 +303,8 @@ static void rzg2l_cru_fill_hw_slot(struct rzg2l_cru_dev *cru, int slot)
 	}
 
 	rzg2l_cru_set_slot_addr(cru, slot, phys_addr);
+	rzg2l_cru_get_mb(cru, slot, &amnmbxaddrl[cru->id][slot],
+			 &amnmbxaddrh[cru->id][slot]);
 }
 
 static void rzg2l_cru_initialize_axi(struct rzg2l_cru_dev *cru)
@@ -541,7 +556,8 @@ static int rzg2l_cru_set_stream(struct rzg2l_cru_dev *cru, int on)
 	struct media_pipeline *pipe;
 	struct v4l2_subdev *sd;
 	struct media_pad *pad;
-	int ret;
+	int ret, i;
+	unsigned long flags;
 
 	pad = media_pad_remote_pad_first(&cru->pad);
 	if (!pad)
@@ -579,6 +595,14 @@ static int rzg2l_cru_set_stream(struct rzg2l_cru_dev *cru, int on)
 	ret = v4l2_subdev_call(sd, video, pre_streamon, 0);
 	if (ret && ret != -ENOIOCTLCMD)
 		goto pipe_line_stop;
+
+	spin_lock_irqsave(&cru->qlock, flags);
+
+	for (i = 0; i < cru->num_buf; i++)
+		rzg2l_cru_get_mb(cru, i, &amnmbxaddrl[cru->id][i],
+				 &amnmbxaddrh[cru->id][i]);
+
+	spin_unlock_irqrestore(&cru->qlock, flags);
 
 	ret = v4l2_subdev_call(sd, video, s_stream, 1);
 	if (ret && ret != -ENOIOCTLCMD)
@@ -725,7 +749,8 @@ static irqreturn_t rzv2h_cru_irq(int irq, void *data)
 	for (slot = 0; slot < cru->num_buf; slot++) {
 		dma_addr_t tmp;
 
-		tmp = ((unsigned long)amnmbxaddrh[slot] << 32) | amnmbxaddrl[slot];
+		tmp = amnmbxaddrh[cru->id][slot];
+		tmp = (tmp << 32) | amnmbxaddrl[cru->id][slot];
 
 		tmp = amnmadrs - tmp;
 		if (((long)tmp) && tmp <= cru->format.sizeimage) {
@@ -739,8 +764,8 @@ static irqreturn_t rzv2h_cru_irq(int irq, void *data)
 		goto done;
 	}
 
-	amnmbxaddrl[slot] = 0;
-	amnmbxaddrh[slot] = 0;
+	amnmbxaddrl[cru->id][slot] = 0;
+	amnmbxaddrh[cru->id][slot] = 0;
 
 	/*
 	 * To hand buffers back in a known order to userspace start

@@ -244,6 +244,24 @@ static int rzg2l_cru_media_init(struct rzg2l_cru_dev *cru)
 	if (ret)
 		return ret;
 
+	if (cru->info->max_cru_channels > 1) {
+		ret = of_property_read_u32(cru->dev->of_node, "channel,id", &cru->id);
+		if (ret) {
+			if (cru->info->cru_type == RZV2H_CRU_TYPE) {
+				dev_err(cru->dev, "%pOF: No channel,id property found\n",
+						cru->dev->of_node);
+				return -EINVAL;
+			}
+			cru->id = 0;
+		}
+	}
+
+	if (cru->id >= cru->info->max_cru_channels) {
+		dev_err(cru->dev, "%pOF: Invalid channel,id '%u'\n",
+			cru->dev->of_node, cru->id);
+		return -EINVAL;
+	}
+
 	mutex_init(&cru->mdev_lock);
 	mdev = &cru->mdev;
 	mdev->dev = cru->dev;
@@ -451,6 +469,7 @@ static const struct rzg2l_cru_info rzg2l_cru_info = {
 	.regs = rzg2l_cru_regs,
 	.max_width = 2800,
 	.max_height = 4095,
+	.max_cru_channels = 1,
 };
 
 static const struct rzg2l_cru_info rzv2h_cru_info = {
@@ -458,12 +477,14 @@ static const struct rzg2l_cru_info rzv2h_cru_info = {
 	.regs = rzv2h_cru_regs,
 	.max_width = 4095,
 	.max_height = 4095,
+	.max_cru_channels = 4,
 };
 static const struct rzg2l_cru_info rzg3e_cru_info = {
 	.cru_type = RZV2H_CRU_TYPE,
 	.regs = rzv2h_cru_regs,
 	.max_width = 4095,
 	.max_height = 4095,
+	.max_cru_channels = 1,
 };
 
 static const struct of_device_id rzg2l_cru_of_id_table[] = {
