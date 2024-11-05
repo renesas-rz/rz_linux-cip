@@ -459,6 +459,12 @@ static const struct rzg2l_cru_info rzv2h_cru_info = {
 	.max_width = 4095,
 	.max_height = 4095,
 };
+static const struct rzg2l_cru_info rzg3e_cru_info = {
+	.cru_type = RZV2H_CRU_TYPE,
+	.regs = rzv2h_cru_regs,
+	.max_width = 4095,
+	.max_height = 4095,
+};
 
 static const struct of_device_id rzg2l_cru_of_id_table[] = {
 	{
@@ -468,6 +474,10 @@ static const struct of_device_id rzg2l_cru_of_id_table[] = {
 	{
 		.compatible = "renesas,rzv2h-cru",
 		.data = &rzv2h_cru_info,
+	},
+	{
+		.compatible = "renesas,rzg3e-cru",
+		.data = &rzg3e_cru_info,
 	},
 	{ /* sentinel */ }
 };
