@@ -132,6 +132,7 @@ enum clk_types {
 	CLK_TYPE_SDIV,		/* Static Switching Divider */
 	CLK_TYPE_MUX,		/* Static Mux Switching */
 	CLK_TYPE_PLLDSI_SDIV,
+	CLK_TYPE_PLL_DIV,	/* Clock for divider after PLL clock */
 };
 
 /* BIT(31) indicates if CLK1/2 are accessible or not */
@@ -187,6 +188,9 @@ enum clk_types {
 		 .cfg.mux.num_parents = ARRAY_SIZE(_parent_names), \
 		 .cfg.mux.mux_flags = CLK_MUX_HIWORD_MASK, \
 		 .flag = _flags)
+#define DEF_PLL_DIV(_name, _id, _parent, _mult, _div) \
+	DEF_TYPE(_name, _id, CLK_TYPE_PLL_DIV, .parent = _parent, \
+		.div = _div, .mult = _mult)
 
 /**
  * struct rzv2h_mod_clk - Module Clocks definitions

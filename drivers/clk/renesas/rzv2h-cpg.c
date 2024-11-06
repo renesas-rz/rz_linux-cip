@@ -172,6 +172,98 @@ static unsigned long rzv2h_cpg_pll_clk_recalc_rate(struct clk_hw *hw,
 
 	return DIV_ROUND_CLOSEST_ULL(rate, PDIV(clk1));
 }
+struct rzv2h_pll_div_hw_data {
+	struct clk_hw hw;
+	u32 conf;
+	u32 div;
+	u32 mult;
+	struct rzv2h_cpg_priv *priv;
+};
+
+#define to_rzv2h_pll_div_hw_data(_hw) \
+			container_of(_hw, struct rzv2h_pll_div_hw_data, hw)
+
+static unsigned long rzv2h_cpg_pll_div_recalc_rate(struct clk_hw *hw,
+						   unsigned long parent_rate)
+{
+	struct rzv2h_pll_div_hw_data *pll_div = to_rzv2h_pll_div_hw_data(hw);
+	unsigned long long int rate;
+
+	rate = (unsigned long long int) parent_rate * pll_div->mult;
+	do_div(rate, pll_div->div);
+
+	return (unsigned long)rate;
+}
+
+static int rzv2h_cpg_pll_div_determine_rate(struct clk_hw *hw,
+					    struct clk_rate_request *req)
+{
+	struct rzv2h_pll_div_hw_data *pll_div = to_rzv2h_pll_div_hw_data(hw);
+
+	req->best_parent_rate = (req->rate / pll_div->mult) * pll_div->div;
+
+	return 0;
+};
+
+static int rzv2h_cpg_pll_div_set_rate(struct clk_hw *hw,
+				      unsigned long rate,
+				      unsigned long parent_rate)
+{
+	/*
+	 * We must report success but we can do so unconditionally because
+	 * clk_factor_round_rate returns values that ensure this call is a
+	 * nop.
+	 */
+	return 0;
+};
+
+static const struct clk_ops rzv2h_cpg_pll_div_ops = {
+	.recalc_rate = rzv2h_cpg_pll_div_recalc_rate,
+	.determine_rate = rzv2h_cpg_pll_div_determine_rate,
+	.set_rate = rzv2h_cpg_pll_div_set_rate,
+};
+
+static struct clk * __init
+rzv2h_cpg_pll_div_clk_register(const struct cpg_core_clk *core,
+			       struct clk **clks,
+			       struct rzv2h_cpg_priv *priv)
+{
+	struct rzv2h_pll_div_hw_data *clk_hw_data;
+	const struct clk *parent;
+	const char *parent_name;
+	struct clk_init_data init;
+	struct clk_hw *clk_hw;
+	int ret;
+
+	parent = clks[core->parent & 0xffff];
+	if (IS_ERR(parent))
+		return ERR_CAST(parent);
+
+	clk_hw_data = devm_kzalloc(priv->dev, sizeof(*clk_hw_data), GFP_KERNEL);
+	if (!clk_hw_data)
+		return ERR_PTR(-ENOMEM);
+
+	clk_hw_data->priv = priv;
+	clk_hw_data->div = core->div;
+	clk_hw_data->mult = core->mult;
+
+	parent_name = __clk_get_name(parent);
+	init.name = core->name;
+	init.ops = &rzv2h_cpg_pll_div_ops;
+	init.flags = CLK_SET_RATE_PARENT;
+	init.parent_names = &parent_name;
+	init.num_parents = 1;
+
+	clk_hw = &clk_hw_data->hw;
+	clk_hw->init = &init;
+
+	ret = devm_clk_hw_register(priv->dev, clk_hw);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return clk_hw->clk;
+}
+
 
 static const struct clk_ops rzv2h_cpg_pll_ops = {
 	.recalc_rate = rzv2h_cpg_pll_clk_recalc_rate,
@@ -616,6 +708,9 @@ rzv2h_cpg_register_core_clk(const struct cpg_core_clk *core,
 		break;
 	case CLK_TYPE_MUX:
 		clk = rzv2h_cpg_mux_clk_register(core, priv->base, priv);
+		break;
+	case CLK_TYPE_PLL_DIV:
+		clk = rzv2h_cpg_pll_div_clk_register(core, priv->clks, priv);
 		break;
 	default:
 		goto fail;
