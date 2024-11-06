@@ -282,11 +282,9 @@ static int rzv2h_cpg_plldsi_set_rate(struct clk_hw *hw,
 	struct pll_clk *pll_clk = to_pll(hw);
 	struct rzv2h_cpg_priv *priv = pll_clk->priv;
 	u32 pll_m, pll_p, pll_s, val;
-	s32 pll_k;
+	int pll_k;
 	u32 conf = pll_clk->conf;
-	u64 div;
-	unsigned long fvco;
-	bool found = 0;
+	unsigned long fvco, osc;
 	int ret;
 
 	if (rate > (pll_clk->max * MEGA))
@@ -294,6 +292,7 @@ static int rzv2h_cpg_plldsi_set_rate(struct clk_hw *hw,
 	else if (rate < (pll_clk->min * MEGA))
 		rate = pll_clk->min;
 
+	osc = EXTAL_FREQ_IN_MEGA_HZ * MEGA;
 	for (pll_s = PLL_DIV_S_MIN; pll_s <= PLL_DIV_S_MAX; pll_s++) {
 		/* Check available range of FVCO */
 		fvco = rate << (1 * pll_s);
@@ -301,35 +300,34 @@ static int rzv2h_cpg_plldsi_set_rate(struct clk_hw *hw,
 			continue;
 
 		for (pll_p = PLL_DIV_P_MIN; pll_p <= PLL_DIV_P_MAX; pll_p++) {
-			div = (EXTAL_FREQ_IN_MEGA_HZ * MEGA);
-			div /= (pll_p * (1 << pll_s));
+			pll_m = ((u64) (fvco * pll_p) / osc);
+			pll_k = ((u64)(fvco * pll_p) % osc);
 
-			pll_m = ((u64) rate / div);
-			pll_k = ((u64) rate % div);
 			/* Check available range of DIV_K */
-			if (pll_k >= (div / 2)) {
+			if (pll_k >= (osc / 2)) {
 				pll_m++;
-				pll_k = pll_k - div;
+				pll_k = pll_k - osc;
 			}
 
 			/* Check available range of DIV_M */
-			if ((pll_m < PLL_DIV_M_MIN) || (pll_m > PLL_DIV_M_MAX))
+			if ((pll_m < PLL_DIV_M_MIN) ||
+			    (pll_m > PLL_DIV_M_MAX))
 				continue;
 
-			pll_k = div_s64(((s64)pll_k << 16), div);
+			pll_k = DIV_S64_ROUND_CLOSEST(((s64)pll_k << 16), osc);
 
-			found = 1;
-			goto pll_found;
+			goto found;
 		}
 	}
 
-pll_found:
-	if (!found) {
-		dev_err(priv->dev, "failed to set %s to rate %lu\n",
-			clk_hw_get_name(hw), rate);
+	dev_err(priv->dev, "failed to set %s to rate %lu\n",
+		clk_hw_get_name(hw), rate);
+	return -EINVAL;
 
-		return -EINVAL;
-	}
+found:
+	dev_dbg(priv->dev,
+		"rate: %ld pll_k: %hd, pll_m: %d, pll_p: %d, pll_s: %d\n",
+		rate, pll_k, pll_m, pll_p, pll_s);
 
 	/* Put PLL into standby mode and wait until unlocked */
 	writel(PLL_RESETB_WEN, priv->base + PLL_STBY_OFFSET(conf));
