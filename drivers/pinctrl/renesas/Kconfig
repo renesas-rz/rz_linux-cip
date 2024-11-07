@@ -40,6 +40,7 @@ config PINCTRL_RENESAS
 	select PINCTRL_PFC_R8A779G0 if ARCH_R8A779G0
 	select PINCTRL_PFC_R8A779H0 if ARCH_R8A779H0
 	select PINCTRL_RZG2L if ARCH_RZG2L
+	select PINCTRL_RZT2N if ARCH_R9A07G076
 	select PINCTRL_RZV2M if ARCH_R9A09G011
 	select PINCTRL_RZG2L if ARCH_R9A09G047
 	select PINCTRL_RZG2L if ARCH_R9A09G056
@@ -204,6 +205,17 @@ config PINCTRL_RZG2L
 	select IRQ_DOMAIN_HIERARCHY
 	help
 	  This selects GPIO and pinctrl driver for Renesas RZ/{G2L,G2UL,V2L}
+	  platforms.
+
+config PINCTRL_RZT2N
+	bool "pin control support for RZ/T2N" if COMPILE_TEST
+	depends on OF
+	select GPIOLIB
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	help
+	  This selects GPIO and pinctrl driver for Renesas RZ/T2N
 	  platforms.
 
 config PINCTRL_PFC_R8A77470
