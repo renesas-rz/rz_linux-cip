@@ -573,9 +573,24 @@ rzg2l_cpg_get_foutpostdiv_rate(struct rzg2l_cpg_priv *priv,
 	unsigned long foutpostdiv_rate, foutvco_rate;
 	u8 div = 1;
 	bool found = 0;
+	int i, j;
 
 	if (priv->mux_dsi_div_params.clksrc)
 		div = 2;
+
+	/* Calculate the DIV_DSI_A and DIV_DSI_B based on the final DIV DSI */
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 16; j++) {
+			if (((1 << i) * (j + 1)) == dsi_div_ab) {
+				priv->mux_dsi_div_params.dsi_div_a = i;
+				priv->mux_dsi_div_params.dsi_div_b = j;
+
+				goto found_dsi_div;
+			}
+		}
+	}
+
+found_dsi_div:
 	/*
 	 * Below conditions must be set for PLL5 parameters:
 	 * - REFDIV must be between 1 and 2.

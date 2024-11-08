@@ -290,4 +290,7 @@ extern const struct rzg2l_cpg_info r9a09g011_cpg_info;
 int rzg2l_cpg_sd_clk_mux_notifier(struct notifier_block *nb, unsigned long event, void *data);
 int rzg3s_cpg_div_clk_notifier(struct notifier_block *nb, unsigned long event, void *data);
 
+/* Final Division ratio setting for the MIPI clock */
+extern int dsi_div_ab;
+
 #endif
