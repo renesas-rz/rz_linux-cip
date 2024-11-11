@@ -43,6 +43,17 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	hdmi-out {
+		compatible = "hdmi-connector";
+		type = "d";
+
+		port {
+			hdmi_con_out: endpoint {
+				remote-endpoint = <&adv7535_out>;
+			};
+		};
+	};
+
 	memory@48000000 {
 		device_type = "memory";
 		/* first 128MB is reserved for secure area. */
@@ -60,6 +71,12 @@
 			reusable;
 			reg = <0x0 0x58000000 0x0 0x10000000>;
 		};
+	};
+
+	osc1: cec-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <12000000>;
 	};
 
 	reg_1p8v: regulator0 {
@@ -280,6 +297,23 @@
 	status = "okay";
 };
 #endif
+
+&dsi0 {
+	status = "okay";
+
+	ports {
+		port@1 {
+			dsi0_out: endpoint {
+				remote-endpoint = <&adv7535_in>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&du0 {
+	status = "okay";
+};
 
 &sdhi2 {
 	pinctrl-0 = <&sdhi2_pins>;
