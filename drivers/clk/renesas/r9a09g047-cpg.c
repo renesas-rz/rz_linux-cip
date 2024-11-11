@@ -79,11 +79,15 @@ enum clk_ids {
 	CLK_PLLETH_DIV4_DIV2,
 	CLK_PLLETH_GBE0,
 	CLK_PLLETH_GBE1,
+	CLK_PLLDSI0_DIV7,
+	CLK_PLLDSI1_DIV7,
 	CLK_PLLETH_LPCLK,
 	CLK_SMUX2_GBE0_TXCLK,
 	CLK_SMUX2_GBE0_RXCLK,
 	CLK_SMUX2_GBE1_TXCLK,
 	CLK_SMUX2_GBE1_RXCLK,
+	CLK_SMUX2_DSI0_CLK,
+	CLK_SMUX2_DSI1_CLK,
 
 	/* Module Clocks */
 	MOD_CLK_BASE,
@@ -109,6 +113,18 @@ static const struct clk_div_table dtable_2_16_geometric[] = {
 	{2,  8},
 	{3, 16},
 	{0,  0},
+};
+
+static const struct clk_div_table dtable_2_16_plldsi[] = {
+	{0, 2},
+	{1, 4},
+	{2, 6},
+	{3, 8},
+	{4, 10},
+	{5, 12},
+	{6, 14},
+	{7, 16},
+	{0, 0},
 };
 
 static const struct clk_div_table dtable_2_16_arithmetic[] = {
@@ -173,6 +189,8 @@ static const struct clk_div_table dtable_16_128[] = {
 	{0,   0},
 };
 
+static const char * const smux2_dsi0_clk[] = { ".plldsi0_div7", ".plldsi0_csdiv"};
+static const char * const smux2_dsi1_clk[] = { ".plldsi1_div7", ".plldsi1_csdiv"};
 static const char * const smux2_xspi_clk0[] = { ".pllcm33_div3", ".pllcm33_div4" };
 static const char * const smux2_xspi_clk1[] = { ".smux2_xspi_clk0", ".pllcm33_div5" };
 static const char * const smux2_gbe0_txclk[] = { ".plleth_gbe0", "et0_txc_tx_clk" };
@@ -256,10 +274,16 @@ static const struct cpg_core_clk r9a09g047_core_clks[] __initconst = {
 	DEF_MUX(".smux2_gbe1_rxclk", CLK_SMUX2_GBE1_RXCLK, SSELx_SELCTLy(1, 1), smux2_gbe1_rxclk),
 	DEF_SDIV(".plleth_lpclk", CLK_PLLETH_LPCLK, CLK_PLLETH_DIV4,
 		 CSDIVx_DIVCTLy(0, 2, 2), dtable_16_128),
-	DEF_SDIV(".plldsi0_csdiv", CLK_PLLDSI0_CSDIV, CLK_PLLDSI0,
-		 CSDIVx_DIVCTLy(1, 2, 4), dtable_2_16_arithmetic),
-	DEF_SDIV(".plldsi1_csdiv", CLK_PLLDSI1_CSDIV, CLK_PLLDSI1,
-		 CSDIVx_DIVCTLy(1, 3, 4), dtable_2_16_arithmetic),
+	DEF_PLL_DIV(".plldsi0_div7", CLK_PLLDSI0_DIV7, CLK_PLLDSI0, 1, 7),
+	DEF_PLL_DIV(".plldsi1_div7", CLK_PLLDSI1_DIV7, CLK_PLLDSI1, 1, 7),
+	DEF_PLLDSI_SDIV(".plldsi0_csdiv", CLK_PLLDSI0_CSDIV, CLK_PLLDSI0,
+			CSDIVx_DIVCTLy(1, 2, 4), dtable_2_16_plldsi),
+	DEF_PLLDSI_SDIV(".plldsi1_csdiv", CLK_PLLDSI1_CSDIV, CLK_PLLDSI1,
+			CSDIVx_DIVCTLy(1, 3, 4), dtable_2_16_plldsi),
+	DEF_MUX_FLAGS(".smux2_dsi0_clk", CLK_SMUX2_DSI0_CLK, SSELx_SELCTLy(3, 0),
+		      smux2_dsi0_clk, CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT),
+	DEF_MUX_FLAGS(".smux2_dsi1_clk", CLK_SMUX2_DSI1_CLK, SSELx_SELCTLy(3, 1),
+		      smux2_dsi1_clk, CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT),
 
 	/* Core Clocks */
 	DEF_FIXED("sys_0_pclk", R9A09G047_SYS_0_PCLK, CLK_QEXTAL, 1, 1),
@@ -424,6 +448,14 @@ static const struct rzv2h_mod_clk r9a09g047_mod_clks[] __initconst = {
 	DEF_MOD("cru0_aclk",			CLK_PLLDTY_ACPU_DIV2, 13, 2, 6, 18),
 	DEF_MOD("cru0_vclk",			CLK_PLLVDO_CRU0, 13, 3, 6, 19),
 	DEF_MOD("cru0_pclk",			CLK_PLLDTY_DIV16, 13, 4, 6, 20),
+	DEF_MOD("dsi_pclk",			CLK_PLLDTY_DIV16, 14, 8, 7, 8),
+	DEF_MOD("dsi_aclk",			CLK_PLLDTY_ACPU_DIV2, 14, 9, 7, 9),
+	DEF_MOD("dsi_vclk1",			CLK_SMUX2_DSI0_CLK, 14, 10, 7, 10),
+	DEF_MOD("dsi_lpclk",			CLK_PLLETH_LPCLK, 14, 11, 7, 11),
+	DEF_MOD("dsi_pllclk",			CLK_QEXTAL, 14, 12, 7, 12),
+	DEF_MOD("lcdc0_clka",			CLK_PLLDTY_ACPU_DIV2, 14, 13, 7, 13),
+	DEF_MOD("lcdc0_clkp",			CLK_PLLDTY_DIV16, 14, 14, 7, 14),
+	DEF_MOD("lcdc0_clkd",			CLK_SMUX2_DSI0_CLK, 14, 15, 7, 15),
 	DEF_MOD("vcd_aclk",			CLK_PLLDTY_DIV4, 15, 3, 7, 19),
 	DEF_MOD("vcd_pclk",			CLK_PLLDTY_DIV8, 15, 4, 7, 20),
 	DEF_MOD("ssif_clk",			CLK_PLLCLN_DIV8, 15, 5, 7, 21),
@@ -441,9 +473,18 @@ static const struct rzv2h_mod_clk r9a09g047_mod_clks[] __initconst = {
 	DEF_MOD("adc_pclk",			CLK_PLLCM33_ADC_PCLK_DIV2, 16, 7, 8, 7),
 	DEF_MOD("adc_adclk",			CLK_PLLCM33_ADC_ADCLK, 16, 8, 8, 8),
 	DEF_MOD("tsu_pclk",			CLK_QEXTAL, 16, 10, 8, 10),
+	DEF_MOD("dsi_vclk2",			CLK_SMUX2_DSI1_CLK, 25, 0, 10, 21),
+	DEF_MOD("lvds_top_clk_ch0",		CLK_PLLDSI0, 26, 0, 10, 22),
+	DEF_MOD("lvds_top_clk_ch1",		CLK_PLLDSI1, 26, 1, 10, 23),
+	DEF_MOD("lvds_top_clk_dot_ch0",		CLK_PLLDSI0_CSDIV, 26, 2, 10, 24),
+	DEF_MOD("lvds_top_clk_dot_ch1",		CLK_PLLDSI1_CSDIV, 26, 3, 10, 25),
+	DEF_MOD("lvds_top_pclk",		CLK_PLLDTY_DIV16, 26, 4, 10, 26),
 	DEF_MOD("vspi_clk_m",			CLK_PLLDTY_DIV2, 26, 5, 10, 27),
 	DEF_MOD("vspi_clk_a",                   CLK_PLLDTY_DIV4, 26, 6, 10, 28),
 	DEF_MOD("vspi_clk_p",                   CLK_PLLDTY_DIV8, 26, 7, 10, 29),
+	DEF_MOD("lcdc1_clka",			CLK_PLLDTY_ACPU_DIV2, 26, 8, 10, 30),
+	DEF_MOD("lcdc1_clkp",			CLK_PLLDTY_DIV16, 26, 9, 10, 31),
+	DEF_MOD("lcdc1_clkd",			CLK_SMUX2_DSI1_CLK, 26, 10, 11, 0),
 	DEF_MOD("fdp1_clk_m",			CLK_PLLDTY_DIV2, 27, 1, 11, 7),
 	DEF_MOD("fdp1_clk_a",			CLK_PLLDTY_DIV4, 27, 2, 11, 8),
 	DEF_MOD("fdp1_clk_p",			CLK_PLLDTY_DIV8, 27, 3, 11, 9),
@@ -542,7 +583,7 @@ static const struct rzv2h_reset r9a09g047_resets[] __initconst = {
 	DEF_RST(12, 7, 5, 24),		/* CRU0_S_RESETN */
 	DEF_RST(13, 7, 6, 8),		/* DSI_PRESETN */
 	DEF_RST(13, 8, 6, 9),		/* DSI_ARESETN */
-	DEF_RST(13, 12, 6, 13),		/* LCDC_RESET_N */
+	DEF_RST(13, 12, 6, 13),		/* LCDC_0_RESET_N */
 	DEF_RST(13, 13, 6, 14),		/* GPU_RESETN */
 	DEF_RST(13, 14, 6, 15),		/* GPU_AXI_RESETN */
 	DEF_RST(13, 15, 6, 16),		/* GPU_ACE_RESETN */
@@ -566,9 +607,11 @@ static const struct rzv2h_reset r9a09g047_resets[] __initconst = {
 	DEF_RST(15, 1, 7, 2),		/* SPDIF2_RST */
 	DEF_RST(15, 6, 7, 7),		/* ADC_ADRST_N */
 	DEF_RST(15, 8, 7, 9),		/* TSU_PRESETN */
+	DEF_RST(17, 10, 8, 11),		/* LVDS_TOP_RESET_N */
 	DEF_RST(17, 11, 8, 12),		/* VSPI_SMRESET_VSPISS */
 	DEF_RST(17, 12, 8, 13),		/* VSPI_SRESET_VSP1Z */
 	DEF_RST(17, 13, 8, 14),		/* VSPI_SPRESET_FCPVI0 */
+	DEF_RST(17, 14, 8, 15),		/* LCDC_1_RESET_N */
 	DEF_RST(18, 4, 9, 4),		/* FDP1_BRDG_RESETN */
 	DEF_RST(18, 5, 9, 5),		/* FDP1_FDP1_RESETN */
 	DEF_RST(18, 6, 9, 6),		/* FDP1_FCPF1_RESETP */
