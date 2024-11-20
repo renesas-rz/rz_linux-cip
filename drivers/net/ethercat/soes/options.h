@@ -6,6 +6,11 @@
 #ifndef __options__
 #define __options__
 
+/* User-defined options, Options defined here will override default values */
+#if IS_BUILTIN(CONFIG_ESC_APPLICATION)
+#include "../applications/led_dipsw/ecat_options.h"
+#endif
+
 /* FoE support */
 #ifndef USE_FOE
 #define USE_FOE          1

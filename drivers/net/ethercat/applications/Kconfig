@@ -9,4 +9,17 @@ config ESC_APPLICATION
 	  connected to ESC. When using any device connected to ESC,
 	  it will enable this config.
 
+config NET_RZT2H_ESC_LED_DIPSW
+	tristate "Renesas RZ/T2H EtherCat led dipsw device"
+	depends on NET_ETHERCAT_RZT2H_ESC
+	select ESC_APPLICATION
+	help
+	  This source code supports the EtherCat Slave Led DipSW device, which is
+	  connected to EtherCAT slave controller (ESC). It just a slave application,
+	  which ESC control led and dipsw on T2H board. The ESC handles EtherCAT
+	  communications as an interface between the EtherCAT field bus and
+	  slave applications.
+
+	  To compile this driver as a module, choose M here.
+
 endmenu
