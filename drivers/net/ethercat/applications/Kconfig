@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "EtherCat connected devices"
+
+config ESC_APPLICATION
+	bool "Enable ESC application"
+	help
+	  This config enable Linux kernel supports for ESC application.
+	  ESC application is a software layer use to control device
+	  connected to ESC. When using any device connected to ESC,
+	  it will enable this config.
+
+endmenu

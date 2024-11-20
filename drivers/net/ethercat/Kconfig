@@ -28,4 +28,6 @@ config NET_ETHERCAT_RZT2H_ESC
 
 source "drivers/net/ethercat/soes/Kconfig"
 
+source "drivers/net/ethercat/applications/Kconfig"
+
 endmenu
