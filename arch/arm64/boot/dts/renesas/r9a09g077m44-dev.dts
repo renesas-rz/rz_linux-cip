@@ -34,11 +34,11 @@
 #define SEL_RSPI_ETHSS		1
 
 /*
- * Set SEL_ETHSW_LCDC to below values to select using of:
- * - 0: ETHSW (default)
+ * Set SEL_ETHSW_ESC_LCDC to below values to select using of:
+ * - 0: ETHSW, ESC (default)
  * - 1: LCDC
  */
-#define SEL_ETHSW_LCDC		0
+#define SEL_ETHSW_ESC_LCDC		0
 
 /*
  * Set SEL_ETHSS_PCIE to below values to select using of:
@@ -88,6 +88,13 @@
  */
 #define POE3_SUPPORT		1
 
+/*
+ * Set SEL_ESC_ETHSW_GMAC2 to below values to select using of:
+ * - 0: ETHSW, I2C0, GMAC2 (default)
+ * - 1: ESC
+ */
+#define SEL_ESC_ETHSW_GMAC2          0
+
 / {
 	model = "Renesas Development EVK based on r9a09g077m44";
 	compatible = "renesas,r9a09g077m44-dev", "renesas,r9a09g077m44", "renesas,r9a09g077";
@@ -99,7 +106,9 @@
 		serial3 = &sci3;
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
+#if (!SEL_ESC_ETHSW_GMAC2)
 		i2c0 = &i2c0;
+#endif
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		eth0 = &gmac1;
@@ -183,7 +192,7 @@
 		states = <3300000 0 1800000 1>;
 	};
 
-#if (SEL_ETHSW_LCDC)
+#if (SEL_ETHSW_ESC_LCDC)
 	hdmi-out {
 		compatible = "hdmi-connector";
 		type = "d";
@@ -198,7 +207,7 @@
 };
 
 &pinctrl {
-#if (SEL_ETHSW_LCDC && SEL_SCI1_LCDC)
+#if (SEL_ETHSW_ESC_LCDC && SEL_SCI1_LCDC)
 	du_pins: du {
 		du_data {
 			pinmux = <RZT2H_PORT_PINMUX(10, 0, 0x28)>, /* LCDC_DATR0 */
@@ -264,12 +273,14 @@
 	};
 #endif
 
+#if (!SEL_ESC_ETHSW_GMAC2)
 	sd1_pwr_en {
 		gpio-hog;
 		gpios = <RZT2H_GPIO(8, 5) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "sd1_pwr_en";
 	};
+#endif
 
 	sdhi0_pins: sd0 {
 		sd0_data {
@@ -312,10 +323,12 @@
 	};
 #endif
 
+#if (!SEL_ESC_ETHSW_GMAC2)
 	i2c0_pins: i2c0 {
 		pinmux = <RZT2H_PORT_PINMUX(23, 3, 0x17)>, /* SDA */
 			<RZT2H_PORT_PINMUX(23, 4, 0x17)>; /* SCL */
 	};
+#endif
 
 	i2c1_pins: i2c1 {
 		pinmux = <RZT2H_PORT_PINMUX(5, 0, 0x17)>, /* SDA */
@@ -336,6 +349,7 @@
 			 <RZT2H_PORT_PINMUX(26, 2, 0x10)>;      /* MDIO1_MDIO */
 	};
 
+#if (!SEL_ESC_ETHSW_GMAC2)
 	mdio2_pins: gmac_mdio2 {
 		pinmux = <RZT2H_PORT_PINMUX(30, 5, 0x10)>,      /* MDIO2_MDC */
 			 <RZT2H_PORT_PINMUX(30, 6, 0x10)>;      /* MDIO2_MDIO */
@@ -348,6 +362,18 @@
 			 <RZT2H_PORT_PINMUX(26, 3, 0x11)>,      /* ETHSW_PHYLINK1 */
 			 <RZT2H_PORT_PINMUX(30, 7, 0x11)>;      /* ETHSW_PHYLINK2 */
 	};
+#else
+	esc_pins: esc_pins {
+		pinmux = <RZT2H_PORT_PINMUX(21, 4, 0x12)>,      /* ESC_MDC */
+			 <RZT2H_PORT_PINMUX(21, 5, 0x12)>,      /* ESC_MDIO */
+			 <RZT2H_PORT_PINMUX(21, 6, 0x12)>,      /* ESC_PHYLINK0 */
+			 <RZT2H_PORT_PINMUX(26, 3, 0x12)>,      /* ESC_PHYLINK1 */
+			 <RZT2H_PORT_PINMUX(30, 7, 0x12)>,      /* ESC_PHYLINK2 */
+			 <RZT2H_PORT_PINMUX(23, 3, 0x12)>,	/* ESC_I2CCLK */
+			 <RZT2H_PORT_PINMUX(23, 4, 0x12)>,	/* ESC_I2CDATA */
+			 <RZT2H_PORT_PINMUX(11, 0, 0x12)>;	/* ESC_RESETOUT */
+	};
+#endif
 
 	pins_refclk: pins_refclk {
 		pinmux = <RZT2H_PORT_PINMUX(21, 7, 0x02)>,	/* ETH0_REFCLK */
@@ -662,12 +688,20 @@
 };
 #endif
 
+#if (!SEL_ESC_ETHSW_GMAC2)
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";
+
+	eeprom: eeprom@50 {
+		compatible = "renesas,r1ex24016", "atmel,24c16";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
 };
+#endif
 
 &i2c1 {
 	pinctrl-0 = <&i2c1_pins>;
@@ -675,7 +709,7 @@
 
 	status = "okay";
 
-#if (SEL_ETHSW_LCDC)
+#if (SEL_ETHSW_ESC_LCDC)
 	adv7513: adv7513@39 {
 		compatible = "adi,adv7513";
 		reg = <0x39>;
@@ -770,7 +804,7 @@
 };
 #endif
 
-#if (SEL_RSPI_ETHSS)
+#if ((SEL_RSPI_ETHSS) && (!SEL_ESC_ETHSW_GMAC2))
 &gmac2 {
 	phy-handle = <&phy2>;
 	phy-mode = "rgmii-id";
@@ -807,7 +841,9 @@
 		    <&eth3_pins>,
 #endif
 		    <&eth0_pins>;
+#if (!SEL_ESC_ETHSW_GMAC2)
 	renesas,ethss-switch-portmanagement = <ETHSS_GMAC0_PORT>;
+#endif
 };
 
 #if (!SEL_ETHSS_PCIE)
@@ -817,7 +853,7 @@
 };
 #endif
 
-#if !(SEL_ETHSW_LCDC)
+#if ((!SEL_ETHSW_ESC_LCDC) && (!SEL_ESC_ETHSW_GMAC2))
 &ethsw {
 	status = "okay";
 	#address-cells = <1>;
@@ -876,6 +912,72 @@
 };
 #endif
 
+#if ((!SEL_ETHSW_ESC_LCDC) && (SEL_ESC_ETHSW_GMAC2))
+&esc {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&esc_pins>;
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "mii";
+			max-speed = <100>;
+			vsc8531,led-0-mode = <VSC8531_LINK_ACTIVITY>;
+			vsc8531,led-1-mode = <VSC8531_LINK_ACTIVITY>;
+			vsc8531,led-1-combine-disable;
+			reg = <0>;
+		};
+
+		phy1: ethernet-phy@1 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "mii";
+			max-speed = <100>;
+			vsc8531,led-0-mode = <VSC8531_LINK_ACTIVITY>;
+			vsc8531,led-1-mode = <VSC8531_LINK_ACTIVITY>;
+			vsc8531,led-1-combine-disable;
+			reg = <1>;
+		};
+
+		phy2: ethernet-phy@2 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			vsc8531,led-0-mode = <VSC8531_LINK_ACTIVITY>;
+			vsc8531,led-1-mode = <VSC8531_LINK_ACTIVITY>;
+			vsc8531,led-1-combine-disable;
+			reg = <2>;
+		};
+	};
+};
+
+&esc_port0 {
+	label = "esc0";
+	phy-mode = "mii";
+	phy-handle = <&phy0>;
+	status = "okay";
+};
+
+&esc_port1 {
+	label = "esc1";
+	phy-mode = "mii";
+	phy-handle = <&phy1>;
+	status = "okay";
+};
+
+&esc_port2 {
+	label = "esc2";
+	phy-mode = "rgmii-id";
+	phy-handle = <&phy2>;
+	status = "okay";
+};
+#endif
+
+#if (!SEL_ESC_ETHSW_GMAC2)
 &mii_conv0 {
 	renesas,ethss-port = <ETHSS_SWITCH_PORT0>;
 	renesas,ethsw-phylink = <0>;
@@ -892,7 +994,25 @@
 	renesas,ethss-port = <ETHSS_GMAC2_PORT>;
 	status = "okay";
 };
+#else
+&mii_conv0 {
+	renesas,ethss-port = <ETHSS_ETHERCAT_PORT0>;
+	renesas,esc-phylink = <0>;
+	status = "okay";
+};
 
+&mii_conv1 {
+	renesas,ethss-port = <ETHSS_ETHERCAT_PORT1>;
+	renesas,esc-phylink = <0>;
+	status = "okay";
+};
+
+&mii_conv2 {
+	renesas,ethss-port = <ETHSS_ETHERCAT_PORT2>;
+	renesas,esc-phylink = <0>;
+	status = "okay";
+};
+#endif
 &mii_conv3 {
 	renesas,ethss-port = <ETHSS_GMAC1_PORT>;
 	status = "okay";
@@ -922,7 +1042,7 @@
 	status = "okay";
 };
 
-#if (SEL_ETHSW_LCDC && SEL_SCI1_LCDC)
+#if (SEL_ETHSW_ESC_LCDC && SEL_SCI1_LCDC)
 &du {
 	pinctrl-0 = <&du_pins>;
 	pinctrl-names = "default";
