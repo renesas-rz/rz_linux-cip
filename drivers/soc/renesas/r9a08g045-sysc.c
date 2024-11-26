@@ -11,6 +11,9 @@
 
 #include "rz-sysc.h"
 
+#define SYS_LSI_DEVID		0xa04
+#define SYS_LSI_DEVID_REV	GENMASK(31, 28)
+#define SYS_LSI_DEVID_SPECIFIC	GENMASK(27, 0)
 #define SYS_USB_PWRRDY		0xd70
 #define SYS_USB_PWRRDY_PWRRDY_N	BIT(0)
 #define SYS_MAX_REG		0xe20
@@ -24,7 +27,16 @@ static const struct rz_sysc_signal_init_data rzg3s_sysc_signals_init_data[] __in
 	}
 };
 
+static const struct rz_sysc_soc_id_init_data rzg3s_sysc_soc_id_init_data __initconst = {
+	.family = "RZ/G3S",
+	.id = 0x85e0447,
+	.devid_offset = SYS_LSI_DEVID,
+	.revision_mask = SYS_LSI_DEVID_REV,
+	.specific_id_mask = SYS_LSI_DEVID_SPECIFIC
+};
+
 const struct rz_sysc_init_data rzg3s_sysc_init_data = {
+	.soc_id_init_data = &rzg3s_sysc_soc_id_init_data,
 	.signals_init_data = rzg3s_sysc_signals_init_data,
 	.num_signals = ARRAY_SIZE(rzg3s_sysc_signals_init_data),
 	.max_register_offset = SYS_MAX_REG,
