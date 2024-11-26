@@ -15,8 +15,11 @@
 #include <linux/refcount.h>
 #include <linux/regmap.h>
 #include <linux/seq_file.h>
+#include <linux/sys_soc.h>
 
 #include "rz-sysc.h"
+
+#define field_get(_mask, _reg) (((_reg) & (_mask)) >> (ffs(_mask) - 1))
 
 /**
  * struct rz_sysc - RZ SYSC private data structure
@@ -210,6 +213,58 @@ static int rz_sysc_signals_init(struct rz_sysc *sysc,
 	return 0;
 }
 
+static int rz_sysc_soc_init(struct rz_sysc *sysc, const struct of_device_id *match)
+{
+	const struct rz_sysc_init_data *sysc_data = match->data;
+	const struct rz_sysc_soc_id_init_data *soc_data = sysc_data->soc_id_init_data;
+	struct soc_device_attribute *soc_dev_attr;
+	const char *soc_id_start, *soc_id_end;
+	u32 val, revision, specific_id;
+	struct soc_device *soc_dev;
+	char soc_id[32] = {0};
+	size_t size;
+
+	soc_id_start = strchr(match->compatible, ',') + 1;
+	soc_id_end = strchr(match->compatible, '-');
+	size = soc_id_end - soc_id_start + 1;
+	if (size > 32)
+		size = sizeof(soc_id);
+	strscpy(soc_id, soc_id_start, size);
+
+	soc_dev_attr = devm_kzalloc(sysc->dev, sizeof(*soc_dev_attr), GFP_KERNEL);
+	if (!soc_dev_attr)
+		return -ENOMEM;
+
+	soc_dev_attr->family = devm_kstrdup(sysc->dev, soc_data->family, GFP_KERNEL);
+	if (!soc_dev_attr->family)
+		return -ENOMEM;
+
+	soc_dev_attr->soc_id = devm_kstrdup(sysc->dev, soc_id, GFP_KERNEL);
+	if (!soc_dev_attr->soc_id)
+		return -ENOMEM;
+
+	val = readl(sysc->base + soc_data->devid_offset);
+	revision = field_get(soc_data->revision_mask, val);
+	specific_id = field_get(soc_data->specific_id_mask, val);
+	soc_dev_attr->revision = devm_kasprintf(sysc->dev, GFP_KERNEL, "%u", revision);
+	if (!soc_dev_attr->revision)
+		return -ENOMEM;
+
+	if (soc_data->id && specific_id != soc_data->id) {
+		dev_warn(sysc->dev, "SoC mismatch (product = 0x%x)\n", specific_id);
+		return -ENODEV;
+	}
+
+	dev_info(sysc->dev, "Detected Renesas %s %s Rev %s\n", soc_dev_attr->family,
+		 soc_dev_attr->soc_id, soc_dev_attr->revision);
+
+	soc_dev = soc_device_register(soc_dev_attr);
+	if (IS_ERR(soc_dev))
+		return PTR_ERR(soc_dev);
+
+	return 0;
+}
+
 static struct regmap_config rz_sysc_regmap = {
 	.name = "rz_sysc_regs",
 	.reg_bits = 32,
@@ -234,14 +289,15 @@ MODULE_DEVICE_TABLE(of, rz_sysc_match);
 static int rz_sysc_probe(struct platform_device *pdev)
 {
 	const struct rz_sysc_init_data *data;
+	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
-	struct rz_sysc *sysc;
 	struct regmap *regmap;
+	struct rz_sysc *sysc;
 	int ret;
 
-	data = device_get_match_data(dev);
-	if (!data || !data->max_register_offset)
-		return -EINVAL;
+	match = of_match_node(rz_sysc_match, dev->of_node);
+	if (!match || !match->data)
+		return -ENODEV;
 
 	sysc = devm_kzalloc(dev, sizeof(*sysc), GFP_KERNEL);
 	if (!sysc)
@@ -252,6 +308,13 @@ static int rz_sysc_probe(struct platform_device *pdev)
 		return PTR_ERR(sysc->base);
 
 	sysc->dev = dev;
+	ret = rz_sysc_soc_init(sysc, match);
+	if (ret)
+		return ret;
+
+	data = match->data;
+	if (!data->max_register_offset)
+		return -EINVAL;
 
 	ret = rz_sysc_signals_init(sysc, data->signals_init_data, data->num_signals);
 	if (ret)
