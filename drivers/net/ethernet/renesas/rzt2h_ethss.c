@@ -26,6 +26,9 @@
 #define ETHSS_PHYLNK_SWLINK_LOW(x)	BIT(x)
 #define ETHSS_PHYLNK_SWLINK_MASK(x)	BIT(x)
 
+#define ETHSS_PHYLNK_ESCLINK_HIGH(x)	(BIT(x) << 4)
+#define ETHSS_PHYLNK_ESCLINK_MASK(x)	(BIT(x) << 4)
+
 #define ETHSS_CONVCTRL(port)		(0x100 + (port) * 4)
 
 #define ETHSS_CONVCTRL_CONV_SPEED	GENMASK(1, 0)
@@ -498,6 +501,31 @@ static void ethss_parse_phylnk(struct ethss *ethss, struct device *dev)
 	}
 }
 
+static void ethss_parse_esclink(struct ethss *ethss, struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct device_node *conv;
+	int val, esclink, port;
+
+	for_each_child_of_node(np, conv) {
+		if (of_property_read_u32(conv, "renesas,esc-phylink", &esclink))
+			continue;
+
+		if (of_property_read_u32(conv, "reg", &port))
+			continue;
+
+		if (!of_device_is_available(conv))
+			continue;
+
+		/* ESC_PHYLINK active high */
+		val = 0;
+		if (esclink == 1)
+			val = ETHSS_PHYLNK_ESCLINK_HIGH(port);
+
+		ethss_reg_rmw(ethss, ETHSS_PHYLNK, ETHSS_PHYLNK_ESCLINK_MASK(port), val);
+	}
+}
+
 static int ethss_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -551,6 +579,7 @@ static int ethss_probe(struct platform_device *pdev)
 		goto disable_runtime_pm;
 
 	ethss_parse_phylnk(ethss, dev);
+	ethss_parse_esclink(ethss, dev);
 
 	/* ethss_create() relies on that fact that data are attached to the
 	 * platform device to determine if the driver is ready so this needs to
