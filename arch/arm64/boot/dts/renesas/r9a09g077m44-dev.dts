@@ -953,6 +953,17 @@
 			reg = <2>;
 		};
 	};
+
+	led_dipsw_device {
+		led0-gpios = <&pinctrl RZT2H_GPIO(23, 1) GPIO_ACTIVE_HIGH>;
+		led1-gpios = <&pinctrl RZT2H_GPIO(32, 2) GPIO_ACTIVE_HIGH>;
+		led2-gpios = <&pinctrl RZT2H_GPIO(6, 7) GPIO_ACTIVE_HIGH>;
+		led3-gpios = <&pinctrl RZT2H_GPIO(8, 5) GPIO_ACTIVE_HIGH>;
+		dipsw0-gpios = <&pinctrl RZT2H_GPIO(35, 3) GPIO_ACTIVE_HIGH>;
+		dipsw1-gpios = <&pinctrl RZT2H_GPIO(35, 4) GPIO_ACTIVE_HIGH>;
+		dipsw2-gpios = <&pinctrl RZT2H_GPIO(35, 5) GPIO_ACTIVE_HIGH>;
+		dipsw3-gpios = <&pinctrl RZT2H_GPIO(35, 6) GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &esc_port0 {
