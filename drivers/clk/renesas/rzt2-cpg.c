@@ -777,6 +777,12 @@ static int __init rzt2_cpg_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id rzt2_cpg_match[] = {
+#ifdef CONFIG_CLK_R9A07G076
+	{
+		.compatible = "renesas,r9a07g076-cpg",
+		.data = &r9a07g076_cpg_info,
+	},
+#endif
 	{ /* sentinel */ }
 };
 
