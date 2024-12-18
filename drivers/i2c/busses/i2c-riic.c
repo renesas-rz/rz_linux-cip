@@ -49,11 +49,13 @@
 #include <linux/reset.h>
 
 #define ICFER_FMPE	0x80
+#define ICFER_MALE	0x02
 #define ICFER_SCLE	0x40
 #define ICFER_NFE	0x20
 
 #define ICCR1_ICE	0x80
 #define ICCR1_IICRST	0x40
+#define ICCR1_CLO	0x20
 #define ICCR1_SOWP	0x10
 #define ICCR1_SDAO	0x04
 #define ICCR1_SCLI	0x02
@@ -87,6 +89,8 @@
 #define ICBR_RESERVED	0xe0 /* Should be 1 on writes */
 
 #define RIIC_INIT_MSG	-1
+
+#define RIIC_RECOVERY_CLK_CNT  9
 
 struct riic_regs {
 	u8 iccr1;
@@ -146,13 +150,16 @@ static int riic_bus_barrier(struct riic_dev *riic)
 	ret = readb_poll_timeout(riic->base + riic->info->regs->iccr2, val,
 				!(val & ICCR2_BBSY), 10, riic->adapter.timeout);
 	if (ret)
-		return -EBUSY;
+		goto i2c_recover;
 
 	if (!(readb(riic->base + riic->info->regs->iccr1) & ICCR1_SDAI) ||
 	    !(readb(riic->base + riic->info->regs->iccr1) & ICCR1_SCLI))
-		return -EBUSY;
+		goto i2c_recover;
 
 	return 0;
+
+i2c_recover:
+	return i2c_recover_bus(&riic->adapter);
 }
 
 static int riic_xfer_atomic(struct i2c_adapter *adap, struct i2c_msg msgs[],
@@ -472,7 +479,7 @@ static const struct i2c_algorithm riic_algo = {
 	.functionality		= riic_func,
 };
 
-static int riic_init_hw(struct riic_dev *riic, struct i2c_timings *t)
+static int riic_init_hw(struct riic_dev *riic, struct i2c_timings *t, bool recover)
 {
 	int ret = 0;
 	unsigned long rate;
@@ -583,12 +590,82 @@ out:
 	return ret;
 }
 
+static int riic_recover_bus(struct i2c_adapter *adap)
+{
+	struct riic_dev *riic = i2c_get_adapdata(adap);
+	struct device *dev = riic->adapter.dev.parent;
+	struct i2c_timings i2c_t;
+	int ret, i;
+	u8 val;
+
+	i2c_parse_fw_timings(dev, &i2c_t, true);
+	ret = riic_init_hw(riic, &i2c_t, true);
+	if (ret)
+		return -EINVAL;
+
+	/* output extra SCL clock cycles with master arbitration-lost detection disabled */
+	riic_clear_set_bit(riic, ICFER_MALE, 0, riic->info->regs->icfer);
+
+	for (i = 0; i < RIIC_RECOVERY_CLK_CNT; i++) {
+		riic_clear_set_bit(riic, 0, ICCR1_CLO, riic->info->regs->iccr1);
+		ret = readb_poll_timeout(riic->base + riic->info->regs->iccr1, val,
+					 !(val & ICCR1_CLO), 0, 100);
+		if (ret) {
+			dev_err(dev, "SCL clock cycle timeout\n");
+			return ret;
+		}
+	}
+
+	/*
+	 * The last clock cycle may have driven the SDA line high, so add a
+	 * short delay to allow the line to stabilize before checking the status.
+	 */
+	udelay(5);
+
+	/*
+	 * If an incomplete byte write occurs, the SDA line may remain low
+	 * even after 9 clock pulses, indicating the bus is not released.
+	 * To resolve this, send an additional clock pulse to simulate a STOP
+	 * condition and ensure proper bus release.
+	 */
+	if (!(readb(riic->base + riic->info->regs->iccr1) & ICCR1_SDAI) &&
+	    (readb(riic->base + riic->info->regs->iccr1) & ICCR1_SCLI)) {
+		riic_clear_set_bit(riic, 0, ICCR1_CLO, riic->info->regs->iccr1);
+		ret = readb_poll_timeout(riic->base + riic->info->regs->iccr1, val,
+					 !(val & ICCR1_CLO), 0, 100);
+		if (ret) {
+			dev_err(dev, "SCL clock cycle timeout occurred while issuing the STOP condition\n");
+			return ret;
+		}
+		/* delay to make sure SDA line goes back HIGH again */
+		udelay(5);
+	}
+
+	/* clear any flags set */
+	writeb(0, riic->base + riic->info->regs->icsr2);
+	/* read back register to confirm writes */
+	readb(riic->base + riic->info->regs->icsr2);
+
+	/* restore back ICFER_MALE */
+	riic_clear_set_bit(riic, 0, ICFER_MALE, riic->info->regs->icfer);
+
+	if (!(readb(riic->base + riic->info->regs->iccr1) & ICCR1_SDAI) ||
+	    !(readb(riic->base + riic->info->regs->iccr1) & ICCR1_SCLI))
+		return -EINVAL;
+
+	return 0;
+}
+
 static struct riic_irq_desc riic_irqs[] = {
 	{ .res_num = 0, .isr = riic_tend_isr, .name = "riic-tend" },
 	{ .res_num = 1, .isr = riic_rdrf_isr, .name = "riic-rdrf" },
 	{ .res_num = 2, .isr = riic_tdre_isr, .name = "riic-tdre" },
 	{ .res_num = 3, .isr = riic_stop_isr, .name = "riic-stop" },
 	{ .res_num = 5, .isr = riic_tend_isr, .name = "riic-nack" },
+};
+
+static struct i2c_bus_recovery_info riic_bri = {
+	.recover_bus = riic_recover_bus,
 };
 
 static void riic_reset_control_assert(void *data)
@@ -657,6 +734,7 @@ static int riic_i2c_probe(struct platform_device *pdev)
 	strlcpy(adap->name, "Renesas RIIC adapter", sizeof(adap->name));
 	adap->owner = THIS_MODULE;
 	adap->algo = &riic_algo;
+	adap->bus_recovery_info = &riic_bri;
 	adap->dev.parent = &pdev->dev;
 	adap->dev.of_node = pdev->dev.of_node;
 
@@ -666,7 +744,7 @@ static int riic_i2c_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	ret = riic_init_hw(riic, &i2c_t);
+	ret = riic_init_hw(riic, &i2c_t, false);
 	if (ret)
 		goto out;
 
@@ -778,7 +856,7 @@ static int __maybe_unused riic_i2c_resume(struct device *dev)
 	}
 
 	i2c_parse_fw_timings(dev, &i2c_t, true);
-	ret = riic_init_hw(riic, &i2c_t);
+	ret = riic_init_hw(riic, &i2c_t, false);
 	if (ret)
 		return ret;
 
