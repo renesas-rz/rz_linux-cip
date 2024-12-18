@@ -56,6 +56,7 @@
 #define ICCR1_IICRST	0x40
 #define ICCR1_SOWP	0x10
 #define ICCR1_SDAO	0x04
+#define ICCR1_SCLI	0x02
 #define ICCR1_SDAI	0x01
 
 #define ICCR2_BBSY	0x80
@@ -133,6 +134,27 @@ static inline void riic_clear_set_bit(struct riic_dev *riic, u8 clear, u8 set, u
 	writeb((readb(riic->base + reg) & ~clear) | set, riic->base + reg);
 }
 
+static int riic_bus_barrier(struct riic_dev *riic)
+{
+	int ret;
+	u8 val;
+
+	/*
+	 * The SDA line can still be low even when BBSY = 0. Therefore, after checking
+	 * the BBSY flag, also verify that the SDA and SCL lines are not being held low.
+	 */
+	ret = readb_poll_timeout(riic->base + riic->info->regs->iccr2, val,
+				!(val & ICCR2_BBSY), 10, riic->adapter.timeout);
+	if (ret)
+		return -EBUSY;
+
+	if (!(readb(riic->base + riic->info->regs->iccr1) & ICCR1_SDAI) ||
+	    !(readb(riic->base + riic->info->regs->iccr1) & ICCR1_SCLI))
+		return -EBUSY;
+
+	return 0;
+}
+
 static int riic_xfer_atomic(struct i2c_adapter *adap, struct i2c_msg msgs[],
 			    int num)
 {
@@ -144,10 +166,9 @@ static int riic_xfer_atomic(struct i2c_adapter *adap, struct i2c_msg msgs[],
 
 	pm_runtime_get_sync(adap->dev.parent);
 
-	if (readb(riic->base + riic->info->regs->iccr2) & ICCR2_BBSY) {
-		riic->err = -EBUSY;
+	riic->err = riic_bus_barrier(riic);
+	if (riic->err)
 		goto out;
-	}
 
 	riic->err = 0;
 
@@ -279,10 +300,9 @@ static int riic_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	pm_runtime_get_sync(adap->dev.parent);
 
-	if (readb(riic->base + riic->info->regs->iccr2) & ICCR2_BBSY) {
-		riic->err = -EBUSY;
+	riic->err = riic_bus_barrier(riic);
+	if (riic->err)
 		goto out;
-	}
 
 	reinit_completion(&riic->msg_done);
 	riic->err = 0;
