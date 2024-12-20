@@ -204,5 +204,7 @@ struct plat_stmmacenet_data {
 	u8 vlan_fail_q;
 	unsigned int eee_usecs_rate;
 	bool sph_disable;
+	int tx_threshold;
+	int rx_threshold;
 };
 #endif

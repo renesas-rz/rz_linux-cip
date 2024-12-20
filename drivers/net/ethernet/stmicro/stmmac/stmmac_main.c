@@ -1984,8 +1984,15 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 	txfifosz /= tx_channels_count;
 
 	if (priv->plat->force_thresh_dma_mode) {
-		txmode = tc;
-		rxmode = tc;
+		if (priv->plat->tx_threshold)
+			txmode = priv->plat->tx_threshold;
+		else
+			txmode = tc;
+
+		if (priv->plat->rx_threshold)
+			rxmode = priv->plat->rx_threshold;
+		else
+			rxmode = tc;
 	} else if (priv->plat->force_sf_dma_mode || priv->plat->tx_coe) {
 		/*
 		 * In case of GMAC, SF mode can be enabled
@@ -1998,7 +2005,11 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 		rxmode = SF_DMA_MODE;
 		priv->xstats.threshold = SF_DMA_MODE;
 	} else {
-		txmode = tc;
+		if (priv->plat->tx_threshold)
+			txmode = priv->plat->tx_threshold;
+		else
+			txmode = tc;
+
 		rxmode = SF_DMA_MODE;
 	}
 
@@ -2253,6 +2264,8 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 				tx_channel_count : rx_channel_count;
 	u32 chan;
 	int status[max_t(u32, MTL_MAX_TX_QUEUES, MTL_MAX_RX_QUEUES)];
+	u32 txmode = 0;
+	u32 rxmode = 0;
 
 	/* Make sure we never check beyond our status buffer. */
 	if (WARN_ON_ONCE(channels_to_check > ARRAY_SIZE(status)))
@@ -2260,6 +2273,16 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 
 	for (chan = 0; chan < channels_to_check; chan++)
 		status[chan] = stmmac_napi_check(priv, chan);
+
+	if (priv->plat->tx_threshold)
+		txmode = priv->plat->tx_threshold;
+	else
+		txmode = tc;
+
+	if (priv->plat->rx_threshold)
+		rxmode = priv->plat->rx_threshold;
+	else
+		rxmode = tc;
 
 	for (chan = 0; chan < tx_channel_count; chan++) {
 		if (unlikely(status[chan] & tx_hard_error_bump_tc)) {
@@ -2269,15 +2292,15 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 				tc += 64;
 				if (priv->plat->force_thresh_dma_mode)
 					stmmac_set_dma_operation_mode(priv,
-								      tc,
-								      tc,
+								      txmode,
+								      rxmode,
 								      chan);
 				else
 					stmmac_set_dma_operation_mode(priv,
-								    tc,
+								    txmode,
 								    SF_DMA_MODE,
 								    chan);
-				priv->xstats.threshold = tc;
+				priv->xstats.threshold = txmode;
 			}
 		} else if (unlikely(status[chan] == tx_hard_error)) {
 			stmmac_tx_err(priv, chan);
