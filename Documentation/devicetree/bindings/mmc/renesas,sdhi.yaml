@@ -66,6 +66,7 @@ properties:
               - renesas,sdhi-r9a07g044 # RZ/G2{L,LC}
               - renesas,sdhi-r9a07g054 # RZ/V2L
               - renesas,sdhi-r9a08g045 # RZ/G3S
+              - renesas,sdhi-r9a08g046 # RZ/G3L
               - renesas,sdhi-r9a09g011 # RZ/V2M
           - const: renesas,rzg2l-sdhi
       - items:
