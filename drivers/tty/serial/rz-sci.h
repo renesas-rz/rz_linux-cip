@@ -73,6 +73,7 @@ enum {
 
 /* CCR2 (Common Control Register 2) */
 #define	CCR2_INIT			0xFF000004
+#define CCR2_MDDR_MASK			GENMASK(31, 24)			/* MDDR Mask */
 #define CCR2_CKS_TCLK			(0)				/* TCLK clock */
 #define CCR2_CKS_TCLK_DIV4		BIT(20)				/* TCLK/4 clock */
 #define CCR2_CKS_TCLK_DIV16		BIT(21)				/* TCLK16 clock */
@@ -91,6 +92,7 @@ enum {
 #define CCR3_DEN			BIT(21)				/* Driver Enabled */
 #define CCR3_FM				BIT(20)				/* FIFO Mode Select */
 #define CCR3_MP				BIT(19)				/* Multi-Processor Mode */
+#define CCR3_BPEN			BIT(7)				/* Synchronizer bypass enable */
 #define CCR3_MOD_ASYNC			0				/* Asynchronous mode (Multi-processor mode) */
 #define CCR3_MOD_IRDA			BIT(16)				/* Smart card interface mode */
 #define CCR3_MOD_CLK_SYNC		BIT(17)				/* Clock synchronous mode */
