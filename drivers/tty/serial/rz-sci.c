@@ -1761,10 +1761,30 @@ done:
 		bits++;
 
 
+	if (baud > 115200) {
+		unsigned int mddr, prediv;
+		unsigned long freq = s->clk_rates[SCI_FCK]*2;
+
+		prediv = (srr + 1) * (1 << (2 * cks + 1));
+		mddr = DIV_ROUND_CLOSEST((long)prediv * baud * 256 * (brr + 1), freq);
+		while (((mddr < 128) || (mddr >= 256)) && (brr > 0)) {
+			brr -= 1;
+			mddr = DIV_ROUND_CLOSEST((long)prediv * baud * 256 * (brr + 1), freq);
+		}
+
+		mddr = clamp(mddr, 129U, 256U);
+		mddr -= 1;
+		ccr2_val &= ~CCR2_MDDR_MASK;
+		ccr2_val |= CCR2_BRME | (mddr << 24);
+	}
+
 	serial_port_out(port, CCR0, ccr0_val);
 
 	if (port->type == PORT_SCIF)
 		ccr3_val |= CCR3_FM;
+
+	if (s->clk_rates[SCI_FCK] < 125000000)
+		ccr3_val &= ~CCR3_BPEN;
 	serial_port_out(port, CCR3, ccr3_val);
 
 	ccr2_val |= (cks << 20) | (brr << 8);
