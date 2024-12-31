@@ -1,0 +1,188 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the RZ/T2N Development EVK board
+ *
+ * Copyright (C) 2023 Renesas Electronics Corp.
+ */
+
+/dts-v1/;
+#include "r9a07g076.dtsi"
+#include <dt-bindings/pinctrl/rzt2-pinctrl.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "Renesas Development EVK based on r9a07g076m48";
+	compatible = "renesas,r9a07g076m48-dev", "renesas,r9a07g076m48", "renesas,r9a07g076";
+
+	aliases {
+		serial0 = &sci0;
+		serial1 = &sci1;
+		mmc0 = &sdhi0;
+		mmc1 = &sdhi1;
+	};
+
+	chosen {
+		bootargs = "ignore_loglevel";
+		stdout-path = "serial1:115200n8";
+	};
+
+	memory@c8000000 {
+		device_type = "memory";
+		/* first 128MiB is reserved for secure area. */
+		reg = <0x0 0xc8000000 0x0 0x38000000>;
+	};
+
+	memory@240000000 {
+		device_type = "memory";
+		reg = <0x2 0x40000000 0x0 0xC0000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		global_cma: linux,cma@D0000000 {
+			compatible = "shared-dma-pool";
+			linux,cma-default;
+			reusable;
+			reg = <0x0 0xD0000000 0x0 0x10000000>;
+		};
+	};
+
+	reg_1p8v: regulator0 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "fixed-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	reg_3p3v: regulator1 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vmmc_sdhi1: regulator-vcc-sdhi1 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "SDHI1 Vmmc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&pinctrl RZT2_GPIO(13, 1) GPIO_ACTIVE_HIGH>; /* SDHI1 : SD1_PWEN/P13_1 */
+		enable-active-high;
+	};
+
+	vccq_sdhi1: regulator-vccq-sdhi1 {
+		compatible = "regulator-gpio";
+
+		regulator-name = "SDHI1 VccQ";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpios = <&pinctrl RZT2_GPIO(13, 2) GPIO_ACTIVE_HIGH>; /* SDHI1: SD1_IOVS/P13_2 */
+
+		gpios-states = <0>;
+		states = <3300000 0 1800000 1>;
+	};
+};
+
+&pinctrl {
+	sci0_pins: sci0 {
+		pinmux = <RZT2_PORT_PINMUX(11, 3, 0x18)>, /* SCI : RXD0/SCL0/MISO0/P11_3 */
+			 <RZT2_PORT_PINMUX(11, 4, 0x18)>; /* SCI : TXD0/SDA0/MOSI0/P11_4 */
+	};
+
+	sci1_pins: sci1 {
+		pinmux = <RZT2_PORT_PINMUX(11, 1, 0x18)>, /* SCI : RXD1/SCL1/MISO1/P11_1 */
+			 <RZT2_PORT_PINMUX(11, 2, 0x18)>; /* SCI : TXD1/SDA1/MOSI1/P11_2 */
+	};
+
+	sdhi0_pins: sd0 {
+		sd0_data {
+			pinmux = <RZT2_PORT_PINMUX(4, 6, 0x2C)>, /* SDHI : SD0_DATA0/P04_6 */
+				 <RZT2_PORT_PINMUX(4, 7, 0x2C)>, /* SDHI : SD0_DATA1/P04_7 */
+				 <RZT2_PORT_PINMUX(5, 0, 0x2C)>, /* SDHI : SD0_DATA2/P05_0 */
+				 <RZT2_PORT_PINMUX(5, 1, 0x2C)>, /* SDHI : SD0_DATA3/P05_1 */
+				 <RZT2_PORT_PINMUX(5, 2, 0x2C)>, /* SDHI : SD0_DATA4/P05_2 */
+				 <RZT2_PORT_PINMUX(5, 3, 0x2C)>, /* SDHI : SD0_DATA5/P05_3 */
+				 <RZT2_PORT_PINMUX(5, 4, 0x2C)>, /* SDHI : SD0_DATA6/P05_4 */
+				 <RZT2_PORT_PINMUX(5, 5, 0x2C)>; /* SDHI : SD0_DATA7/P05_5 */
+		};
+
+		sd0_ctrl {
+			pinmux = <RZT2_PORT_PINMUX(4, 4, 0x2C)>, /* SDHI : SD0_CLK/P04_4 */
+				 <RZT2_PORT_PINMUX(4, 5, 0x2C)>; /* SDHI : SD0_CMD/P04_5 */
+		};
+	};
+
+	sdhi1_pins: sd1 {
+		sd1_data {
+			pinmux = <RZT2_PORT_PINMUX(4, 0, 0x2C)>, /* SDHI : SD1_DATA0/P04_0 */
+				 <RZT2_PORT_PINMUX(4, 1, 0x2C)>, /* SDHI : SD1_DATA1/P04_1 */
+				 <RZT2_PORT_PINMUX(4, 2, 0x2C)>, /* SDHI : SD1_DATA2/P04_2 */
+				 <RZT2_PORT_PINMUX(4, 3, 0x2C)>; /* SDHI : SD1_DATA3/P04_3 */
+		};
+
+		sd1_ctrl {
+			pinmux = <RZT2_PORT_PINMUX(15, 0, 0x2C)>, /* SDHI : SD1_CD/P15_0 */
+				 <RZT2_PORT_PINMUX(3, 6, 0x2C)>, /* SDHI : SD1_CLK/P03_6 */
+				 <RZT2_PORT_PINMUX(3, 7, 0x2C)>; /* SDHI : SD1_CMD/P03_7 */
+		};
+	};
+
+};
+
+&extal {
+	clock-frequency = <25000000>;
+};
+
+&loco {
+	clock-frequency = <1000000>;
+};
+
+&sci0 {
+	pinctrl-0 = <&sci0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&sci1 {
+	pinctrl-0 = <&sci1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&sdhi0 {
+	pinctrl-0 = <&sdhi0_pins>;
+	pinctrl-1 = <&sdhi0_pins>;
+	pinctrl-names = "default", "state_uhs";
+
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_1p8v>;
+	bus-width = <8>;
+	non-removable;
+	mmc-hs200-1_8v;
+	fixed-emmc-driver-type = <1>;
+	status = "okay";
+};
+
+&sdhi1 {
+	pinctrl-0 = <&sdhi1_pins>;
+	pinctrl-1 = <&sdhi1_pins>;
+	pinctrl-names = "default", "state_uhs";
+
+	vmmc-supply = <&vmmc_sdhi1>;
+	vqmmc-supply = <&vccq_sdhi1>;
+	bus-width = <4>;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	status = "okay";
+};
