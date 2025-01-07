@@ -393,6 +393,7 @@ static const u16 rzg2l_cru_regs[CRU_REGS_END] = {
 	[AMnMBVALID] = 0x148,
 	[AMnMBS] = 0x14C,
 	[AMnAXIATTR] = 0x158,
+	[AMnFIFO] = 0x160,
 	[AMnFIFOPNTR] = 0x168,
 	[AMnAXISTP] = 0x174,
 	[AMnAXISTPACK] = 0x178,

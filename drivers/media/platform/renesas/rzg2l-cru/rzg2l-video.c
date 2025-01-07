@@ -75,6 +75,8 @@ struct rzg2l_cru_buffer {
 	struct list_head list;
 };
 
+static int prev_slot;
+
 #define to_buf_list(vb2_buffer) \
 	(&container_of(vb2_buffer, struct rzg2l_cru_buffer, vb)->list)
 
@@ -573,6 +575,22 @@ static irqreturn_t rzg2l_cru_irq(int irq, void *data)
 		cru->state = RZG2L_CRU_DMA_RUNNING;
 	}
 
+	if (slot != prev_slot) {
+		/* Update value of previous memory bank slot */
+		prev_slot = slot;
+	} else {
+		/*
+		 * AXI-Bus congestion maybe occurred.
+		 * Set auto recovery mode to clear all FIFOs
+		 * and resume transmission.
+		 */
+		rzg2l_cru_write(cru, AMnFIFO, 0);
+
+		dev_dbg(cru->dev, "Dropping frame %u\n",
+			cru->sequence);
+		goto done;
+	}
+
 	/* Capture frame */
 	if (cru->queue_buf[slot]) {
 		cru->queue_buf[slot]->field = cru->format.field;
@@ -650,6 +668,10 @@ static int rzg2l_cru_start_streaming_vq(struct vb2_queue *vq, unsigned int count
 	}
 
 	cru->state = RZG2L_CRU_DMA_STARTING;
+
+	/* Initialize value of previous memory bank slot before streaming */
+	prev_slot = -1;
+
 	dev_dbg(cru->dev, "Starting to capture\n");
 	return 0;
 
