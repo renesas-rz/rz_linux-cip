@@ -19,6 +19,7 @@
 #define G3L_CPG_PL2_DDIV		(0x204)
 #define G3L_CPG_PL3_DDIV		(0x208)
 #define G3L_CPG_SDHI_DDIV		(0x218)
+#define G3L_CPG_XSPI_DDIV		(0x220)
 #define G3L_CPG_GE3D_DDIV		(0x224)
 #define G3L_CPG_RSCI_DDIV		(0x238)
 #define G3L_CPG_RSPI_DDIV		(0x23c)
@@ -55,6 +56,7 @@
 #define G3L_SDIV_ETH_B		DDIV_PACK(G3L_CPG_ETH_SDIV, 4, 1)
 #define G3L_SDIV_ETH_C		DDIV_PACK(G3L_CPG_ETH_SDIV, 8, 2)
 #define G3L_SDIV_ETH_D		DDIV_PACK(G3L_CPG_ETH_SDIV, 12, 1)
+#define G3L_DIV_XSPI		DDIV_PACK(G3L_CPG_XSPI_DDIV, 0, 3)
 
 /* RZ/G3L Clock status configuration. */
 #define G3L_DIVPL1_STS		DDIV_PACK(G3L_CLKDIVSTATUS, 0, 1)
@@ -74,6 +76,7 @@
 #define G3L_DIV_SDHI1_STS	DDIV_PACK(G3L_CLKDIVSTATUS, 25, 1)
 #define G3L_DIV_SDHI2_STS	DDIV_PACK(G3L_CLKDIVSTATUS, 26, 1)
 #define G3L_DIV_GE3D_STS	DDIV_PACK(G3L_CLKDIVSTATUS, 27, 1)
+#define G3L_DIV_XSPI_STS	DDIV_PACK(G3L_CLKDIVSTATUS, 29, 1)
 
 #define G3L_SEL_PLL4_STS	SEL_PLL_PACK(G3L_CLKSELSTATUS, 6, 1)
 #define G3L_SEL_SDHI0_STS	SEL_PLL_PACK(G3L_CLKSELSTATUS, 16, 1)
@@ -163,6 +166,7 @@ enum clk_ids {
 	CLK_SEL_RSPI0,
 	CLK_SEL_RSPI1,
 	CLK_SEL_RSPI2,
+	CLK_SEL_XSPI,
 	CLK_SEL_PLL4,
 	CLK_SEL_ETH0_TX,
 	CLK_SEL_ETH0_RX,
@@ -198,6 +202,14 @@ static const struct clk_div_table dtable_1_32[] = {
 	{ 3, 8 },
 	{ 4, 16 },
 	{ 5, 32 },
+	{ 0, 0 },
+};
+
+static const struct clk_div_table dtable_2_8[] = {
+	{ 0, 2 },
+	{ 1, 4 },
+	{ 2, 6 },
+	{ 3, 8 },
 	{ 0, 0 },
 };
 
@@ -254,6 +266,7 @@ static const char * const sel_pll4[] = { ".osc_div1000", ".pll4" };
 static const char * const sel_rsci[] = { ".pll2_div5", ".pll2_div6", ".pll2_div7", ".pll2_div2_8" };
 static const char * const sel_rspi[] = { ".pll2_div5", ".pll2_div6", ".pll2_div7", ".pll2_div2_8" };
 static const char * const sel_sdhi[] = { ".pll2_div2", ".pll1_div2",  ".pll6", ".pll2_div6" };
+static const char * const sel_xspi[] = { ".pll2_div2", ".pll1_div2", ".pll2_div3", ".pll6" };
 
 /* Mux clock indices tables. */
 static const u32 mtable_sd[] = { 0, 1, 2, 3 };
@@ -308,6 +321,7 @@ static const struct cpg_core_clk r9a08g046_core_clks[] __initconst = {
 	DEF_MUX(".sel_rspi0", CLK_SEL_RSPI0, G3L_SEL_RSPI0, sel_rspi),
 	DEF_MUX(".sel_rspi1", CLK_SEL_RSPI1, G3L_SEL_RSPI1, sel_rspi),
 	DEF_MUX(".sel_rspi2", CLK_SEL_RSPI2, G3L_SEL_RSPI2, sel_rspi),
+	DEF_MUX(".sel_xspi", CLK_SEL_XSPI, G3L_SEL_XSPI, sel_xspi),
 	DEF_MUX(".sel_eth0_tx", CLK_SEL_ETH0_TX, G3L_SEL_ETH0_TX, sel_eth0_tx),
 	DEF_MUX(".sel_eth0_rx", CLK_SEL_ETH0_RX, G3L_SEL_ETH0_RX, sel_eth0_rx),
 	DEF_MUX(".sel_eth0_rm", CLK_SEL_ETH0_RM, G3L_SEL_ETH0_RM, sel_eth0_rm),
@@ -362,6 +376,9 @@ static const struct cpg_core_clk r9a08g046_core_clks[] __initconst = {
 	DEF_FIXED(".sd0_div2", CLK_SD0_DIV2, R9A08G046_CLK_SD0, 1, 2),
 	DEF_FIXED(".sd1_div2", CLK_SD1_DIV2, R9A08G046_CLK_SD1, 1, 2),
 	DEF_FIXED(".sd2_div2", CLK_SD2_DIV2, R9A08G046_CLK_SD2, 1, 2),
+	DEF_G3S_DIV("SPI0", R9A08G046_CLK_SPI0, CLK_SEL_XSPI, G3L_DIV_XSPI, G3L_DIV_XSPI_STS,
+		    dtable_2_8, 0, 0, 0, NULL),
+	DEF_FIXED("SPI1", R9A08G046_CLK_SPI1, R9A08G046_CLK_SPI0, 1, 2),
 	DEF_FIXED("AT", R9A08G046_CLK_AT, CLK_PLL3_DIV2, 1, 2),
 	DEF_FIXED("M0", R9A08G046_CLK_M0, CLK_PLL3_DIV2_8, 1, 1),
 	DEF_FIXED("M4", R9A08G046_CLK_M4, CLK_PLL7, 1, 1),
@@ -406,6 +423,10 @@ static const struct rzg2l_mod_clk r9a08g046_mod_clks[] = {
 	DEF_MOD("wdt1_clk",		R9A08G046_WDT1_CLK, CLK_EXTAL, 0x548, 3),
 	DEF_MOD("wdt2_pclk",		R9A08G046_WDT2_PCLK, R9A08G046_CLK_P0, 0x548, 4),
 	DEF_MOD("wdt2_clk",		R9A08G046_WDT2_CLK, CLK_EXTAL, 0x548, 5),
+	DEF_MOD("xspi_hclk",		R9A08G046_XSPI_HCLK, R9A08G046_CLK_P7, 0x550, 0),
+	DEF_MOD("xspi_aclk",		R9A08G046_XSPI_ACLK, R9A08G046_CLK_P7, 0x550, 1),
+	DEF_MOD("xspi_clk",		R9A08G046_XSPI_CLK, R9A08G046_CLK_SPI1, 0x550, 2),
+	DEF_MOD("xspi_clkx2",		R9A08G046_XSPI_CLKX2, R9A08G046_CLK_SPI0, 0x550, 3),
 	DEF_MOD("sdhi0_imclk",		R9A08G046_SDHI0_IMCLK, CLK_SD0_DIV2, 0x554, 0),
 	DEF_MOD("sdhi0_imclk2",		R9A08G046_SDHI0_IMCLK2, CLK_SD0_DIV2, 0x554, 1),
 	DEF_MOD("sdhi0_clk_hs",		R9A08G046_SDHI0_CLK_HS, R9A08G046_CLK_SD0, 0x554, 2),
@@ -525,6 +546,8 @@ static const struct rzg2l_reset r9a08g046_resets[] = {
 	DEF_RST(R9A08G046_WDT0_PRESETN, 0x848, 0),
 	DEF_RST(R9A08G046_WDT1_PRESETN, 0x848, 1),
 	DEF_RST(R9A08G046_WDT2_PRESETN, 0x848, 2),
+	DEF_RST(R9A08G046_XSPI_HRESETN, 0x850, 0),
+	DEF_RST(R9A08G046_XSPI_ARESETN, 0x850, 1),
 	DEF_RST(R9A08G046_SDHI0_IXRST, 0x854, 0),
 	DEF_RST(R9A08G046_SDHI1_IXRST, 0x854, 1),
 	DEF_RST(R9A08G046_SDHI2_IXRST, 0x854, 2),
