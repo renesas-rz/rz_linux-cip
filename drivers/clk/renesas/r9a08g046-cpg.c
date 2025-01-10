@@ -21,6 +21,7 @@
 #define G3L_CPG_SDHI_DDIV		(0x218)
 #define G3L_CPG_XSPI_DDIV		(0x220)
 #define G3L_CPG_GE3D_DDIV		(0x224)
+#define G3L_CPG_PDM_DDIV		(0x22c)
 #define G3L_CPG_RSCI_DDIV		(0x238)
 #define G3L_CPG_RSPI_DDIV		(0x23c)
 #define G3L_CPG_PLL_DSEL		(0x240)
@@ -57,6 +58,7 @@
 #define G3L_SDIV_ETH_C		DDIV_PACK(G3L_CPG_ETH_SDIV, 8, 2)
 #define G3L_SDIV_ETH_D		DDIV_PACK(G3L_CPG_ETH_SDIV, 12, 1)
 #define G3L_DIV_XSPI		DDIV_PACK(G3L_CPG_XSPI_DDIV, 0, 3)
+#define G3L_DIV_PDM		DDIV_PACK(G3L_CPG_PDM_DDIV, 0, 1)
 
 /* RZ/G3L Clock status configuration. */
 #define G3L_DIVPL1_STS		DDIV_PACK(G3L_CLKDIVSTATUS, 0, 1)
@@ -77,6 +79,7 @@
 #define G3L_DIV_SDHI2_STS	DDIV_PACK(G3L_CLKDIVSTATUS, 26, 1)
 #define G3L_DIV_GE3D_STS	DDIV_PACK(G3L_CLKDIVSTATUS, 27, 1)
 #define G3L_DIV_XSPI_STS	DDIV_PACK(G3L_CLKDIVSTATUS, 29, 1)
+#define G3L_DIV_PDM_STS		DDIV_PACK(G3L_CLKDIVSTATUS, 30, 1)
 
 #define G3L_SEL_PLL4_STS	SEL_PLL_PACK(G3L_CLKSELSTATUS, 6, 1)
 #define G3L_SEL_SDHI0_STS	SEL_PLL_PACK(G3L_CLKSELSTATUS, 16, 1)
@@ -224,6 +227,12 @@ static const struct clk_div_table dtable_2_16[] = {
 	{ 1, 4 },
 	{ 2, 8 },
 	{ 3, 16 },
+	{ 0, 0 },
+};
+
+static const struct clk_div_table dtable_3_5[] = {
+	{ 0, 3 },
+	{ 1, 5 },
 	{ 0, 0 },
 };
 
@@ -399,6 +408,8 @@ static const struct cpg_core_clk r9a08g046_core_clks[] __initconst = {
 	DEF_FIXED("ETHRX12", R9A08G046_CLK_ETHRX12, CLK_SEL_ETH1_RX, 1, 1),
 	DEF_G3S_DIV("G", R9A08G046_CLK_G, CLK_SEL_GE3D, G3L_DIV_GE3D, G3L_DIV_GE3D_STS,
 		    dtable_1_32, 0, 0, 0, NULL),
+	DEF_G3S_DIV("OSCCLK2", R9A08G046_OSCCLK2, CLK_EXTAL, G3L_DIV_PDM, G3L_DIV_PDM_STS, dtable_3_5,
+		    0, 0, 0, NULL),
 };
 
 static const struct rzg2l_mod_clk r9a08g046_mod_clks[] = {
@@ -510,6 +521,8 @@ static const struct rzg2l_mod_clk r9a08g046_mod_clks[] = {
 	DEF_MOD("adc1_adclk",		R9A08G046_ADC1_ADCLK, R9A08G046_CLK_TSU, 0x5a8, 2),
 	DEF_MOD("adc1_pclk",		R9A08G046_ADC1_PCLK, R9A08G046_CLK_TSU, 0x5a8, 3),
 	DEF_MOD("tsu_pclk",		R9A08G046_TSU_PCLK, R9A08G046_CLK_TSU, 0x5ac, 0),
+	DEF_MOD("pdm_pclk",		R9A08G046_PDM_PCLK, R9A08G046_CLK_P0, 0x604, 0),
+	DEF_MOD("pdm_cclk",		R9A08G046_PDM_CCLK, R9A08G046_OSCCLK2, 0x604, 1),
 	DEF_MOD("pci_aclk",		R9A08G046_PCI_ACLK, R9A08G046_CLK_P1, 0x608, 0),
 	DEF_MOD("pci_clkl1pm",		R9A08G046_PCI_CLKL1PM, R9A08G046_CLK_P8, 0x608, 1),
 	DEF_MOD("pci_clk_pmu",		R9A08G046_PCI_CLK_PMU, R9A08G046_CLK_P1, 0x608, 2),
@@ -604,6 +617,7 @@ static const struct rzg2l_reset r9a08g046_resets[] = {
 	DEF_RST(R9A08G046_ADC1_PRESETN, 0x8a8, 2),
 	DEF_RST(R9A08G046_ADC1_ADRST_N, 0x8a8, 3),
 	DEF_RST(R9A08G046_TSU_PRESETN, 0x8ac, 0),
+	DEF_RST(R9A08G046_PDM_PRESETN, 0x904, 0),
 	DEF_RST(R9A08G046_PCI_ARESETN, 0x908, 0),
 	DEF_RST(R9A08G046_SPDIF_RST, 0x90c, 0),
 	DEF_RST(R9A08G046_I3C_PRESETN, 0x910, 0),
