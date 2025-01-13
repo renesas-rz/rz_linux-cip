@@ -214,6 +214,13 @@
 #define ETHSW_CTRL_TIMEOUT		1000
 #define ETHSW_TABLE_ENTRIES		8192
 
+#define ETHSW_SWTMEN(n)			(0x400 + 0x400 + 0x100 * (n))
+#define ETHSW_SWTMSTSEC(n)		(0x400 + 0x404 + 0x100 * (n))
+#define ETHSW_SWTMSTNS(n)		(0x400 + 0x408 + 0x100 * (n))
+#define ETHSW_SWTMPSEC(n)		(0x400 + 0x40C + 0x100 * (n))
+#define ETHSW_SWTMPNS(n)		(0x400 + 0x410 + 0x100 * (n))
+#define ETHSW_SWTMWTH(n)		(0x400 + 0x414 + 0x100 * (n))
+
 struct fdb_entry {
 	u8 mac[ETH_ALEN];
 	u16 valid:1;
@@ -257,6 +264,7 @@ struct ethsw {
 	struct dsa_switch ds;
 	struct mutex lk_lock; /* Lock for the lookup table */
 	struct mutex vlan_lock; /* Lock for the vlan operation */
+	struct mutex sysfs_lock; /* Lock for sysfs operation */
 	spinlock_t reg_lock; /* Lock for register read-modify-write operation */
 	u32 bridged_ports;
 	struct net_device *br_dev;

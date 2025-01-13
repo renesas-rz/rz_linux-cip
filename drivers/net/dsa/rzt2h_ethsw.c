@@ -95,6 +95,16 @@ static void ethsw_reg_rmw(struct ethsw *ethsw, int offset, u32 mask, u32 val)
 	spin_unlock(&ethsw->reg_lock);
 }
 
+static void ethss_reg_writel(struct ethsw *ethsw, int offset, u32 value)
+{
+	writel(value, ethsw->ethss->base + offset);
+}
+
+static u32 ethss_reg_readl(struct ethsw *ethsw, int offset)
+{
+	return readl(ethsw->ethss->base + offset);
+}
+
 static enum dsa_tag_protocol ethsw_get_tag_protocol(struct dsa_switch *ds,
 						    int port,
 						    enum dsa_tag_protocol mp)
@@ -1090,6 +1100,685 @@ free_pcs:
 	return ret;
 }
 
+static int detach_sec_ns(const char *s, u32 *sec, u32 *ns)
+{
+	char *strsec, *strns;
+	char pad[10] = "0000000000";
+	int ret, len;
+
+	strsec = strsep((char **)&s, ".");
+	strns = (char *)s;
+
+	len = (int)strlen(strns);
+	if (len < 10) {
+		strns[len - 1] = 0;
+		strncat(strns, pad, 10 - len);
+	}
+
+	ret = kstrtouint(strsec, 10, sec);
+	if (ret)
+		return ret;
+
+	ret = kstrtouint(strns, 10, ns);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static ssize_t PTPOUT0_enable_store(struct device *dev, struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val > 1) {
+		dev_err(ethsw->dev, "Only 0 or 1 is valid value\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	if (val)
+		ethss_reg_writel(ethsw, ETHSW_SWTMEN(0), 1);
+	else
+		ethss_reg_writel(ethsw, ETHSW_SWTMEN(0), 0);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t PTPOUT0_enable_show(struct device *dev, struct device_attribute *attr,
+				   char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethss_reg_readl(ethsw, ETHSW_SWTMEN(0));
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
+static ssize_t PTPOUT0_start_time_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 sec, ns, ret;
+
+	ret = detach_sec_ns(buf, &sec, &ns);
+	if (ret) {
+		dev_err(ethsw->dev, "Invalid value\n");
+		return ret;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethss_reg_writel(ethsw, ETHSW_SWTMSTSEC(0), sec);
+	ethss_reg_writel(ethsw, ETHSW_SWTMSTNS(0), ns);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t PTPOUT0_start_time_show(struct device *dev, struct device_attribute *attr,
+				       char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 sec, ns;
+
+	sec = ethss_reg_readl(ethsw, ETHSW_SWTMSTSEC(0));
+	ns = ethss_reg_readl(ethsw, ETHSW_SWTMSTNS(0));
+
+	return sprintf(buf, "%u sec %u ns\r\n", sec, ns);
+}
+
+static ssize_t PTPOUT0_period_store(struct device *dev, struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 sec, ns, ret;
+
+	ret = detach_sec_ns(buf, &sec, &ns);
+	if (ret) {
+		dev_err(ethsw->dev, "Invalid value\n");
+		return ret;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethss_reg_writel(ethsw, ETHSW_SWTMPSEC(0), sec);
+	ethss_reg_writel(ethsw, ETHSW_SWTMPNS(0), ns);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t PTPOUT0_period_show(struct device *dev, struct device_attribute *attr,
+				   char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 sec, ns;
+
+	sec = ethss_reg_readl(ethsw, ETHSW_SWTMPSEC(0));
+	ns = ethss_reg_readl(ethsw, ETHSW_SWTMPNS(0));
+
+	return sprintf(buf, "%u sec %u ns\r\n", sec, ns);
+}
+
+static ssize_t PTPOUT0_width_ns_store(struct device *dev, struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, width, ret;
+
+	ret = kstrtouint(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val >= 524280) {
+		dev_err(ethsw->dev, "Pulse width must smaller than 524280 ns\n");
+		return -EINVAL;
+	}
+
+	width = val / 8;
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethss_reg_writel(ethsw, ETHSW_SWTMWTH(0), width);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t PTPOUT0_width_ns_show(struct device *dev, struct device_attribute *attr,
+				     char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethss_reg_readl(ethsw, ETHSW_SWTMWTH(0));
+
+	ret *= 8;
+
+	return sprintf(buf, "%u ns\r\n", ret);
+}
+
+static ssize_t PTPOUT1_enable_store(struct device *dev, struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val > 1) {
+		dev_err(ethsw->dev, "Only 0 or 1 is valid value\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	if (val)
+		ethss_reg_writel(ethsw, ETHSW_SWTMEN(1), 1);
+	else
+		ethss_reg_writel(ethsw, ETHSW_SWTMEN(1), 0);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t PTPOUT1_enable_show(struct device *dev, struct device_attribute *attr,
+				   char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethss_reg_readl(ethsw, ETHSW_SWTMEN(1));
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
+static ssize_t PTPOUT1_start_time_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 sec, ns, ret;
+
+	ret = detach_sec_ns(buf, &sec, &ns);
+	if (ret) {
+		dev_err(ethsw->dev, "Invalid value\n");
+		return ret;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethss_reg_writel(ethsw, ETHSW_SWTMSTSEC(1), sec);
+	ethss_reg_writel(ethsw, ETHSW_SWTMSTNS(1), ns);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t PTPOUT1_start_time_show(struct device *dev, struct device_attribute *attr,
+				       char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 sec, ns;
+
+	sec = ethss_reg_readl(ethsw, ETHSW_SWTMSTSEC(1));
+	ns = ethss_reg_readl(ethsw, ETHSW_SWTMSTNS(1));
+
+	return sprintf(buf, "%u sec %u ns\r\n", sec, ns);
+}
+
+static ssize_t PTPOUT1_period_store(struct device *dev, struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 sec, ns, ret;
+
+	ret = detach_sec_ns(buf, &sec, &ns);
+	if (ret) {
+		dev_err(ethsw->dev, "Invalid value\n");
+		return ret;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethss_reg_writel(ethsw, ETHSW_SWTMPSEC(1), sec);
+	ethss_reg_writel(ethsw, ETHSW_SWTMPNS(1), ns);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t PTPOUT1_period_show(struct device *dev, struct device_attribute *attr,
+				   char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 sec, ns;
+
+	sec = ethss_reg_readl(ethsw, ETHSW_SWTMPSEC(1));
+	ns = ethss_reg_readl(ethsw, ETHSW_SWTMPNS(1));
+
+	return sprintf(buf, "%u sec %u ns\r\n", sec, ns);
+}
+
+static ssize_t PTPOUT1_width_ns_store(struct device *dev, struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, width, ret;
+
+	ret = kstrtouint(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val >= 524280) {
+		dev_err(ethsw->dev, "Pulse width must smaller than 524280 ns\n");
+		return -EINVAL;
+	}
+
+	width = val / 8;
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethss_reg_writel(ethsw, ETHSW_SWTMWTH(1), width);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t PTPOUT1_width_ns_show(struct device *dev, struct device_attribute *attr,
+				     char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethss_reg_readl(ethsw, ETHSW_SWTMWTH(1));
+
+	ret *= 8;
+
+	return sprintf(buf, "%u ns\r\n", ret);
+}
+
+static ssize_t PTPOUT2_enable_store(struct device *dev, struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val > 1) {
+		dev_err(ethsw->dev, "Only 0 or 1 is valid value\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	if (val)
+		ethss_reg_writel(ethsw, ETHSW_SWTMEN(2), 1);
+	else
+		ethss_reg_writel(ethsw, ETHSW_SWTMEN(2), 0);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t PTPOUT2_enable_show(struct device *dev, struct device_attribute *attr,
+				   char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethss_reg_readl(ethsw, ETHSW_SWTMEN(2));
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
+static ssize_t PTPOUT2_start_time_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 sec, ns, ret;
+
+	ret = detach_sec_ns(buf, &sec, &ns);
+	if (ret) {
+		dev_err(ethsw->dev, "Invalid value\n");
+		return ret;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethss_reg_writel(ethsw, ETHSW_SWTMSTSEC(2), sec);
+	ethss_reg_writel(ethsw, ETHSW_SWTMSTNS(2), ns);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t PTPOUT2_start_time_show(struct device *dev, struct device_attribute *attr,
+				       char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 sec, ns;
+
+	sec = ethss_reg_readl(ethsw, ETHSW_SWTMSTSEC(2));
+	ns = ethss_reg_readl(ethsw, ETHSW_SWTMSTNS(2));
+
+	return sprintf(buf, "%u sec %u ns\r\n", sec, ns);
+}
+
+static ssize_t PTPOUT2_period_store(struct device *dev, struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 sec, ns, ret;
+
+	ret = detach_sec_ns(buf, &sec, &ns);
+	if (ret) {
+		dev_err(ethsw->dev, "Invalid value\n");
+		return ret;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethss_reg_writel(ethsw, ETHSW_SWTMPSEC(2), sec);
+	ethss_reg_writel(ethsw, ETHSW_SWTMPNS(2), ns);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t PTPOUT2_period_show(struct device *dev, struct device_attribute *attr,
+				   char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 sec, ns;
+
+	sec = ethss_reg_readl(ethsw, ETHSW_SWTMPSEC(2));
+	ns = ethss_reg_readl(ethsw, ETHSW_SWTMPNS(2));
+
+	return sprintf(buf, "%u sec %u ns\r\n", sec, ns);
+}
+
+static ssize_t PTPOUT2_width_ns_store(struct device *dev, struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, width, ret;
+
+	ret = kstrtouint(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val >= 524280) {
+		dev_err(ethsw->dev, "Pulse width must smaller than 524280 ns\n");
+		return -EINVAL;
+	}
+
+	width = val / 8;
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethss_reg_writel(ethsw, ETHSW_SWTMWTH(2), width);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t PTPOUT2_width_ns_show(struct device *dev, struct device_attribute *attr,
+				     char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethss_reg_readl(ethsw, ETHSW_SWTMWTH(2));
+
+	ret *= 8;
+
+	return sprintf(buf, "%u ns\r\n", ret);
+}
+
+static ssize_t PTPOUT3_enable_store(struct device *dev, struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val > 1) {
+		dev_err(ethsw->dev, "Only 0 or 1 is valid value\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	if (val)
+		ethss_reg_writel(ethsw, ETHSW_SWTMEN(3), 1);
+	else
+		ethss_reg_writel(ethsw, ETHSW_SWTMEN(3), 0);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t PTPOUT3_enable_show(struct device *dev, struct device_attribute *attr,
+				   char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethss_reg_readl(ethsw, ETHSW_SWTMEN(3));
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
+static ssize_t PTPOUT3_start_time_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 sec, ns, ret;
+
+	ret = detach_sec_ns(buf, &sec, &ns);
+	if (ret) {
+		dev_err(ethsw->dev, "Invalid value\n");
+		return ret;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethss_reg_writel(ethsw, ETHSW_SWTMSTSEC(3), sec);
+	ethss_reg_writel(ethsw, ETHSW_SWTMSTNS(3), ns);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t PTPOUT3_start_time_show(struct device *dev, struct device_attribute *attr,
+				       char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 sec, ns;
+
+	sec = ethss_reg_readl(ethsw, ETHSW_SWTMSTSEC(3));
+	ns = ethss_reg_readl(ethsw, ETHSW_SWTMSTNS(3));
+
+	return sprintf(buf, "%u sec %u ns\r\n", sec, ns);
+}
+
+static ssize_t PTPOUT3_period_store(struct device *dev, struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 sec, ns, ret;
+
+	ret = detach_sec_ns(buf, &sec, &ns);
+	if (ret) {
+		dev_err(ethsw->dev, "Invalid value\n");
+		return ret;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethss_reg_writel(ethsw, ETHSW_SWTMPSEC(3), sec);
+	ethss_reg_writel(ethsw, ETHSW_SWTMPNS(3), ns);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t PTPOUT3_period_show(struct device *dev, struct device_attribute *attr,
+				   char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 sec, ns;
+
+	sec = ethss_reg_readl(ethsw, ETHSW_SWTMPSEC(3));
+	ns = ethss_reg_readl(ethsw, ETHSW_SWTMPNS(3));
+
+	return sprintf(buf, "%u sec %u ns\r\n", sec, ns);
+}
+
+static ssize_t PTPOUT3_width_ns_store(struct device *dev, struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, width, ret;
+
+	ret = kstrtouint(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val >= 524280) {
+		dev_err(ethsw->dev, "Pulse width must smaller than 524280 ns\n");
+		return -EINVAL;
+	}
+
+	width = val / 8;
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethss_reg_writel(ethsw, ETHSW_SWTMWTH(3), width);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t PTPOUT3_width_ns_show(struct device *dev, struct device_attribute *attr,
+				     char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethss_reg_readl(ethsw, ETHSW_SWTMWTH(3));
+
+	ret *= 8;
+
+	return sprintf(buf, "%u ns\r\n", ret);
+}
+
+static DEVICE_ATTR_RW(PTPOUT0_enable);
+static DEVICE_ATTR_RW(PTPOUT0_start_time);
+static DEVICE_ATTR_RW(PTPOUT0_period);
+static DEVICE_ATTR_RW(PTPOUT0_width_ns);
+static DEVICE_ATTR_RW(PTPOUT1_enable);
+static DEVICE_ATTR_RW(PTPOUT1_start_time);
+static DEVICE_ATTR_RW(PTPOUT1_period);
+static DEVICE_ATTR_RW(PTPOUT1_width_ns);
+static DEVICE_ATTR_RW(PTPOUT2_enable);
+static DEVICE_ATTR_RW(PTPOUT2_start_time);
+static DEVICE_ATTR_RW(PTPOUT2_period);
+static DEVICE_ATTR_RW(PTPOUT2_width_ns);
+static DEVICE_ATTR_RW(PTPOUT3_enable);
+static DEVICE_ATTR_RW(PTPOUT3_start_time);
+static DEVICE_ATTR_RW(PTPOUT3_period);
+static DEVICE_ATTR_RW(PTPOUT3_width_ns);
+
+static struct attribute *attrs[] = {
+	&dev_attr_PTPOUT0_enable.attr,
+	&dev_attr_PTPOUT0_start_time.attr,
+	&dev_attr_PTPOUT0_period.attr,
+	&dev_attr_PTPOUT0_width_ns.attr,
+	&dev_attr_PTPOUT1_enable.attr,
+	&dev_attr_PTPOUT1_start_time.attr,
+	&dev_attr_PTPOUT1_period.attr,
+	&dev_attr_PTPOUT1_width_ns.attr,
+	&dev_attr_PTPOUT2_enable.attr,
+	&dev_attr_PTPOUT2_start_time.attr,
+	&dev_attr_PTPOUT2_period.attr,
+	&dev_attr_PTPOUT2_width_ns.attr,
+	&dev_attr_PTPOUT3_enable.attr,
+	&dev_attr_PTPOUT3_start_time.attr,
+	&dev_attr_PTPOUT3_period.attr,
+	&dev_attr_PTPOUT3_width_ns.attr,
+	NULL,
+};
+
+static const struct attribute_group attr_group = {
+	.attrs = attrs,
+};
+
 static int ethsw_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1105,6 +1794,7 @@ static int ethsw_probe(struct platform_device *pdev)
 	ethsw->dev = dev;
 	mutex_init(&ethsw->vlan_lock);
 	mutex_init(&ethsw->lk_lock);
+	mutex_init(&ethsw->sysfs_lock);
 	spin_lock_init(&ethsw->reg_lock);
 	ethsw->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ethsw->base))
@@ -1158,6 +1848,14 @@ static int ethsw_probe(struct platform_device *pdev)
 
 	of_node_put(mdio);
 
+	platform_set_drvdata(pdev, ethsw);
+
+	ret = sysfs_create_group(&dev->kobj, &attr_group);
+	if (ret < 0) {
+		dev_err(dev, "failed to create sysfs: %d\n", ret);
+		goto reset;
+	}
+
 	ds = &ethsw->ds;
 	ds->dev = dev;
 	ds->num_ports = ETHSW_PORTS_NUM;
@@ -1167,13 +1865,15 @@ static int ethsw_probe(struct platform_device *pdev)
 	ret = dsa_register_switch(ds);
 	if (ret) {
 		dev_err(dev, "Failed to register DSA switch: %d\n", ret);
-		goto reset;
+		goto remove_sysfs;
 	}
 
 	dev_info(dev, "ETHSW Switch probed OK\n");
 
 	return 0;
 
+remove_sysfs:
+	sysfs_remove_group(&dev->kobj, &attr_group);
 reset:
 	reset_control_assert(ethsw->rst);
 clk_disable:
@@ -1194,6 +1894,7 @@ static int ethsw_remove(struct platform_device *pdev)
 		return 0;
 
 	dsa_unregister_switch(&ethsw->ds);
+	sysfs_remove_group(&pdev->dev.kobj, &attr_group);
 	ethsw_pcs_free(ethsw);
 	gpiod_set_value(ethsw->reset, 0);
 	clk_disable_unprepare(ethsw->clk);
