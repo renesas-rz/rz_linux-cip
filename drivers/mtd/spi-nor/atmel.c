@@ -8,6 +8,8 @@
 
 #include "core.h"
 
+#define AT25QL128A_OP_PP_1_4_4		0x33	/* Quad page program */
+
 #define ATMEL_SR_GLOBAL_PROTECT_MASK GENMASK(5, 2)
 
 /*
@@ -50,7 +52,25 @@ static const struct spi_nor_locking_ops at25fs_nor_locking_ops = {
 
 static int at25fs_nor_late_init(struct spi_nor *nor)
 {
-	nor->params->locking_ops = &at25fs_nor_locking_ops;
+	struct spi_nor_flash_parameter *params = nor->params;
+
+	/*
+	 * AT25QL128A supports 1S-4S-4S for both read and write.
+	 * However, only 1S-4S-4S read command (0xEBh) is declared in spi-nor
+	 * opcodes, 1S-4S-4S write command (0x33h) is not declared yet, so to
+	 * workaround it, the fixup below is used for setting 1S-4S-4S write
+	 * command.
+	 */
+	if (strcmp(nor->info->name, "at25ql128a") == 0) {
+		if (nor->info->no_sfdp_flags & SPI_NOR_QUAD_READ) {
+			params->hwcaps.mask |= SNOR_HWCAPS_PP_1_4_4;
+			spi_nor_set_pp_settings
+				(&params->page_programs[SNOR_CMD_PP_1_4_4],
+				 AT25QL128A_OP_PP_1_4_4,
+				 SNOR_PROTO_1_4_4);
+		}
+	} else
+		nor->params->locking_ops = &at25fs_nor_locking_ops;
 
 	return 0;
 }
@@ -171,6 +191,12 @@ static const struct flash_info atmel_nor_parts[] = {
 		.name = "at45db081d",
 		.size = SZ_1M,
 		.no_sfdp_flags = SECT_4K,
+	}, {
+		.id = SNOR_ID(0x1f, 0x42, 0x18),
+		.name = "at25ql128a",
+		.size = SZ_16M,
+		.no_sfdp_flags = SECT_4K | SPI_NOR_QUAD_READ,
+		.fixups = &at25fs_nor_fixups,
 	}, {
 		.id = SNOR_ID(0x1f, 0x42, 0x16),
 		.name = "at25sl321",
