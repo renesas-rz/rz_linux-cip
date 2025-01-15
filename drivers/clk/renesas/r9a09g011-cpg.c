@@ -196,6 +196,8 @@ static const struct rzg2l_mod_clk r9a09g011_mod_clks[] __initconst = {
 	DEF_MOD("tim_clk_23",	R9A09G011_TIM23_CLK,	 CLK_MAIN_2,   0x428, 11),
 	DEF_MOD("wdt0_pclk",	R9A09G011_WDT0_PCLK,	 CLK_SEL_E,    0x428, 12),
 	DEF_MOD("wdt0_clk",	R9A09G011_WDT0_CLK,	 CLK_MAIN,     0x428, 13),
+	DEF_MOD("wdt1_pclk",	R9A09G011_WDT1_PCLK,	CLK_SEL_E,	0x428, 14),
+	DEF_MOD("wdt1_clk",	R9A09G011_WDT1_CLK,	CLK_MAIN,	0x428, 15),
 	DEF_MOD("cperi_grpd",	R9A09G011_CPERI_GRPD_PCLK, CLK_SEL_E,  0x42c, 0),
 	DEF_MOD("tim_clk_24",	R9A09G011_TIM24_CLK,     CLK_MAIN_2,   0x42c, 4),
 	DEF_MOD("tim_clk_25",	R9A09G011_TIM25_CLK,     CLK_MAIN_2,   0x42c, 5),
@@ -243,6 +245,7 @@ static const struct rzg2l_reset r9a09g011_resets[] = {
 	DEF_RST(R9A09G011_IIC_GPA_PRESETN,	0x614, 8),
 	DEF_RST(R9A09G011_IIC_GPB_PRESETN,	0x614, 9),
 	DEF_RST_MON(R9A09G011_WDT0_PRESETN,	0x614, 12, 19),
+	DEF_RST_MON(R9A09G011_WDT1_PRESETN,	0x614, 13, 19),
 };
 
 static const unsigned int r9a09g011_crit_mod_clks[] __initconst = {
