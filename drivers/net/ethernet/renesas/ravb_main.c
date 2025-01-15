@@ -523,7 +523,7 @@ static void ravb_emac_init_gbeth(struct net_device *ndev)
 	ravb_csum_init_gbeth(ndev);
 
 	/* E-MAC interrupt enable register */
-	ravb_write(ndev, ECSIPR_ICDIP, ECSIPR);
+	ravb_write(ndev, ECSIPR_ICDIP | ECSIPR_LCHNGIP, ECSIPR);
 }
 
 static void ravb_emac_init_rcar(struct net_device *ndev)
