@@ -62,10 +62,21 @@
 	status = "okay";
 };
 
-&gpt5 {
-	pinctrl-0 = <&gpt5_pins>;
+#if (POEGD_SUPPORT)
+&poegd {
+	status = "okay";
+};
+#endif
+
+&gpt4 {
+	pinctrl-0 = <&gpt4_pins>;
 	pinctrl-names = "default";
-	channel = "channel_A";
+
+	channel = "both_AB";
+#if (POEGD_SUPPORT)
+	poeg = <&poegd>;
+#endif
+
 	status = "okay";
 };
 
