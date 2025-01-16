@@ -30,6 +30,18 @@
 #define SW_CONFIG3	SW_ON
 
 /*
+ * SW_GPIO_CAN_PMOD[x]: switch between CAN and PMOD pins
+ * @SW_GPIO_CAN_PMOD1:
+ *     SW_OFF - GPIO8 is connected to GPIO8_PMOD
+ *     SW_ON  - GPIO8 is connected to GPIO8_CAN0_STB
+ * @SW_GPIO_CAN_PMOD2:
+ *     SW_OFF - GPIO9 is connected to GPIO9_PMOD
+ *     SW_ON  - GPIO9 is connected to GPIO9_CAN1_STB
+ */
+#define SW_GPIO_CAN_PMOD1      SW_OFF
+#define SW_GPIO_CAN_PMOD2      SW_OFF
+
+/*
  * SW_OPT_MUX[x] switches' states:
  * @SW_OPT_MUX4:
  *	SW_OFF - The SMARC SER0 signals are routed to M.2 Key E UART
