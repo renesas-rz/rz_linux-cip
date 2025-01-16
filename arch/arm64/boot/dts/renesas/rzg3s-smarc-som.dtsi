@@ -192,6 +192,11 @@
 };
 #endif
 
+&wdt0 {
+	status = "okay";
+	timeout-sec = <60>;
+};
+
 &pinctrl {
 #if SW_CONFIG3 == SW_ON
 	eth0-phy-irq-hog {
