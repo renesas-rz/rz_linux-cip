@@ -343,7 +343,7 @@ config ARCH_R9A09G055
 endif # ARM64
 
 config PWC_RZV2M
-	bool "Renesas RZ/V2M PWC support" if COMPILE_TEST
+	bool "Renesas RZ/V2{M,MA} PWC support" if COMPILE_TEST
 
 if RISCV
 
