@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the RZ/G3S Development board (14mm_LPDDR4)
+ *
+ * Copyright (C) 2023 Renesas Electronics Corp.
+ */
+
+/dts-v1/;
+
+/*
+ * COMMON_PINS_SEL switches pins between RSPI ch2, SPDIF and POE3, POEG, GPT:
+ * @COMMON_PINS_SEL:
+ *	COMMON_PINS_SEL=1 - RSPI2 is selected (default)
+ *	COMMON_PINS_SEL=2 - SPDIF is selected
+ *	COMMON_PINS_SEL=3 - POE3, POEG and GPT are selected
+ *
+ *	RSPI2_LOOPBACK_SEL - select target SPI device
+ * 			(N25Q256A flash with Digilent PMOD SF3 by default)
+ */
+#define COMMON_PINS_SEL		1
+#define RSPI2_PINS_SEL		1
+#define SPDIF_PINS_SEL		2
+#define RSPI2_LOOPBACK_SEL	0
+
+#include "r9a08g045s33.dtsi"
+#include "rzg3s-dev-common.dtsi"
+
+/ {
+	model = "Renesas Development EVK based on r9a08g045s33";
+	compatible = "renesas,r9a08g045",
+		     "renesas,r9a08g045s33", "renesas,r9a08g045s33-dev";
+};
+
+&pcie0 {
+	pinctrl-0 = <&pcie0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
