@@ -256,6 +256,10 @@
 };
 
 &pinctrl {
+	adc_pins: adc {
+		pinmux = <RZG2L_PORT_PINMUX(5, 1, 4)>; /* ADC_TRG */
+	};
+
 	eth0_pins: eth0 {
 		txc {
 			pinmux = <RZG2L_PORT_PINMUX(1, 0, 1)>;  /* ET0_TXC */
@@ -403,5 +407,12 @@
 
 &wdt0 {
 	timeout-sec = <60>;
+	status = "okay";
+};
+
+&adc {
+	pinctrl-0 = <&adc_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 };
