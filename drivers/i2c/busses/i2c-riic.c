@@ -55,6 +55,8 @@
 #define ICCR1_ICE	0x80
 #define ICCR1_IICRST	0x40
 #define ICCR1_SOWP	0x10
+#define ICCR1_SDAO	0x04
+#define ICCR1_SDAI	0x01
 
 #define ICCR2_BBSY	0x80
 #define ICCR2_SP	0x08
@@ -75,7 +77,11 @@
 #define ICIER_NAKIE	0x10
 #define ICIER_SPIE	0x08
 
+#define ICSR2_TDRE	0x80
+#define ICSR2_TEND	0x40
+#define ICSR2_RDRF	0x20
 #define ICSR2_NACKF	0x10
+#define ICSR2_STAT	0x02
 
 #define ICBR_RESERVED	0xe0 /* Should be 1 on writes */
 
@@ -125,6 +131,143 @@ struct riic_irq_desc {
 static inline void riic_clear_set_bit(struct riic_dev *riic, u8 clear, u8 set, u8 reg)
 {
 	writeb((readb(riic->base + reg) & ~clear) | set, riic->base + reg);
+}
+
+static int riic_xfer_atomic(struct i2c_adapter *adap, struct i2c_msg msgs[],
+			    int num)
+{
+	struct riic_dev *riic = i2c_get_adapdata(adap);
+	unsigned long time_left;
+	int i;
+	u8 start_bit, val;
+	int ret;
+
+	pm_runtime_get_sync(adap->dev.parent);
+
+	if (readb(riic->base + riic->info->regs->iccr2) & ICCR2_BBSY) {
+		riic->err = -EBUSY;
+		goto out;
+	}
+
+	riic->err = 0;
+
+	writeb(0, riic->base + riic->info->regs->icsr2);
+
+	for (i = 0, start_bit = ICCR2_ST; i < num; i++) {
+		riic->bytes_left = RIIC_INIT_MSG;
+		riic->buf = msgs[i].buf;
+		riic->msg = &msgs[i];
+		riic->is_last = (i == num - 1);
+
+		writeb(start_bit, riic->base + riic->info->regs->iccr2);
+
+		/*
+		 * Before setting slave address to ICDRT:
+		 * - STAT and TDRE should be raised
+		 * - SDAO and SDAI should be at low level.
+		 */
+		ret = readb_poll_timeout_atomic(riic->base + riic->info->regs->icsr2,
+						val, (val & ICSR2_TDRE) && (val & ICSR2_TDRE), 10, 1000);
+		ret |= readb_poll_timeout_atomic(riic->base + riic->info->regs->iccr1,
+						val, !(val & (ICCR1_SDAO | ICCR1_SDAI)), 10, 1000);
+		if (ret) {
+			riic->err = -ETIMEDOUT;
+			break;
+		}
+
+		/* Write data to I2C Bus Transmit Data Register */
+		val = i2c_8bit_addr_from_msg(riic->msg);
+		writeb(val, riic->base + riic->info->regs->icdrt);
+
+		if (riic->msg->flags & I2C_M_RD) {
+			/* On read */
+			ret = readb_poll_timeout_atomic(riic->base + riic->info->regs->icsr2,
+							val, val & ICSR2_RDRF, 10, 1000);
+			if (ret) {
+				riic->err = -ETIMEDOUT;
+				break;
+			}
+
+			val = readb(riic->base + riic->info->regs->icdrr);	/* dummy read */
+			riic->bytes_left = riic->msg->len;
+
+			while (riic->bytes_left) {
+				ret = readb_poll_timeout_atomic(riic->base + riic->info->regs->icsr2,
+								val, val & ICSR2_RDRF, 10, 1000);
+				if (ret) {
+					riic->err = -ETIMEDOUT;
+					break;
+				}
+
+				if (riic->bytes_left == 1) {
+					if (riic->is_last) {
+						 /* STOP must come before we set ACKBT! */
+						writeb(ICCR2_SP, riic->base + riic->info->regs->iccr2);
+					}
+					riic_clear_set_bit(riic, 0, ICMR3_ACKBT, riic->info->regs->icmr3);
+				} else
+					riic_clear_set_bit(riic, ICMR3_ACKBT, 0, riic->info->regs->icmr3);
+
+				*riic->buf = readb(riic->base + riic->info->regs->icdrr);
+				riic->bytes_left--;
+				riic->buf++;
+			}
+
+			break;
+		} else {
+			/* On write, initialize length */
+			riic->bytes_left = riic->msg->len;
+
+			while (riic->bytes_left) {
+				ret = readb_poll_timeout_atomic(riic->base + riic->info->regs->icsr2,
+								val, val & ICSR2_TDRE, 10, 1000);
+				if (ret) {
+					riic->err = -ETIMEDOUT;
+					break;
+				}
+
+				val = *riic->buf;
+				riic->buf++;
+				riic->bytes_left--;
+				writeb(val, riic->base + riic->info->regs->icdrt);
+			}
+
+
+			ret = readb_poll_timeout_atomic(riic->base + riic->info->regs->icsr2,
+							val, val & ICSR2_TEND, 10, 1000);
+			if (ret) {
+				riic->err = -ETIMEDOUT;
+				break;
+			}
+
+			if (riic->is_last || riic->err)
+				writeb(ICCR2_SP, riic->base + riic->info->regs->iccr2);
+		}
+
+		if (riic->err)
+			break;
+
+		start_bit = ICCR2_RS;
+		writeb(0, riic->base + riic->info->regs->icsr2);
+		readb(riic->base + riic->info->regs->icsr2);
+	}
+
+	writeb(0, riic->base + riic->info->regs->icsr2);
+	readb(riic->base + riic->info->regs->icsr2);
+
+	/* Should check bus state after finishing transfer */
+	if (!riic->err) {
+		time_left = readb_poll_timeout_atomic(riic->base + riic->info->regs->iccr2,
+						      val, !(val & ICCR2_BBSY), 10, 1000);
+		if (time_left)
+			dev_warn(riic->adapter.dev.parent,
+				 "The i2c bus is still busy\n");
+	}
+
+out:
+	pm_runtime_put(adap->dev.parent);
+
+	return riic->err ?: num;
 }
 
 static int riic_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
@@ -304,8 +447,9 @@ static u32 riic_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm riic_algo = {
-	.master_xfer	= riic_xfer,
-	.functionality	= riic_func,
+	.master_xfer		= riic_xfer,
+	.master_xfer_atomic	= riic_xfer_atomic,
+	.functionality		= riic_func,
 };
 
 static int riic_init_hw(struct riic_dev *riic, struct i2c_timings *t)
