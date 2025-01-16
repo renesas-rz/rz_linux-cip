@@ -27,6 +27,7 @@
 #define CPG_PL6_ETH_SSEL	(0x418)
 #define CPG_PL5_SDIV		(0x420)
 #define CPG_RST_MON		(0x680)
+#define CPG_WDTOVF_RST		(0xB10)
 #define CPG_OTHERFUNC1_REG	(0xBE8)
 
 #define CPG_SIPLL5_STBY_RESETB		BIT(0)
@@ -67,6 +68,8 @@
 #define SEL_PLL5_4	SEL_PLL_PACK(CPG_OTHERFUNC1_REG, 0, 1)
 #define SEL_PLL6_2	SEL_PLL_PACK(CPG_PL6_ETH_SSEL, 0, 1)
 #define SEL_GPU2	SEL_PLL_PACK(CPG_PL6_SSEL, 12, 1)
+
+#define WDTOVF_WEN(x)	((x) << 16)
 
 #define EXTAL_FREQ_IN_MEGA_HZ	(24)
 
@@ -289,5 +292,7 @@ extern const struct rzg2l_cpg_info r9a09g011_cpg_info;
 
 int rzg2l_cpg_sd_clk_mux_notifier(struct notifier_block *nb, unsigned long event, void *data);
 int rzg3s_cpg_div_clk_notifier(struct notifier_block *nb, unsigned long event, void *data);
+
+unsigned int rzg2l_cpg_wdt_ovf_sysrst(struct clk_hw *hw, int channel);
 
 #endif
