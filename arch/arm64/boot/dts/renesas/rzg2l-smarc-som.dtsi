@@ -249,13 +249,6 @@
 			 <RZG2L_PORT_PINMUX(1, 1, 1)>;  /* IRQ3 */
 	};
 
-	gpio-sd0-pwr-en-hog {
-		gpio-hog;
-		gpios = <RZG2L_GPIO(4, 1) GPIO_ACTIVE_HIGH>;
-		output-high;
-		line-name = "gpio_sd0_pwr_en";
-	};
-
 	qspi0_pins: qspi0 {
 		qspi0-data {
 			pins = "QSPI0_IO0", "QSPI0_IO1", "QSPI0_IO2", "QSPI0_IO3";
