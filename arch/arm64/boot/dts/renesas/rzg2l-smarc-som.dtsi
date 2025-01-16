@@ -377,7 +377,7 @@
 	pinctrl-1 = <&sdhi0_pins_uhs>;
 	pinctrl-names = "default", "state_uhs";
 
-	vmmc-supply = <&reg_3p3v>;
+	vmmc-supply = <&vmmc_sdhi0>;
 	vqmmc-supply = <&vccq_sdhi0>;
 	bus-width = <4>;
 	sd-uhs-sdr50;
