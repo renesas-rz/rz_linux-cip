@@ -45,6 +45,15 @@
  */
 #define RSPI0_LOOPBACK_SEL	0
 
+/*
+ * Select between SCIF1 and SPDIF due to pins multiplex:
+ * @SPDIF_SEL:
+ *     SW_OFF - SCIF1 pins are selected (default)
+ *     SW_ON  - SPDIF pins are selected
+ */
+#define SPDIF_SEL		SW_OFF
+
+
 #include "r9a08g045s33.dtsi"
 #include "rzg3s-smarc-som.dtsi"
 #include "rzg3s-smarc.dtsi"
