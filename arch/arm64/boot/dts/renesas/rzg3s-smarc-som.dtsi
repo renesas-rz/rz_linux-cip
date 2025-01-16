@@ -179,6 +179,10 @@
 	timeout-sec = <60>;
 };
 
+&rtc {
+	status = "okay";
+};
+
 &pinctrl {
 #if SW_CONFIG3 == SW_ON
 	eth0-phy-irq-hog {
