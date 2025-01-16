@@ -1816,6 +1816,23 @@ static int rzg2l_gpio_get(struct gpio_chip *chip, unsigned int offset)
 		return -EINVAL;
 }
 
+static int rzg2l_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
+				 unsigned long config)
+{
+	switch (pinconf_to_config_param(config)) {
+	case PIN_CONFIG_BIAS_DISABLE:
+	case PIN_CONFIG_BIAS_PULL_UP:
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+	case PIN_CONFIG_DRIVE_STRENGTH:
+	case PIN_CONFIG_SLEW_RATE: {
+		return pinctrl_gpio_set_config(chip, offset, config);
+	}
+
+	default:
+		return -ENOTSUPP;
+	}
+}
+
 static void rzg2l_gpio_free(struct gpio_chip *chip, unsigned int offset)
 {
 	unsigned int virq;
@@ -2800,6 +2817,7 @@ static int rzg2l_gpio_register(struct rzg2l_pinctrl *pctrl)
 	chip->direction_output = rzg2l_gpio_direction_output;
 	chip->get = rzg2l_gpio_get;
 	chip->set = rzg2l_gpio_set;
+	chip->set_config = rzg2l_gpio_set_config;
 	chip->label = name;
 	chip->parent = pctrl->dev;
 	chip->owner = THIS_MODULE;
