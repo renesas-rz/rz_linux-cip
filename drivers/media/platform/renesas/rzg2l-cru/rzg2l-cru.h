@@ -8,6 +8,7 @@
 #ifndef __RZG2L_CRU__
 #define __RZG2L_CRU__
 
+#include <linux/interrupt.h>
 #include <linux/reset.h>
 
 #include <media/v4l2-async.h>
