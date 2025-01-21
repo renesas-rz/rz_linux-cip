@@ -77,4 +77,15 @@ config RZT2_ETHSS
 	  The Renesas RZ/T2N device uses an RGMII/GMII Converter (MIIC) on each
 	  ethernet PHY interface.
 
+config RENESAS_ETHER_ESWM_T2N
+	tristate "Renesas Layer3 Ethernet Switch support"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select CRC32
+	select MII
+	select PHYLINK
+	help
+	  Renesas Layer3 Ethernet Switch device driver.
+	  This driver supports the following SoCs:
+		- R9A07G076.
+
 endif # NET_VENDOR_RENESAS
