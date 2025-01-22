@@ -295,4 +295,11 @@ int rzg3s_cpg_div_clk_notifier(struct notifier_block *nb, unsigned long event, v
 
 unsigned int rzg2l_cpg_wdt_ovf_sysrst(struct clk_hw *hw, int channel);
 
+/* Final Division ratio setting for the MIPI clock */
+#ifdef CONFIG_DRM_RZG2L_MIPI_DSI
+extern int dsi_div_ab;
+#else
+static int dsi_div_ab;
+#endif
+
 #endif
