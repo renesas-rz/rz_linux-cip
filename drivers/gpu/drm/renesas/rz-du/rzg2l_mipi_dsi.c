@@ -26,6 +26,9 @@
 #include <drm/drm_probe_helper.h>
 
 #include "rzg2l_mipi_dsi_regs.h"
+#include "../../../../clk/renesas/rzg2l-cpg.h"
+
+int dsi_div_ab;
 
 struct rzg2l_mipi_dsi {
 	struct device *dev;
@@ -636,6 +639,9 @@ static int rzg2l_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 	dsi->lanes = device->lanes;
 	dsi->format = device->format;
 	dsi->mode_flags = device->mode_flags;
+
+	/* Calculate the Final Division ratio setting for the MIPI clock */
+	dsi_div_ab = mipi_dsi_pixel_format_to_bpp(dsi->format) / dsi->lanes;
 
 	return 0;
 }
