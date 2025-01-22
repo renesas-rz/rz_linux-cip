@@ -273,7 +273,7 @@ static int rzg2l_cru_probe(struct platform_device *pdev)
 	struct rzg2l_cru_dev *cru;
 	struct device *dev = &pdev->dev;
 	struct v4l2_ctrl *ctrl;
-	int ret;
+	int irq, ret;
 
 	cru = devm_kzalloc(dev, sizeof(*cru), GFP_KERNEL);
 	if (!cru)
@@ -301,9 +301,14 @@ static int rzg2l_cru_probe(struct platform_device *pdev)
 	cru->dev = dev;
 	cru->info = of_device_get_match_data(dev);
 
-	cru->image_conv_irq = platform_get_irq(pdev, 0);
-	if (cru->image_conv_irq < 0)
-		return cru->image_conv_irq;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	ret = devm_request_irq(&pdev->dev, irq, rzg2l_cru_irq, 0,
+			       KBUILD_MODNAME, cru);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "failed to request irq\n");
 
 	platform_set_drvdata(pdev, cru);
 
