@@ -1080,6 +1080,7 @@
 			resets = <&phyrst 0>;
 			#phy-cells = <1>;
 			power-domains = <&cpg>;
+			renesas,sysc-signal = <&sysc 0xd70 0x1>;
 			status = "disabled";
 		};
 
@@ -1093,6 +1094,7 @@
 			resets = <&phyrst 1>;
 			#phy-cells = <1>;
 			power-domains = <&cpg>;
+			renesas,sysc-signal = <&sysc 0xd70 0x1>;
 			status = "disabled";
 		};
 
