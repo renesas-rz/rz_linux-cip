@@ -76,6 +76,8 @@ struct rzg2l_cru_buffer {
 };
 
 static int prev_slot;
+static u32 amnmbxaddrl[RZG2L_CRU_HW_BUFFER_MAX];
+static u32 amnmbxaddrh[RZG2L_CRU_HW_BUFFER_MAX];
 
 #define to_buf_list(vb2_buffer) \
 	(&container_of(vb2_buffer, struct rzg2l_cru_buffer, vb)->list)
@@ -95,6 +97,20 @@ static u32 rzg2l_cru_read(struct rzg2l_cru_dev *cru, u32 offset)
 	const u16 *regs = cru->info->regs;
 
 	return ioread32(cru->base + regs[offset]);
+}
+
+static void rzg2l_cru_set_mb(struct rzg2l_cru_dev *cru,
+			     u32 slot, dma_addr_t addr)
+{
+	rzg2l_cru_write(cru, AMnMBxADDRL(AMnMB1ADDRL, slot), lower_32_bits(addr));
+	rzg2l_cru_write(cru, AMnMBxADDRH(AMnMB1ADDRH, slot), upper_32_bits(addr));
+}
+
+static void rzg2l_cru_get_mb(struct rzg2l_cru_dev *cru,
+			     u32 slot, u32 *low, u32 *high)
+{
+	*low = rzg2l_cru_read(cru, AMnMBxADDRL(AMnMB1ADDRL, slot));
+	*high = rzg2l_cru_read(cru, AMnMBxADDRH(AMnMB1ADDRH, slot));
 }
 
 /* Need to hold qlock before calling */
@@ -217,8 +233,10 @@ static void rzg2l_cru_set_slot_addr(struct rzg2l_cru_dev *cru,
 	if (WARN_ON((addr) & RZG2L_CRU_HW_BUFFER_MASK))
 		return;
 
-	rzg2l_cru_write(cru, AMnMBxADDRL(AMnMB1ADDRL, slot), lower_32_bits(addr));
-	rzg2l_cru_write(cru, AMnMBxADDRH(AMnMB1ADDRH, slot), upper_32_bits(addr));
+	rzg2l_cru_set_mb(cru, slot, addr);
+
+	amnmbxaddrl[slot] = lower_32_bits(addr);
+	amnmbxaddrh[slot] = upper_32_bits(addr);
 }
 
 /*
@@ -455,7 +473,8 @@ static int rzg2l_cru_set_stream(struct rzg2l_cru_dev *cru, int on)
 	struct media_pipeline *pipe;
 	struct v4l2_subdev *sd;
 	struct media_pad *pad;
-	int ret;
+	int ret, i;
+	unsigned long flags;
 
 	pad = media_entity_remote_pad(&cru->pad);
 	if (!pad)
@@ -493,6 +512,14 @@ static int rzg2l_cru_set_stream(struct rzg2l_cru_dev *cru, int on)
 	ret = v4l2_subdev_call(sd, video, pre_streamon, 0);
 	if (ret && ret != -ENOIOCTLCMD)
 		goto pipe_line_stop;
+
+	spin_lock_irqsave(&cru->qlock, flags);
+
+	for (i = 0; i < cru->num_buf; i++)
+		rzg2l_cru_get_mb(cru, i, &amnmbxaddrl[i],
+				 &amnmbxaddrh[i]);
+
+	spin_unlock_irqrestore(&cru->qlock, flags);
 
 	ret = v4l2_subdev_call(sd, video, s_stream, 1);
 	if (ret && ret != -ENOIOCTLCMD)
