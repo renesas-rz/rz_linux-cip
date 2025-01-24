@@ -33,6 +33,7 @@ obj-$(CONFIG_PCIE_BRCMSTB) += pcie-brcmstb.o
 obj-$(CONFIG_PCI_LOONGSON) += pci-loongson.o
 obj-$(CONFIG_PCIE_HISI_ERR) += pcie-hisi-error.o
 obj-$(CONFIG_RZT2H_PCIE) += pcie-rzt2h-window.o pcie-rzt2h-host.o
+obj-$(CONFIG_RZT2H_PCIE_EP) += pcie-rzt2h-window.o pcie-rzt2h-ep.o
 # pcie-hisi.o quirks are needed even without CONFIG_PCIE_DW
 obj-y				+= dwc/
 obj-y				+= mobiveil/

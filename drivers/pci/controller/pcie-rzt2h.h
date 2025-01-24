@@ -32,6 +32,13 @@
 	#define ALLOW_ENTER_L1		BIT(0)
 #define PCIE_MODE			0x24
 	#define MODE_PORT_RC		BIT(0)
+	#define MODE_PORT_EP		0x0
+
+#define PCI_EP_PCMSET1			0x400
+	#define MODE_PORT		(~BIT(1))
+
+#define PCI_EP_RESET_REG		0x310
+	#define RESET_CONFIG_DEASSERT	0x0000001C
 
 /* AXI to PCI Express Access */
 #define PCIE_WINDOW_BASEL_REG(x)					(0x1100 + ((x) * 0x20))
@@ -146,6 +153,22 @@
 #define PCI_RC_MSIRCVMSK_MSI_MASK		0xFFFFFFFF
 #define PCI_RC_MSIRCVSTAT(x)			(0x60C + 0x10 * (x))
 
+/* PCIe EP control */
+#define PCI_EP_PEIS0_REG			0x204
+#define PCI_EP_PEIE0_REG			0x200
+#define PCI_EP_PEIS1_REG			0x20C
+#define PCI_EP_PEIE1_REG			0x208
+#define PCI_EP_AMEIS_REG			0x214
+#define PCI_EP_AMEIE_REG			0x210
+#define PCI_EP_ASEIS1_REG			0x224
+#define PCI_EP_ASEIE1_REG			0x220
+#define PCI_EP_MSGRCVIS_REG			0x124
+#define PCI_EP_MSGRCVIE_REG			0x120
+	#define PCI_EP_MSGRCVIE			0x010A0000
+#define PCI_EP_REQISS				0x009C
+	#define PCI_EP_REQISS_RI		BIT(0)
+	#define PCI_EP_REQISS_TR_TYPE		(0x4 << 8)
+
 /* PCIe RC Control */
 #define PCI_RC_BASE_ADD							0x85030000
 #define PCI_RC_MSGRCVIE_REG						0x0120
@@ -226,6 +249,41 @@
 	#define PCI_RC_BARMSK00U_ADR				0xA4
 	#define PCI_RC_BSIZE00_01_ADR				0xC8
 
+/* PCIe EP Configuration Register */
+#define PCIE_CONFIGURATION_REG_EP(f)				(0x7000 - (0x1000 * (f)))
+#define PCI_EP_VID_F						0x00
+#define PCI_EP_COM_STA_F					0x04
+	#define PCI_EP_COM_STA_F_MSE				BIT(1)
+	#define PCI_EP_COM_STA_F_BME				BIT(2)
+#define PCI_EP_RID_CC_F						0x08
+#define PCI_EP_SUBSID_F						0x2C
+#define PCI_EP_INTERRUPT_F					0x3C
+#define PCI_EP_BARMSK00L_F					0xA0
+	#define PCIE_CFG_BAR_MASK0_L_EP_F0			(0x0000007F)
+#define PCI_EP_BARMSK00U_F					0xA4
+	#define	PCIE_CFG_BAR_MASK0_H_EP_F0			(0x00000000)
+#define	PCI_EP_BARMSK01L_F					0xA8
+	#define PCIE_CFG_BAR_MASK1_L_EP_F0			(0x0000007F)
+#define PCI_EP_BARMSK01U_F					0xAC
+	#define PCIE_CFG_BAR_MASK1_H_EP_F0			(0x00000000)
+#define PCI_EP_BARMSK02L_F					0xB0
+	#define PCIE_CFG_BAR_MASK2_L_EP_F0			(0x000000FF)
+#define PCI_EP_BARMSK02U_F					0xB4
+	#define PCIE_CFG_BAR_MASK2_H_EP_F0			(0x00000000)
+#define PCI_EP_BSIZE00_01_F					0xC8
+	#define PCIE_CFG_BASE_SIZE_0001_EP_F0			(0x00000000)
+#define PCI_EP_BSIZE02_03_F					0xCC
+	#define PCIE_CFG_BASE_SIZE_0203_EP_F0			(0x00000000)
+#define PCI_EP_BSIZE04_05_F					0xD0
+	#define PCIE_CFG_BASE_SIZE_0405_EP_F0			(0x00000000)
+#define PCI_EP_BSIZE06_F					0xD4
+	#define PCIE_CFG_BASE_SIZE_06_EP_F0			(0x00000000)
+#define PCI_EP_MSICAP(x)					(0xE0 + ((x) * 0x4))
+	#define  MSICAP0_MSIE					BIT(16)
+	#define  MSICAP0_MMESCAP_OFFSET				17
+	#define MSICAP0_MMESE_OFFSET				20
+	#define  MSICAP0_MMESE_MASK				GENMASK(22, 20)
+
 /* PCIe Configuration Special Register offset */
 #define PCIE_CONF_OFFSET_BAR0_MASK_LO			0x00A0
 #define PCIE_CONF_OFFSET_BAR0_MASK_UP			0x00A4
@@ -238,7 +296,7 @@
 #define INT_PCI_MSI_NR	32
 #define INT_PCI_INTX_NR	1
 
-#define RZT2H_PCI_MAX_RESOURCES 4
+#define RZT2H_PCI_MAX_RESOURCES		2
 #define MAX_NR_INBOUND_MAPS		8
 
 #define PCIE_CONF_BUS(b)	(((b) & 0xff) << 24)
@@ -250,13 +308,13 @@
 /* ----------------------------------------------------
   PCIe Configuration setting value
 -------------------------------------------------------*/
-#define PCIE_CONF_VENDOR_ID						0x1912
-#define PCIE_CONF_DEVICE_ID						0x1135
+#define PCIE_CONF_VENDOR_ID					0x1912
+#define PCIE_CONF_DEVICE_ID					0x1135
 
 #define PCIE_CONF_REVISION_ID					0x00
 
-#define PCIE_CONF_BASE_CLASS					0x06
-#define PCIE_CONF_SUB_CLASS						0x04
+#define PCIE_CONF_BASE_CLASS					0xFF
+#define PCIE_CONF_SUB_CLASS					0x04
 #define PCIE_CONF_PROGRAMING_IF					0x00
 
 #define PM_CAPABILITIES_INIT					0x4803E001
@@ -276,7 +334,7 @@
 #define LINK_WIDTH_CHANGE_DONE					0x20000000
 #define LINK_WIDTH_CHANGE_REQ_OFF				0x00000000
 
-#define  LAM_PREFETCH	BIT(3)
+#define  LAM_PREFETCH		BIT(3)
 #define  LAM_64BIT		BIT(2)
 #define  LAR_ENABLE		BIT(1)
 #define  PAR_ENABLE		BIT(31)
@@ -327,5 +385,12 @@ void rzt2h_pcie_set_outbound(struct rzt2h_pcie *pcie, int win,
 			    struct resource_entry *window);
 void rzt2h_pcie_set_inbound(struct rzt2h_pcie *pcie, u64 cpu_addr,
 			   u64 pci_addr, u64 flags, int idx, bool host);
+
+u32 rzt2h_read_conf_ep(struct rzt2h_pcie *pcie, int where, u8 fn);
+void rzt2h_write_conf_ep(struct rzt2h_pcie *pcie, u32 data, int where, u8 fn);
+void rzt2h_pcie_ep_set_outbound(struct rzt2h_pcie *pcie, int win, struct resource_entry *window,
+			       phys_addr_t cpu_addr, u64 pci_addr, size_t size);
+void rzt2h_pcie_ep_set_inbound(struct rzt2h_pcie *pcie, u64 cpu_addr, u64 pci_addr,
+			      u64 flags, int idx, bool host);
 
 #endif
