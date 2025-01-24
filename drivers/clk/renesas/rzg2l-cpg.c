@@ -1759,8 +1759,9 @@ static void rzg2l_cpg_detach_dev(struct generic_pm_domain *unused, struct device
 static void rzg2l_cpg_genpd_remove(void *data)
 {
 	struct genpd_onecell_data *celldata = data;
+	unsigned int i;
 
-	for (unsigned int i = 0; i < celldata->num_domains; i++)
+	for (i = 0; i < celldata->num_domains; i++)
 		pm_genpd_remove(celldata->domains[i]);
 }
 
@@ -1852,11 +1853,12 @@ rzg2l_cpg_pm_domain_xlate(struct of_phandle_args *spec, void *data)
 {
 	struct generic_pm_domain *domain = ERR_PTR(-ENOENT);
 	struct genpd_onecell_data *genpd = data;
+	unsigned int i;
 
 	if (spec->args_count != 1)
 		return ERR_PTR(-EINVAL);
 
-	for (unsigned int i = 0; i < genpd->num_domains; i++) {
+	for (i = 0; i < genpd->num_domains; i++) {
 		struct rzg2l_cpg_pd *pd = container_of(genpd->domains[i], struct rzg2l_cpg_pd,
 						       genpd);
 
@@ -1878,6 +1880,7 @@ static int __init rzg2l_cpg_add_pm_domains(struct rzg2l_cpg_priv *priv)
 	struct generic_pm_domain *parent;
 	u32 ncells;
 	int ret;
+	unsigned int i;
 
 	ret = of_property_read_u32(np, "#power-domain-cells", &ncells);
 	if (ret)
@@ -1900,8 +1903,7 @@ static int __init rzg2l_cpg_add_pm_domains(struct rzg2l_cpg_priv *priv)
 	if (ret)
 		return ret;
 
-	for (unsigned int i = 0; i < info->num_pm_domains; i++) {
-		bool always_on = !!(info->pm_domains[i].flags & RZG2L_PD_F_ALWAYS_ON);
+	for (i = 0; i < info->num_pm_domains; i++) {
 		struct rzg2l_cpg_pd *pd;
 
 		pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
@@ -1909,8 +1911,7 @@ static int __init rzg2l_cpg_add_pm_domains(struct rzg2l_cpg_priv *priv)
 			return -ENOMEM;
 
 		pd->genpd.name = info->pm_domains[i].name;
-		if (always_on)
-			pd->genpd.flags = GENPD_FLAG_ALWAYS_ON;
+		pd->genpd.flags = info->pm_domains[i].genpd_flags;
 		pd->conf = info->pm_domains[i].conf;
 		pd->id = info->pm_domains[i].id;
 		pd->priv = priv;
