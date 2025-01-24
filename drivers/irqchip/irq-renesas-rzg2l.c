@@ -21,12 +21,15 @@
 #include <linux/spinlock.h>
 #include <linux/syscore_ops.h>
 
+#define IRQC_NMI			0
 #define IRQC_IRQ_START			1
 #define IRQC_IRQ_COUNT			8
 #define IRQC_TINT_START			(IRQC_IRQ_START + IRQC_IRQ_COUNT)
 #define IRQC_TINT_COUNT			32
 #define IRQC_NUM_IRQ			(IRQC_TINT_START + IRQC_TINT_COUNT)
 
+#define NSCR				0x00
+#define NITSR				0x04
 #define ISCR				0x10
 #define IITSR				0x14
 #define TSCR				0x20
@@ -43,6 +46,9 @@
 
 #define TSSR_OFFSET(n)			((n) % 4)
 #define TSSR_INDEX(n)			((n) / 4)
+
+#define NITSR_NTSEL_EDGE_FALLING	0
+#define NITSR_NTSEL_EDGE_RISING		1
 
 #define TITSR_TITSEL_EDGE_RISING	0
 #define TITSR_TITSEL_EDGE_FALLING	1
@@ -90,6 +96,23 @@ static struct rzg2l_irqc_priv *irq_data_to_priv(struct irq_data *data)
 	return data->domain->host_data;
 }
 
+static void rzg2l_clear_nmi_int(struct rzg2l_irqc_priv *priv)
+{
+	unsigned int hw_irq = IRQC_NMI;
+	u32 bit = BIT(hw_irq);
+	u32 reg;
+
+	reg = readl_relaxed(priv->base + NSCR);
+	if (reg & bit) {
+		writel_relaxed(reg & ~bit, priv->base + NSCR);
+		/*
+		 *  Enforce that the posted write is flushed to prevent that the
+		 *  just handled interrupt is raised again.
+		 */
+		readl_relaxed(priv->base + NSCR);
+	}
+}
+
 static void rzg2l_clear_irq_int(struct rzg2l_irqc_priv *priv, unsigned int hwirq)
 {
 	unsigned int hw_irq = hwirq - IRQC_IRQ_START;
@@ -135,7 +158,9 @@ static void rzg2l_irqc_eoi(struct irq_data *d)
 	unsigned int hw_irq = irqd_to_hwirq(d);
 
 	raw_spin_lock(&priv->lock);
-	if (hw_irq >= IRQC_IRQ_START && hw_irq <= IRQC_IRQ_COUNT)
+	if (hw_irq == IRQC_NMI)
+		rzg2l_clear_nmi_int(priv);
+	else if (hw_irq >= IRQC_IRQ_START && hw_irq <= IRQC_IRQ_COUNT)
 		rzg2l_clear_irq_int(priv, hw_irq);
 	else if (hw_irq >= IRQC_TINT_START && hw_irq < IRQC_NUM_IRQ)
 		rzg2l_clear_tint_int(priv, hw_irq);
@@ -282,6 +307,29 @@ static void rzg2l_irqc_irq_enable(struct irq_data *d)
 	irq_chip_enable_parent(d);
 }
 
+static int rzg2l_nmi_set_type(struct irq_data *d, unsigned int type)
+{
+	struct rzg2l_irqc_priv *priv = irq_data_to_priv(d);
+	u32 sense;
+
+	switch (type & IRQ_TYPE_SENSE_MASK) {
+	case IRQ_TYPE_EDGE_FALLING:
+		sense = NITSR_NTSEL_EDGE_FALLING;
+		break;
+	case IRQ_TYPE_EDGE_RISING:
+		sense = NITSR_NTSEL_EDGE_RISING;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	raw_spin_lock(&priv->lock);
+	writel_relaxed(sense, priv->base + NITSR);
+	raw_spin_unlock(&priv->lock);
+
+	return 0;
+}
+
 static int rzg2l_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	struct rzg2l_irqc_priv *priv = irq_data_to_priv(d);
@@ -389,7 +437,9 @@ static int rzg2l_irqc_set_type(struct irq_data *d, unsigned int type)
 	unsigned int hw_irq = irqd_to_hwirq(d);
 	int ret = -EINVAL;
 
-	if (hw_irq >= IRQC_IRQ_START && hw_irq <= IRQC_IRQ_COUNT)
+	if (hw_irq == IRQC_NMI)
+		ret = rzg2l_nmi_set_type(d, type);
+	else if (hw_irq >= IRQC_IRQ_START && hw_irq <= IRQC_IRQ_COUNT)
 		ret = rzg2l_irq_set_type(d, type);
 	else if (hw_irq >= IRQC_TINT_START && hw_irq < IRQC_NUM_IRQ)
 		ret = rzg2l_tint_set_edge(d, type);
