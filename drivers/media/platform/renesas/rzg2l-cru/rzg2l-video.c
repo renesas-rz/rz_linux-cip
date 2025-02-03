@@ -19,50 +19,7 @@
 #include <media/videobuf2-dma-contig.h>
 
 #include "rzg2l-cru.h"
-
-#define CRUnCTRL_VINSEL(x)		((x) << 0)
-
-#define CRUnIE_EFE			BIT(17)
-
-#define CRUnINTS_SFS			BIT(16)
-
-#define CRUnRST_VRESETN			BIT(0)
-
-/* Memory Bank Base Address (Lower) Register for CRU Image Data */
-#define AMnMBxADDRL(base, x)		((base) + (x) * 2)
-
-/* Memory Bank Base Address (Higher) Register for CRU Image Data */
-#define AMnMBxADDRH(base, x)		((base) + (x) * 2)
-
-#define AMnMBVALID_MBVALID(x)		GENMASK(x, 0)
-
-#define AMnMBS_MBSTS			0x7
-
-/* AXI-VD Bus Master Transfer Setting Register */
-#define AMnAXIATTR_AXILEN_MASK		GENMASK(3, 0)
-#define AMnAXIATTR_AXILEN		(0xf)
-
-#define AMnFIFOPNTR_FIFOWPNTR		GENMASK(7, 0)
-#define AMnFIFOPNTR_FIFORPNTR_Y		GENMASK(23, 16)
-
-#define AMnAXISTP_AXI_STOP		BIT(0)
-
-#define AMnAXISTPACK_AXI_STOP_ACK	BIT(0)
-
-#define ICnEN_ICEN			BIT(0)
-
-#define ICnMC_DEMTHR			BIT(3)
-#define ICnMC_CSCTHR			BIT(5)
-#define ICnMC_VCSEL(x)			((x) << 22)
-#define ICnMC_INF_MASK			GENMASK(21, 16)
-
-#define ICnMC_RAWSTTYP_RGRG		0
-#define ICnMC_RAWSTTYP_GRGR		BIT(24)
-#define ICnMC_RAWSTTYP_GBGB		BIT(25)
-#define ICnMC_RAWSTTYP_BGBG		(BIT(25) | BIT(24))
-#define ICnMC_RAWSTTYP_MASK		(BIT(25) | BIT(24))
-
-#define ICnMS_IA			BIT(2)
+#include "rzg2l-cru-regs.h"
 
 #define RZG2L_TIMEOUT_MS		100
 #define RZG2L_RETRIES			10
