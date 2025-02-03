@@ -23,6 +23,34 @@ static const struct rzg2l_cru_ip_format rzg2l_cru_ip_formats[] = {
 		.bpp = 2,
 		.icndmr = ICnDMR_YCMODE_UYVY,
 	},
+	{
+		.code = MEDIA_BUS_FMT_SBGGR8_1X8,
+		.datatype = ICnMC_INF_RAW8,
+		.format = V4L2_PIX_FMT_SBGGR8,
+		.bpp = 1,
+		.icndmr = 0,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SGBRG8_1X8,
+		.datatype = ICnMC_INF_RAW8,
+		.format = V4L2_PIX_FMT_SGBRG8,
+		.bpp = 1,
+		.icndmr = 0,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SGRBG8_1X8,
+		.datatype = ICnMC_INF_RAW8,
+		.format = V4L2_PIX_FMT_SGRBG8,
+		.bpp = 1,
+		.icndmr = 0,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SRGGB8_1X8,
+		.datatype = ICnMC_INF_RAW8,
+		.format = V4L2_PIX_FMT_SRGGB8,
+		.bpp = 1,
+		.icndmr = 0,
+	},
 };
 
 enum rzg2l_csi2_pads {
