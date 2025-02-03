@@ -67,6 +67,8 @@ enum rzg2l_cru_common_regs {
 #define RZG2L_CRU_MIN_INPUT_WIDTH	320
 #define RZG2L_CRU_MIN_INPUT_HEIGHT	240
 
+#define ICnDMR_YCMODE_UYVY		(1 << 4)
+
 #define ICnMC_INF_YUV8_422              (0x1E << 16)
 #define ICnMC_INF_YUV10_422             (0x1F << 16)
 #define ICnMC_INF_RGB444                (0x20 << 16)
@@ -119,12 +121,14 @@ struct rzg2l_cru_info {
  * @code: Media bus code
  * @datatype: MIPI CSI2 data type
  * @format: 4CC format identifier (V4L2_PIX_FMT_*)
+ * @icndmr: ICnDMR register value
  * @bpp: bytes per pixel
  */
 struct rzg2l_cru_ip_format {
 	u32 code;
 	u32 datatype;
 	u32 format;
+	u32 icndmr;
 	u8 bpp;
 };
 
