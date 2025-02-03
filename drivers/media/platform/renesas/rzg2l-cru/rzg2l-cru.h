@@ -67,6 +67,19 @@ enum rzg2l_cru_common_regs {
 #define RZG2L_CRU_MIN_INPUT_WIDTH	320
 #define RZG2L_CRU_MIN_INPUT_HEIGHT	240
 
+#define ICnMC_INF_YUV8_422              (0x1E << 16)
+#define ICnMC_INF_YUV10_422             (0x1F << 16)
+#define ICnMC_INF_RGB444                (0x20 << 16)
+#define ICnMC_INF_RGB565                (0x22 << 16)
+#define ICnMC_INF_RGB666                (0x23 << 16)
+#define ICnMC_INF_RGB888                (0x24 << 16)
+#define ICnMC_INF_RAW8                  (0x2A << 16)
+#define ICnMC_INF_RAW10                 (0x2B << 16)
+#define ICnMC_INF_RAW12                 (0x2C << 16)
+#define ICnMC_INF_RAW14                 (0x2D << 16)
+#define ICnMC_INF_RAW16                 (0x2E << 16)
+#define ICnMC_INF_USER                  (0x30 << 16)
+
 /**
  * enum rzg2l_cru_dma_state - DMA states
  * @RZG2L_CRU_DMA_STOPPED:   No operation in progress
@@ -99,6 +112,16 @@ struct rzg2l_cru_info {
 	const u16 *regs;
 	unsigned int max_width;
 	unsigned int max_height;
+};
+
+/**
+ * struct rzg2l_cru_ip_format - CRU IP format
+ * @code: Media bus code
+ * @datatype: MIPI CSI2 data type
+ */
+struct rzg2l_cru_ip_format {
+	u32 code;
+	u32 datatype;
 };
 
 /**
@@ -192,5 +215,7 @@ const struct v4l2_format_info *rzg2l_cru_format_from_pixel(u32 format);
 int rzg2l_cru_ip_subdev_register(struct rzg2l_cru_dev *cru);
 void rzg2l_cru_ip_subdev_unregister(struct rzg2l_cru_dev *cru);
 struct v4l2_mbus_framefmt *rzg2l_cru_ip_get_src_fmt(struct rzg2l_cru_dev *cru);
+
+const struct rzg2l_cru_ip_format *rzg2l_cru_ip_code_to_fmt(unsigned int code);
 
 #endif
