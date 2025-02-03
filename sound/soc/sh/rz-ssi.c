@@ -844,7 +844,6 @@ static int rz_ssi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-	case SNDRV_PCM_TRIGGER_RESUME:
 		/* Soft Reset */
 		if (!rz_ssi_is_stream_running(&ssi->playback) &&
 		    !rz_ssi_is_stream_running(&ssi->capture)) {
@@ -896,13 +895,8 @@ static int rz_ssi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		ret = rz_ssi_start(ssi, strm);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-	case SNDRV_PCM_TRIGGER_SUSPEND:
 		rz_ssi_stop(ssi, strm);
-		/* Continue running in case of suspending */
-		if (cmd == SNDRV_PCM_TRIGGER_SUSPEND)
-			strm->running = 1;
-		else
-			rz_ssi_stream_quit(ssi, strm);
+		rz_ssi_stream_quit(ssi, strm);
 		break;
 	}
 
@@ -1263,42 +1257,6 @@ static int rz_ssi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused rz_ssi_suspend(struct device *dev)
-{
-	struct rz_ssi_priv *ssi = dev_get_drvdata(dev);
-
-	if (ssi->rstc)
-		reset_control_assert(ssi->rstc);
-
-	pm_runtime_put_sync(ssi->dev);
-
-	return 0;
-}
-
-static int __maybe_unused rz_ssi_resume(struct device *dev)
-{
-	struct rz_ssi_priv *ssi = dev_get_drvdata(dev);
-	int ret;
-
-	if (ssi->rstc) {
-		ret = reset_control_deassert(ssi->rstc);
-		if (ret)
-			return ret;
-	}
-
-	pm_runtime_get_sync(ssi->dev);
-
-	/* In case of streaming, Re-init control registers based on hw_params */
-	if (ssi->playback.running || ssi->capture.running)
-		return rz_ssi_clk_setup(ssi, ssi->hw_params_cache.rate,
-					ssi->hw_params_cache.channels);
-
-	return 0;
-}
-
-static SIMPLE_DEV_PM_OPS(rz_ssi_pm_ops, rz_ssi_suspend,
-			 rz_ssi_resume);
-
 static const struct of_device_id rz_ssi_of_match[] = {
 	{ .compatible = "renesas,rz-ssi", },
 	{/* Sentinel */},
@@ -1309,7 +1267,6 @@ static struct platform_driver rz_ssi_driver = {
 	.driver	= {
 		.name	= "rz-ssi-pcm-audio",
 		.of_match_table = rz_ssi_of_match,
-		.pm = &rz_ssi_pm_ops,
 	},
 	.probe		= rz_ssi_probe,
 	.remove		= rz_ssi_remove,
