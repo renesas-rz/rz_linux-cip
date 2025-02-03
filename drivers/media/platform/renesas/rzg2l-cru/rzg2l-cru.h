@@ -67,7 +67,14 @@ enum rzg2l_cru_common_regs {
 #define RZG2L_CRU_MIN_INPUT_WIDTH	320
 #define RZG2L_CRU_MIN_INPUT_HEIGHT	240
 
+#define ICnDMR_RGBMODE_RGB24            (0 << 0)
+#define ICnDMR_RGBMODE_XRGB32           (1 << 0)
+#define ICnDMR_RGBMODE_ABGR32           (2 << 0)
+#define ICnDMR_RGBMODE_ARGB32           (3 << 0)
+#define ICnDMR_YCMODE_YUYV              (0 << 4)
 #define ICnDMR_YCMODE_UYVY		(1 << 4)
+#define ICnDMR_YCMODE_NV16              (2 << 4)
+#define ICnDMR_YCMODE_GREY              (3 << 4)
 
 #define ICnMC_INF_YUV8_422              (0x1E << 16)
 #define ICnMC_INF_YUV10_422             (0x1F << 16)
@@ -123,12 +130,14 @@ struct rzg2l_cru_info {
  * @format: 4CC format identifier (V4L2_PIX_FMT_*)
  * @icndmr: ICnDMR register value
  * @bpp: bytes per pixel
+ * @yuv: Flag to indicate whether the format is YUV-based.
  */
 struct rzg2l_cru_ip_format {
 	u32 code;
 	u32 datatype;
 	u32 format;
 	u32 icndmr;
+	enum v4l2_pixel_encoding fmt_types;
 	u8 bpp;
 };
 
