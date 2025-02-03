@@ -279,6 +279,30 @@ static int rzg2l_du_crtc_atomic_check(struct drm_crtc *crtc,
 	return 0;
 }
 
+static void rzg2l_du_crtc_atomic_begin(struct drm_crtc *crtc,
+				       struct drm_crtc_state *state)
+{
+	struct rzg2l_du_crtc *rcrtc = to_rzg2l_crtc(crtc);
+
+	WARN_ON(!crtc->state->enable);
+
+	/*
+	 * If a mode set is in progress we can be called with the CRTC disabled.
+	 * We thus need to first get and setup the CRTC in order to configure
+	 * planes. We must *not* put the CRTC in .atomic_flush(), as it must be
+	 * kept awake until the .atomic_enable() call that will follow. The get
+	 * operation in .atomic_enable() will in that case be a no-op, and the
+	 * CRTC will be put later in .atomic_disable().
+	 *
+	 * If a mode set is not in progress the CRTC is enabled, and the
+	 * following get call will be a no-op. There is thus no need to balance
+	 * it in .atomic_flush() either.
+	 */
+	rzg2l_du_crtc_get(rcrtc);
+
+	rzg2l_du_vsp_atomic_begin(rcrtc);
+}
+
 static void rzg2l_du_crtc_atomic_enable(struct drm_crtc *crtc,
 					struct drm_crtc_state *state)
 {
@@ -328,6 +352,7 @@ static void rzg2l_du_crtc_atomic_flush(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.atomic_check = rzg2l_du_crtc_atomic_check,
+	.atomic_begin = rzg2l_du_crtc_atomic_begin,
 	.atomic_flush = rzg2l_du_crtc_atomic_flush,
 	.atomic_enable = rzg2l_du_crtc_atomic_enable,
 	.atomic_disable = rzg2l_du_crtc_atomic_disable,
