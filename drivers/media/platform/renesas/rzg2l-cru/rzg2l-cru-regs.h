@@ -41,6 +41,7 @@
 /* AXI Master FIFO Pointer Register for CRU Image Data */
 #define AMnFIFOPNTR_FIFOWPNTR		GENMASK(7, 0)
 #define AMnFIFOPNTR_FIFORPNTR_Y		GENMASK(23, 16)
+#define AMnFIFOPNTR_FIFORPNTR_UV	GENMASK(31, 24)
 
 /* AXI Master Transfer Stop Register for CRU Image Data */
 #define AMnAXISTP_AXI_STOP		BIT(0)
