@@ -438,7 +438,6 @@
 			dma-names = "tx", "rx";
 			power-domains = <&cpg>;
 			#sound-dai-cells = <0>;
-			rz,spdif-mode = <1>;
 			status = "disabled";
 		};
 

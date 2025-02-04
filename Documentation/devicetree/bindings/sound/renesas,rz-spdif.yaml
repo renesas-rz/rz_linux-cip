@@ -61,12 +61,6 @@ properties:
           - const: tx
           - const: rx
 
-  rz,spdif-mode: Select playback or capture mode
-    maxItems: 1
-    description:
-      Used to select mode for SPDIF module. '1' represents playback mode and
-      '0' represents capture mode.
-
   '#sound-dai-cells':
     const: 0
 
@@ -78,7 +72,6 @@ required:
   - clocks
   - clock-names
   - resets
-  - rz,spdif-mode
   - '#sound-dai-cells'
 
 additionalProperties: false
@@ -102,6 +95,5 @@ examples:
                 dma-names = "tx", "rx";
                 power-domains = <&cpg>;
                 #sound-dai-cells = <0>;
-                rz,spdif-mode = <1>;
         };
 
