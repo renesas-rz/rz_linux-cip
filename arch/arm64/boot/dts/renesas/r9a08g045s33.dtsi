@@ -38,6 +38,7 @@
 			interrupt-map-mask = <0 0 0 0>;
 			interrupt-map = <0 0 0 0 &gic GIC_SPI 404 IRQ_TYPE_LEVEL_HIGH>;
 			power-domains = <&cpg>;
+			renesas,sysc-signal = <&sysc 0xd74 0x1>;
 		};
 	};
 };

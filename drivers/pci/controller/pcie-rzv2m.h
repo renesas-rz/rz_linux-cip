@@ -457,6 +457,12 @@ struct rzv2m_save_reg {
 	struct rzv2m_interrupt_set		interrupt;
 };
 
+struct pcie_rst_rsm_b {
+	struct regmap *regmap;
+	u32 offset;
+	u32 mask;
+};
+
 struct rzv2m_pcie {
 	struct device			*dev;
 	void __iomem			*base;
@@ -464,6 +470,7 @@ struct rzv2m_pcie {
 	void __iomem			*phy_base;
 	void __iomem			*cpg_base;
 	struct rzv2m_save_reg	save_reg;
+	struct pcie_rst_rsm_b *rst_rsm_b;
 };
 
 typedef enum
