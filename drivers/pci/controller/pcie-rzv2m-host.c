@@ -19,11 +19,13 @@
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/mfd/syscon.h>
 #include <linux/msi.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_pci.h>
 #include <linux/of_platform.h>
+#include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/pci.h>
 #include <linux/phy/phy.h>
@@ -1051,6 +1053,47 @@ static int rzv2m_pcie_parse_map_dma_ranges(struct rzv2m_pcie_host *host)
 	return err;
 }
 
+static void pcie_set_rst_rsm_b(struct rzv2m_pcie *pcie, bool rst)
+{
+	struct pcie_rst_rsm_b *rst_rsm_b = pcie->rst_rsm_b;
+
+	/* N/A on this platform. */
+	if (!rst_rsm_b)
+		return;
+
+	regmap_update_bits(rst_rsm_b->regmap, rst_rsm_b->offset, rst_rsm_b->mask, rst);
+}
+
+static int pcie_init_rst_rsm_b(struct rzv2m_pcie *pcie)
+{
+	struct device *dev = pcie->dev;
+	struct pcie_rst_rsm_b *rst_rsm_b;
+	struct of_phandle_args args;
+	int ret;
+
+	rst_rsm_b = devm_kzalloc(dev, sizeof(*rst_rsm_b), GFP_KERNEL);
+	if (!rst_rsm_b)
+		return -ENOMEM;
+
+	ret = of_parse_phandle_with_args(dev->of_node, "renesas,sysc-signal",
+					 "#renesas,sysc-signal-cells", 0, &args);
+	if (ret)
+		return ret;
+
+	rst_rsm_b->regmap = syscon_node_to_regmap(args.np);
+	rst_rsm_b->offset = args.args[0];
+	rst_rsm_b->mask = args.args[1];
+
+	of_node_put(args.np);
+
+	if (IS_ERR(rst_rsm_b->regmap))
+		return PTR_ERR(rst_rsm_b->regmap);
+
+	pcie->rst_rsm_b = rst_rsm_b;
+
+	return 0;
+}
+
 static int rzv2m_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1077,6 +1120,12 @@ static int rzv2m_pcie_probe(struct platform_device *pdev)
 	if (err < 0) {
 		dev_err(dev, "Failed to get PCIE res, err %d\n", err);
 		return err;
+	}
+
+	if (host->info->flags & PCIE_RST_RSMB) {
+		err = pcie_init_rst_rsm_b(pcie);
+		if (err)
+			return err;
 	}
 
 	if (host->info->flags & PCIE_HAS_SYS_BASE) {
@@ -1403,13 +1452,12 @@ static int rzg3s_pcie_phy_init(struct rzv2m_pcie_host *host)
 static int rzg3s_pcie_hw_init(struct rzv2m_pcie_host *host)
 {
 	struct rzv2m_pcie *pcie = &host->pcie;
-	struct arm_smccc_res local_res;
 	unsigned int timeout = 50;
 	u32 reg;
 
 	/* Set RST_RSM_B after PCIe power is applied according to HW manual */
-	arm_smccc_smc(RZG3S_SIP_SVC_SET_PCIE_RST_RSMB, RZG3S_SYS_PCIE_RST_RSM_B,
-		      RZG3S_SYS_PCIE_RST_RSM_B_EN, 0, 0, 0, 0, 0, &local_res);
+	if (host->info->flags & PCIE_RST_RSMB)
+		pcie_set_rst_rsm_b(pcie, true);
 
 	/* Clear all PCIe reset bits */
 	rzv2m_pci_write_reg(pcie, RESET_ALL_ASSERT, PCI_RESET_REG);
@@ -1544,7 +1592,6 @@ static int rzv2m_pcie_suspend(struct device *dev)
 	struct rzv2m_pcie *pcie = &host->pcie;
 	int idx, err;
 	bool has_64bits_regs = host->has_64bits_regs;
-	struct arm_smccc_res local_res;
 
 	for(idx=0; idx < RZV2M_PCI_MAX_RESOURCES; idx++) {
 		/* Save AXI window setting */
@@ -1574,7 +1621,7 @@ static int rzv2m_pcie_suspend(struct device *dev)
 	pcie->save_reg.interrupt.msi_data       = rzv2m_pci_read_reg(pcie, PCI_RC_MSIRMD(0));
 
 	if (host->info->flags & PCIE_RST_RSMB)
-		arm_smccc_smc(RZG3S_SIP_SVC_SET_PCIE_RST_RSMB, RZG3S_SYS_PCIE_RST_RSM_B, 0x0, 0, 0, 0, 0, 0, &local_res);
+		pcie_set_rst_rsm_b(pcie, false);
 
 	if (host->info->flags & PCIE_HAS_RST_CTRL) {
 		err = reset_control_assert(host->rst);
