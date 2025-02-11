@@ -190,13 +190,13 @@ static int rz_sysc_signals_init(struct rz_sysc *sysc,
 		if (!id)
 			return -ENOMEM;
 
-		id->name = devm_kstrdup(sysc->dev, init_data->name, GFP_KERNEL);
+		id->name = devm_kstrdup(sysc->dev, init_data[i].name, GFP_KERNEL);
 		if (!id->name)
 			return -ENOMEM;
 
-		id->offset = init_data->offset;
-		id->mask = init_data->mask;
-		id->refcnt_incr_val = init_data->refcnt_incr_val;
+		id->offset = init_data[i].offset;
+		id->mask = init_data[i].mask;
+		id->refcnt_incr_val = init_data[i].refcnt_incr_val;
 
 		sysc->signals[i].init_data = id;
 		refcount_set(&sysc->signals[i].refcnt, 0);
