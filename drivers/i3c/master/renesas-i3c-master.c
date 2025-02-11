@@ -878,7 +878,7 @@ static int renesas_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 	struct renesas_i3c_master *master = to_renesas_i3c_master(m);
 	struct renesas_i3c_xfer *xfer;
 	struct renesas_i3c_cmd *cmd;
-	int ret, pos = 0;
+	int pos = 0;
 
 	/* Enable I3C bus. */
 	renesas_i3c_master_bus_enable(m, true);
@@ -938,10 +938,12 @@ static int renesas_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 	if (!wait_for_completion_timeout(&xfer->comp, msecs_to_jiffies(1000)))
 		renesas_i3c_master_dequeue_xfer(master, xfer);
 
-	ret = xfer->ret;
+	if (xfer->ret)
+		ccc->err = I3C_ERROR_M2;
+
 	renesas_i3c_master_free_xfer(xfer);
 
-	return ret;
+	return xfer->ret;
 }
 
 static int renesas_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
