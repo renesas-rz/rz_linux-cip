@@ -49,12 +49,38 @@
 /* AXI Master Transfer Stop Status Register for CRU Image Data */
 #define AMnAXISTPACK_AXI_STOP_ACK	BIT(0)
 
+/* Memory Bank Base Address (Lower) Register for CRU Statistics Data */
+#define AMnSDMBxADDRL(base, x)		((base) + (x) * 2)
+
+/* Memory Bank Base Address (Higher) Register for CRU Statistics Data */
+#define AMnSDMBxADDRH(base, x)		((base) + (x) * 2)
+
+/* Memory Bank Enable Register for CRU Image Data */
+#define AMnSDMBVALID_SDMBVALID(x)	GENMASK(x, 0)
+
+/* Memory Bank Status Register for CRU Image Data */
+#define AMnSDMBS_SDMBSTS		0x7
+
+/* AXI Master Transfer Constant Register for CRU Statistics data */
+#define AMnSDAXIATTR_SDAXILEN(x)	(x)
+
+/* AXI Master FIFO Pointer Register for CRU Statistics Data */
+#define AMnSDFIFOPNTR_SDFIFOWPNTR	GENMASK(4, 0)
+#define AMnSDFIFOPNTR_SDFIFORPNTR	GENMASK(20, 16)
+
+/* AXI Master Transfer Stop Register for CRU Image Data */
+#define AMnSDAXISTP_SDAXI_STOP		BIT(0)
+
+/* AXI Master Transfer Stop Status Register for CRU Image Data */
+#define AMnSDAXISTPACK_SDAXI_STOP_ACK	BIT(0)
+
 /* CRU Image Processing Enable Register */
 #define ICnEN_ICEN			BIT(0)
 
 /* CRU Image Processing Main Control Register */
 #define ICnMC_DEMTHR			BIT(3)
 #define ICnMC_CSCTHR			BIT(5)
+#define ICnMC_STITHR			BIT(7)
 #define ICnMC_VCSEL(x)			((x) << 22)
 #define ICnMC_INF_MASK			GENMASK(21, 16)
 #define ICnMC_INF_YUV8_422		(0x1E << 16)
@@ -87,5 +113,13 @@
 #define ICnDMR_YCMODE_UYVY		(1 << 4)
 #define ICnDMR_YCMODE_NV16		(2 << 4)
 #define ICnDMR_YCMODE_GREY		(3 << 4)
+
+/* CRU Statistics Control 1 Register */
+#define ICnSTIC1_STUNIT_MASK		0x3
+#define ICnSTIC1_STUNIT(x)		(x)
+#define ICnSTIC1_STSADPOS(x)		((x) << 16)
+
+/* CRU Statistics Control 2 Register */
+#define ICnSTIC2_STHPOS(x)		(x)
 
 #endif /* __RZG2L_CRU_REGS_H__ */
