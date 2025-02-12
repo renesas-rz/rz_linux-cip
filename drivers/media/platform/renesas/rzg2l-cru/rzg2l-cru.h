@@ -48,8 +48,32 @@ enum rzg2l_cru_common_regs {
 	AMnFIFOPNTR,	/* AXI Master FIFO Pointer for CRU Image Data */
 	AMnAXISTP,	/* AXI Master Transfer Stop for CRU Image Data */
 	AMnAXISTPACK,	/* AXI Master Transfer Stop Status for CRU Image Data */
+	AMnSDMB1ADDRL,	/* Memory Bank 1 Base Address Lower Register for CRU Statistics Data */
+	AMnSDMB1ADDRH,	/* Memory Bank 1 Base Address Higher Register for CRU Statistics Data */
+	AMnSDMB2ADDRL,	/* Memory Bank 2 Base Address Lower Register for CRU Statistics Data */
+	AMnSDMB2ADDRH,	/* Memory Bank 2 Base Address Higher Register for CRU Statistics Data */
+	AMnSDMB3ADDRL,	/* Memory Bank 3 Base Address Lower Register for CRU Statistics Data */
+	AMnSDMB3ADDRH,	/* Memory Bank 3 Base Address Higher Register for CRU Statistics Data */
+	AMnSDMB4ADDRL,	/* Memory Bank 4 Base Address Lower Register for CRU Statistics Data */
+	AMnSDMB4ADDRH,	/* Memory Bank 4 Base Address Higher Register for CRU Statistics Data */
+	AMnSDMB5ADDRL,	/* Memory Bank 5 Base Address Lower Register for CRU Statistics Data */
+	AMnSDMB5ADDRH,	/* Memory Bank 5 Base Address Higher Register for CRU Statistics Data */
+	AMnSDMB6ADDRL,	/* Memory Bank 6 Base Address Lower Register for CRU Statistics Data */
+	AMnSDMB6ADDRH,	/* Memory Bank 6 Base Address Higher Register for CRU Statistics Data */
+	AMnSDMB7ADDRL,	/* Memory Bank 7 Base Address Lower Register for CRU Statistics Data */
+	AMnSDMB7ADDRH,	/* Memory Bank 7 Base Address Higher Register for CRU Statistics Data */
+	AMnSDMB8ADDRL,	/* Memory Bank 8 Base Address Lower Register for CRU Statistics Data */
+	AMnSDMB8ADDRH,	/* Memory Bank 8 Base Address Higher Register for CRU Statistics Data */
+	AMnSDMBVALID,	/* Memory Bank Enable Register for CRU Image Data */
+	AMnSDMBS,	/* Memory Bank Status Register for CRU Image Data */
+	AMnSDAXIATTR,	/* AXI Master Transfer Constant Register for CRU Statistics data */
+	AMnSDFIFOPNTR,	/* AXI Master FIFO Pointer Register for CRU Statistics Data */
+	AMnSDAXISTP,	/* AXI Master Transfer Stop Register for CRU Image Data */
+	AMnSDAXISTPACK,	/* AXI Master Transfer Stop Status Register for CRU Image Data */
 	ICnEN,		/* CRU Image Processing Enable */
 	ICnMC,		/* CRU Image Processing Main Control */
+	ICnSTIC1,	/* CRU Statistics Control 1 Register */
+	ICnSTIC2,	/* CRU Statistics Control 2 Register */
 	ICnMS,		/* CRU Module Status */
 	ICnDMR,		/* CRU Data Output Mode */
 
@@ -77,14 +101,25 @@ enum rzg2l_cru_common_regs {
 
 #define V4L2_CID_USER_CRU_BASE	(V4L2_CID_USER_BASE + 0x10e0)
 
-/* V4L2 private controls */
-#define V4L2_CID_CRU_FRAME_SKIP	(V4L2_CID_USER_CRU_BASE + 0)
-
-#define V4L2_CID_CRU_LIMIT	1
+/* CRU V4L2 private controls */
+enum rzg2l_cru_v4l2_priv_ctrls {
+	V4L2_CID_CRU_FRAME_SKIP = V4L2_CID_USER_CRU_BASE,
+	V4L2_CID_CRU_STATISTICS,
+	V4L2_CID_CRU_SD_BLKSIZE,
+	V4L2_CID_CRU_SD_STHPOS,
+	V4L2_CID_CRU_SD_STSADPOS,
+};
 
 static const struct v4l2_ctrl_ops rzg2l_cru_ctrl_ops;
 
-static const struct v4l2_ctrl_config rzg2l_cru_ctrls[V4L2_CID_CRU_LIMIT] = {
+static const char * const cru_statistics_blksize_menu[] = {
+	"16x16",
+	"32x32",
+	"64x64",
+	"128x128",
+};
+
+static const struct v4l2_ctrl_config rzg2l_cru_ctrls[] = {
 	{
 		.id = V4L2_CID_CRU_FRAME_SKIP,
 		.type = V4L2_CTRL_TYPE_BOOLEAN,
@@ -95,7 +130,51 @@ static const struct v4l2_ctrl_config rzg2l_cru_ctrls[V4L2_CID_CRU_LIMIT] = {
 		.step = 1,
 		.def = 0,
 		.is_private = 1,
-	}
+	},
+	{
+		.id = V4L2_CID_CRU_STATISTICS,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+		.ops = &rzg2l_cru_ctrl_ops,
+		.name = "Statistics Data Enable/Disable",
+		.max = 1,
+		.min = 0,
+		.step = 1,
+		.def = 0,
+		.is_private = 1,
+	},
+	{
+		.id = V4L2_CID_CRU_SD_BLKSIZE,
+		.type = V4L2_CTRL_TYPE_MENU,
+		.ops = &rzg2l_cru_ctrl_ops,
+		.name = "Statistics Data Unit Blocksize",
+		.max = 3,
+		.min = 0,
+		.def = 0,
+		.is_private = 1,
+		.qmenu = cru_statistics_blksize_menu,
+	},
+	{
+		.id = V4L2_CID_CRU_SD_STHPOS,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.ops = &rzg2l_cru_ctrl_ops,
+		.name = "Statistics Horizontal Start Position",
+		.max = 376,
+		.min = 0,
+		.step = 1,
+		.def = 0,
+		.is_private = 1,
+	},
+	{
+		.id = V4L2_CID_CRU_SD_STSADPOS,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.ops = &rzg2l_cru_ctrl_ops,
+		.name = "Statistics Input Data Bit Position",
+		.max = 8,
+		.min = 0,
+		.step = 1,
+		.def = 0,
+		.is_private = 1,
+	},
 };
 
 /* Minimum skipping frame for camera sensors stability */
@@ -226,10 +305,19 @@ struct rzg2l_cru_dev {
 	unsigned int sequence;
 	enum rzg2l_cru_dma_state state;
 
+	struct v4l2_rect crop;
+	struct v4l2_rect compose;
+	struct v4l2_rect source;
+
 	struct v4l2_pix_format format;
 	bool is_frame_skip;
 
 	struct task_struct *retry_thread;
+
+	bool is_statistics;
+	int sd_blksize;
+	int sd_sthpos;
+	int sd_stsadpos;
 };
 
 int rzg2l_cru_start_image_processing(struct rzg2l_cru_dev *cru);
