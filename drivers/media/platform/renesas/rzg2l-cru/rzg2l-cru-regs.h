@@ -77,6 +77,9 @@
 /* CRU Image Processing Enable Register */
 #define ICnEN_ICEN			BIT(0)
 
+/* CRU Image Processing Register Setting Change Control Register */
+#define ICnREGC_REFEN			BIT(0)
+
 /* CRU Image Processing Main Control Register */
 #define ICnMC_DEMTHR			BIT(3)
 #define ICnMC_LMXTHR			BIT(4)
