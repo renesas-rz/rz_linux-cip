@@ -79,6 +79,7 @@
 
 /* CRU Image Processing Main Control Register */
 #define ICnMC_DEMTHR			BIT(3)
+#define ICnMC_LMXTHR			BIT(4)
 #define ICnMC_CSCTHR			BIT(5)
 #define ICnMC_STITHR			BIT(7)
 #define ICnMC_VCSEL(x)			((x) << 22)
@@ -113,6 +114,32 @@
 #define ICnDMR_YCMODE_UYVY		(1 << 4)
 #define ICnDMR_YCMODE_NV16		(2 << 4)
 #define ICnDMR_YCMODE_GREY		(3 << 4)
+
+/* CRU Linear Matrix Offset register */
+#define ICnLMXOF_ROF(x)			(((x) & GENMASK(7, 0)) << 0)
+#define ICnLMXOF_GOF(x)			(((x) & GENMASK(7, 0)) << 8)
+#define ICnLMXOF_BOF(x)			(((x) & GENMASK(7, 0)) << 16)
+
+/* CRU Linear Matrix R Coefficient 1 Register */
+#define ICnLMXRC1_RR(x)			(((x) & GENMASK(12, 0)) << 0)
+
+/* CRU Linear Matrix R Coefficient 2 Register */
+#define ICnLMXRC2_RG(x)			(((x) & GENMASK(12, 0)) << 0)
+#define ICnLMXRC2_RB(x)			(((x) & GENMASK(12, 0)) << 16)
+
+/* CRU Linear Matrix G Coefficient 1 Register */
+#define ICnLMXGC1_GR(x)			(((x) & GENMASK(12, 0)) << 0)
+
+/* CRU Linear Matrix G Coefficient 2 Register */
+#define ICnLMXGC2_GG(x)			(((x) & GENMASK(12, 0)) << 0)
+#define ICnLMXGC2_GB(x)			(((x) & GENMASK(12, 0)) << 16)
+
+/* CRU Linear Matrix B Coefficient 1 Register */
+#define ICnLMXBC1_BR(x)			(((x) & GENMASK(12, 0)) << 0)
+
+/* CRU Linear Matrix B Coefficient 2 Register */
+#define ICnLMXBC2_BG(x)			(((x) & GENMASK(12, 0)) << 0)
+#define ICnLMXBC2_BB(x)			(((x) & GENMASK(12, 0)) << 16)
 
 /* CRU Statistics Control 1 Register */
 #define ICnSTIC1_STUNIT_MASK		0x3
