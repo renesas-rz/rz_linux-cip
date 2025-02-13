@@ -71,6 +71,7 @@ enum rzg2l_cru_common_regs {
 	AMnSDAXISTP,	/* AXI Master Transfer Stop Register for CRU Image Data */
 	AMnSDAXISTPACK,	/* AXI Master Transfer Stop Status Register for CRU Image Data */
 	ICnEN,		/* CRU Image Processing Enable */
+	ICnREGC,	/* CRU Image Processing Register Setting Change Control Register */
 	ICnMC,		/* CRU Image Processing Main Control */
 	ICnLMXOF,	/* CRU Linear Matrix Offset register */
 	ICnLMXRC1,	/* CRU Linear Matrix R Coefficient 1 Register */
