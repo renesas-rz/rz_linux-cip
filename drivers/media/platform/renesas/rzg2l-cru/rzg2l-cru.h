@@ -72,6 +72,13 @@ enum rzg2l_cru_common_regs {
 	AMnSDAXISTPACK,	/* AXI Master Transfer Stop Status Register for CRU Image Data */
 	ICnEN,		/* CRU Image Processing Enable */
 	ICnMC,		/* CRU Image Processing Main Control */
+	ICnLMXOF,	/* CRU Linear Matrix Offset register */
+	ICnLMXRC1,	/* CRU Linear Matrix R Coefficient 1 Register */
+	ICnLMXRC2,	/* CRU Linear Matrix R Coefficient 2 Register */
+	ICnLMXGC1,	/* CRU Linear Matrix G Coefficient 1 Register */
+	ICnLMXGC2,	/* CRU Linear Matrix G Coefficient 2 Register */
+	ICnLMXBC1,	/* CRU Linear Matrix B Coefficient 1 Register */
+	ICnLMXBC2,	/* CRU Linear Matrix B Coefficient 2 Register */
 	ICnSTIC1,	/* CRU Statistics Control 1 Register */
 	ICnSTIC2,	/* CRU Statistics Control 2 Register */
 	ICnMS,		/* CRU Module Status */
@@ -108,6 +115,19 @@ enum rzg2l_cru_v4l2_priv_ctrls {
 	V4L2_CID_CRU_SD_BLKSIZE,
 	V4L2_CID_CRU_SD_STHPOS,
 	V4L2_CID_CRU_SD_STSADPOS,
+	V4L2_CID_CRU_LINEAR_MATRIX,
+	V4L2_CID_CRU_LINEAR_MATRIX_ROF,
+	V4L2_CID_CRU_LINEAR_MATRIX_GOF,
+	V4L2_CID_CRU_LINEAR_MATRIX_BOF,
+	V4L2_CID_CRU_LINEAR_MATRIX_RR,
+	V4L2_CID_CRU_LINEAR_MATRIX_RG,
+	V4L2_CID_CRU_LINEAR_MATRIX_RB,
+	V4L2_CID_CRU_LINEAR_MATRIX_GR,
+	V4L2_CID_CRU_LINEAR_MATRIX_GG,
+	V4L2_CID_CRU_LINEAR_MATRIX_GB,
+	V4L2_CID_CRU_LINEAR_MATRIX_BR,
+	V4L2_CID_CRU_LINEAR_MATRIX_BG,
+	V4L2_CID_CRU_LINEAR_MATRIX_BB,
 };
 
 static const struct v4l2_ctrl_ops rzg2l_cru_ctrl_ops;
@@ -130,8 +150,7 @@ static const struct v4l2_ctrl_config rzg2l_cru_ctrls[] = {
 		.step = 1,
 		.def = 0,
 		.is_private = 1,
-	},
-	{
+	}, {
 		.id = V4L2_CID_CRU_STATISTICS,
 		.type = V4L2_CTRL_TYPE_BOOLEAN,
 		.ops = &rzg2l_cru_ctrl_ops,
@@ -141,8 +160,7 @@ static const struct v4l2_ctrl_config rzg2l_cru_ctrls[] = {
 		.step = 1,
 		.def = 0,
 		.is_private = 1,
-	},
-	{
+	}, {
 		.id = V4L2_CID_CRU_SD_BLKSIZE,
 		.type = V4L2_CTRL_TYPE_MENU,
 		.ops = &rzg2l_cru_ctrl_ops,
@@ -152,8 +170,7 @@ static const struct v4l2_ctrl_config rzg2l_cru_ctrls[] = {
 		.def = 0,
 		.is_private = 1,
 		.qmenu = cru_statistics_blksize_menu,
-	},
-	{
+	}, {
 		.id = V4L2_CID_CRU_SD_STHPOS,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.ops = &rzg2l_cru_ctrl_ops,
@@ -163,14 +180,143 @@ static const struct v4l2_ctrl_config rzg2l_cru_ctrls[] = {
 		.step = 1,
 		.def = 0,
 		.is_private = 1,
-	},
-	{
+	}, {
 		.id = V4L2_CID_CRU_SD_STSADPOS,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.ops = &rzg2l_cru_ctrl_ops,
 		.name = "Statistics Input Data Bit Position",
 		.max = 8,
 		.min = 0,
+		.step = 1,
+		.def = 0,
+		.is_private = 1,
+	}, {
+		.id = V4L2_CID_CRU_LINEAR_MATRIX,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+		.ops = &rzg2l_cru_ctrl_ops,
+		.name = "Linear Matrix Processing Enable/Disable",
+		.max = 1,
+		.min = 0,
+		.step = 1,
+		.def = 0,
+		.is_private = 1,
+	}, {
+		.id = V4L2_CID_CRU_LINEAR_MATRIX_ROF,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.ops = &rzg2l_cru_ctrl_ops,
+		.name = "Linear Matrix R offset",
+		.max = 127,
+		.min = -128,
+		.step = 1,
+		.def = 0,
+		.is_private = 1,
+	}, {
+		.id = V4L2_CID_CRU_LINEAR_MATRIX_GOF,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.ops = &rzg2l_cru_ctrl_ops,
+		.name = "Linear Matrix G offset",
+		.max = 127,
+		.min = -128,
+		.step = 1,
+		.def = 0,
+		.is_private = 1,
+	}, {
+		.id = V4L2_CID_CRU_LINEAR_MATRIX_BOF,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.ops = &rzg2l_cru_ctrl_ops,
+		.name = "Linear Matrix B offset",
+		.max = 127,
+		.min = -128,
+		.step = 1,
+		.def = 0,
+		.is_private = 1,
+	}, {
+		.id = V4L2_CID_CRU_LINEAR_MATRIX_RR,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.ops = &rzg2l_cru_ctrl_ops,
+		.name = "Linear Matrix RR coefficient ",
+		.max = 4095,
+		.min = -4096,
+		.step = 1,
+		.def = 0,
+		.is_private = 1,
+	}, {
+		.id = V4L2_CID_CRU_LINEAR_MATRIX_RG,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.ops = &rzg2l_cru_ctrl_ops,
+		.name = "Linear Matrix RG coefficient ",
+		.max = 4095,
+		.min = -4096,
+		.step = 1,
+		.def = 0,
+		.is_private = 1,
+	}, {
+		.id = V4L2_CID_CRU_LINEAR_MATRIX_RB,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.ops = &rzg2l_cru_ctrl_ops,
+		.name = "Linear Matrix RB coefficient ",
+		.max = 4095,
+		.min = -4096,
+		.step = 1,
+		.def = 0,
+		.is_private = 1,
+	}, {
+		.id = V4L2_CID_CRU_LINEAR_MATRIX_GR,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.ops = &rzg2l_cru_ctrl_ops,
+		.name = "Linear Matrix GR coefficient ",
+		.max = 4095,
+		.min = -4096,
+		.step = 1,
+		.def = 0,
+		.is_private = 1,
+	}, {
+		.id = V4L2_CID_CRU_LINEAR_MATRIX_GG,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.ops = &rzg2l_cru_ctrl_ops,
+		.name = "Linear Matrix GG coefficient ",
+		.max = 4095,
+		.min = -4096,
+		.step = 1,
+		.def = 0,
+		.is_private = 1,
+	}, {
+		.id = V4L2_CID_CRU_LINEAR_MATRIX_GB,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.ops = &rzg2l_cru_ctrl_ops,
+		.name = "Linear Matrix GB coefficient ",
+		.max = 4095,
+		.min = -4096,
+		.step = 1,
+		.def = 0,
+		.is_private = 1,
+	}, {
+		.id = V4L2_CID_CRU_LINEAR_MATRIX_BR,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.ops = &rzg2l_cru_ctrl_ops,
+		.name = "Linear Matrix BR coefficient ",
+		.max = 4095,
+		.min = -4096,
+		.step = 1,
+		.def = 0,
+		.is_private = 1,
+	}, {
+		.id = V4L2_CID_CRU_LINEAR_MATRIX_BG,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.ops = &rzg2l_cru_ctrl_ops,
+		.name = "Linear Matrix BG coefficient ",
+		.max = 4095,
+		.min = -4096,
+		.step = 1,
+		.def = 0,
+		.is_private = 1,
+	}, {
+		.id = V4L2_CID_CRU_LINEAR_MATRIX_BB,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.ops = &rzg2l_cru_ctrl_ops,
+		.name = "Linear Matrix BB coefficient ",
+		.max = 4095,
+		.min = -4096,
 		.step = 1,
 		.def = 0,
 		.is_private = 1,
@@ -318,6 +464,12 @@ struct rzg2l_cru_dev {
 	int sd_blksize;
 	int sd_sthpos;
 	int sd_stsadpos;
+
+	bool is_linear_matrix_enable;
+	int linear_matrix_rgb_offset[3];
+	int linear_matrix_r[3];	/* RR, RG, RB */
+	int linear_matrix_g[3]; /* GR, GG, GB */
+	int linear_matrix_b[3]; /* BR, BG, BB */
 };
 
 int rzg2l_cru_start_image_processing(struct rzg2l_cru_dev *cru);
