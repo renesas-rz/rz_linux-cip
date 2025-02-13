@@ -925,6 +925,47 @@
 			};
 		};
 
+		esc: esc@80130000 {
+			compatible = "renesas,rzn2h-esc";
+			reg =  <0 0x80130000 0 0x10000>;
+			interrupts = <GIC_SPI 579 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 580 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 581 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "sync0irq", "sync1irq", "catirq";
+			clocks = <&cpg CPG_MOD R9A09G077_ESC_CLK>;
+			resets = <&cpg R9A09G077_ESC_BUS_RST>,
+				 <&cpg R9A09G077_ESC_IP_RST>;
+			reset-names = "reset_bus", "reset_ip";
+			power-domains = <&cpg>;
+			eeprom-size = <0>;
+			phy-address-offset = <0>;
+			txc-port-delay = <0>;
+			status = "disabled";
+
+			ethernet-ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				esc_port0: port@0 {
+					reg = <0>;
+					pcs-handle = <&mii_conv0>;
+					status = "disabled";
+				};
+
+				esc_port1: port@1 {
+					reg = <1>;
+					pcs-handle = <&mii_conv1>;
+					status = "disabled";
+				};
+
+				esc_port2: port@2 {
+					reg = <2>;
+					pcs-handle = <&mii_conv2>;
+					status = "disabled";
+				};
+			};
+		};
+
 		rtc: rtc@81009000 {
 			compatible = "renesas,rzn2h-rtc";
 			reg = <0 0x81009000 0 0x1000>;
