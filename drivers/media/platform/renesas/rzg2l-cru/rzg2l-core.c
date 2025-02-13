@@ -138,7 +138,7 @@ static int rzg2l_cru_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct rzg2l_cru_dev *cru = container_of(ctrl->handler,
 						 struct rzg2l_cru_dev,
 						 ctrl_handler);
-	int ret = 0;
+	int ret = 0, order;
 
 	if ((cru->state == RZG2L_CRU_DMA_STOPPED) ||
 	    (cru->state == RZG2L_CRU_DMA_STOPPING)) {
@@ -160,6 +160,33 @@ static int rzg2l_cru_s_ctrl(struct v4l2_ctrl *ctrl)
 			break;
 		case V4L2_CID_CRU_SD_STSADPOS:
 			cru->sd_stsadpos = ctrl->val;
+			break;
+		case V4L2_CID_CRU_LINEAR_MATRIX:
+			cru->is_linear_matrix_enable = ctrl->val;
+			break;
+		case V4L2_CID_CRU_LINEAR_MATRIX_ROF:
+		case V4L2_CID_CRU_LINEAR_MATRIX_GOF:
+		case V4L2_CID_CRU_LINEAR_MATRIX_BOF:
+			order = ctrl->id - V4L2_CID_CRU_LINEAR_MATRIX_ROF;
+			cru->linear_matrix_rgb_offset[order] = ctrl->val;
+			break;
+		case V4L2_CID_CRU_LINEAR_MATRIX_RR:
+		case V4L2_CID_CRU_LINEAR_MATRIX_RG:
+		case V4L2_CID_CRU_LINEAR_MATRIX_RB:
+			order = ctrl->id - V4L2_CID_CRU_LINEAR_MATRIX_RR;
+			cru->linear_matrix_r[order] = ctrl->val;
+			break;
+		case V4L2_CID_CRU_LINEAR_MATRIX_GR:
+		case V4L2_CID_CRU_LINEAR_MATRIX_GG:
+		case V4L2_CID_CRU_LINEAR_MATRIX_GB:
+			order = ctrl->id - V4L2_CID_CRU_LINEAR_MATRIX_GR;
+			cru->linear_matrix_g[order] = ctrl->val;
+			break;
+		case V4L2_CID_CRU_LINEAR_MATRIX_BR:
+		case V4L2_CID_CRU_LINEAR_MATRIX_BG:
+		case V4L2_CID_CRU_LINEAR_MATRIX_BB:
+			order = ctrl->id - V4L2_CID_CRU_LINEAR_MATRIX_BR;
+			cru->linear_matrix_b[order] = ctrl->val;
 			break;
 		default:
 			ret = -EINVAL;
@@ -453,6 +480,13 @@ static const u16 rzg2l_cru_regs[CRU_REGS_END] = {
 	[AMnSDAXISTPACK] = 0x1F8,
 	[ICnEN] = 0x200,
 	[ICnMC] = 0x208,
+	[ICnLMXOF] = 0x224,
+	[ICnLMXRC1] = 0x228,
+	[ICnLMXRC2] = 0x22C,
+	[ICnLMXGC1] = 0x230,
+	[ICnLMXGC2] = 0x234,
+	[ICnLMXBC1] = 0x238,
+	[ICnLMXBC2] = 0x23C,
 	[ICnSTIC1] = 0x240,
 	[ICnSTIC2] = 0x244,
 	[ICnMS] = 0x254,
