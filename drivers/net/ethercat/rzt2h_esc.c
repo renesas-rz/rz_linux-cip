@@ -685,6 +685,7 @@ static int esc_remove(struct platform_device *pdev)
 
 static const struct of_device_id esc_of_mtable[] = {
 	{ .compatible = "renesas,rzt2h-esc", },
+	{ .compatible = "renesas,rzn2h-esc", },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, esc_of_mtable);
