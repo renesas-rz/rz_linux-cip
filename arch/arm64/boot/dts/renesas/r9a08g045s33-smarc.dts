@@ -59,6 +59,13 @@
  */
 #define SPDIF_SEL		SW_OFF
 
+/*
+ * Select between key 1 GPIO hog and POEGA due to pins multiplex:
+ * @POEGA_SEL:
+ *     SW_OFF - GPIO key 1 pins are selected (default)
+ *     SW_ON  - POEGA pin are selected
+ */
+#define POEGA_SEL		SW_OFF
 
 #include "r9a08g045s33.dtsi"
 #include "rzg3s-smarc-som.dtsi"

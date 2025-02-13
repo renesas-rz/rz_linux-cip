@@ -20,6 +20,7 @@
 	keys {
 		compatible = "gpio-keys";
 
+#if POEGA_SEL == SW_OFF
 		key-1 {
 			interrupts = <RZG2L_GPIO(18, 0) IRQ_TYPE_EDGE_FALLING>;
 			interrupt-parent = <&pinctrl>;
@@ -28,6 +29,7 @@
 			wakeup-source;
 			debounce-interval = <20>;
 		};
+#endif
 
 		key-2 {
 			interrupts = <RZG2L_GPIO(0, 1) IRQ_TYPE_EDGE_FALLING>;
@@ -184,12 +186,14 @@
 	pinctrl-0 = <&sound_clk_pins>;
 	pinctrl-names = "default";
 
+#if POEGA_SEL == SW_OFF
 	key-1-gpio-hog {
 		gpio-hog;
 		gpios = <RZG2L_GPIO(18, 0) GPIO_ACTIVE_LOW>;
 		input;
 		line-name = "key-1-gpio-irq";
 	};
+#endif
 
 	key-2-gpio-hog {
 		gpio-hog;
@@ -240,9 +244,11 @@
 			 <RZG2L_PORT_PINMUX(13, 1, 2)>; /* GTIOC0B - GPIO9 */
 	};
 
+#if POEGA_SEL == SW_ON
 	poega_pins: poega {
 		pinmux = <RZG2L_PORT_PINMUX(18, 0, 6)>; /* GTERGA - GPIO4 */
 	};
+#endif
 
 	mtu3_pins: mtu3 {
 		mtu3-pwm {
@@ -375,11 +381,13 @@
 	status = "okay";
 };
 
+#if POEGA_SEL == SW_ON
 &poega {
 	pinctrl-0 = <&poega_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
+#endif
 
 &scif0 {
 	pinctrl-names = "default";
