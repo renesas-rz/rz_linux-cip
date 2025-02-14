@@ -164,7 +164,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		global_cma: linux,cma@E0000000 {
+		global_cma: linux,cma@D0000000 {
 			compatible = "shared-dma-pool";
 			linux,cma-default;
 			reusable;
