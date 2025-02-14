@@ -117,6 +117,13 @@
  */
  #define SEL_ESC_ETHSW_GMAC2			0
 
+/*
+ * Set SEL_ESC_MTU3 to below values to select using of:
+ * - 0: MTU3 (default)
+ * - 1: ESC
+ */
+ #define SEL_ESC_MTU3			0
+
 / {
 	model = "Renesas Development EVK based on r9a09g087m44";
 	compatible = "renesas,r9a09g087m44-dev", "renesas,r9a09g087m44", "renesas,r9a09g087";
@@ -925,7 +932,7 @@
 };
 #endif
 
-#if ((!SEL_ETHSW_ESC_LCDC) && (SEL_ESC_ETHSW_GMAC2))
+#if ((!SEL_ETHSW_ESC_LCDC) && (SEL_ESC_ETHSW_GMAC2) && (SEL_ESC_MTU3))
 &esc {
 	status = "okay";
 	#address-cells = <1>;
@@ -965,6 +972,17 @@
 			vsc8531,led-1-combine-disable;
 			reg = <2>;
 		};
+	};
+
+	led_dipsw_device {
+		led0-gpios = <&pinctrl RZT2H_GPIO(22, 7) GPIO_ACTIVE_HIGH>;
+		led1-gpios = <&pinctrl RZT2H_GPIO(23, 0) GPIO_ACTIVE_HIGH>;
+		led2-gpios = <&pinctrl RZT2H_GPIO(2, 7) GPIO_ACTIVE_HIGH>;
+		led3-gpios = <&pinctrl RZT2H_GPIO(3, 0) GPIO_ACTIVE_HIGH>;
+		dipsw0-gpios = <&pinctrl RZT2H_GPIO(27, 2) GPIO_ACTIVE_HIGH>;
+		dipsw1-gpios = <&pinctrl RZT2H_GPIO(27, 3) GPIO_ACTIVE_HIGH>;
+		dipsw2-gpios = <&pinctrl RZT2H_GPIO(27, 6) GPIO_ACTIVE_HIGH>;
+		dipsw3-gpios = <&pinctrl RZT2H_GPIO(31, 3) GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -1190,7 +1208,7 @@
 };
 #endif
 
-#if (!SEL_SCI1_POE3_LCDC)
+#if ((!SEL_SCI1_POE3_LCDC) && (!SEL_ESC_MTU3))
 &mtu3 {
 #if (MTU3_PWM_SUPPORT || MTU3_PHASE_COUNTING_SUPPORT)
 	pinctrl-0 = <&mtu3_pins>;
