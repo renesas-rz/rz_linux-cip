@@ -1118,8 +1118,7 @@
 		mtu3: timer@10001200 {
 			compatible = "renesas,r9a08g045-mtu3",
 				     "renesas,rz-mtu3";
-			reg = <0 0x10001200 0 0xB00>,
-			      <0 0x11050080 0 0x08>;
+			reg = <0 0x10001200 0 0xB00>;
 #if (MTU3_INTERRUPT_SUPPORT)
 			interrupts =
 				<GIC_SPI 132 IRQ_TYPE_EDGE_RISING>,
@@ -1181,6 +1180,7 @@
 					  "tciv7",
 					  "tgia8", "tgib8", "tgic8", "tgid8",
 					  "tciv8", "tciu8";
+			interrupt-select = <&irqc>;
 #endif
 			clocks = <&cpg CPG_MOD R9A08G045_MTU_X_MCK_MTU3>;
 			clock-names = "fck";
