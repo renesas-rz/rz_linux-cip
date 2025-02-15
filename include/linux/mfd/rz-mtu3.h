@@ -10,8 +10,8 @@
 #include <linux/mutex.h>
 
 /* GPT and MTU3 interrupt selection registers */
-#define INTPMSEL0		0	/* For RZ/G3S only */
-#define INTPMSEL1		0x4	/* For RZ/G3S only */
+#define INTPMSEL0		0x80	/* For RZ/G3S only */
+#define INTPMSEL1		0x84	/* For RZ/G3S only */
 
 /* 8-bit shared register offsets macros */
 #define RZ_MTU3_TSTRA	0x080 /* Timer start register A */

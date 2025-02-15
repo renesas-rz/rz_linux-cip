@@ -380,6 +380,9 @@ static int rz_mtu3_probe(struct platform_device *pdev)
 	struct rz_mtu3_priv *priv;
 	struct rz_mtu3 *ddata;
 	struct device_node *np = pdev->dev.of_node;
+	struct device_node *irqc_node;
+	struct platform_device *irqc_dev;
+	struct resource *res;
 	unsigned int i;
 	int ret;
 
@@ -399,11 +402,25 @@ static int rz_mtu3_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->mmio);
 
 	if (of_device_is_compatible(np, "renesas,r9a08g045-mtu3")) {
-		priv->irq_sel_base = devm_platform_ioremap_resource(pdev, 1);
-		if (IS_ERR(priv->irq_sel_base))
-			return PTR_ERR(priv->irq_sel_base);
-	} else
-		priv->irq_sel_base = NULL;
+		irqc_node = of_parse_phandle(pdev->dev.of_node, "interrupt-select", 0);
+		if (irqc_node != NULL) {
+			irqc_dev = of_find_device_by_node(irqc_node);
+			if (!irqc_dev) {
+				dev_err(&pdev->dev, "Not found device associated with IRQC node\n");
+				return -EINVAL;
+			}
+
+			res = platform_get_resource(irqc_dev, IORESOURCE_MEM, 0);
+			if (!res) {
+				dev_err(&pdev->dev, "Failed to get resource from IRQC\n");
+				return -EINVAL;
+			}
+
+			priv->irq_sel_base = devm_ioremap(&irqc_dev->dev, res->start, resource_size(res));
+			if (!priv->irq_sel_base)
+				return -ENOMEM;
+		}
+	}
 
 	priv->rstc = devm_reset_control_get_shared(&pdev->dev, NULL);
 	if (IS_ERR(priv->rstc)) {
