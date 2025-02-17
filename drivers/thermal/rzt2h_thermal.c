@@ -22,6 +22,8 @@
 
 #include "thermal_hwmon.h"
 
+#define RZ_SIP_SVC_GET_SYSTSU		0x82000022
+
 #define CTEMP_MASK			GENMASK(11, 0)
 
 /* Register offsets */
@@ -69,16 +71,6 @@
 #define MCELSIUS(temp)			((temp) * MILLIDEGREE_PER_DEGREE)
 
 #define RZT2H_TSU_SS_TIMEOUT_US		10000
-
-#define RZT2H_OTP_BASE			0x810C0000
-#define RZT2H_OTPPWR			0x00
-#define RZT2H_OTPSTR			0x04
-#define RZT2H_OTPADRRD			0x14
-#define RZT2H_OTPDATARD			0x18
-
-#define RZT2H_OTPPWR_PWR		BIT(0)
-#define RZT2H_OTPPWR_ACCL		BIT(4)
-#define RZT2H_OTPSTR_CMD_RDY		BIT(0)
 
 #define OTP_TSU_REG_ADR_TEMPHI		0x01DC
 #define OTP_TSU_REG_ADR_TEMPLO		0x01DD
@@ -175,47 +167,16 @@ static void rzt2h_thermal_init(struct rzt2h_thermal_priv *priv)
 static int rzt2h_otp_tsu_get_temp(struct platform_device *pdev)
 {
 	struct rzt2h_thermal_priv *priv = dev_get_drvdata(&pdev->dev);
-	u32 reg;
-	int ret;
+	struct arm_smccc_res local_res;
 
-	{
-		/* FIXME: Hard code to access to OTP registers until can find
-		 * another way.
-		 */
-		void __iomem *otp_base = ioremap(RZT2H_OTP_BASE, 0x50);
+	/* Get TSU TSCODE values from OTP registers */
+	arm_smccc_smc(RZ_SIP_SVC_GET_SYSTSU, OTP_TSU_REG_ADR_TEMPHI,
+					0, 0, 0, 0, 0, 0, &local_res);
+	priv->otp_tscode_temphi = local_res.a0 & CTEMP_MASK;
 
-		reg = RZT2H_OTPPWR_PWR | RZT2H_OTPPWR_ACCL;
-		iowrite32(reg, otp_base + RZT2H_OTPPWR);
-
-		ret = readl_poll_timeout(otp_base + RZT2H_OTPSTR, reg,
-						reg & RZT2H_OTPSTR_CMD_RDY,
-						50, RZT2H_TSU_SS_TIMEOUT_US);
-		if (ret)
-			return ret;
-
-		reg = OTP_TSU_REG_ADR_TEMPHI;
-		iowrite32(reg, otp_base + RZT2H_OTPADRRD);
-
-		priv->otp_tscode_temphi = ioread32(otp_base + RZT2H_OTPDATARD)
-						& CTEMP_MASK;
-
-		reg = OTP_TSU_REG_ADR_TEMPLO;
-		iowrite32(reg, otp_base + RZT2H_OTPADRRD);
-
-		priv->otp_tscode_templo = readl(otp_base + RZT2H_OTPDATARD)
-						& CTEMP_MASK;
-
-		reg &= ~(RZT2H_OTPPWR_PWR | RZT2H_OTPPWR_ACCL);
-
-		iowrite32(reg, otp_base + RZT2H_OTPPWR);
-
-		ret = readl_poll_timeout(otp_base + RZT2H_OTPSTR, reg,
-						!reg, 50, RZT2H_TSU_SS_TIMEOUT_US);
-		if (ret)
-			return ret;
-
-		iounmap(otp_base);
-	}
+	arm_smccc_smc(RZ_SIP_SVC_GET_SYSTSU, OTP_TSU_REG_ADR_TEMPLO,
+					0, 0, 0, 0, 0, 0, &local_res);
+	priv->otp_tscode_templo = local_res.a0 & CTEMP_MASK;
 
 	if (priv->otp_tscode_temphi == 0 || priv->otp_tscode_templo == 0) {
 		dev_err(priv->dev, "not found OTP value");
