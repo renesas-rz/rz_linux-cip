@@ -483,19 +483,15 @@ static const struct i2c_algorithm riic_algo = {
 
 static int riic_init_hw(struct riic_dev *riic, struct i2c_timings *t, bool recover)
 {
-	int ret = 0;
 	unsigned long rate;
 	int total_ticks, cks, brl, brh;
 	struct device *dev = riic->adapter.dev.parent;
-
-	pm_runtime_get_sync(dev);
 
 	if (t->bus_freq_hz > riic->info->max_speed) {
 		dev_err(riic->adapter.dev.parent,
 			"unsupported bus speed (%dHz). %d max\n",
 			t->bus_freq_hz, riic->info->max_speed);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	if (t->bus_freq_hz == I2C_MAX_FAST_MODE_PLUS_FREQ)
@@ -542,8 +538,7 @@ static int riic_init_hw(struct riic_dev *riic, struct i2c_timings *t, bool recov
 	if (brl > (0x1F + 3)) {
 		dev_err(riic->adapter.dev.parent, "invalid speed (%lu). Too slow.\n",
 			(unsigned long)t->bus_freq_hz);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	brh = total_ticks - brl;
@@ -575,6 +570,8 @@ static int riic_init_hw(struct riic_dev *riic, struct i2c_timings *t, bool recov
 		 t->scl_fall_ns / (1000000000 / rate),
 		 t->scl_rise_ns / (1000000000 / rate), cks, brl, brh);
 
+	pm_runtime_get_sync(dev);
+
 	/* Changing the order of accessing IICRST and ICE may break things! */
 	writeb(ICCR1_IICRST | ICCR1_SOWP, riic->base + riic->info->regs->iccr1);
 	riic_clear_set_bit(riic, 0, ICCR1_ICE, riic->info->regs->iccr1);
@@ -588,9 +585,8 @@ static int riic_init_hw(struct riic_dev *riic, struct i2c_timings *t, bool recov
 
 	riic_clear_set_bit(riic, ICCR1_IICRST, 0, riic->info->regs->iccr1);
 
-out:
 	pm_runtime_put(dev);
-	return ret;
+	return 0;
 }
 
 static int riic_recover_bus(struct i2c_adapter *adap)
