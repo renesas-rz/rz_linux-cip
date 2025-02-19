@@ -537,7 +537,7 @@
 	status = "okay";
 
 	mtu3_ch67 {
-		mtu3_outputs = <1>; /* MTIOC7B-MTIOC7D */
+		mtu3_outputs = <2>; /* MTIOC7B-MTIOC7D */
 		addition_poe3_inputs = <0 10>;
 	};
 };
