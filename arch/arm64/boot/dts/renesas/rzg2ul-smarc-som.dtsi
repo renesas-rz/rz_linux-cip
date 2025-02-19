@@ -19,6 +19,18 @@
 		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
 	};
 
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		nmi {
+			interrupt-parent = <&irqc>;
+			interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+			linux,code = <4>;
+			label = "NMI";
+			wakeup-source;
+		};
+	};
+
 	memory@48000000 {
 		device_type = "memory";
 		/* first 128MB is reserved for secure area. */

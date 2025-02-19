@@ -42,6 +42,18 @@
 		};
 	};
 
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		nmi {
+			interrupt-parent = <&irqc>;
+			interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+			linux,code = <4>;
+			label = "NMI";
+			wakeup-source;
+		};
+	};
+
 	mmngr {
 		compatible = "renesas,mmngr";
 		memory-region = <&mmp_reserved>;
