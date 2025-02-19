@@ -123,6 +123,7 @@ struct riic_dev {
 	struct i2c_adapter adapter;
 	struct clk *clk;
 	struct reset_control *rstc;
+	struct i2c_timings i2c_t;
 
 	struct riic_platform_info *info;
 };
@@ -486,11 +487,12 @@ static const struct i2c_algorithm riic_algo = {
 	.functionality		= riic_func,
 };
 
-static int riic_init_hw(struct riic_dev *riic, struct i2c_timings *t, bool recover)
+static int riic_init_hw(struct riic_dev *riic, bool recover)
 {
 	int ret;
 	unsigned long rate;
 	int total_ticks, cks, brl, brh;
+	struct i2c_timings *t = &riic->i2c_t;
 	struct device *dev = riic->adapter.dev.parent;
 
 	if (t->bus_freq_hz > riic->info->max_speed) {
@@ -576,9 +578,11 @@ static int riic_init_hw(struct riic_dev *riic, struct i2c_timings *t, bool recov
 		 t->scl_fall_ns / (1000000000 / rate),
 		 t->scl_rise_ns / (1000000000 / rate), cks, brl, brh);
 
-	ret = pm_runtime_resume_and_get(dev);
-	if (ret)
-		return ret;
+	if (!recover) {
+		ret = pm_runtime_resume_and_get(dev);
+		if (ret)
+			return ret;
+	}
 
 	/* Changing the order of accessing IICRST and ICE may break things! */
 	writeb(ICCR1_IICRST | ICCR1_SOWP, riic->base + riic->info->regs->iccr1);
@@ -593,8 +597,10 @@ static int riic_init_hw(struct riic_dev *riic, struct i2c_timings *t, bool recov
 
 	riic_clear_set_bit(riic, ICCR1_IICRST, 0, riic->info->regs->iccr1);
 
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
+	if (!recover) {
+		pm_runtime_mark_last_busy(dev);
+		pm_runtime_put_autosuspend(dev);
+	}
 	return 0;
 }
 
@@ -602,12 +608,10 @@ static int riic_recover_bus(struct i2c_adapter *adap)
 {
 	struct riic_dev *riic = i2c_get_adapdata(adap);
 	struct device *dev = riic->adapter.dev.parent;
-	struct i2c_timings i2c_t;
 	int ret, i;
 	u8 val;
 
-	i2c_parse_fw_timings(dev, &i2c_t, true);
-	ret = riic_init_hw(riic, &i2c_t, true);
+	ret = riic_init_hw(riic, true);
 	if (ret)
 		return -EINVAL;
 
@@ -687,8 +691,6 @@ static int riic_i2c_probe(struct platform_device *pdev)
 	struct riic_dev *riic;
 	struct i2c_adapter *adap;
 	struct resource *res;
-	struct i2c_timings i2c_t;
-	struct reset_control *rstc;
 	int i, ret;
 	struct riic_platform_info *info;
 
@@ -709,18 +711,16 @@ static int riic_i2c_probe(struct platform_device *pdev)
 		return PTR_ERR(riic->clk);
 	}
 
-	rstc = devm_reset_control_get_optional_exclusive(dev, NULL);
-	if (IS_ERR(rstc))
-		return dev_err_probe(dev, PTR_ERR(rstc),
+	riic->rstc = devm_reset_control_get_optional_exclusive(dev, NULL);
+	if (IS_ERR(riic->rstc))
+		return dev_err_probe(dev, PTR_ERR(riic->rstc),
 				     "Error: missing reset ctrl\n");
 
-	ret = reset_control_deassert(rstc);
+	ret = reset_control_deassert(riic->rstc);
 	if (ret)
 		return ret;
 
-	riic->rstc = rstc;
-
-	ret = devm_add_action_or_reset(dev, riic_reset_control_assert, rstc);
+	ret = devm_add_action_or_reset(dev, riic_reset_control_assert, riic->rstc);
 	if (ret)
 		return ret;
 
@@ -749,14 +749,14 @@ static int riic_i2c_probe(struct platform_device *pdev)
 
 	init_completion(&riic->msg_done);
 
-	i2c_parse_fw_timings(dev, &i2c_t, true);
+	i2c_parse_fw_timings(dev, &riic->i2c_t, true);
 
 	/* Default 0 to save power. Can be overridden via sysfs for lower latency. */
 	pm_runtime_set_autosuspend_delay(dev, 0);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_enable(dev);
 
-	ret = riic_init_hw(riic, &i2c_t, false);
+	ret = riic_init_hw(riic, false);
 	if (ret)
 		goto out;
 
@@ -767,7 +767,7 @@ static int riic_i2c_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, riic);
 
 	dev_info(dev, "registered with %dHz bus speed\n",
-		 i2c_t.bus_freq_hz);
+		 riic->i2c_t.bus_freq_hz);
 	return 0;
 
 out:
@@ -847,36 +847,45 @@ static const struct of_device_id riic_i2c_dt_ids[] = {
 	{ /* Sentinel */ },
 };
 
-static int __maybe_unused riic_i2c_suspend(struct device *dev)
+static int riic_i2c_suspend(struct device *dev)
 {
 	struct riic_dev *riic = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret)
+		return ret;
 
 	i2c_mark_adapter_suspended(&riic->adapter);
 
-	if (riic->rstc)
-		reset_control_assert(riic->rstc);
+	/* Disable output on SDA, SCL pins. */
+	riic_clear_set_bit(riic, ICCR1_ICE, 0, riic->info->regs->iccr1);
 
-	return 0;
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_sync(dev);
+
+	return reset_control_assert(riic->rstc);
 }
 
-static int __maybe_unused riic_i2c_resume(struct device *dev)
+static int riic_i2c_resume(struct device *dev)
 {
 	struct riic_dev *riic = dev_get_drvdata(dev);
-	int ret = 0;
-	struct i2c_timings i2c_t;
+	int ret;
 
-	if (riic->rstc) {
-		ret = reset_control_deassert(riic->rstc);
-		if (ret) {
-			dev_err(dev, "Failed to reset controller (error %d)\n", ret);
-			return ret;
-		}
-	}
-
-	i2c_parse_fw_timings(dev, &i2c_t, true);
-	ret = riic_init_hw(riic, &i2c_t, false);
+	ret = reset_control_deassert(riic->rstc);
 	if (ret)
 		return ret;
+
+	ret = riic_init_hw(riic, false);
+	if (ret) {
+		/*
+		 * In case this happens there is no way to recover from this
+		 * state. The driver will remain loaded. We want to avoid
+		 * keeping the reset line de-asserted for no reason.
+		 */
+		reset_control_assert(riic->rstc);
+		return ret;
+	}
 
 	i2c_mark_adapter_resumed(&riic->adapter);
 
@@ -884,7 +893,7 @@ static int __maybe_unused riic_i2c_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops riic_i2c_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(riic_i2c_suspend, riic_i2c_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(riic_i2c_suspend, riic_i2c_resume)
 };
 
 static struct platform_driver riic_i2c_driver = {
@@ -893,7 +902,7 @@ static struct platform_driver riic_i2c_driver = {
 	.driver		= {
 		.name	= "i2c-riic",
 		.of_match_table = riic_i2c_dt_ids,
-		.pm	= &riic_i2c_pm_ops,
+		.pm	= pm_ptr(&riic_i2c_pm_ops),
 	},
 };
 
