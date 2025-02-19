@@ -210,6 +210,9 @@ static int ethsw_port_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 {
 	struct ethsw *ethsw = ds->priv;
 
+	if (dsa_is_cpu_port(ds, port))
+		new_mtu += ETHSW_EXTRA_FRM_LENGTH;
+
 	new_mtu += ETH_HLEN + ETHSW_EXTRA_MTU_LEN + ETH_FCS_LEN;
 	ethsw_reg_writel(ethsw, ETHSW_FRM_LENGTH(port), new_mtu);
 
