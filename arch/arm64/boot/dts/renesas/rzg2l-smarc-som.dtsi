@@ -64,6 +64,18 @@
 		compatible = "renesas,mmngrbuf";
 	};
 
+	keyboard {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		key-reserved {
+			interrupt-parent = <&irqc>;
+			interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+			linux,code = <0>;
+			label = "NMI";
+			wakeup-source;
+		};
+	};
+
 	vspm_if {
 		compatible = "renesas,vspm_if";
 	};
