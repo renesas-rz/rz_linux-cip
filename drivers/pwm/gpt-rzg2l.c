@@ -553,8 +553,6 @@ static int rzg2l_gpt_request(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	pc->enable_clock = 1;
 
-	reset_control_deassert(pc->rstc);
-
 	return pm_runtime_get_sync(chip->dev);
 }
 
@@ -565,8 +563,6 @@ static void rzg2l_gpt_free(struct pwm_chip *chip, struct pwm_device *pwm)
 	pc->enable_clock = 0;
 
 	pm_runtime_put(chip->dev);
-
-	reset_control_assert(pc->rstc);
 }
 
 static int rzg2l_gpt_config(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -2292,6 +2288,8 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get cpg reset\n");
 		return PTR_ERR(rzg2l_gpt->rstc);
 	}
+
+	reset_control_deassert(rzg2l_gpt->rstc);
 
 	irq = platform_get_irq_byname(pdev, "gtcib");
 	if (irq < 0) {
