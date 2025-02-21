@@ -111,6 +111,13 @@
 #define POE3_SUPPORT				1
 
 /*
+ * Set SEL_SCI3_PTPOUT2 to below values to select using of:
+ * - 0: SCI3 (default)
+ * - 1: ETHSW_PTPOUT2
+ */
+#define SEL_SCI3_PTPOUT2       0
+
+/*
  * Set SEL_ESC_ETHSW_GMAC2 to below values to select using of:
  * - 0: ETHSW, I2C0, GMAC2 (default)
  * - 1: ESC
@@ -132,7 +139,9 @@
 	aliases {
 		serial0 = &sci0;
 		serial1 = &sci1;
+#if (!SEL_SCI3_PTPOUT2)
 		serial3 = &sci3;
+#endif
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
 #if (!SEL_ESC_ETHSW_GMAC2)
@@ -241,10 +250,12 @@
 		bias-pull-up;
 	};
 
+#if (!SEL_SCI3_PTPOUT2)
 	sci3_pins: sci3 {
 		pinmux = <RZT2H_PORT_PINMUX(13, 5, 0x14)>, /* SCI3_TXD */
 			 <RZT2H_PORT_PINMUX(13, 4, 0x14)>; /* SCI3_RXD */
 	};
+#endif
 
 #if (!SEL_SDHI_CANFD)
 #if (SEL_GPT_SD0)
@@ -342,7 +353,13 @@
 			 <RZT2H_PORT_PINMUX(21, 5, 0x11)>,	/* ETHSW_MDIO */
 			 <RZT2H_PORT_PINMUX(21, 6, 0x11)>,	/* ETHSW_PHYLINK0 */
 			 <RZT2H_PORT_PINMUX(26, 3, 0x11)>,	/* ETHSW_PHYLINK1 */
-			 <RZT2H_PORT_PINMUX(30, 7, 0x11)>;	/* ETHSW_PHYLINK2 */
+			 <RZT2H_PORT_PINMUX(30, 7, 0x11)>,	/* ETHSW_PHYLINK2 */
+			 <RZT2H_PORT_PINMUX(17, 6, 0x11)>,	/* ETHSW_PTPOUT0 */
+			 <RZT2H_PORT_PINMUX(17, 7, 0x11)>,	/* ETHSW_PTPOUT1 */
+#if (SEL_SCI3_PTPOUT2)
+			 <RZT2H_PORT_PINMUX(14, 0, 0x11)>,	/* ETHSW_PTPOUT2 */
+#endif
+			 <RZT2H_PORT_PINMUX(18, 7, 0x11)>;	/* ETHSW_PTPOUT3 */
 	};
 #else
 	esc_pins: esc_pins {
@@ -503,7 +520,7 @@
 
 	icu_pins: icu_pins {
 		pinmux = <RZT2H_PORT_PINMUX(00, 4, 0x00)>, /* Interrupt : IRQ3/P00_4 */
-			 <RZT2H_PORT_PINMUX(18, 7, 0x00)>; /* Interrupt : IRQ4/P18_7 */
+			 <RZT2H_PORT_PINMUX(05, 2, 0x00)>; /* Interrupt : IRQ4/P05_2 */
 	};
 
 	xspi1_pins: xspi1 {
@@ -647,6 +664,7 @@
 	status = "okay";
 };
 
+#if (!SEL_SCI3_PTPOUT2)
 &sci3 {
 	pinctrl-0 = <&sci3_pins>;
 	pinctrl-names = "default";
@@ -656,6 +674,7 @@
 	rts-gpios = <&pinctrl RZT2H_GPIO(14, 0) (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
 	status = "okay";
 };
+#endif
 
 #if (!SEL_SDHI_CANFD)
 #if (SEL_SD0)
@@ -871,6 +890,7 @@
 #endif
 #if (!SEL_ESC_ETHSW_GMAC2)
 	renesas,ethss-switch-portmanagement = <ETHSS_GMAC0_PORT>;
+	ethsw_pulse_gen_timer = <0>; /* Pulse generator use ETHSW timer 0 */
 #endif
 };
 
