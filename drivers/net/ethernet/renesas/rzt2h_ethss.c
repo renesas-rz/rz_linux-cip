@@ -59,8 +59,10 @@
 #define ETHSS_SWDUPC_DUPLEX_MASK(x)	BIT(x)
 #define ETHSS_SWDUPC_DUPLEX_FULL(x)	BIT(x)
 
-#define ETHSS_PTPMCTRL                  0x00C
-#define ETHSS_PTPMCTRL_GMAC(gmac)       BIT(gmac)
+#define ETHSS_PTPMCTRL			0x00C
+#define ETHSS_PTPMCTRL_GMAC(gmac)	BIT(gmac)
+#define ETHSS_PTPMCTRL_PLS_RST		BIT(16)
+#define ETHSS_PTPMCTRL_PULSE_GEN	BIT(0)
 
 #define ESC_ECATOFFADR			0x200
 #define ESC_ECATOPMOD			0x204
@@ -501,6 +503,23 @@ static void ethss_parse_phylnk(struct ethss *ethss, struct device *dev)
 	}
 }
 
+static int ethss_parse_pulse_gen(struct ethss *ethss, struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	u32 pulse_gen_timer;
+
+	of_property_read_u32(dev->of_node, "ethsw_pulse_gen_timer", &pulse_gen_timer);
+
+	if (pulse_gen_timer > 1)
+		return ERR_PTR(-EINVAL);
+
+	if (pulse_gen_timer)
+		ethss_reg_rmw(ethss, ETHSS_PTPMCTRL,
+			      ETHSS_PTPMCTRL_PULSE_GEN, ETHSS_PTPMCTRL_PULSE_GEN);
+
+	return 0;
+}
+
 static void ethss_parse_esclink(struct ethss *ethss, struct device *dev)
 {
 	struct device_node *np = dev->of_node;
@@ -579,6 +598,15 @@ static int ethss_probe(struct platform_device *pdev)
 		goto disable_runtime_pm;
 
 	ethss_parse_phylnk(ethss, dev);
+
+	/* Release Pulse Generator reset state */
+	ethss_reg_rmw(ethss, ETHSS_PTPMCTRL,
+		      ETHSS_PTPMCTRL_PLS_RST, ETHSS_PTPMCTRL_PLS_RST);
+
+	ret = ethss_parse_pulse_gen(ethss, dev);
+	if (ret)
+		dev_err(dev, "failed to set Pulse Generator\n");
+
 	ethss_parse_esclink(ethss, dev);
 
 	/* ethss_create() relies on that fact that data are attached to the
