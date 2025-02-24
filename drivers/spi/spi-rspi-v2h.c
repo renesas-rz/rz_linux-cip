@@ -223,7 +223,7 @@ static void rspi_set_rate(struct rspi_data *rspi)
 	unsigned long clksrc;
 	int brdv = 0, spbr;
 
-	if (!spi_controller_is_slave(rspi->ctlr)) {
+	if (!spi_controller_is_target(rspi->ctlr)) {
 		clksrc = clk_get_rate(rspi->tclk);
 		spbr = DIV_ROUND_UP(clksrc, 2 * rspi->speed_hz) - 1;
 		while (spbr > 255 && brdv < 3) {
@@ -265,7 +265,7 @@ static int rspi_v2h_set_config_register(struct rspi_data *rspi, int access_size)
 	rspi_write32(rspi, rspi->spcmd, RSPI_SPCMD0);
 
 	/* Sets RSPI mode */
-	if (!spi_controller_is_slave(rspi->ctlr))
+	if (!spi_controller_is_target(rspi->ctlr))
 		rspi_write32(rspi, SPCR_MSTR, RSPI_SPCR);
 
 	return 0;
@@ -665,7 +665,7 @@ static int rspi_prepare_message(struct spi_controller *ctlr,
 		rspi->bits_per_word = xfer->bits_per_word;
 	}
 
-	if (!spi_controller_is_slave(rspi->ctlr))
+	if (!spi_controller_is_target(rspi->ctlr))
 		rspi->spcmd = SPCMD_SSLKP;
 	if (spi->mode & SPI_CPOL)
 		rspi->spcmd |= SPCMD_CPOL;
