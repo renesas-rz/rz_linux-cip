@@ -448,6 +448,59 @@
 			dma-channels = <16>;
 			renesas,icu = <&intc_ex 2>;
 		};
+
+		cmt0: timer@80080000 {
+			compatible = "renesas,rzt2n-cmt";
+			reg = <0 0x80080000 0 0x400>;
+			interrupts = <GIC_SPI 349 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 350 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD R9A07G076_CMT0_CLK>;
+			clock-names = "fck0";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		cmt1: timer@80080400 {
+			compatible = "renesas,rzt2n-cmt";
+			reg = <0 0x80080400 0 0x400>;
+			interrupts = <GIC_SPI 351 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 352 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD R9A07G076_CMT1_CLK>;
+			clock-names = "fck0";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		cmt2: timer@80080800 {
+			compatible = "renesas,rzt2n-cmt";
+			reg = <0 0x80080800 0 0x400>;
+			interrupts = <GIC_SPI 353 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 354 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD R9A07G076_CMT2_CLK>;
+			clock-names = "fck0";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		cmtw0: timer@80081000 {
+			compatible = "renesas,rzt2n-cmtw";
+			reg = <0 0x80081000 0 0x400>;
+			interrupts = <GIC_SPI 355 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD R9A07G076_CMTW0_CLK>;
+			clock-names = "fck0";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		cmtw1: timer@80081400 {
+			compatible = "renesas,rzt2n-cmtw";
+			reg = <0 0x80081400 0 0x400>;
+			interrupts = <GIC_SPI 360 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD R9A07G076_CMTW1_CLK>;
+			clock-names = "fck0";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
 	};
 
 	timer {
