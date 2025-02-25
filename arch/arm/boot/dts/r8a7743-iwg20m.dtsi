@@ -11,6 +11,11 @@
 / {
 	compatible = "iwave,g20m", "renesas,r8a7743";
 
+	aliases {
+		 mmc0 = &sdhi0;
+		 mmc2 = &mmcif0;
+	};
+
 	memory@40000000 {
 		device_type = "memory";
 		reg = <0 0x40000000 0 0x20000000>;
