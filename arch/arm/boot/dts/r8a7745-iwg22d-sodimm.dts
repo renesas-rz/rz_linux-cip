@@ -42,6 +42,7 @@
 		serial2 = &scif3;
 		serial3 = &scif4;
 		serial5 = &hscif1;
+		mmc0 = &sdhi0;
 	};
 
 	chosen {
