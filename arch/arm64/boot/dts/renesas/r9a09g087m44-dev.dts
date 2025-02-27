@@ -278,7 +278,8 @@
 #if (!SEL_SCI3_PTPOUT2)
 	sci3_pins: sci3 {
 		pinmux = <RZT2H_PORT_PINMUX(13, 5, 0x14)>, /* SCI3_TXD */
-			 <RZT2H_PORT_PINMUX(13, 4, 0x14)>; /* SCI3_RXD */
+			 <RZT2H_PORT_PINMUX(13, 4, 0x14)>, /* SCI3_RXD */
+			 <RZT2H_PORT_PINMUX(14, 0, 0x14)>; /* SCI3_DE */
 	};
 #endif
 
@@ -696,7 +697,6 @@
 	linux,rs485-enabled-at-boot-time;
 	rs485-rx-during-tx;
 	rs485-enabled;
-	rts-gpios = <&pinctrl RZT2H_GPIO(14, 0) (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
 	status = "okay";
 };
 #endif
