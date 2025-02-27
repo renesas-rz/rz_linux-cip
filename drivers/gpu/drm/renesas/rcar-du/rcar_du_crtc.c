@@ -836,7 +836,6 @@ rcar_du_crtc_mode_valid(struct drm_crtc *crtc,
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 	struct rcar_du_device *rcdu = rcrtc->dev;
-	struct rcar_du_crtc_state *rstate = to_rcar_crtc_state(crtc->state);
 	bool interlaced = mode->flags & DRM_MODE_FLAG_INTERLACE;
 	unsigned int min_sync_porch;
 	unsigned int vbp;
@@ -860,12 +859,6 @@ rcar_du_crtc_mode_valid(struct drm_crtc *crtc,
 	if (vbp < 3)
 		return MODE_VBLANK_NARROW;
 
-	/* For RZ/G2E DPAD video clock frequency */
-	if (of_machine_is_compatible("renesas,r8a774c0") &&
-	   (rstate->outputs == BIT(RCAR_DU_OUTPUT_DPAD0)) &&
-	   (mode->clock > 75000))
-		return MODE_CLOCK_HIGH;
-		
 	return MODE_OK;
 }
 
