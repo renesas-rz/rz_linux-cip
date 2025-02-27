@@ -9,21 +9,7 @@
 #include "rzg2ul-smarc-pinfunction.dtsi"
 #include "rz-smarc-common.dtsi"
 
-/ {
-	aliases {
-		serial1 = &sci0;
-	};
-};
-
-#if ((SW_ET0_EN_N) && !(SW_CAN0_STB_PMOD && SW_CAN1_STB_PMOD))
-&sci0 {
-	pinctrl-0 = <&sci0_pins>;
-	pinctrl-names = "default";
-	status = "okay";
-};
-#endif
-
-#if (!SW_ET0_EN_N) || !(SW_CAN0_STB_PMOD && SW_CAN1_STB_PMOD)
+#if (!SW_ET0_EN_N)
 &canfd {
 	/delete-property/ pinctrl-0;
 	/delete-property/ pinctrl-names;
