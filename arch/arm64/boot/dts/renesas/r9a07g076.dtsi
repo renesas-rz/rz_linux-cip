@@ -205,6 +205,69 @@
 					  "irq12", "irq13", "irq14", "irq15";
 			status = "disabled";
 		};
+
+		gmac0: ethernet@80100000 {
+			compatible = "renesas,rzt2-eqos",
+				     "snps,dwc-qos-ethernet-4.10";
+			reg = <0 0x80100000 0 0x10000>;
+			interrupts = <GIC_SPI 368 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 370 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 369 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+			clocks = <&cpg CPG_MOD R9A07G076_GMAC0_CLK>;
+			clock-names = "clk";
+			resets = <&cpg R9A07G076_GMAC0_PCLKH_RST>,
+				 <&cpg R9A07G076_GMAC0_PCLKM_RST>;
+			reset-names = "reset_h", "reset_m";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+			snps,write-requests = <15>;
+			snps,read-requests = <15>;
+			snps,burst-map = <0x7>;
+		};
+
+		gmac1: ethernet@92000000 {
+			compatible = "renesas,rzt2-eqos",
+				     "snps,dwc-qos-ethernet-4.10";
+			reg = <0 0x92000000 0 0x10000>;
+			interrupts = <GIC_SPI 387 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 389 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 388 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+			clocks = <&cpg CPG_MOD R9A07G076_GMAC1_CLK>;
+			clock-names = "clk";
+			resets = <&cpg R9A07G076_GMAC1_PCLKAH_RST>,
+				 <&cpg R9A07G076_GMAC1_PCLKAM_RST>;
+			reset-names = "reset_h", "reset_m";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+			snps,write-requests = <15>;
+			snps,read-requests = <15>;
+			snps,burst-map = <0x7>;
+		};
+
+		gmac2: ethernet@92010000 {
+			compatible = "renesas,rzt2-eqos",
+				     "snps,dwc-qos-ethernet-4.10";
+			reg = <0 0x92010000 0 0x10000>;
+			interrupts = <GIC_SPI 406 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 408 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 407 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+			clocks = <&cpg CPG_MOD R9A07G076_GMAC2_CLK>;
+			clock-names = "clk";
+			resets = <&cpg R9A07G076_GMAC2_PCLKAH_RST>,
+				 <&cpg R9A07G076_GMAC2_PCLKAM_RST>;
+			reset-names = "reset_h", "reset_m";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+			snps,write-requests = <15>;
+			snps,read-requests = <15>;
+			snps,burst-map = <0x7>;
+		};
 	};
 
 	timer {
