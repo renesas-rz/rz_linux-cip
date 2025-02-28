@@ -9,6 +9,7 @@
 #include "r9a07g076.dtsi"
 #include <dt-bindings/pinctrl/rzt2-pinctrl.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/net/rzt2-ethss.h>
 
 / {
 	model = "Renesas Development EVK based on r9a07g076m48";
@@ -143,6 +144,89 @@
 		pinmux = <RZT2_PORT_PINMUX(3, 2, 0x12)>, /* GMAC : GMAC1_MDC/P3_2 */
 			 <RZT2_PORT_PINMUX(3, 3, 0x12)>; /* GMAC : GMAC1_MDIO/P3_3 */
 	};
+
+	pins_refclk: pins_refclk {
+		pinmux = <RZT2_PORT_PINMUX(20, 7, 0x02)>, /* Clock : ETH0_REFCLK/P20_7 */
+			 <RZT2_PORT_PINMUX(22, 6, 0x02)>, /* Clock : ETH1_REFCLK/P22_6 */
+			 <RZT2_PORT_PINMUX(24, 4, 0x02)>, /* Clock : ETH2_REFCLK/P24_4 */
+			 <RZT2_PORT_PINMUX(01, 4, 0x02)>, /* Clock : ETH3_REFCLK/P01_4 */
+			 <RZT2_PORT_PINMUX(03, 4, 0x02)>; /* Clock : ETH4_REFCLK/P03_4 */
+	};
+
+	eth0_pins: ethss_0 {
+		pinmux = <RZT2_PORT_PINMUX(19, 0, 0x0F)>, /* ETHSS : ETH0_TXCLK/P19_0 */
+			 <RZT2_PORT_PINMUX(19, 1, 0x0F)>, /* ETHSS : ETH0_TXD0/P19_1 */
+			 <RZT2_PORT_PINMUX(19, 2, 0x0F)>, /* ETHSS : ETH0_TXD1/P19_2 */
+			 <RZT2_PORT_PINMUX(19, 3, 0x0F)>, /* ETHSS : ETH0_TXD2/P19_3 */
+			 <RZT2_PORT_PINMUX(19, 4, 0x0F)>, /* ETHSS : ETH0_TXD3/P19_4 */
+			 <RZT2_PORT_PINMUX(19, 5, 0x0F)>, /* ETHSS : ETH0_TXEN/P19_5 */
+			 <RZT2_PORT_PINMUX(19, 6, 0x0F)>, /* ETHSS : ETH0_RXCLK/P19_6 */
+			 <RZT2_PORT_PINMUX(19, 7, 0x0F)>, /* ETHSS : ETH0_RXD0/P19_7 */
+			 <RZT2_PORT_PINMUX(20, 0, 0x0F)>, /* ETHSS : ETH0_RXD1/P20_0 */
+			 <RZT2_PORT_PINMUX(20, 1, 0x0F)>, /* ETHSS : ETH0_RXD2/P20_1 */
+			 <RZT2_PORT_PINMUX(20, 2, 0x0F)>, /* ETHSS : ETH0_RXD3/P20_2 */
+			 <RZT2_PORT_PINMUX(20, 3, 0x0F)>; /* ETHSS : ETH0_RXDV/P20_3 */
+	};
+
+	eth1_pins: ethss_1 {
+		pinmux = <RZT2_PORT_PINMUX(21, 1, 0x0F)>, /* ETHSS : ETH1_TXCLK/P21_1 */
+			 <RZT2_PORT_PINMUX(21, 2, 0x0F)>, /* ETHSS : ETH1_TXD0/P21_2 */
+			 <RZT2_PORT_PINMUX(21, 3, 0x0F)>, /* ETHSS : ETH1_TXD1/P21_3 */
+			 <RZT2_PORT_PINMUX(21, 4, 0x0F)>, /* ETHSS : ETH1_TXD2/P21_4 */
+			 <RZT2_PORT_PINMUX(21, 5, 0x0F)>, /* ETHSS : ETH1_TXD3/P21_5 */
+			 <RZT2_PORT_PINMUX(21, 6, 0x0F)>, /* ETHSS : ETH1_TXEN/P21_6 */
+			 <RZT2_PORT_PINMUX(21, 7, 0x0F)>, /* ETHSS : ETH1_RXCLK/P21_7 */
+			 <RZT2_PORT_PINMUX(22, 0, 0x0F)>, /* ETHSS : ETH1_RXD0/P22_0 */
+			 <RZT2_PORT_PINMUX(22, 1, 0x0F)>, /* ETHSS : ETH1_RXD1/P22_1 */
+			 <RZT2_PORT_PINMUX(22, 2, 0x0F)>, /* ETHSS : ETH1_RXD2/P22_2 */
+			 <RZT2_PORT_PINMUX(22, 3, 0x0F)>, /* ETHSS : ETH1_RXD3/P22_3 */
+			 <RZT2_PORT_PINMUX(22, 4, 0x0F)>; /* ETHSS : ETH1_RXDV/P22_4 */
+	};
+
+	eth2_pins: ethss_2 {
+		pinmux = <RZT2_PORT_PINMUX(23, 0, 0x0F)>, /* ETHSS : ETH2_TXCLK/P23_0 */
+			 <RZT2_PORT_PINMUX(23, 1, 0x0F)>, /* ETHSS : ETH2_TXD0/P23_1 */
+			 <RZT2_PORT_PINMUX(23, 2, 0x0F)>, /* ETHSS : ETH2_TXD1/P23_2 */
+			 <RZT2_PORT_PINMUX(23, 3, 0x0F)>, /* ETHSS : ETH2_TXD2/P23_3 */
+			 <RZT2_PORT_PINMUX(23, 4, 0x0F)>, /* ETHSS : ETH2_TXD3/P23_4 */
+			 <RZT2_PORT_PINMUX(23, 5, 0x0F)>, /* ETHSS : ETH2_TXEN/P23_5 */
+			 <RZT2_PORT_PINMUX(23, 6, 0x0F)>, /* ETHSS : ETH2_RXCLK/P23_6 */
+			 <RZT2_PORT_PINMUX(23, 7, 0x0F)>, /* ETHSS : ETH2_RXD0/P23_7 */
+			 <RZT2_PORT_PINMUX(24, 0, 0x0F)>, /* ETHSS : ETH2_RXD1/P24_0 */
+			 <RZT2_PORT_PINMUX(24, 1, 0x0F)>, /* ETHSS : ETH2_RXD2/P24_1 */
+			 <RZT2_PORT_PINMUX(24, 2, 0x0F)>, /* ETHSS : ETH2_RXD3/P24_2 */
+			 <RZT2_PORT_PINMUX(24, 3, 0x0F)>; /* ETHSS : ETH2_RXDV/P24_3 */
+	};
+
+	eth3_pins: ethss_3 {
+		pinmux = <RZT2_PORT_PINMUX(00, 0, 0x0F)>, /* ETHSS : ETH3_TXCLK/P00_0 */
+			 <RZT2_PORT_PINMUX(00, 1, 0x0F)>, /* ETHSS : ETH3_TXD0/P00_1 */
+			 <RZT2_PORT_PINMUX(00, 2, 0x0F)>, /* ETHSS : ETH3_TXD1/P00_2 */
+			 <RZT2_PORT_PINMUX(00, 3, 0x0F)>, /* ETHSS : ETH3_TXD2/P00_3 */
+			 <RZT2_PORT_PINMUX(00, 4, 0x0F)>, /* ETHSS : ETH3_TXD3/P00_4 */
+			 <RZT2_PORT_PINMUX(00, 5, 0x0F)>, /* ETHSS : ETH3_TXEN/P00_5 */
+			 <RZT2_PORT_PINMUX(00, 6, 0x0F)>, /* ETHSS : ETH3_RXCLK/P00_6 */
+			 <RZT2_PORT_PINMUX(00, 7, 0x0F)>, /* ETHSS : ETH3_RXD0/P00_7 */
+			 <RZT2_PORT_PINMUX(01, 0, 0x0F)>, /* ETHSS : ETH3_RXD1/P01_0 */
+			 <RZT2_PORT_PINMUX(01, 1, 0x0F)>, /* ETHSS : ETH3_RXD2/P01_1 */
+			 <RZT2_PORT_PINMUX(01, 2, 0x0F)>, /* ETHSS : ETH3_RXD3/P01_2 */
+			 <RZT2_PORT_PINMUX(01, 3, 0x0F)>; /* ETHSS : ETH3_RXDV/P01_3 */
+	};
+
+	eth4_pins: ethss_4 {
+		pinmux = <RZT2_PORT_PINMUX(01, 6, 0x0F)>, /* ETHSS : ETH4_TXCLK/P01_6 */
+			 <RZT2_PORT_PINMUX(01, 7, 0x0F)>, /* ETHSS : ETH4_TXD0/P01_7 */
+			 <RZT2_PORT_PINMUX(02, 0, 0x0F)>, /* ETHSS : ETH4_TXD1/P02_0 */
+			 <RZT2_PORT_PINMUX(02, 1, 0x0F)>, /* ETHSS : ETH4_TXD2/P02_1 */
+			 <RZT2_PORT_PINMUX(02, 2, 0x0F)>, /* ETHSS : ETH4_TXD3/P02_2 */
+			 <RZT2_PORT_PINMUX(02, 3, 0x0F)>, /* ETHSS : ETH4_TXEN/P02_3 */
+			 <RZT2_PORT_PINMUX(02, 4, 0x0F)>, /* ETHSS : ETH4_RXCLK/P02_4 */
+			 <RZT2_PORT_PINMUX(02, 5, 0x0F)>, /* ETHSS : ETH4_RXD0/P02_5 */
+			 <RZT2_PORT_PINMUX(02, 6, 0x0F)>, /* ETHSS : ETH4_RXD1/P02_6 */
+			 <RZT2_PORT_PINMUX(02, 7, 0x0F)>, /* ETHSS : ETH4_RXD2/P02_7 */
+			 <RZT2_PORT_PINMUX(03, 0, 0x0F)>, /* ETHSS : ETH4_RXD3/P03_0 */
+			 <RZT2_PORT_PINMUX(03, 1, 0x0F)>; /* ETHSS : ETH4_RXDV/P03_1 */
+	};
 };
 
 &extal {
@@ -195,6 +279,7 @@
 &gmac1 {
 	phy-handle = <&phy3>;
 	phy-mode = "rgmii-id";
+	pcs-handle = <&mii_conv3>;
 	status = "okay";
 	phy-reset-gpios = <&pinctrl RZT2_GPIO(16, 1) GPIO_ACTIVE_HIGH>; /* ETH34: RESETOUT/P16_1 */
 	pinctrl-names = "default";
@@ -209,4 +294,36 @@
 			reg = <0>;
 		};
 	};
+};
+
+&ethss {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_refclk>, <&eth3_pins>;
+	renesas,ethss-switch-portmanagement = <ETHSS_GMAC0_PORT>;
+};
+
+&mii_conv0 {
+	renesas,ethss-port = <ETHSS_SWITCH_PORT0>;
+	status = "okay";
+};
+
+&mii_conv1 {
+	renesas,ethss-port = <ETHSS_SWITCH_PORT1>;
+	status = "okay";
+};
+
+&mii_conv2 {
+	renesas,ethss-port = <ETHSS_SWITCH_PORT2>;
+	status = "okay";
+};
+
+&mii_conv3 {
+	renesas,ethss-port = <ETHSS_GMAC1_PORT>;
+	status = "okay";
+};
+
+&mii_conv4 {
+	renesas,ethss-port = <ETHSS_GMAC2_PORT>;
+	status = "okay";
 };
