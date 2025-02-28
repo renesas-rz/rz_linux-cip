@@ -19,6 +19,7 @@
 		serial1 = &sci1;
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
+		eth1 = &gmac1;
 	};
 
 	chosen {
@@ -138,6 +139,10 @@
 		};
 	};
 
+	mdio1_pins: gmac_mdio1 {
+		pinmux = <RZT2_PORT_PINMUX(3, 2, 0x12)>, /* GMAC : GMAC1_MDC/P3_2 */
+			 <RZT2_PORT_PINMUX(3, 3, 0x12)>; /* GMAC : GMAC1_MDIO/P3_3 */
+	};
 };
 
 &extal {
@@ -185,4 +190,23 @@
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
 	status = "okay";
+};
+
+&gmac1 {
+	phy-handle = <&phy3>;
+	phy-mode = "rgmii-id";
+	status = "okay";
+	phy-reset-gpios = <&pinctrl RZT2_GPIO(16, 1) GPIO_ACTIVE_HIGH>; /* ETH34: RESETOUT/P16_1 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio1_pins>;
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		phy3: ethernet-phy@3 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <0>;
+		};
+	};
 };
