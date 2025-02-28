@@ -34,6 +34,8 @@ static const struct rzg2l_du_device_info rzg2l_du_r9a07g043u_info = {
 			.port = 0,
 		},
 	},
+	.min_dclk = 5802,
+	.max_dclk = 83500,
 };
 
 static const struct rzg2l_du_device_info rzg2l_du_r9a07g044_info = {
@@ -46,8 +48,10 @@ static const struct rzg2l_du_device_info rzg2l_du_r9a07g044_info = {
 		[RZG2L_DU_OUTPUT_DPAD0] = {
 			.possible_outputs = BIT(0),
 			.port = 1,
-		}
-	}
+		},
+	},
+	.min_dclk = 5802,
+	.max_dclk = 83500,
 };
 
 static const struct of_device_id rzg2l_du_of_table[] = {
