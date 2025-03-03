@@ -41,6 +41,7 @@
 #define TSSEL_SHIFT(n)			(8 * (n))
 #define TSSEL_MASK			GENMASK(7, 0)
 #define IRQ_MASK			0x3
+#define NMSK				0x10000
 #define IMSK				0x10010
 #define TMSK				0x10020
 
@@ -168,6 +169,22 @@ static void rzg2l_irqc_eoi(struct irq_data *d)
 	irq_chip_eoi_parent(d);
 }
 
+static void rzfive_irqc_mask_nmi_interrupt(struct rzg2l_irqc_priv *priv,
+						unsigned int hwirq)
+{
+	u32 bit = BIT(hwirq);
+
+	writel_relaxed(readl_relaxed(priv->base + NMSK) | bit, priv->base + NMSK);
+}
+
+static void rzfive_irqc_unmask_nmi_interrupt(struct rzg2l_irqc_priv *priv,
+						unsigned int hwirq)
+{
+	u32 bit = BIT(hwirq);
+
+	writel_relaxed(readl_relaxed(priv->base + NMSK) & ~bit, priv->base + NMSK);
+}
+
 static void rzfive_irqc_mask_irq_interrupt(struct rzg2l_irqc_priv *priv,
 					   unsigned int hwirq)
 {
@@ -206,6 +223,8 @@ static void rzfive_irqc_mask(struct irq_data *d)
 	unsigned int hwirq = irqd_to_hwirq(d);
 
 	raw_spin_lock(&priv->lock);
+	if (hwirq == IRQC_NMI)
+		rzfive_irqc_mask_nmi_interrupt(priv, hwirq);
 	if (hwirq >= IRQC_IRQ_START && hwirq <= IRQC_IRQ_COUNT)
 		rzfive_irqc_mask_irq_interrupt(priv, hwirq);
 	else if (hwirq >= IRQC_TINT_START && hwirq < IRQC_NUM_IRQ)
@@ -220,6 +239,8 @@ static void rzfive_irqc_unmask(struct irq_data *d)
 	unsigned int hwirq = irqd_to_hwirq(d);
 
 	raw_spin_lock(&priv->lock);
+	if (hwirq == IRQC_NMI)
+		rzfive_irqc_unmask_nmi_interrupt(priv, hwirq);
 	if (hwirq >= IRQC_IRQ_START && hwirq <= IRQC_IRQ_COUNT)
 		rzfive_irqc_unmask_irq_interrupt(priv, hwirq);
 	else if (hwirq >= IRQC_TINT_START && hwirq < IRQC_NUM_IRQ)
@@ -254,7 +275,10 @@ static void rzfive_tint_irq_endisable(struct irq_data *d, bool enable)
 	} else {
 		raw_spin_lock(&priv->lock);
 		if (enable)
-			rzfive_irqc_unmask_irq_interrupt(priv, hwirq);
+			if (hwirq == IRQC_NMI)
+				rzfive_irqc_unmask_nmi_interrupt(priv, hwirq);
+			else
+				rzfive_irqc_unmask_irq_interrupt(priv, hwirq);
 		else
 			rzfive_irqc_mask_irq_interrupt(priv, hwirq);
 		raw_spin_unlock(&priv->lock);
