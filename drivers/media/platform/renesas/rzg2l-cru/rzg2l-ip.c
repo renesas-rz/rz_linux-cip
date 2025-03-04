@@ -14,6 +14,7 @@ static const struct rzg2l_cru_ip_format rzg2l_cru_ip_formats[] = {
 		.datatype = ICnMC_INF_YUV8_422,
 		.format = V4L2_PIX_FMT_UYVY,
 		.bpp = 2,
+		.icndmr = ICnDMR_YCMODE_UYVY,
 	},
 };
 
