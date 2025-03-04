@@ -8,12 +8,11 @@
 #include <linux/delay.h>
 #include "rzg2l-cru.h"
 
-struct rzg2l_cru_ip_format {
-	u32 code;
-};
-
 static const struct rzg2l_cru_ip_format rzg2l_cru_ip_formats[] = {
-	{ .code = MEDIA_BUS_FMT_UYVY8_1X16, },
+	{
+		.code = MEDIA_BUS_FMT_UYVY8_1X16,
+		.datatype = ICnMC_INF_YUV8_422,
+	},
 };
 
 enum rzg2l_csi2_pads {
@@ -21,7 +20,7 @@ enum rzg2l_csi2_pads {
 	RZG2L_CRU_IP_SOURCE,
 };
 
-static const struct rzg2l_cru_ip_format *rzg2l_cru_ip_code_to_fmt(unsigned int code)
+const struct rzg2l_cru_ip_format *rzg2l_cru_ip_code_to_fmt(unsigned int code)
 {
 	unsigned int i;
 
