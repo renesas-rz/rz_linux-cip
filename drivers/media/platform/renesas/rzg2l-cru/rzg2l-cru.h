@@ -67,28 +67,6 @@ enum rzg2l_cru_common_regs {
 #define RZG2L_CRU_MIN_INPUT_WIDTH	320
 #define RZG2L_CRU_MIN_INPUT_HEIGHT	240
 
-#define ICnDMR_RGBMODE_RGB24            (0 << 0)
-#define ICnDMR_RGBMODE_XRGB32           (1 << 0)
-#define ICnDMR_RGBMODE_ABGR32           (2 << 0)
-#define ICnDMR_RGBMODE_ARGB32           (3 << 0)
-#define ICnDMR_YCMODE_YUYV              (0 << 4)
-#define ICnDMR_YCMODE_UYVY		(1 << 4)
-#define ICnDMR_YCMODE_NV16              (2 << 4)
-#define ICnDMR_YCMODE_GREY              (3 << 4)
-
-#define ICnMC_INF_YUV8_422              (0x1E << 16)
-#define ICnMC_INF_YUV10_422             (0x1F << 16)
-#define ICnMC_INF_RGB444                (0x20 << 16)
-#define ICnMC_INF_RGB565                (0x22 << 16)
-#define ICnMC_INF_RGB666                (0x23 << 16)
-#define ICnMC_INF_RGB888                (0x24 << 16)
-#define ICnMC_INF_RAW8                  (0x2A << 16)
-#define ICnMC_INF_RAW10                 (0x2B << 16)
-#define ICnMC_INF_RAW12                 (0x2C << 16)
-#define ICnMC_INF_RAW14                 (0x2D << 16)
-#define ICnMC_INF_RAW16                 (0x2E << 16)
-#define ICnMC_INF_USER                  (0x30 << 16)
-
 /**
  * enum rzg2l_cru_dma_state - DMA states
  * @RZG2L_CRU_DMA_STOPPED:   No operation in progress
