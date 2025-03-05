@@ -640,6 +640,7 @@ static const struct pci_epc_ops rzt2h_pcie_epc_ops = {
 
 static const struct of_device_id rzt2h_pcie_ep_of_match[] = {
 	{ .compatible = "renesas,rzt2h-pcie-ep", },
+	{ .compatible = "renesas,rzn2h-pcie-ep", },
 	{},
 	{ },
 };
