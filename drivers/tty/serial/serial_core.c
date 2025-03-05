@@ -2250,8 +2250,10 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 	put_device(tty_dev);
 
 	/* Nothing to do if the console is not suspending */
-	if (!console_suspend_enabled && uart_console(uport))
+	if (!console_suspend_enabled && uart_console(uport)) {
+		device_set_awake_path(uport->dev);
 		goto unlock;
+	}
 
 	uport->suspended = 1;
 
