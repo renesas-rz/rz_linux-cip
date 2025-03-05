@@ -213,6 +213,31 @@
 		};
 	};
 #endif
+
+	mtl_rx_setup: rx-queues-config {
+		snps,rx-queues-to-use = <1>;
+		queue0 {
+		};
+	};
+
+	mtl_tx_setup: tx-queues-config {
+		snps,tx-queues-to-use = <3>;
+		snps,tx-sched-wrr;
+		queue0 {
+			snps,weight = <0x10>;
+			snps,dcb-algorithm;
+		};
+
+		queue1 {
+			snps,weight = <0x10>;
+			snps,dcb-algorithm;
+		};
+
+		queue2 {
+			snps,weight = <0x10>;
+			snps,dcb-algorithm;
+		};
+	};
 };
 
 &pinctrl {
@@ -807,6 +832,11 @@
 	phy-reset-gpios = <&pinctrl RZT2H_GPIO(32, 3) GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mdio1_pins>;
+	enable-time-based-scheduling;
+	snps,force_thresh_dma_mode;
+	snps,tx_threshold = <128>;
+	snps,mtl-tx-config = <&mtl_tx_setup>;
+	snps,mtl-rx-config = <&mtl_rx_setup>;
 
 	mdio {
 		#address-cells = <1>;
@@ -832,6 +862,11 @@
 	phy-reset-gpios = <&pinctrl RZT2H_GPIO(17, 5) GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mdio2_pins>;
+	enable-time-based-scheduling;
+	snps,force_thresh_dma_mode;
+	snps,tx_threshold = <128>;
+	snps,mtl-tx-config = <&mtl_tx_setup>;
+	snps,mtl-rx-config = <&mtl_rx_setup>;
 
 	mdio {
 		#address-cells = <1>;
