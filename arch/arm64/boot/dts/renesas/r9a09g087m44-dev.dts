@@ -87,6 +87,12 @@
  */
 #define SEL_PCIE		0
 
+/* Set SEL_PCIE_MODE to below values to select using of PCIE mode:
+ * - 0: Root Complex (default)
+ * - 1: Endpoint
+ */
+#define SEL_PCIE_MODE		0
+
 /*
  * MTU3 macros are created to support setting pinctrl and properties in order
  * to use MTU3 functions.
@@ -512,7 +518,7 @@
 	};
 #endif
 
-#if (SEL_PCIE)
+#if (SEL_PCIE && !SEL_PCIE_MODE)
 	pcie_rstout0 {
 		gpio-hog;
 		gpios = <RZT2H_GPIO(33, 3) GPIO_ACTIVE_HIGH>;
@@ -1106,10 +1112,16 @@
 };
 
 #if (SEL_PCIE)
+#if (!SEL_PCIE_MODE)
 &pcie0 {
 	pcie-lane = <1>;
 	status = "okay";
 };
+#else
+&pcie0_ep {
+	status = "okay";
+};
+#endif
 #endif
 
 &ohci {
