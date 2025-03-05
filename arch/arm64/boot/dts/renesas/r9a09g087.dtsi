@@ -1472,6 +1472,21 @@
 			pcie,channel = <0>;
 			status = "disabled";
 		};
+
+		pcie0_ep: pcie-ep@92100000 {
+			compatible = "renesas,rzn2h-pcie-ep";
+			reg = <0x0 0x92100000 0x0 0x10000>,
+			      <0x0 0x80292000 0x0 0x30>,
+			      <0x0 0xA0000000 0x0 0x08000000>,
+			      <0x0 0xA8000000 0x0 0x08000000>;
+			reg-names = "apb-base0", "apb-base1", "memory0", "memory1";
+			interrupts = <GIC_SPI 797 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A09G077_PCIE_CLK>;
+			power-domains = <&cpg>;
+			resets = <&cpg R9A09G077_PCIE_RST>;
+			pcie,channel = <0>;
+			status = "disabled";
+		};
 	};
 
 	thermal-zones {
