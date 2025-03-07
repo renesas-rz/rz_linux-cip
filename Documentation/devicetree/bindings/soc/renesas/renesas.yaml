@@ -500,6 +500,15 @@ properties:
               - renesas,r9a07g054l2 # Dual Cortex-A55 RZ/V2L
           - const: renesas,r9a07g054
 
+      - description: RZ/T2N (R9A07G076)
+        items:
+          - enum:
+              - renesas,r9a07g076m43-dev # Dev Board
+              - renesas,r9a07g076m48-dev # Dev Board
+          - enum:
+              - renesas,r9a07g076m4 # Dual Cortex-A55 RZ/T2N
+          - const: renesas,r9a07g076
+
       - description: RZ/G3S (R9A08G045)
         items:
           - enum:
