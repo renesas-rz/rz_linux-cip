@@ -343,7 +343,11 @@ int rpcif_hw_init(struct rpcif *rpc, bool hyperflash)
 		regmap_update_bits(rpc->regmap, RPCIF_CMNCR,
 				   RPCIF_CMNCR_MOIIO(3) | RPCIF_CMNCR_IOFV(3) |
 				   RPCIF_CMNCR_BSZ(3),
+#ifdef CONFIG_RISCV
+				   RPCIF_CMNCR_MOIIO(1) | RPCIF_CMNCR_IOFV(2) |
+#else
 				   RPCIF_CMNCR_MOIIO(1) | RPCIF_CMNCR_IOFV(3) |
+#endif
 				   RPCIF_CMNCR_BSZ(hyperflash ? 1 : 0));
 
 	/* Set RCF after BSZ update */
@@ -519,6 +523,7 @@ int rpcif_manual_xfer(struct rpcif *rpc)
 		}
 		break;
 	case RPCIF_DATA_IN:
+#ifdef CONFIG_ARM64
 		/*
 		 * RPC-IF spoils the data for the commands without an address
 		 * phase (like RDID) in the manual mode, so we'll have to work
@@ -546,6 +551,7 @@ int rpcif_manual_xfer(struct rpcif *rpc)
 			regmap_read(rpc->regmap, RPCIF_DRCR, &dummy);
 			break;
 		}
+#endif
 		while (pos < rpc->xferlen) {
 			u32 bytes_left = rpc->xferlen - pos;
 			u32 nbytes, data[2], *p = data;
