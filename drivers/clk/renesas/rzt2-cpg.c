@@ -353,7 +353,6 @@ static int rzt2_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	u32 bitmask = BIT(clock->bit);
 	unsigned long flags;
 	u32 value;
-	int count;
 
 	if (!reg) {
 		dev_dbg(dev, "\ndoes not support mstop\n");
@@ -361,15 +360,10 @@ static int rzt2_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	}
 
 	spin_lock_irqsave((struct spinlock *)&priv->rmw_lock, flags);
-	for (count = 0 ; count < 5; count++) {
-		if (clock->sel_base) {
-			value = readl(priv->cpg_base1 + reg);
-		} else {
-			value = readl(priv->cpg_base0 + reg);
-		}
-		udelay(2);
-	}
-
+	if (clock->sel_base)
+		value = readl(priv->cpg_base1 + reg);
+	else
+		value = readl(priv->cpg_base0 + reg);
 	if (enable)
 		value &= ~bitmask;
 	else
@@ -380,7 +374,7 @@ static int rzt2_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	else
 		writel(value, priv->cpg_base0 + reg);
 
-	udelay(20);
+	udelay(50);
 
 	spin_unlock_irqrestore((struct spinlock *)&priv->rmw_lock, flags);
 
@@ -419,7 +413,7 @@ static int rzt2_mod_clock_is_enabled(struct clk_hw *hw)
 		writel(value, priv->cpg_base0 + clock->addr);
 	}
 
-	return 0;
+	return (value & bitmask);
 }
 
 static const struct clk_ops rzt2_mod_clock_ops = {
@@ -757,9 +751,6 @@ static int __init rzt2_cpg_probe(struct platform_device *pdev)
 
 	for (i = 0; i < info->num_mod_clks; i++)
 		rzt2_cpg_register_mod_clk(&info->mod_clks[i], info, priv);
-
-	/* Select PLL is clk output */
-	writel(PMSEL_PLL0 | PMSEL_PLL2 | PMSEL_PLL3, priv->cpg_base1 + PMSEL);
 
 	/* Enable PLL register */
 	writel(PLL0EN, priv->cpg_base1 + PLL0EN_REG);
