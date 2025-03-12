@@ -69,4 +69,12 @@ config RTSN
 	help
 	  Renesas Ethernet-TSN device driver.
 
+config RZT2H_ETHSS
+	tristate "Renesas RZ/T2H RGMII/GMII Converter"
+	select MII
+	help
+	  Renesas Ethernet Subsustem device driver.
+	  The Renesas RZ/T2H device uses an RGMII/GMII Converter (MIIC) on each
+	  ethernet PHY interface.
+
 endif # NET_VENDOR_RENESAS
