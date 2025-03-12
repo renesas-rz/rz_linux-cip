@@ -27,6 +27,7 @@
 #include "rzg2l_du_encoder.h"
 #include "rzg2l_du_kms.h"
 #include "rzg2l_du_vsp.h"
+#include "rzg3e_lvds.h"
 
 #define DU_MCR0			0x00
 #define DU_MCR0_DI_EN		BIT(8)
@@ -72,14 +73,16 @@ static void rzg2l_du_crtc_set_display_timing(struct rzg2l_du_crtc *rcrtc)
 
 	clk_prepare_enable(rcrtc->rzg2l_clocks.dclk);
 
-	if ((rstate->outputs == BIT(RZG2L_DU_OUTPUT_DSI0)) &&
-	    of_device_is_compatible(rcrtc->dev->dev->of_node, "renesas,r9a08g046-du")) {
+	if (of_device_is_compatible(rcrtc->dev->dev->of_node, "renesas,r9a08g046-du")) {
 		struct clk *clk_parent;
 		struct clk_hw *hw_parent, *hw_pparent;
 
 		clk_parent = clk_get_parent(rcrtc->rzg2l_clocks.dclk);
 		hw_parent = __clk_get_hw(clk_parent);
-		hw_pparent = clk_hw_get_parent_by_index(hw_parent, 1);
+		if (rstate->outputs == BIT(RZG2L_DU_OUTPUT_LVDS0))
+			hw_pparent = clk_hw_get_parent_by_index(hw_parent, 0);
+		else
+			hw_pparent = clk_hw_get_parent_by_index(hw_parent, 1);
 		clk_set_parent(clk_parent, hw_pparent->clk);
 	}
 
