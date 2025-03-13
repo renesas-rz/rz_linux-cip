@@ -544,36 +544,6 @@
 		pinmux = <RZT2H_PORT_PINMUX(0, 0, 0x13)>; /* VBUS */
 	};
 
-	xspi0_pins: xspi0 {
-		xspi0_clk {
-			pinmux = <RZT2H_PORT_PINMUX(5, 1, 0x1C)>, /* XSPI0_CKP */
-				 <RZT2H_PORT_PINMUX(5, 2, 0x1C)>; /* XSPI0_CKN */
-		};
-
-		xspi0_data {
-			pinmux = <RZT2H_PORT_PINMUX(5, 6, 0x1C)>, /* XSPI0_IO0 */
-				<RZT2H_PORT_PINMUX(5, 7, 0x1C)>, /* XSPI0_IO1 */
-				<RZT2H_PORT_PINMUX(6, 0, 0x1C)>, /* XSPI0_IO2 */
-				<RZT2H_PORT_PINMUX(6, 1, 0x1C)>, /* XSPI0_IO3 */
-				<RZT2H_PORT_PINMUX(6, 2, 0x1C)>, /* XSPI0_IO4 */
-				<RZT2H_PORT_PINMUX(6, 3, 0x1C)>, /* XSPI0_IO5 */
-				<RZT2H_PORT_PINMUX(6, 4, 0x1C)>, /* XSPI0_IO6 */
-				<RZT2H_PORT_PINMUX(6, 5, 0x1C)>; /* XSPI0_IO7 */
-		};
-
-		xspi0_cs {
-			pinmux = <RZT2H_PORT_PINMUX(5, 3, 0x1C)>; /* XSPI0_CS0 */
-		};
-
-		xspi0_rst {
-			pinmux = <RZT2H_PORT_PINMUX(6, 6, 0x1C)>; /* XSPI0_RESET0 */
-		};
-
-		xspi0_ds {
-			pinmux = <RZT2H_PORT_PINMUX(5, 5, 0x1C)>; /* XSPI0_DS */
-		};
-	};
-
 	xspi1_pins: xspi1 {
 		xspi1_clk {
 			pinmux = <RZT2H_PORT_PINMUX(1, 0, 0x1C)>; /* XSPI1_CKP */
@@ -1134,42 +1104,6 @@
 	pinctrl-names = "default";
 
 	status = "okay";
-};
-
-&xspi0 {
-	pinctrl-0 = <&xspi0_pins>;
-	pinctrl-names = "default";
-	status = "okay";
-
-	flash@0 {
-		compatible = "macronix,mx25uw51245g","jedec,spi-nor";
-		reg = <0>;
-		m25p,fast-read;
-		spi-max-frequency = <50000000>;
-		spi-tx-bus-width = <1>;
-		spi-rx-bus-width = <1>;
-
-		partitions {
-			compatible = "fixed-partitions";
-			#address-cells = <1>;
-			#size-cells = <1>;
-
-			partition@000000 {
-				label = "bl2-0";
-				reg = <0x00000000 0x0003C600>;
-				read-only;
-			};
-			partition@1FB000 {
-				label = "fip-0";
-				reg = <0x001FB000 0x000AB900>;
-				read-only;
-			};
-			partition@300000 {
-				label = "test-area-0";
-				reg = <0x00300000 0x01000000>;
-			};
-		};
-	};
 };
 
 &cmt0 {
