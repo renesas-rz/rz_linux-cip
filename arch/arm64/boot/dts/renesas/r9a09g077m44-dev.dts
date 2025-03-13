@@ -9,6 +9,7 @@
 #include "r9a09g077.dtsi"
 #include <dt-bindings/pinctrl/rzt2h-pinctrl.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/net/rzt2h-ethss.h>
 
 / {
 	model = "Renesas Development EVK based on r9a09g077m44";
@@ -179,6 +180,51 @@
 		pinmux = <RZT2H_PORT_PINMUX(30, 5, 0x10)>, /* MDIO2_MDC */
 			<RZT2H_PORT_PINMUX(30, 6, 0x10)>; /* MDIO2_MDIO */
 	};
+
+	pins_refclk: pins_refclk {
+		pinmux = <RZT2H_PORT_PINMUX(21, 7, 0x02)>, /* ETH0_REFCLK */
+			<RZT2H_PORT_PINMUX(26, 4, 0x02)>, /* ETH1_REFCLK */
+			<RZT2H_PORT_PINMUX(31, 0, 0x02)>, /* ETH2_REFCLK */
+			<RZT2H_PORT_PINMUX(34, 6, 0x02)>; /* ETH3_REFCLK */
+	};
+
+	eth3_pins: ethss_3 {
+		pinmux = <RZT2H_PORT_PINMUX(33, 2, 0x0F)>, /* ETH3_TXCLK */
+			<RZT2H_PORT_PINMUX(33, 3, 0x0F)>, /* ETH3_TXD[0] */
+			<RZT2H_PORT_PINMUX(33, 4, 0x0F)>, /* ETH3_TXD[1] */
+			<RZT2H_PORT_PINMUX(33, 5, 0x0F)>, /* ETH3_TXD[2] */
+			<RZT2H_PORT_PINMUX(33, 6, 0x0F)>, /* ETH3_TXD[3] */
+			<RZT2H_PORT_PINMUX(33, 7, 0x0F)>, /* ETH3_TXEN */
+			<RZT2H_PORT_PINMUX(34, 0, 0x0F)>, /* ETH3_RXCLK */
+			<RZT2H_PORT_PINMUX(34, 1, 0x0F)>, /* ETH3_RXD[0] */
+			<RZT2H_PORT_PINMUX(34, 2, 0x0F)>, /* ETH3_RXD[1] */
+			<RZT2H_PORT_PINMUX(34, 3, 0x0F)>, /* ETH3_RXD[2] */
+			<RZT2H_PORT_PINMUX(34, 4, 0x0F)>, /* ETH3_RXD[3] */
+			<RZT2H_PORT_PINMUX(34, 5, 0x0F)>, /* ETH3_RXDV */
+			<RZT2H_PORT_PINMUX(34, 7, 0x0F)>, /* ETH3_TXER */
+			<RZT2H_PORT_PINMUX(35, 0, 0x0F)>, /* ETH3_RXER */
+			<RZT2H_PORT_PINMUX(35, 1, 0x0F)>, /* ETH3_CRS */
+			<RZT2H_PORT_PINMUX(35, 2, 0x0F)>; /* ETH3_COL */
+	};
+
+	eth2_pins: ethss_2 {
+		pinmux = <RZT2H_PORT_PINMUX(29, 1, 0x0F)>, /* ETH2_TXCLK */
+			<RZT2H_PORT_PINMUX(29, 2, 0x0F)>, /* ETH2_TXD[0] */
+			<RZT2H_PORT_PINMUX(29, 3, 0x0F)>, /* ETH2_TXD[1] */
+			<RZT2H_PORT_PINMUX(29, 4, 0x0F)>, /* ETH2_TXD[2] */
+			<RZT2H_PORT_PINMUX(29, 5, 0x0F)>, /* ETH2_TXD[3] */
+			<RZT2H_PORT_PINMUX(29, 6, 0x0F)>, /* ETH2_TXEN */
+			<RZT2H_PORT_PINMUX(29, 7, 0x0F)>, /* ETH2_RXCLK */
+			<RZT2H_PORT_PINMUX(30, 0, 0x0F)>, /* ETH2_RXD[0] */
+			<RZT2H_PORT_PINMUX(30, 1, 0x0F)>, /* ETH2_RXD[1] */
+			<RZT2H_PORT_PINMUX(30, 2, 0x0F)>, /* ETH2_RXD[2] */
+			<RZT2H_PORT_PINMUX(30, 3, 0x0F)>, /* ETH2_RXD[3] */
+			<RZT2H_PORT_PINMUX(30, 4, 0x0F)>, /* ETH2_RXDV */
+			<RZT2H_PORT_PINMUX(31, 2, 0x0F)>, /* ETH2_TXER */
+			<RZT2H_PORT_PINMUX(31, 3, 0x0F)>, /* ETH2_RXER */
+			<RZT2H_PORT_PINMUX(31, 4, 0x0F)>, /* ETH2_CRS */
+			<RZT2H_PORT_PINMUX(31, 5, 0x0F)>; /* ETH2_COL */
+	};
 };
 
 &extal {
@@ -261,6 +307,7 @@
 &gmac1 {
 	phy-handle = <&phy3>;
 	phy-mode = "rgmii-id";
+	pcs-handle = <&mii_conv3>;
 	status = "okay";
 	phy-reset-gpios = <&pinctrl RZT2H_GPIO(32, 3) GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
@@ -280,6 +327,7 @@
 &gmac2 {
 	phy-handle = <&phy2>;
 	phy-mode = "rgmii-id";
+	pcs-handle = <&mii_conv2>;
 	status = "okay";
 	phy-reset-gpios = <&pinctrl RZT2H_GPIO(17, 5) GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
@@ -294,4 +342,31 @@
 			reg = <2>;
 		};
 	};
+};
+
+&ethss {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_refclk>, <&eth3_pins>, <&eth2_pins>;
+	renesas,ethss-switch-portmanagement = <ETHSS_GMAC0_PORT>;
+};
+
+&mii_conv0 {
+	renesas,ethss-port = <ETHSS_SWITCH_PORT0>;
+	status = "okay";
+};
+
+&mii_conv1 {
+	renesas,ethss-port = <ETHSS_SWITCH_PORT1>;
+	status = "okay";
+};
+
+&mii_conv2 {
+	renesas,ethss-port = <ETHSS_GMAC2_PORT>;
+	status = "okay";
+};
+
+&mii_conv3 {
+	renesas,ethss-port = <ETHSS_GMAC1_PORT>;
+	status = "okay";
 };
