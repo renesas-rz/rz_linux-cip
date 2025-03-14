@@ -471,6 +471,52 @@
 					du_out_rgb: endpoint {
 					};
 				};
+
+				port@2 {
+					reg = <2>;
+					du_out_lvds0: endpoint {
+						remote-endpoint = <&lvds0_in>;
+					};
+				};
+			};
+		};
+
+
+		lvds: lvds@164c0000 {
+			compatible = "renesas,rzg3e-lvds";
+			reg = <0x0 0x108a0000 0x0 0x10>;
+			resets = <&cpg R9A08G046_LVDS_RESET_N>;
+			power-domains = <&cpg>;
+			status = "disabled";
+			ranges;
+			#address-cells = <2>;
+			#size-cells = <2>;
+
+			lvds0: lvds0-encoder@164c0010 {
+				compatible = "renesas,rzg3l-lvds-link";
+				reg = <0x0 0x108a0010 0x0 0x8>;
+				clocks = <&cpg CPG_MOD R9A08G046_LVDS_PLLCLK>,
+					 <&cpg CPG_MOD R9A08G046_LVDS_CLK_DOT0>;
+				clock-names = "phyclk", "dotclk";
+				power-domains = <&cpg>;
+				renesas,id = <0>;
+				status = "disabled";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						lvds0_in: endpoint {
+							remote-endpoint = <&du_out_lvds0>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+					};
+				};
 			};
 		};
 
