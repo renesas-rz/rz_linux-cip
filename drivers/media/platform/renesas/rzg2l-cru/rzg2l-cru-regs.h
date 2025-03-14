@@ -152,4 +152,28 @@
 /* CRU Statistics Control 2 Register */
 #define ICnSTIC2_STHPOS(x)		(x)
 
+/* CRU Parallel I/F Control Register */
+#define ICnPIFC_PINF_UYVY8_BT656	0x0
+#define ICnPIFC_PINF_UYVY10_BT656	0x1
+#define ICnPIFC_PINF_YUYV16		0x2
+#define ICnPIFC_PINF_YVYU16		0x3
+#define ICnPIFC_PINF_UYVY8		0x4
+#define ICnPIFC_PINF_VYUY8		0x5
+#define ICnPIFC_PINF_YUYV8		0x6
+#define ICnPIFC_PINF_YVYU8		0x7
+#define ICnPIFC_PINF_UYVY10		0x8
+#define ICnPIFC_PINF_VYUY10		0x9
+#define ICnPIFC_PINF_YUYV10		0xA
+#define ICnPIFC_PINF_YVYU10		0xB
+#define ICnPIFC_PINF_RAW16		0xC
+#define ICnPIFC_ITL_PROGRESSIVE		(0 << 8)
+#define ICnPIFC_ITL_INTERLACED		(1 << 8)
+#define ICnPIFC_ITL_INTERLACED_TB	(1 << 8)
+#define ICnPIFC_ITL_INTERLACED_BT	(5 << 8)
+#define ICnPIFC_EC			BIT(12)
+#define ICnPIFC_VSPOL_HIGH		(0 << 13)
+#define ICnPIFC_VSPOL_LOW		BIT(13)
+#define ICnPIFC_ENPOL_HIGH		(0 << 14)
+#define ICnPIFC_ENPOL_LOW		BIT(14)
+
 #endif /* __RZG2L_CRU_REGS_H__ */
