@@ -282,6 +282,87 @@ static void rzg2l_cru_initialize_axi(struct rzg2l_cru_dev *cru)
 	amnaxiattr |= AMnAXIATTR_AXILEN;
 	rzg2l_cru_write(cru, AMnAXIATTR, amnaxiattr);
 }
+static void rzg2l_cru_parallel_setup(struct rzg2l_cru_dev *cru,
+				     const struct rzg2l_cru_ip_format *ip_fmt)
+{
+	u32 icnpifc;
+
+	switch (cru->format.field) {
+	case V4L2_FIELD_INTERLACED:
+		/* Default to TB */
+		icnpifc = ICnPIFC_ITL_INTERLACED;
+		break;
+	case V4L2_FIELD_INTERLACED_TB:
+		icnpifc = ICnPIFC_ITL_INTERLACED_TB;
+		break;
+	case V4L2_FIELD_INTERLACED_BT:
+		icnpifc = ICnPIFC_ITL_INTERLACED_BT;
+		break;
+	case V4L2_FIELD_NONE:
+		icnpifc = ICnPIFC_ITL_PROGRESSIVE;
+		break;
+	default:
+		icnpifc = ICnPIFC_ITL_INTERLACED;
+		break;
+	}
+
+	/*
+	 * Input interface
+	 */
+	switch (ip_fmt->code) {
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+		/* BT.656 8bit YCbCr422 or BT.601 8bit YCbCr422 */
+		if (cru->parallel->mbus_type == V4L2_MBUS_BT656)
+			icnpifc |= ICnPIFC_PINF_UYVY8_BT656;
+		else
+			icnpifc |= ICnPIFC_PINF_UYVY8;
+		break;
+	case MEDIA_BUS_FMT_UYVY10_2X10:
+		/* BT.656 10bit YCbCr422 or BT.601 10bit YCbCr422 */
+		if (cru->parallel->mbus_type == V4L2_MBUS_BT656)
+			icnpifc |= ICnPIFC_PINF_UYVY10_BT656;
+		else
+			icnpifc |= ICnPIFC_PINF_UYVY10;
+		break;
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+		icnpifc |= ICnPIFC_PINF_YUYV16;
+		break;
+	case MEDIA_BUS_FMT_YVYU8_1X16:
+		icnpifc |= ICnPIFC_PINF_YVYU16;
+		break;
+	case MEDIA_BUS_FMT_VYUY8_2X8:
+		icnpifc |= ICnPIFC_PINF_VYUY8;
+		break;
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+		icnpifc |= ICnPIFC_PINF_YUYV8;
+		break;
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+		icnpifc |= ICnPIFC_PINF_YVYU8;
+		break;
+	case MEDIA_BUS_FMT_VYUY10_2X10:
+		icnpifc |= ICnPIFC_PINF_VYUY10;
+		break;
+	case MEDIA_BUS_FMT_YUYV10_2X10:
+		icnpifc |= ICnPIFC_PINF_YUYV10;
+		break;
+	case MEDIA_BUS_FMT_YVYU10_2X10:
+		icnpifc |= ICnPIFC_PINF_YVYU10;
+		break;
+	default:
+		break;
+	}
+
+	/* Hsync Signal Polarity Select */
+	if (cru->parallel->mbus_flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
+		icnpifc |= ICnPIFC_ENPOL_LOW;
+
+	/* Vsync Signal Polarity Select */
+	if (cru->parallel->mbus_flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
+		icnpifc |= ICnPIFC_VSPOL_LOW;
+
+	/* Set field and input data */
+	rzg2l_cru_write(cru, ICnPIFC, icnpifc);
+}
 
 static void rzg2l_cru_csi2_setup(struct rzg2l_cru_dev *cru,
 				 const struct rzg2l_cru_ip_format *ip_fmt)
@@ -305,7 +386,10 @@ static int rzg2l_cru_initialize_image_conv(struct rzg2l_cru_dev *cru,
 	u32 icnmc;
 
 	cru_ip_fmt = rzg2l_cru_ip_code_to_fmt(ip_sd_fmt->code);
-	rzg2l_cru_csi2_setup(cru, cru_ip_fmt);
+	if (cru->is_csi)
+		rzg2l_cru_csi2_setup(cru, cru_ip_fmt);
+	else
+		rzg2l_cru_parallel_setup(cru, cru_ip_fmt);
 
 	/* Output format */
 	cru_video_fmt = rzg2l_cru_ip_format_to_fmt(cru->format.pixelformat);
@@ -585,7 +669,10 @@ int rzg2l_cru_start_image_processing(struct rzg2l_cru_dev *cru)
 	spin_lock_irqsave(&cru->qlock, flags);
 
 	/* Select a video input */
-	rzg2l_cru_write(cru, CRUnCTRL, CRUnCTRL_VINSEL(0));
+	if (cru->is_csi)
+		rzg2l_cru_write(cru, CRUnCTRL, CRUnCTRL_VINSEL(0));
+	else
+		rzg2l_cru_write(cru, CRUnCTRL, CRUnCTRL_VINSEL(1));
 
 	/* Cancel the software reset for image processing block */
 	rzg2l_cru_write(cru, CRUnRST, CRUnRST_VRESETN);
@@ -922,15 +1009,15 @@ static int rzg2l_cru_start_streaming_vq(struct vb2_queue *vq, unsigned int count
 	 * if there is no input to CRU while using MIPI CSI2.
 	 */
 
-	cru->retry_thread = kthread_create(retry_streaming_func, cru,
-					   "CRU retry thread");
-	if (IS_ERR(cru->retry_thread)) {
-		ret = PTR_ERR(cru->retry_thread);
-		cru->retry_thread = NULL;
-		goto out;
-	}
-
-	wake_up_process(cru->retry_thread);
+//	cru->retry_thread = kthread_create(retry_streaming_func, cru,
+//					   "CRU retry thread");
+//	if (IS_ERR(cru->retry_thread)) {
+//		ret = PTR_ERR(cru->retry_thread);
+//		cru->retry_thread = NULL;
+//		goto out;
+//	}
+//
+//	wake_up_process(cru->retry_thread);
 
 	dev_dbg(cru->dev, "Starting to capture\n");
 	return 0;
@@ -1060,6 +1147,15 @@ static void rzg2l_cru_format_align(struct rzg2l_cru_dev *cru,
 	case V4L2_FIELD_INTERLACED_TB:
 	case V4L2_FIELD_INTERLACED_BT:
 	case V4L2_FIELD_INTERLACED:
+		break;
+	case V4L2_FIELD_ALTERNATE:
+		/*
+		 * Driver does not (yet) support outputting ALTERNATE to a
+		 * userspace. It does support outputting INTERLACED so use
+		 * the CRU hardware to combine the two fields.
+		 */
+		pix->field = V4L2_FIELD_INTERLACED;
+		pix->height *= 2;
 		break;
 	default:
 		pix->field = RZG2L_CRU_DEFAULT_FIELD;
@@ -1254,41 +1350,75 @@ static int rzg2l_cru_video_link_validate(struct media_link *link)
 			   struct rzg2l_cru_dev, vdev);
 	video_fmt = rzg2l_cru_ip_format_to_fmt(cru->format.pixelformat);
 
-	switch (fmt.format.code) {
-	case MEDIA_BUS_FMT_UYVY8_2X8:
-	case MEDIA_BUS_FMT_UYVY10_2X10:
-	case MEDIA_BUS_FMT_UYVY8_1X16:
-	case MEDIA_BUS_FMT_YUYV8_1X16:
-	case MEDIA_BUS_FMT_Y8_1X8:
-	case MEDIA_BUS_FMT_RGB444_1X12:
-	case MEDIA_BUS_FMT_RGB565_2X8_LE:
-	case MEDIA_BUS_FMT_RGB666_1X18:
-	case MEDIA_BUS_FMT_RGB888_1X24:
-	case MEDIA_BUS_FMT_SBGGR8_1X8:
-	case MEDIA_BUS_FMT_SGBRG8_1X8:
-	case MEDIA_BUS_FMT_SGRBG8_1X8:
-	case MEDIA_BUS_FMT_SRGGB8_1X8:
-	case MEDIA_BUS_FMT_SRGGB10_1X10:
-	case MEDIA_BUS_FMT_SGRBG10_1X10:
-	case MEDIA_BUS_FMT_SGBRG10_1X10:
-	case MEDIA_BUS_FMT_SBGGR10_1X10:
-	case MEDIA_BUS_FMT_SRGGB12_1X12:
-	case MEDIA_BUS_FMT_SGRBG12_1X12:
-	case MEDIA_BUS_FMT_SGBRG12_1X12:
-	case MEDIA_BUS_FMT_SBGGR12_1X12:
-	case MEDIA_BUS_FMT_SRGGB14_1X14:
-	case MEDIA_BUS_FMT_SGRBG14_1X14:
-	case MEDIA_BUS_FMT_SGBRG14_1X14:
-	case MEDIA_BUS_FMT_SBGGR14_1X14:
-	case MEDIA_BUS_FMT_SRGGB16_1X16:
-	case MEDIA_BUS_FMT_SGRBG16_1X16:
-	case MEDIA_BUS_FMT_SGBRG16_1X16:
-	case MEDIA_BUS_FMT_SBGGR16_1X16:
-		video_fmt = rzg2l_cru_ip_code_to_fmt(fmt.format.code);
-		break;
-	default:
-		return -EPIPE;
+	if (!cru->is_csi) {
+		switch (fmt.format.code) {
+		case MEDIA_BUS_FMT_UYVY8_2X8:
+		case MEDIA_BUS_FMT_VYUY8_2X8:
+		case MEDIA_BUS_FMT_YUYV8_2X8:
+		case MEDIA_BUS_FMT_YVYU8_2X8:
+		case MEDIA_BUS_FMT_UYVY10_2X10:
+		case MEDIA_BUS_FMT_VYUY10_2X10:
+		case MEDIA_BUS_FMT_YUYV10_2X10:
+		case MEDIA_BUS_FMT_YVYU10_2X10:
+		case MEDIA_BUS_FMT_YUYV8_1X16:
+		case MEDIA_BUS_FMT_YVYU8_1X16:
+			video_fmt = rzg2l_cru_ip_code_to_fmt(fmt.format.code);
+			break;
+		default:
+			return -EPIPE;
+		}
+
+		switch (fmt.format.field) {
+		case V4L2_FIELD_NONE:
+		case V4L2_FIELD_INTERLACED_TB:
+		case V4L2_FIELD_INTERLACED_BT:
+		case V4L2_FIELD_INTERLACED:
+			/* Supported natively */
+			break;
+		case V4L2_FIELD_ALTERNATE:
+			fmt.format.height *= 2;
+			break;
+		default:
+			return -EPIPE;
+		}
+	} else {
+		switch (fmt.format.code) {
+		case MEDIA_BUS_FMT_UYVY8_2X8:
+		case MEDIA_BUS_FMT_UYVY10_2X10:
+		case MEDIA_BUS_FMT_UYVY8_1X16:
+		case MEDIA_BUS_FMT_YUYV8_1X16:
+		case MEDIA_BUS_FMT_Y8_1X8:
+		case MEDIA_BUS_FMT_RGB444_1X12:
+		case MEDIA_BUS_FMT_RGB565_2X8_LE:
+		case MEDIA_BUS_FMT_RGB666_1X18:
+		case MEDIA_BUS_FMT_RGB888_1X24:
+		case MEDIA_BUS_FMT_SBGGR8_1X8:
+		case MEDIA_BUS_FMT_SGBRG8_1X8:
+		case MEDIA_BUS_FMT_SGRBG8_1X8:
+		case MEDIA_BUS_FMT_SRGGB8_1X8:
+		case MEDIA_BUS_FMT_SRGGB10_1X10:
+		case MEDIA_BUS_FMT_SGRBG10_1X10:
+		case MEDIA_BUS_FMT_SGBRG10_1X10:
+		case MEDIA_BUS_FMT_SBGGR10_1X10:
+		case MEDIA_BUS_FMT_SRGGB12_1X12:
+		case MEDIA_BUS_FMT_SGRBG12_1X12:
+		case MEDIA_BUS_FMT_SGBRG12_1X12:
+		case MEDIA_BUS_FMT_SBGGR12_1X12:
+		case MEDIA_BUS_FMT_SRGGB14_1X14:
+		case MEDIA_BUS_FMT_SGRBG14_1X14:
+		case MEDIA_BUS_FMT_SGBRG14_1X14:
+		case MEDIA_BUS_FMT_SBGGR14_1X14:
+		case MEDIA_BUS_FMT_SRGGB16_1X16:
+		case MEDIA_BUS_FMT_SGRBG16_1X16:
+		case MEDIA_BUS_FMT_SGBRG16_1X16:
+		case MEDIA_BUS_FMT_SBGGR16_1X16:
+			video_fmt = rzg2l_cru_ip_code_to_fmt(fmt.format.code);
+			break;
+		default:
+			return -EPIPE;
+		}
 	}
+
 	if (fmt.format.width != cru->format.width ||
 	    fmt.format.height != cru->format.height ||
 	    fmt.format.field != cru->format.field ||
