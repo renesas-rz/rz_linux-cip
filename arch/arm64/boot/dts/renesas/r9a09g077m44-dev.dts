@@ -48,6 +48,13 @@
 #define SEL_ETHSS_PCIE		1
 
 /*
+ * Set SEL_PCIE_RC_EP to below values to select using of:
+ * - 0: Endpoint
+ * - 1: Root complex (default)
+ */
+#define SEL_PCIE_RC_EP		1
+
+/*
  *  Select SCI or LCDC support
  *  SEL_SCI1_LCDC=0: SCI1
  *  SEL_SCI1_LCDC=1: LCDC (default)
@@ -516,6 +523,7 @@
 			drive-strength  = <3>;
 	};
 #else
+#if (SEL_PCIE_RC_EP)
 	pcie_rstout0 {
 		gpio-hog;
 		gpios = <RZT2H_GPIO(33, 3) GPIO_ACTIVE_HIGH>;
@@ -529,6 +537,7 @@
 		output-high;
 		line-name = "pcie_rstout1";
 	};
+#endif
 #endif
 
 #if (SEL_OTG)
@@ -872,10 +881,16 @@
 };
 
 #if (!SEL_ETHSS_PCIE)
+#if (SEL_PCIE_RC_EP)
 &pcie0 {
 	pcie-lane = <1>;
 	status = "okay";
 };
+#else
+&pcie0_ep {
+	status = "okay";
+};
+#endif
 #endif
 
 #if ((!SEL_ETHSW_ESC_LCDC) && (!SEL_ESC_ETHSW_GMAC2))
