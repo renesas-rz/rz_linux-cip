@@ -211,6 +211,34 @@
 	enable-active-high;
 };
 
+#if (POEGD_SUPPORT)
+&poega {
+       status = "okay";
+};
+
+&poegb {
+       status = "okay";
+};
+
+&poegc {
+       status = "okay";
+};
+
+&poegd {
+       status = "okay";
+};
+#endif
+
+&gpt4 {
+       pinctrl-0 = <&gpt4_pins>;
+       pinctrl-names = "default";
+       channel = "both_AB";
+#if (POEGD_SUPPORT)
+       poeg = <&poega &poegb &poegc &poegd>;
+#endif
+       status = "okay";
+};
+
 &ssi1 {
 	pinctrl-0 = <&ssi1_pins>;
 	pinctrl-names = "default";
