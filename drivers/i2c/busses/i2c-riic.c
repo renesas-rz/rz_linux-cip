@@ -48,6 +48,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/delay.h>
+#include <linux/sys_soc.h>
 
 #define ICFER_FMPE	0x80
 #define ICFER_MALE	0x02
@@ -111,6 +112,11 @@
 
 #define MAX_SLAVE_DEVICE 3
 
+static const struct soc_device_attribute rzg3s_match[] = {
+        { .family = "RZ/G3S" },
+        { /* sentinel*/ }
+};
+
 struct riic_regs {
 	u8 iccr1;
 	u8 iccr2;
@@ -124,6 +130,12 @@ struct riic_regs {
 	u16 icsar0;
 	u16 icsar1;
 	u16 icsar2;
+	u8 sarl0;
+	u8 saru0;
+	u8 sarl1;
+	u8 saru1;
+	u8 sarl2;
+	u8 saru2;
 	u8 icbrl;
 	u8 icbrh;
 	u8 icdrt;
@@ -583,11 +595,22 @@ static irqreturn_t riic_start_isr(int irq, void *data)
 static irqreturn_t riic_stop_isr(int irq, void *data)
 {
 	struct riic_dev *riic = data;
-	u8 val;
+	u8 val, is_slave = 0;
 
-	if ((readb(riic->base + riic->info->regs->icsar0) != 0) ||
-		(readb(riic->base + riic->info->regs->icsar1) != 0) ||
-			(readb(riic->base + riic->info->regs->icsar2) != 0)) {
+	if (soc_device_match(rzg3s_match)) {
+		if ((readb(riic->base + riic->info->regs->sarl0) != 0) ||
+			(readb(riic->base + riic->info->regs->sarl1) != 0) ||
+				(readb(riic->base + riic->info->regs->sarl2) != 0))
+			is_slave = 1;
+	}
+	else {
+		if ((readb(riic->base + riic->info->regs->icsar0) != 0) ||
+			(readb(riic->base + riic->info->regs->icsar1) != 0) ||
+				(readb(riic->base + riic->info->regs->icsar2) != 0))
+			is_slave = 1;
+	}
+
+	if (is_slave) {
 		if (riic->num_slave > -1)
 			i2c_slave_event(riic->slave[riic->num_slave], I2C_SLAVE_STOP, &val);
 		if (readb(riic->base + riic->info->regs->icsr2) & ICSR2_RDRF)
@@ -598,6 +621,7 @@ static irqreturn_t riic_stop_isr(int irq, void *data)
 				riic->base + riic->info->regs->icier);
 		return IRQ_HANDLED;
 	}
+
 	/* read back registers to confirm writes have fully propagated */
 	writeb(0, riic->base + riic->info->regs->icsr2);
 	readb(riic->base + riic->info->regs->icsr2);
@@ -625,15 +649,24 @@ static int riic_reg_slave(struct i2c_client *slave)
 
 	if (riic->slave[0] == NULL) {
 		riic->slave[0] = slave;
-		writew(riic->slave[0]->addr << 1, riic->base + riic->info->regs->icsar0);
+		if (soc_device_match(rzg3s_match))
+			writeb(riic->slave[0]->addr << 1, riic->base + riic->info->regs->sarl0);
+		else
+			writew(riic->slave[0]->addr << 1, riic->base + riic->info->regs->icsar0);
 		riic_clear_set_bit(riic, 0, ICSER_SAR0, riic->info->regs->icser);
 	} else if (riic->slave[1] == NULL) {
 		riic->slave[1] = slave;
-		writew(riic->slave[1]->addr << 1, riic->base + riic->info->regs->icsar1);
+		if (soc_device_match(rzg3s_match))
+			writeb(riic->slave[1]->addr << 1, riic->base + riic->info->regs->sarl1);
+		else
+			writew(riic->slave[1]->addr << 1, riic->base + riic->info->regs->icsar1);
 		riic_clear_set_bit(riic, 0, ICSER_SAR1, riic->info->regs->icser);
 	} else if (riic->slave[2] == NULL) {
 		riic->slave[2] = slave;
-		writew(riic->slave[2]->addr << 1, riic->base + riic->info->regs->icsar2);
+		if (soc_device_match(rzg3s_match))
+			writeb(riic->slave[2]->addr << 1, riic->base + riic->info->regs->sarl2);
+		else
+			writew(riic->slave[2]->addr << 1, riic->base + riic->info->regs->icsar2);
 		riic_clear_set_bit(riic, 0, ICSER_SAR2, riic->info->regs->icser);
 	}
 	/* read back registers to confirm writes have fully propagated */
@@ -660,17 +693,26 @@ static int riic_unreg_slave(struct i2c_client *slave)
 	readb(riic->base + riic->info->regs->icsr2);
 
 	if ((riic->slave[0] != NULL) && (riic->slave[0]->addr == slave->addr)) {
-		writew(0, riic->base + riic->info->regs->icsar0);
+		if (soc_device_match(rzg3s_match))
+			writeb(0, riic->base + riic->info->regs->sarl0);
+		else
+			writew(0, riic->base + riic->info->regs->icsar0);
 		riic_clear_set_bit(riic, ICSER_SAR0, 0, riic->info->regs->icser);
 		riic->slave[0] = NULL;
 	}
 	if ((riic->slave[1] != NULL) && (riic->slave[1]->addr == slave->addr)) {
-		writew(0, riic->base + riic->info->regs->icsar1);
+		if (soc_device_match(rzg3s_match))
+			writeb(0, riic->base + riic->info->regs->sarl1);
+		else
+			writew(0, riic->base + riic->info->regs->icsar1);
 		riic_clear_set_bit(riic, ICSER_SAR1, 0, riic->info->regs->icser);
 		riic->slave[1] = NULL;
 	}
 	if ((riic->slave[2] != NULL) && (riic->slave[2]->addr == slave->addr)) {
-		writew(0, riic->base + riic->info->regs->icsar2);
+		if (soc_device_match(rzg3s_match))
+			writeb(0, riic->base + riic->info->regs->sarl2);
+		else
+			writew(0, riic->base + riic->info->regs->icsar2);
 		riic_clear_set_bit(riic, ICSER_SAR2, 0, riic->info->regs->icser);
 		riic->slave[2] = NULL;
 	}
@@ -1030,7 +1072,14 @@ static const struct riic_regs rzg3s_riic_regs = {
 	.icfer = 0x05,
 	.icser = 0x06,
 	.icier = 0x07,
+	.icsr1 = 0x08,
 	.icsr2 = 0x09,
+	.sarl0 = 0x0A,
+	.saru0 = 0x0B,
+	.sarl1 = 0x0C,
+	.saru1 = 0x0D,
+	.sarl2 = 0x0E,
+	.saru2 = 0x0F,
 	.icbrl = 0x10,
 	.icbrh = 0x11,
 	.icdrt = 0x12,
