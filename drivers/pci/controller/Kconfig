@@ -119,6 +119,11 @@ config PCI_FTPCI100
 	depends on OF
 	default ARCH_GEMINI
 
+config RZT2H_PCIE
+	tristate "Renesas RZ/T2H Series PCIe controller"
+	help
+	  Say Y here if you want PCIe controller support on RZ/T2H Series SoCs.
+
 config PCI_HOST_COMMON
 	tristate
 	select PCI_ECAM
