@@ -104,8 +104,6 @@ void rzt2h_pcie_ep_set_outbound(struct rzt2h_pcie *pcie, int win, struct resourc
 	else
 		mask = 0x0;
 
-	cpu_addr = (cpu_addr - 0xA0000000) | 0x400000000UL;
-
 	/* PW0 addr: PCIE_WINDOW_BASEU_REG: 0x1104   PCIE_WINDOW_BASEL_REG: 0x1100 */
 	rzt2h_pci_write_reg(pcie, (u32)(cpu_addr >> 32), PCIE_WINDOW_BASEU_REG(win));
 	rzt2h_rmw(pcie, PCIE_WINDOW_BASEL_REG(win), 0xFFFFF000, (u32)(cpu_addr & 0xFFFFF000));
