@@ -77,10 +77,15 @@
 #define ICIER_SPIE	BIT(3)
 
 #define ICSR2_NACKF	BIT(4)
+#define ICSR2_STOP	BIT(3)
 
 #define ICBR_RESERVED	GENMASK(7, 5) /* Should be 1 on writes */
 
 #define RIIC_INIT_MSG	-1
+
+enum riic_irq_chip {
+	RIIC_T2_IRQTYPE,
+};
 
 enum riic_reg_list {
 	RIIC_ICCR1 = 0,
@@ -101,6 +106,7 @@ enum riic_reg_list {
 struct riic_of_data {
 	const u8 *regs;
 	bool fast_mode_plus;
+	enum riic_irq_chip	irq;
 };
 
 struct riic_dev {
@@ -322,6 +328,19 @@ static irqreturn_t riic_stop_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t riic_eei_isr(int irq, void *data)
+{
+	u8 icsr2 = riic_readb(data, RIIC_ICSR2);
+
+	if (icsr2 & ICSR2_NACKF)
+		return riic_tend_isr(irq, data);
+
+	if (icsr2 & ICSR2_STOP)
+		return riic_stop_isr(irq, data);
+
+	return IRQ_NONE;
+}
+
 static u32 riic_func(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
@@ -447,6 +466,13 @@ static const struct riic_irq_desc riic_irqs[] = {
 	{ .res_num = 5, .isr = riic_tend_isr, .name = "riic-nack" },
 };
 
+static struct riic_irq_desc riic_t2_irqs[] = {
+	{ .res_num = 0, .isr = riic_eei_isr,  .name = "riic-eei" },
+	{ .res_num = 1, .isr = riic_rdrf_isr, .name = "riic-rxi" },
+	{ .res_num = 2, .isr = riic_tdre_isr, .name = "riic-txi" },
+	{ .res_num = 3, .isr = riic_tend_isr, .name = "riic-tei" },
+};
+
 static void riic_reset_control_assert(void *data)
 {
 	reset_control_assert(data);
@@ -457,7 +483,11 @@ static int riic_i2c_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct riic_dev *riic;
 	struct i2c_adapter *adap;
-	int i, ret;
+	int i, ret, size;
+	const struct riic_of_data *chip_id;
+	const struct riic_irq_desc *riic_irqs_common;
+
+	chip_id = of_device_get_match_data(&pdev->dev);
 
 	riic = devm_kzalloc(dev, sizeof(*riic), GFP_KERNEL);
 	if (!riic)
@@ -485,18 +515,26 @@ static int riic_i2c_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	for (i = 0; i < ARRAY_SIZE(riic_irqs); i++) {
-		int irq;
+	if (chip_id->irq == RIIC_T2_IRQTYPE) {
+		riic_irqs_common = riic_t2_irqs;
+		size = ARRAY_SIZE(riic_t2_irqs);
+	} else {
+		riic_irqs_common = riic_irqs;
+		size = ARRAY_SIZE(riic_irqs);
+	}
 
-		irq = platform_get_irq(pdev, riic_irqs[i].res_num);
-		if (irq < 0)
-			return irq;
+	for (i = 0; i < size; i++) {
+		ret = platform_get_irq(pdev, riic_irqs_common[i].res_num);
+		if (ret < 0)
+			return ret;
 
-		ret = devm_request_irq(dev, irq, riic_irqs[i].isr,
-				       0, riic_irqs[i].name, riic);
-		if (ret)
+		ret = devm_request_irq(dev, ret, riic_irqs_common[i].isr,
+				       0, riic_irqs_common[i].name, riic);
+		if (ret) {
 			return dev_err_probe(dev, ret, "failed to request irq %s\n",
-					     riic_irqs[i].name);
+					     riic_irqs_common[i].name);
+			return ret;
+		}
 	}
 
 	riic->info = of_device_get_match_data(dev);
@@ -597,6 +635,11 @@ static const struct riic_of_data riic_rz_v2h_info = {
 	.fast_mode_plus = true,
 };
 
+static const struct riic_of_data riic_rz_t2_info = {
+	.regs = riic_rz_v2h_regs,
+	.irq = RIIC_T2_IRQTYPE,
+};
+
 static int riic_i2c_suspend(struct device *dev)
 {
 	struct riic_dev *riic = dev_get_drvdata(dev);
@@ -648,8 +691,7 @@ static const struct dev_pm_ops riic_i2c_pm_ops = {
 
 static const struct of_device_id riic_i2c_dt_ids[] = {
 	{ .compatible = "renesas,riic-rz", .data = &riic_rz_a_info },
-	{ .compatible = "renesas,riic-r7s72100", .data =  &riic_rz_a1h_info, },
-	{ .compatible = "renesas,riic-r9a09g057", .data = &riic_rz_v2h_info },
+	{ .compatible = "renesas,riic-r9a07g076", .data = &riic_rz_t2_info },
 	{ /* Sentinel */ },
 };
 
