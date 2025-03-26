@@ -693,6 +693,7 @@ static void ethss_remove(struct platform_device *pdev)
 
 static const struct of_device_id ethss_of_mtable[] = {
 	{ .compatible = "renesas,rzt2h-ethss" },
+	{ .compatible = "renesas,rzn2h-ethss" },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, ethss_of_mtable);
