@@ -885,6 +885,12 @@ config SPI_RSPI
 	help
 	  SPI driver for Renesas RSPI and QSPI blocks.
 
+config SPI_RSCI
+	tristate "Renesas RSCI controller"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	help
+	  SPI driver for Renesas RSCI.
+
 config SPI_RZV2M_CSI
 	tristate "Renesas RZ/V2M CSI controller"
 	depends on ARCH_RENESAS || COMPILE_TEST
