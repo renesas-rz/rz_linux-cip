@@ -18,6 +18,8 @@
 		serial0 = &sci0;
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
+		ethernet0 = &gmac1;
+		ethernet1 = &gmac2;
 	};
 
 	chosen {
@@ -149,6 +151,16 @@
 				 <RZT2H_PORT_PINMUX(17, 4, 0x29)>; /* SDHI : SD1_CD/P17_4 */
 		};
 	};
+
+	mdio1_pins: gmac_mdio1 {
+		pinmux = <RZT2H_PORT_PINMUX(26, 1, 0x10)>, /* GMAC : GMAC1_MDC/P26_1 */
+			 <RZT2H_PORT_PINMUX(26, 2, 0x10)>; /* GMAC : GMAC1_MDIO/P26_2 */
+	};
+
+	mdio2_pins: gmac_mdio2 {
+		pinmux = <RZT2H_PORT_PINMUX(30, 5, 0x10)>, /* GMAC : GMAC2_MDC/P30_5 */
+			 <RZT2H_PORT_PINMUX(30, 6, 0x10)>; /* GMAC : GMAC2_MDIO/P30_6 */
+	};
 };
 
 &extal {
@@ -185,4 +197,42 @@
 	bus-width = <4>;
 	non-removable;
 	status = "okay";
+};
+
+&gmac1 {
+	phy-handle = <&phy3>;
+	phy-mode = "rgmii-id";
+	status = "okay";
+	phy-reset-gpios = <&pinctrl RZT2H_GPIO(3, 2) GPIO_ACTIVE_HIGH>; /* ETH3 RESETOUT3/P03_2 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio1_pins>;
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		phy3: ethernet-phy@3 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <3>;
+		};
+	};
+};
+
+&gmac2 {
+	phy-handle = <&phy2>;
+	phy-mode = "rgmii-id";
+	status = "okay";
+	phy-reset-gpios = <&pinctrl RZT2H_GPIO(3, 1) GPIO_ACTIVE_HIGH>; /* ETH2 RESETOUT2/P03_1 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio2_pins>;
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		phy2: ethernet-phy@2 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <2>;
+		};
+	};
 };
