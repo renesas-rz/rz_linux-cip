@@ -89,7 +89,6 @@
 #define ICIER_RIE	0x20
 #define ICIER_NAKIE	0x10
 #define ICIER_SPIE	0x08
-#define ICIER_STIE	0x04
 
 #define ICSR1_AAS0	0x01
 #define ICSR1_AAS1	0x02
@@ -423,7 +422,7 @@ static irqreturn_t riic_tdre_isr(int irq, void *data)
 	if (readb(riic->base + riic->info->regs->icsr1) == ICSR1_AAS2)
 		riic->num_slave = 2;
 
-	if (riic->slave[riic->num_slave]) {
+	if (riic->num_slave > -1 && riic->slave[riic->num_slave]) {
 		riic_clear_set_bit(riic, 0, ICIER_TEIE, riic->info->regs->icier);
 		if (!riic->first_transmit) {
 			i2c_slave_event(riic->slave[riic->num_slave],
@@ -495,7 +494,7 @@ static irqreturn_t riic_tend_isr(int irq, void *data)
 		return IRQ_NONE;
 	}
 
-	if (riic->slave[riic->num_slave]) {
+	if (riic->num_slave > -1 && riic->slave[riic->num_slave]) {
 		if (readb(riic->base + riic->info->regs->icsr2) & ICSR2_TEND)
 			readb(riic->base + riic->info->regs->icdrr);    /* dummy read */
 
@@ -528,7 +527,7 @@ static irqreturn_t riic_rdrf_isr(int irq, void *data)
 	if (readb(riic->base + riic->info->regs->icsr1) == ICSR1_AAS2)
 		riic->num_slave = 2;
 
-	if (riic->slave[riic->num_slave]) {
+	if (riic->num_slave > -1 && riic->slave[riic->num_slave]) {
 		if (!riic->first_receive) {
 			ret = i2c_slave_event(riic->slave[riic->num_slave],
 						I2C_SLAVE_WRITE_REQUESTED, &val);
@@ -577,21 +576,6 @@ static irqreturn_t riic_rdrf_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t riic_start_isr(int irq, void *data)
-{
-	struct riic_dev *riic = data;
-
-	riic_clear_set_bit(riic, ICIER_STIE, 0, riic->info->regs->icier);
-	riic_clear_set_bit(riic, ICSR2_START, 0, riic->info->regs->icsr2);
-	riic->first_transmit = 0;
-	riic->first_receive = 0;
-	riic->num_slave = -1;
-	riic_clear_set_bit(riic, 0, ICMR3_RDRFS, riic->info->regs->icmr3);
-
-	return IRQ_HANDLED;
-
-}
-
 static irqreturn_t riic_stop_isr(int irq, void *data)
 {
 	struct riic_dev *riic = data;
@@ -617,8 +601,12 @@ static irqreturn_t riic_stop_isr(int irq, void *data)
 			readb(riic->base + riic->info->regs->icdrr);
 		writeb(0, riic->base + riic->info->regs->icsr2);
 		readb(riic->base + riic->info->regs->icsr2);
-		writeb(ICIER_NAKIE | ICIER_TIE | ICIER_RIE | ICIER_STIE | ICIER_SPIE,
+		writeb(ICIER_NAKIE | ICIER_TIE | ICIER_RIE | ICIER_SPIE,
 				riic->base + riic->info->regs->icier);
+		riic->num_slave = -1;
+		riic->first_transmit = 0;
+		riic->first_receive = 0;
+		riic_clear_set_bit(riic, 0, ICMR3_RDRFS, riic->info->regs->icmr3);
 		return IRQ_HANDLED;
 	}
 
@@ -674,7 +662,7 @@ static int riic_reg_slave(struct i2c_client *slave)
 	readb(riic->base + riic->info->regs->icsr1);
 	writeb(0, riic->base + riic->info->regs->icsr2);
 	readb(riic->base + riic->info->regs->icsr2);
-	writeb(ICIER_NAKIE | ICIER_TIE  | ICIER_RIE | ICIER_STIE | ICIER_SPIE,
+	writeb(ICIER_NAKIE | ICIER_TIE  | ICIER_RIE | ICIER_SPIE,
 				riic->base + riic->info->regs->icier);
 	riic->first_transmit = 0;
 	riic->first_receive = 0;
@@ -685,12 +673,6 @@ static int riic_reg_slave(struct i2c_client *slave)
 static int riic_unreg_slave(struct i2c_client *slave)
 {
 	struct riic_dev *riic = i2c_get_adapdata(slave->adapter);
-
-	/* read back registers to confirm writes have fully propagated */
-	writeb(0, riic->base + riic->info->regs->icsr1);
-	readb(riic->base + riic->info->regs->icsr1);
-	writeb(0, riic->base + riic->info->regs->icsr2);
-	readb(riic->base + riic->info->regs->icsr2);
 
 	if ((riic->slave[0] != NULL) && (riic->slave[0]->addr == slave->addr)) {
 		if (soc_device_match(rzg3s_match))
@@ -715,6 +697,16 @@ static int riic_unreg_slave(struct i2c_client *slave)
 			writew(0, riic->base + riic->info->regs->icsar2);
 		riic_clear_set_bit(riic, ICSER_SAR2, 0, riic->info->regs->icser);
 		riic->slave[2] = NULL;
+	}
+
+	/* read back registers to confirm writes have fully propagated */
+	writeb(0, riic->base + riic->info->regs->icsr1);
+	readb(riic->base + riic->info->regs->icsr1);
+	writeb(0, riic->base + riic->info->regs->icsr2);
+	readb(riic->base + riic->info->regs->icsr2);
+	if ((riic->slave[0] == NULL) && (riic->slave[1] == NULL) && (riic->slave[2] == NULL)) {
+		writeb(0, riic->base + riic->info->regs->icier);
+		readb(riic->base + riic->info->regs->icier);
 	}
 
 	pm_runtime_put(riic->adapter.dev.parent);
@@ -921,7 +913,6 @@ static struct riic_irq_desc riic_irqs[] = {
 	{ .res_num = 1, .isr = riic_rdrf_isr, .name = "riic-rdrf" },
 	{ .res_num = 2, .isr = riic_tdre_isr, .name = "riic-tdre" },
 	{ .res_num = 3, .isr = riic_stop_isr, .name = "riic-stop" },
-	{ .res_num = 4, .isr = riic_start_isr, .name = "riic-start" },
 	{ .res_num = 5, .isr = riic_tend_isr, .name = "riic-nack" },
 };
 
@@ -988,6 +979,7 @@ static int riic_i2c_probe(struct platform_device *pdev)
 
 	for (i = 0; i < MAX_SLAVE_DEVICE; i++)
 		riic->slave[i] = NULL;
+	riic->num_slave = -1;
 	riic->info = info;
 	adap = &riic->adapter;
 	i2c_set_adapdata(adap, riic);
