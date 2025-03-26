@@ -704,6 +704,7 @@ static const struct of_device_id dwc_eth_dwmac_match[] = {
 	{ .compatible = "snps,dwc-qos-ethernet-4.10", .data = &dwc_qos_data },
 	{ .compatible = "nvidia,tegra186-eqos", .data = &tegra_eqos_data },
 	{ .compatible = "renesas,rzt2h-eqos", .data = &renesas_rzt2h_eqos_data },
+	{ .compatible = "renesas,rzn2h-eqos", .data = &renesas_rzt2h_eqos_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, dwc_eth_dwmac_match);
