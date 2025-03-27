@@ -32,10 +32,10 @@
 struct rzt2h_msi {
 	DECLARE_BITMAP(used, INT_PCI_MSI_NR);
 	struct irq_domain *domain;
-	struct msi_controller chip;
 	unsigned long pages;
 	unsigned long virt_pages;
-	struct mutex lock;
+	struct mutex map_lock;
+	spinlock_t mask_lock;
 	int irq;
 };
 
@@ -81,11 +81,6 @@ static u32 r_device_serial_number_capability[] = {
 	0x00000000
 };
 
-static inline struct rzt2h_msi *to_rzt2h_msi(struct msi_controller *chip)
-{
-	return container_of(chip, struct rzt2h_msi, chip);
-}
-
 /* Structure representing the PCIe interface */
 struct rzt2h_pcie_host {
 	struct rzt2h_pcie	pcie;
@@ -99,6 +94,11 @@ struct rzt2h_pcie_host {
 	struct reset_control    *rst;
 	int			lane;
 };
+
+static struct rzt2h_pcie_host *msi_to_host(struct rzt2h_msi *msi)
+{
+	return container_of(msi, struct rzt2h_pcie_host, msi);
+}
 
 static void __iomem	*supplemental;
 
@@ -460,8 +460,6 @@ static int rzt2h_pcie_enable(struct rzt2h_pcie_host *host)
 
 	bridge->sysdata = host;
 	bridge->ops = &rzt2h_pcie_ops;
-	if (IS_ENABLED(CONFIG_PCI_MSI))
-		bridge->msi = &host->msi.chip;
 
 	return pci_host_probe(bridge);
 }
@@ -730,42 +728,6 @@ static const struct irq_domain_ops intx_domain_ops = {
 	.map = rzt2h_pcie_intx_map,
 };
 
-static int rzt2h_msi_alloc(struct rzt2h_msi *chip)
-{
-	int msi;
-
-	mutex_lock(&chip->lock);
-
-	msi = find_first_zero_bit(chip->used, INT_PCI_MSI_NR);
-	if (msi < INT_PCI_MSI_NR)
-		set_bit(msi, chip->used);
-	else
-		msi = -ENOSPC;
-
-	mutex_unlock(&chip->lock);
-
-	return msi;
-}
-
-static int rzt2h_msi_alloc_region(struct rzt2h_msi *chip, int no_irqs)
-{
-	int msi;
-
-	mutex_lock(&chip->lock);
-	msi = bitmap_find_free_region(chip->used, INT_PCI_MSI_NR,
-				      order_base_2(no_irqs));
-	mutex_unlock(&chip->lock);
-
-	return msi;
-}
-
-static void rzt2h_msi_free(struct rzt2h_msi *chip, unsigned long irq)
-{
-	mutex_lock(&chip->lock);
-	clear_bit(irq, chip->used);
-	mutex_unlock(&chip->lock);
-}
-
 static irqreturn_t rzt2h_pcie_msi_irq(int irq, void *data)
 {
 	struct rzt2h_pcie_host *host = data;
@@ -774,26 +736,19 @@ static irqreturn_t rzt2h_pcie_msi_irq(int irq, void *data)
 	unsigned long reg, msi_stat;
 
 	reg = rzt2h_pci_read_reg(pcie, PCI_INTX_RCV_INTERRUPT_STATUS_REG);
-	/* clear the interrupt */
-	rzt2h_pci_write_reg(pcie, ALL_RECEIVE_INTERRUPT_STATUS, PCI_INTX_RCV_INTERRUPT_STATUS_REG);
-
-	/* MSI Only */
-	if (!(reg & MSI_RECEIVE_INTERRUPT_STATUS))
-		return IRQ_NONE;
 
 	msi_stat = rzt2h_pci_read_reg(pcie, PCI_RC_MSIRCVSTAT(0));
+	if (!msi_stat)
+		return IRQ_NONE;
 
 	while (msi_stat) {
 		unsigned int index = find_first_bit(&msi_stat, 32);
 		unsigned int msi_irq;
 
 		rzt2h_pci_write_reg(pcie, 1 << index, PCI_RC_MSIRCVSTAT(0));
-		msi_irq = irq_find_mapping(msi->domain, index);
+		msi_irq = irq_find_mapping(msi->domain->parent, index);
 		if (msi_irq) {
-			if (test_bit(index, msi->used))
-				generic_handle_irq(msi_irq);
-			else
-				dev_info(pcie->dev, "unhandled MSI\n");
+			generic_handle_irq(msi_irq);
 		} else {
 			/* Unknown MSI, just clear it */
 			dev_dbg(pcie->dev, "unexpected MSI\n");
@@ -806,137 +761,159 @@ static irqreturn_t rzt2h_pcie_msi_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int rzt2h_msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev,
-			      struct msi_desc *desc)
+static void rzt2h_msi_top_irq_ack(struct irq_data *d)
 {
-	struct rzt2h_msi *msi = to_rzt2h_msi(chip);
-	struct rzt2h_pcie_host *host = container_of(chip,
-						    struct rzt2h_pcie_host,
-						    msi.chip);
-	struct rzt2h_pcie *pcie = &host->pcie;
-	struct msi_msg msg;
-	unsigned int irq;
-	int hwirq;
-
-	hwirq = rzt2h_msi_alloc(msi);
-	if (hwirq < 0)
-		return hwirq;
-
-	irq = irq_find_mapping(msi->domain, hwirq);
-	if (!irq) {
-		rzt2h_msi_free(msi, hwirq);
-		return -EINVAL;
-	}
-
-	irq_set_msi_desc(irq, desc);
-
-	msg.address_lo = rzt2h_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDRL_REG) &
-			 (~PCIE_WINDOW_ENABLE);
-	msg.address_hi = rzt2h_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDRU_REG);
-	msg.data = hwirq;
-
-	pci_write_msi_msg(irq, &msg);
-
-	return 0;
+	irq_chip_ack_parent(d);
 }
 
-static int rzt2h_msi_setup_irqs(struct msi_controller *chip,
-			       struct pci_dev *pdev, int nvec, int type)
+static void rzt2h_msi_top_irq_mask(struct irq_data *d)
 {
-	struct rzt2h_msi *msi = to_rzt2h_msi(chip);
-	struct rzt2h_pcie_host *host = container_of(chip,
-						    struct rzt2h_pcie_host,
-						    msi.chip);
-	struct rzt2h_pcie *pcie = &host->pcie;
-	struct msi_desc *desc;
-	struct msi_msg msg;
-	unsigned int irq;
+	pci_msi_mask_irq(d);
+	irq_chip_mask_parent(d);
+}
+
+static void rzt2h_msi_top_irq_unmask(struct irq_data *d)
+{
+	pci_msi_unmask_irq(d);
+	irq_chip_unmask_parent(d);
+}
+
+static struct irq_chip rzt2h_msi_top_chip = {
+	.name		= "PCIe MSI",
+	.irq_ack	= rzt2h_msi_top_irq_ack,
+	.irq_mask	= rzt2h_msi_top_irq_mask,
+	.irq_unmask	= rzt2h_msi_top_irq_unmask,
+};
+
+static void rzt2h_msi_irq_ack(struct irq_data *d)
+{
+	struct rzt2h_msi *msi = irq_data_get_irq_chip_data(d);
+	struct rzt2h_pcie *pcie = &msi_to_host(msi)->pcie;
+
+	rzt2h_pci_write_reg(pcie, ALL_RECEIVE_INTERRUPT_STATUS, PCI_INTX_RCV_INTERRUPT_STATUS_REG);
+}
+
+static void rzt2h_msi_irq_mask(struct irq_data *d)
+{
+	struct rzt2h_msi *msi = irq_data_get_irq_chip_data(d);
+	unsigned long flags;
+
+	spin_lock_irqsave(&msi->mask_lock, flags);
+	spin_unlock_irqrestore(&msi->mask_lock, flags);
+}
+
+static void rzt2h_msi_irq_unmask(struct irq_data *d)
+{
+	struct rzt2h_msi *msi = irq_data_get_irq_chip_data(d);
+	unsigned long flags;
+
+	spin_lock_irqsave(&msi->mask_lock, flags);
+	spin_unlock_irqrestore(&msi->mask_lock, flags);
+}
+
+static int rzt2h_msi_set_affinity(struct irq_data *d, const struct cpumask *mask, bool force)
+{
+	return -EINVAL;
+}
+
+static void rzt2h_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
+{
+	struct rzt2h_msi *msi = irq_data_get_irq_chip_data(data);
+	struct rzt2h_pcie *pcie = &msi_to_host(msi)->pcie;
+
+	msg->address_lo = rzt2h_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDRL_REG) &
+					(~PCIE_WINDOW_ENABLE);
+	msg->address_hi = rzt2h_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDRU_REG);
+	msg->data = data->hwirq;
+}
+
+static struct irq_chip rzt2h_msi_bottom_chip = {
+	.name			= "RZT2H MSI",
+	.irq_ack		= rzt2h_msi_irq_ack,
+	.irq_mask		= rzt2h_msi_irq_mask,
+	.irq_unmask		= rzt2h_msi_irq_unmask,
+	.irq_set_affinity	= rzt2h_msi_set_affinity,
+	.irq_compose_msi_msg	= rzt2h_compose_msi_msg,
+};
+
+static int rzt2h_msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
+				unsigned int nr_irqs, void *args)
+{
+	struct rzt2h_msi *msi = domain->host_data;
+	unsigned int i;
 	int hwirq;
-	int i;
 
-	/* MSI-X interrupts are not supported */
-	if (type == PCI_CAP_ID_MSIX)
-		return -EINVAL;
+	mutex_lock(&msi->map_lock);
 
-	WARN_ON(!list_is_singular(&pdev->dev.msi_list));
-	desc = list_entry(pdev->dev.msi_list.next, struct msi_desc, list);
+	hwirq = bitmap_find_free_region(msi->used, INT_PCI_MSI_NR, order_base_2(nr_irqs));
+	mutex_unlock(&msi->map_lock);
 
-	hwirq = rzt2h_msi_alloc_region(msi, nvec);
 	if (hwirq < 0)
 		return -ENOSPC;
 
-	irq = irq_find_mapping(msi->domain, hwirq);
-	if (!irq)
-		return -ENOSPC;
-
-	for (i = 0; i < nvec; i++) {
-		/*
-		 * irq_create_mapping() called from rzt2h_pcie_probe() pre-
-		 * allocates descs,  so there is no need to allocate descs here.
-		 * We can therefore assume that if irq_find_mapping() above
-		 * returns non-zero, then the descs are also successfully
-		 * allocated.
-		 */
-		if (irq_set_msi_desc_off(irq, i, desc)) {
-			/* TODO: clear */
-			return -EINVAL;
-		}
-	}
-
-	desc->nvec_used = nvec;
-	desc->msi_attrib.multiple = order_base_2(nvec);
-
-	msg.address_lo = rzt2h_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDRL_REG) &
-			 (~PCIE_WINDOW_ENABLE);
-	msg.address_hi = rzt2h_pci_read_reg(pcie, MSI_RCV_WINDOW_ADDRU_REG);
-	msg.data = hwirq;
-
-	pci_write_msi_msg(irq, &msg);
+	for (i = 0; i < nr_irqs; i++)
+		irq_domain_set_info(domain, virq + i, hwirq + i,
+				&rzt2h_msi_bottom_chip, domain->host_data,
+				handle_edge_irq, NULL, NULL);
 
 	return 0;
 }
 
-static void rzt2h_msi_teardown_irq(struct msi_controller *chip, unsigned int irq)
+static void rzt2h_msi_domain_free(struct irq_domain *domain, unsigned int virq,
+				unsigned int nr_irqs)
 {
-	struct rzt2h_msi *msi = to_rzt2h_msi(chip);
-	struct irq_data *d = irq_get_irq_data(irq);
+	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
+	struct rzt2h_msi *msi = domain->host_data;
 
-	rzt2h_msi_free(msi, d->hwirq);
+	mutex_lock(&msi->map_lock);
+
+	bitmap_release_region(msi->used, d->hwirq, order_base_2(nr_irqs));
+
+	mutex_unlock(&msi->map_lock);
 }
 
-static struct irq_chip rzt2h_msi_irq_chip = {
-	.name = "RZT2H PCIe MSI",
-	.irq_enable = pci_msi_unmask_irq,
-	.irq_disable = pci_msi_mask_irq,
-	.irq_mask = pci_msi_mask_irq,
-	.irq_unmask = pci_msi_unmask_irq,
+static const struct irq_domain_ops rzt2h_msi_domain_ops = {
+	.alloc	= rzt2h_msi_domain_alloc,
+	.free	= rzt2h_msi_domain_free,
 };
 
-static int rzt2h_msi_map(struct irq_domain *domain, unsigned int irq,
-			irq_hw_number_t hwirq)
+static struct msi_domain_info rzt2h_msi_info = {
+	.flags  = (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
+			MSI_FLAG_MULTI_PCI_MSI),
+	.chip	= &rzt2h_msi_top_chip,
+};
+
+static int rzt2h_allocate_domains(struct rzt2h_msi *msi)
 {
-	irq_set_chip_and_handler(irq, &rzt2h_msi_irq_chip, handle_simple_irq);
-	irq_set_chip_data(irq, domain->host_data);
+	struct rzt2h_pcie *pcie = &msi_to_host(msi)->pcie;
+	struct fwnode_handle *fwnode = dev_fwnode(pcie->dev);
+	struct irq_domain *parent;
+
+	parent = irq_domain_create_linear(fwnode, INT_PCI_MSI_NR,
+					&rzt2h_msi_domain_ops, msi);
+
+	if (!parent) {
+		dev_err(pcie->dev, "failed to create IRQ domain\n");
+		return -ENOMEM;
+	}
+	irq_domain_update_bus_token(parent, DOMAIN_BUS_NEXUS);
+
+	msi->domain = pci_msi_create_irq_domain(fwnode, &rzt2h_msi_info, parent);
+	if (!msi->domain) {
+		dev_err(pcie->dev, "failed to create MSI domain\n");
+		irq_domain_remove(parent);
+		return -ENOMEM;
+	}
 
 	return 0;
 }
 
-static const struct irq_domain_ops msi_domain_ops = {
-	.map = rzt2h_msi_map,
-};
-
-static void rzt2h_pcie_unmap_msi(struct rzt2h_pcie_host *host)
+static void rzt2h_free_domains(struct rzt2h_msi *msi)
 {
-	struct rzt2h_msi *msi = &host->msi;
-	int i, irq;
-
-	for (i = 0; i < INT_PCI_MSI_NR; i++) {
-		irq = irq_find_mapping(msi->domain, i);
-		if (irq > 0)
-			irq_dispose_mapping(irq);
-	}
+	struct irq_domain *parent = msi->domain->parent;
 
 	irq_domain_remove(msi->domain);
+	irq_domain_remove(parent);
 }
 
 static void rzt2h_pcie_hw_enable_msi(struct rzt2h_pcie_host *host)
@@ -1001,7 +978,7 @@ static void rzt2h_pcie_hw_enable_msi(struct rzt2h_pcie_host *host)
 	return;
 
 err:
-	rzt2h_pcie_unmap_msi(host);
+	rzt2h_free_domains(&host->msi);
 }
 
 static int rzt2h_pcie_enable_msi(struct rzt2h_pcie_host *host)
@@ -1009,40 +986,25 @@ static int rzt2h_pcie_enable_msi(struct rzt2h_pcie_host *host)
 	struct rzt2h_pcie *pcie = &host->pcie;
 	struct device *dev = pcie->dev;
 	struct rzt2h_msi *msi = &host->msi;
-	int err, i;
+	struct resource res;
+	int err;
 
-	mutex_init(&msi->lock);
+	mutex_init(&msi->map_lock);
+	spin_lock_init(&msi->mask_lock);
 
-	host->intx_domain = irq_domain_add_linear(dev->of_node, PCI_NUM_INTX,
-						  &intx_domain_ops,
-						  pcie);
+	err = of_address_to_resource(dev->of_node, 0, &res);
+	if (err)
+		return err;
 
-	if (!host->intx_domain)
-		dev_err(dev, "failed to create INTx IRQ domain\n");
-
-	for (i = 0; i < PCI_NUM_INTX; i++)
-		irq_create_mapping(host->intx_domain, i);
-
-	msi->chip.dev = dev;
-	msi->chip.setup_irq = rzt2h_msi_setup_irq;
-	msi->chip.setup_irqs = rzt2h_msi_setup_irqs;
-	msi->chip.teardown_irq = rzt2h_msi_teardown_irq;
-
-	msi->domain = irq_domain_add_linear(dev->of_node, INT_PCI_MSI_NR,
-					    &msi_domain_ops, &msi->chip);
-	if (!msi->domain) {
-		dev_err(dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < INT_PCI_MSI_NR; i++)
-		irq_create_mapping(msi->domain, i);
+	err = rzt2h_allocate_domains(msi);
+	if (err)
+		return err;
 
 	/* Two irqs are for MSI, but they are also used for non-MSI irqs */
 	err = devm_request_irq(dev, msi->irq, rzt2h_pcie_msi_irq,
 	/* Temporarily set only shared IRQ flag */
-			       IRQF_NO_THREAD | IRQF_SHARED,
-			       rzt2h_msi_irq_chip.name, host);
+			       IRQF_SHARED,
+			       rzt2h_msi_bottom_chip.name, host);
 	if (err < 0) {
 		dev_err(dev, "failed to request IRQ: %d\n", err);
 		goto err;
@@ -1054,7 +1016,7 @@ static int rzt2h_pcie_enable_msi(struct rzt2h_pcie_host *host)
 	return 0;
 
 err:
-	rzt2h_pcie_unmap_msi(host);
+	rzt2h_free_domains(msi);
 	return err;
 }
 
