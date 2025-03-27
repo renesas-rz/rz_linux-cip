@@ -1009,15 +1009,15 @@ static int rzg2l_cru_start_streaming_vq(struct vb2_queue *vq, unsigned int count
 	 * if there is no input to CRU while using MIPI CSI2.
 	 */
 
-//	cru->retry_thread = kthread_create(retry_streaming_func, cru,
-//					   "CRU retry thread");
-//	if (IS_ERR(cru->retry_thread)) {
-//		ret = PTR_ERR(cru->retry_thread);
-//		cru->retry_thread = NULL;
-//		goto out;
-//	}
-//
-//	wake_up_process(cru->retry_thread);
+	cru->retry_thread = kthread_create(retry_streaming_func, cru,
+					   "CRU retry thread");
+	if (IS_ERR(cru->retry_thread)) {
+		ret = PTR_ERR(cru->retry_thread);
+		cru->retry_thread = NULL;
+		goto out;
+	}
+
+	wake_up_process(cru->retry_thread);
 
 	dev_dbg(cru->dev, "Starting to capture\n");
 	return 0;
