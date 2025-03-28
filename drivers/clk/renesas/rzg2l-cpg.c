@@ -62,6 +62,14 @@
 #define CLK_RST_R(reg)		(reg)
 #define CLK_MRST_R(reg)		(0x180 + (reg))
 
+/* RZ/G3L Specific PLL clocks register */
+#define G3L_PLL_STBY_OFFSET(x)	(GET_REG_SAMPLL_CLK1(x) - 0x4)
+#define G3L_PLL_STBY_RESETB	BIT(0)
+#define G3L_PLL_STBY_RESETB_WEN	BIT(16)
+#define G3L_PLL_MON_OFFSET(x)	(GET_REG_SAMPLL_CLK1(x) + 0x8)
+#define G3L_PLL_MON_RESETB	BIT(0)
+#define G3L_PLL_MON_LOCK	BIT(4)
+
 #define GET_REG_OFFSET(val)		((val >> 20) & 0xfff)
 #define GET_REG_SAMPLL_CLK1(val)	((val >> 22) & 0xfff)
 #define GET_REG_SAMPLL_CLK2(val)	((val >> 12) & 0xfff)
@@ -996,7 +1004,8 @@ static unsigned long rzg3s_cpg_pll_clk_recalc_rate(struct clk_hw *hw,
 	u32 nir, nfr, mr, pr, val, setting;
 	u64 rate;
 
-	if (pll_clk->type != CLK_TYPE_G3S_PLL)
+	if (pll_clk->type != CLK_TYPE_G3S_PLL &&
+	    pll_clk->type != CLK_TYPE_G3L_PLL)
 		return parent_rate;
 
 	setting = GET_REG_SAMPLL_SETTING(pll_clk->conf);
@@ -1023,6 +1032,52 @@ static unsigned long rzg3s_cpg_pll_clk_recalc_rate(struct clk_hw *hw,
 }
 
 static const struct clk_ops rzg3s_cpg_pll_ops = {
+	.recalc_rate = rzg3s_cpg_pll_clk_recalc_rate,
+};
+
+static int rzg3l_cpg_pll_clk_is_enabled(struct clk_hw *hw)
+{
+	struct pll_clk *pll_clk = to_pll(hw);
+	struct rzg2l_cpg_priv *priv = pll_clk->priv;
+	u32 val = readl(priv->base + G3L_PLL_MON_OFFSET(pll_clk->conf));
+
+	/* Ensure both RESETB and LOCK bits are set */
+	return (val & (G3L_PLL_MON_RESETB | G3L_PLL_MON_LOCK)) ==
+	      (G3L_PLL_MON_RESETB | G3L_PLL_MON_LOCK);
+}
+
+static int rzg3l_cpg_pll_clk_enable(struct clk_hw *hw)
+{
+	struct pll_clk *pll_clk = to_pll(hw);
+	struct rzg2l_cpg_priv *priv = pll_clk->priv;
+	u32 stby_offset;
+	u32 mon_offset;
+	u32 val;
+	int ret;
+
+	if (rzg3l_cpg_pll_clk_is_enabled(hw))
+		return 0;
+
+	stby_offset = G3L_PLL_STBY_OFFSET(pll_clk->conf);
+	mon_offset = G3L_PLL_MON_OFFSET(pll_clk->conf);
+
+	writel(G3L_PLL_STBY_RESETB_WEN | G3L_PLL_STBY_RESETB,
+	priv->base + stby_offset);
+
+	/* ensure PLL is in normal mode */
+	ret = readl_poll_timeout_atomic(priv->base + mon_offset, val,
+					(val & (G3L_PLL_MON_RESETB | G3L_PLL_MON_LOCK)) ==
+					(G3L_PLL_MON_RESETB | G3L_PLL_MON_LOCK), 10, 100);
+	if (ret)
+		dev_err(priv->dev, "Failed to enable PLL 0x%x/%pC\n",
+			stby_offset, hw->clk);
+
+	return ret;
+}
+
+static const struct clk_ops rzg3l_cpg_pll_ops = {
+	.is_enabled = rzg3l_cpg_pll_clk_is_enabled,
+	.enable = rzg3l_cpg_pll_clk_enable,
 	.recalc_rate = rzg3s_cpg_pll_clk_recalc_rate,
 };
 
@@ -1157,6 +1212,9 @@ rzg2l_cpg_register_core_clk(const struct cpg_core_clk *core,
 		break;
 	case CLK_TYPE_G3S_PLL:
 		clk = rzg2l_cpg_pll_clk_register(core, priv, &rzg3s_cpg_pll_ops);
+		break;
+	case CLK_TYPE_G3L_PLL:
+		clk = rzg2l_cpg_pll_clk_register(core, priv, &rzg3l_cpg_pll_ops);
 		break;
 	case CLK_TYPE_SIPLL5:
 		clk = rzg2l_cpg_sipll5_register(core, priv);
