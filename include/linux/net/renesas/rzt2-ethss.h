@@ -27,3 +27,6 @@ struct phylink_pcs *ethss_create(struct device *dev, struct device_node *np);
 void ethss_destroy(struct phylink_pcs *pcs);
 
 #endif /* __RZT2_ETHSS_H__ */
+void ethss_switchcore_adjust(struct phylink_pcs *pcs, int duplex, int speed);
+
+#endif /* __RZT2H_ETHSS_H__ */
