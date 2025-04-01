@@ -605,8 +605,8 @@ int stmmac_mdio_register(struct net_device *ndev)
 	if (mdio_bus_data->needs_reset)
 		new_bus->reset = &stmmac_mdio_reset;
 
-	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s-%x",
-		 new_bus->name, priv->plat->bus_id);
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s-%s-%x",
+		 new_bus->name, dev->of_node->full_name, priv->plat->bus_id);
 	new_bus->priv = ndev;
 	new_bus->phy_mask = mdio_bus_data->phy_mask | mdio_bus_data->pcs_mask;
 	new_bus->parent = priv->device;
