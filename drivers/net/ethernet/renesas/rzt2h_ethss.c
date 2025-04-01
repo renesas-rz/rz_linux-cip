@@ -22,6 +22,10 @@
 #define ETHSS_MODCTRL			0x8
 #define ETHSS_MODCTRL_SW_MODE		GENMASK(2, 0)
 
+#define ETHSS_PHYLNK			0x14
+#define ETHSS_PHYLNK_SWLINK_LOW(x)	BIT(x)
+#define ETHSS_PHYLNK_SWLINK_MASK(x)	BIT(x)
+
 #define ETHSS_CONVCTRL(port)		(0x100 + (port) * 4)
 
 #define ETHSS_CONVCTRL_CONV_SPEED	GENMASK(1, 0)
@@ -44,7 +48,13 @@
 #define ETHSS_CONVRST_PHYIF_RST_MASK	GENMASK(3, 0)
 
 #define ETHSS_SWCTRL			0x304
+#define ETHSS_SWCTRL_MPBS_10(x)		(((0 << 4) | (1 << 0)) << (x))
+#define ETHSS_SWCTRL_MPBS_100(x)	(((0 << 4) | (0 << 0)) << (x))
+#define ETHSS_SWCTRL_MPBS_1000(x)	(((1 << 4) | (0 << 0)) << (x))
+#define ETHSS_SWCTRL_MPBS_MASK(x)	(((1 << 4) | (1 << 0)) << (x))
 #define ETHSS_SWDUPC			0x308
+#define ETHSS_SWDUPC_DUPLEX_MASK(x)	BIT(x)
+#define ETHSS_SWDUPC_DUPLEX_FULL(x)	BIT(x)
 
 #define ETHSS_MAX_NR_PORTS		4
 
@@ -376,6 +386,36 @@ void ethss_destroy(struct phylink_pcs *pcs)
 }
 EXPORT_SYMBOL(ethss_destroy);
 
+void ethss_switchcore_adjust(struct phylink_pcs *pcs, int duplex, int speed)
+{
+	struct ethss_port *ethss_port = phylink_pcs_to_ethss_port(pcs);
+	struct ethss *ethss = ethss_port->ethss;
+	int port = ethss_port->port;
+	u32 val;
+
+	/* We only handle speed/duplex changes on the switch ports */
+	if (port > 2)
+		return;
+
+	/* Speed */
+	if (speed == SPEED_1000)
+		val = ETHSS_SWCTRL_MPBS_1000(port);
+	else if (speed == SPEED_100)
+		val = ETHSS_SWCTRL_MPBS_100(port);
+	else
+		val = ETHSS_SWCTRL_MPBS_10(port);
+
+	ethss_reg_rmw(ethss, ETHSS_SWCTRL, ETHSS_SWCTRL_MPBS_MASK(port), val);
+
+	/* Duplex */
+	val = 0;
+	if (duplex == DUPLEX_FULL)
+		val = ETHSS_SWDUPC_DUPLEX_FULL(port);
+
+	ethss_reg_rmw(ethss, ETHSS_SWDUPC, ETHSS_SWDUPC_DUPLEX_MASK(port), val);
+}
+EXPORT_SYMBOL(ethss_switchcore_adjust);
+
 static int ethss_init_hw(struct ethss *ethss, u32 cfg_mode)
 {
 	int port;
@@ -478,6 +518,31 @@ static int ethss_parse_dt(struct device *dev, u32 *mode_cfg)
 	return ethss_match_dt_conf(dev, dt_val, mode_cfg);
 }
 
+static void ethss_parse_phylnk(struct ethss *ethss, struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct device_node *conv;
+	int val, swlink, port;
+
+	for_each_child_of_node(np, conv) {
+		if (of_property_read_u32(conv, "renesas,ethsw-phylink", &swlink))
+			continue;
+
+		if (of_property_read_u32(conv, "reg", &port))
+			continue;
+
+		if (!of_device_is_available(conv))
+			continue;
+
+		/* ETHSW_PHYLINK active low */
+		val = 0;
+		if (swlink == 0)
+			val = ETHSS_PHYLNK_SWLINK_LOW(port);
+
+		ethss_reg_rmw(ethss, ETHSS_PHYLNK, ETHSS_PHYLNK_SWLINK_MASK(port), val);
+	}
+}
+
 static int ethss_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -531,6 +596,8 @@ static int ethss_probe(struct platform_device *pdev)
 	ret = ethss_init_hw(ethss, mode_cfg);
 	if (ret)
 		goto disable_runtime_pm;
+
+	ethss_parse_phylnk(ethss, dev);
 
 	/* ethss_create() relies on that fact that data are attached to the
 	 * platform device to determine if the driver is ready so this needs to
