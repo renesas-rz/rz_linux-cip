@@ -159,6 +159,7 @@
 #include <net/page_pool/helpers.h>
 #include <net/rps.h>
 #include <linux/phy_link_topology.h>
+#include <linux/of.h>
 
 #include "dev.h"
 #include "devmem.h"
@@ -1157,21 +1158,55 @@ EXPORT_SYMBOL(dev_valid_name);
  *	Returns the number of the unit assigned or a negative errno code.
  */
 
-static int __dev_alloc_name(struct net *net, const char *name, char *res)
+static int __dev_alloc_name(struct net *net, struct net_device *dev,
+			    const char *name, char *res)
 {
 	int i = 0;
+	int of_id = -EINVAL;
 	const char *p;
 	const int max_netdevices = 8*PAGE_SIZE;
 	unsigned long *inuse;
 	struct net_device *d;
 	char buf[IFNAMSIZ];
+	struct device_node *np = NULL;
+
+	if (dev->dev.parent)
+		np = dev->dev.parent->of_node;
 
 	/* Verify the string as this thing may have come from the user.
 	 * There must be one "%d" and no other "%" characters.
 	 */
 	p = strchr(name, '%');
-	if (!p || p[1] != 'd' || strchr(p + 2, '%'))
-		return -EINVAL;
+	if (p) {
+		if (!p || p[1] != 'd' || strchr(p + 2, '%'))
+			return -EINVAL;
+		if (np) {
+			strscpy(buf, name, (size_t)(p + 1 - name));
+			of_id = of_alias_get_id(np, buf);
+		}
+
+#ifdef CONFIG_OF
+		/* iterate over aliases to reserve interfaces names */
+		np = of_find_node_by_path("/aliases");
+		if (np) {
+			struct property *pp;
+			for_each_property_of_node(np, pp) {
+				if (!sscanf(pp->name, name, &i))
+					continue;
+				if (i < 0 || i >= max_netdevices)
+					continue;
+
+				/* avoid cases where sscanf is not exact
+				 * inverse of printf
+				 */
+				snprintf(buf, IFNAMSIZ, name, i);
+				if (!strncmp(res, pp->name, IFNAMSIZ) &&
+				    i != of_id)
+					set_bit(i, inuse);
+			}
+		}
+#endif
+	}
 
 	/* Use one page as a bit array of possible slots */
 	inuse = bitmap_zalloc(max_netdevices, GFP_ATOMIC);
@@ -1203,7 +1238,11 @@ static int __dev_alloc_name(struct net *net, const char *name, char *res)
 			__set_bit(i, inuse);
 	}
 
-	i = find_first_zero_bit(inuse, max_netdevices);
+	if (of_id >= 0 && !test_bit(of_id, inuse))
+		i = of_id;
+	else
+		i = find_first_zero_bit(inuse, max_netdevices);
+
 	bitmap_free(inuse);
 	if (i == max_netdevices)
 		return -ENFILE;
@@ -1223,7 +1262,7 @@ static int dev_prep_valid_name(struct net *net, struct net_device *dev,
 		return -EINVAL;
 
 	if (strchr(want_name, '%'))
-		return __dev_alloc_name(net, want_name, out_name);
+		return __dev_alloc_name(net, dev, want_name, out_name);
 
 	if (netdev_name_in_use(net, want_name))
 		return -dup_errno;
