@@ -207,10 +207,22 @@
 			 <RZT2H_PORT_PINMUX(0, 2, 0x0F)>, /* ETHSS : ETH3_CRS/P00_2 */
 			 <RZT2H_PORT_PINMUX(0, 3, 0x0F)>; /* ETHSS : ETH3_COL/P00_3 */
 	};
+
+	icu_pins: icu_pins {
+		pinmux = <RZT2H_PORT_PINMUX(0, 4, 0x00)>, /* Interrupt : IRQ3/P00_4 */
+			 <RZT2H_PORT_PINMUX(5, 2, 0x00)>; /* Interrupt : IRQ4/P05_2 */
+	};
 };
 
 &extal {
 	clock-frequency = <25000000>;
+};
+
+&intc_ex {
+	pinctrl-0 = <&icu_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
 };
 
 &loco {
