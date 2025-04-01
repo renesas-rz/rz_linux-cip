@@ -225,6 +225,10 @@
 	status = "okay";
 };
 
+&dmac0 {
+	memory-region = <&global_cma>;
+};
+
 &loco {
 	clock-frequency = <1000000>;
 };
