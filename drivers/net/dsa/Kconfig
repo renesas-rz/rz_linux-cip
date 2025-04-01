@@ -98,6 +98,18 @@ config NET_DSA_RZN1_A5PSW
 	  This driver supports the A5PSW switch, which is embedded in Renesas
 	  RZ/N1 SoC.
 
+config NET_DSA_RZT2H_ETHSW
+	tristate "Renesas RZ/T2H Ethernet switch support"
+	depends on OF
+	select NET_DSA_TAG_RZT2H_ETHSW
+	select RZT2H_ETHSS
+	help
+	  This driver supports the ETHSW switch, which is embedded in Renesas
+	  RZ/T2H SoC. Enable NET_DSA_TAG_RZT2H_ETHSW to enable tag for
+	  management port.
+
+	  To compile this driver as a module, choose M here.
+
 config NET_DSA_SMSC_LAN9303
 	tristate
 	select NET_DSA_TAG_LAN9303
