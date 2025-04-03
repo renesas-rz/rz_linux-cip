@@ -176,6 +176,16 @@
 };
 #endif
 
+#if (PMOD_MTU3 && POE3_SUPPORT)
+&poe3 {
+	status = "okay";
+
+	mtu3_ch34 {
+		mtu3_outputs = <0>; /* MTIOC3B-MTIOC3D */
+	};
+};
+#endif
+
 /*
  * To enable SCIF1 (SER0) on PMOD1 (CN7), On connector board
  * SW1 should be at position 2->3 so that SER0_CTS# line is activated
