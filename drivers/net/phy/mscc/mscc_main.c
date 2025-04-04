@@ -611,7 +611,28 @@ static int vsc85xx_update_rgmii_cntl(struct phy_device *phydev, u32 rgmii_cntl,
 
 static int vsc85xx_default_config(struct phy_device *phydev)
 {
+	int rc;
+
 	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
+
+	mutex_lock(&phydev->lock);
+
+	/* Config 100BASE-TX edge rate control:  ”+3 edge rate” */
+	rc = phy_modify_paged(phydev, MSCC_PHY_PAGE_STANDARD,
+			      MSCC_PHY_EXT_PHY_CNTL_2, 0xe000,
+			      0xe000);
+	if (rc < 0)
+		return rc;
+
+	/* Config 1000BASE-T signal amplitude trim1: “2.7%” */
+	rc = phy_modify_paged(phydev, MSCC_PHY_PAGE_EXTENDED_2,
+			      MSCC_PHY_CU_PMD_TX_CNTL, 0xF000,
+			      0x1000);
+	if (rc < 0)
+		return rc;
+
+	mutex_unlock(&phydev->lock);
+
 
 	return vsc85xx_update_rgmii_cntl(phydev, VSC8502_RGMII_CNTL,
 					 VSC8502_RGMII_RX_DELAY_MASK,
