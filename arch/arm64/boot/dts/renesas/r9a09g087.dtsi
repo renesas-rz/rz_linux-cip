@@ -350,6 +350,77 @@
 			dma-channels = <16>;
 		};
 
+		spi0: spi@80007000 {
+				compatible = "renesas,rspi-n2h";
+				reg = <0 0x80007000 0 0x100>;
+				interrupts = <GIC_SPI 634 IRQ_TYPE_EDGE_RISING>,
+							<GIC_SPI 635 IRQ_TYPE_EDGE_RISING>,
+							<GIC_SPI 637 IRQ_TYPE_LEVEL_HIGH>,
+							<GIC_SPI 638 IRQ_TYPE_EDGE_RISING>;
+				interrupt-names = "rx", "tx", "error", "cend";
+				clocks = <&cpg CPG_MOD R9A09G077_SPI0_CLK>;
+				power-domains = <&cpg>;
+				num-cs = <1>;
+				dmas = <&dmac0 0x267B>, <&dmac0 0x267A>;
+				dma-names = "tx", "rx";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+		};
+
+		spi1: spi@80007400 {
+				compatible = "renesas,rspi-n2h";
+				reg = <0 0x80007400 0 0x100>;
+				interrupts = <GIC_SPI 639 IRQ_TYPE_EDGE_RISING>,
+							<GIC_SPI 640 IRQ_TYPE_EDGE_RISING>,
+							<GIC_SPI 642 IRQ_TYPE_LEVEL_HIGH>,
+							<GIC_SPI 643 IRQ_TYPE_EDGE_RISING>;
+				interrupt-names = "rx", "tx", "error", "cend";
+				clocks = <&cpg CPG_MOD R9A09G077_SPI1_CLK>;
+				power-domains = <&cpg>;
+				num-cs = <1>;
+				dmas = <&dmac0 0x2680>, <&dmac0 0x267F>;
+				dma-names = "tx", "rx";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+		};
+
+		spi2: spi@80007800 {
+				compatible = "renesas,rspi-n2h";
+				reg = <0 0x80007800 0 0x100>;
+				interrupts = <GIC_SPI 644 IRQ_TYPE_EDGE_RISING>,
+							<GIC_SPI 645 IRQ_TYPE_EDGE_RISING>,
+							<GIC_SPI 647 IRQ_TYPE_LEVEL_HIGH>,
+							<GIC_SPI 648 IRQ_TYPE_EDGE_RISING>;
+				interrupt-names = "rx", "tx", "error", "cend";
+				clocks = <&cpg CPG_MOD R9A09G077_SPI2_CLK>;
+				power-domains = <&cpg>;
+				num-cs = <1>;
+				dmas = <&dmac0 0x2685>, <&dmac0 0x2684>;
+				dma-names = "tx", "rx";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+		};
+
+		spi3: spi@81007000 {
+				compatible = "renesas,rspi-n2h",
+							"renesas,rspi-t2h";
+				reg = <0 0x81007000 0 0x100>;
+				interrupts = <GIC_SPI 649 IRQ_TYPE_EDGE_RISING>,
+							<GIC_SPI 650 IRQ_TYPE_EDGE_RISING>,
+							<GIC_SPI 652 IRQ_TYPE_LEVEL_HIGH>,
+							<GIC_SPI 653 IRQ_TYPE_EDGE_RISING>;
+				interrupt-names = "rx", "tx", "error", "cend";
+				clocks = <&cpg CPG_MOD R9A09G077_SPI3_CLK>;
+				power-domains = <&cpg>;
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+		};
+
 		wdt0: watchdog@80082000 {
 			compatible = "renesas,r9a09g087-wdt";
 			reg = <0 0x80082000 0 0x10>,
