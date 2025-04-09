@@ -25,6 +25,11 @@
 #define ADCSR				0x00
 #define ADIE				BIT(12)
 #define ADST				BIT(15)
+#define ADCS				(0x3 << 13)
+#define SINGLE_SCAN_REG			(0x0 << 13)
+#define GROUP_SCAN_REG			(0x1 << 13)
+#define CONTINUOUS_SCAN_REG		(0x2 << 13)
+#define STOP_SCAN_REG			(0x2 << 13)
 
 #define ADANSA0				0x04
 
@@ -52,7 +57,11 @@ struct rzt2h_adc {
 	const struct rzt2h_adc_data *data;
 	struct mutex lock;
 	u16 last_val[RZT2H_ADC_MAX_CHANNELS];
+	int scan_mode;
+	int n_irq;
 };
+
+static int rzt2h_adc_set_power(struct iio_dev *indio_dev, bool on);
 
 static const char * const rzt2h_adc_channel_name[] = {
 	"adc0",
@@ -73,15 +82,112 @@ static const char * const rzt2h_adc_channel_name[] = {
 	"adc15",
 };
 
+static void rzt2h_adc_set_bit(struct rzt2h_adc *adc, u32 offset, u16 mask)
+{
+	writew(readw(adc->base + offset) | mask, adc->base + offset);
+}
+
+static void rzt2h_adc_clear_bit(struct rzt2h_adc *adc, u32 offset, u16 mask)
+{
+	writew(readw(adc->base + offset) & ~mask, adc->base + offset);
+}
+
+static u16 rzt2h_adc_get_bit(struct rzt2h_adc *adc, u32 offset, u16 mask)
+{
+	return readw(adc->base + offset) & mask;
+}
+
+static void rzt2h_adc_update_bits(struct rzt2h_adc *adc, u32 offset, u16 mask, u16 bits)
+{
+	writew((readw(adc->base + offset) & ~mask) | bits, adc->base + offset);
+}
+
+static const char *const rzt2h_adc_scan_mode[] = {
+	"single",
+	"group",
+	"continuous",
+	"stop",
+};
+
+int scan_mode_reg[] = {
+	SINGLE_SCAN_REG,
+	GROUP_SCAN_REG,
+	CONTINUOUS_SCAN_REG,
+	STOP_SCAN_REG,
+};
+
+enum scan_mode {
+	SINGLE_SCAN,
+	GROUP_SCAN,
+	CONTINUOUS_SCAN,
+	STOP_SCAN,
+};
+
+static int rzt2h_adc_get_scan_mode(struct iio_dev *indio_dev,
+					const struct iio_chan_spec *chan)
+{
+	struct rzt2h_adc *adc = iio_priv(indio_dev);
+
+	return adc->scan_mode;
+}
+
+static int rzt2h_adc_set_scan_mode(struct iio_dev *indio_dev,
+					const struct iio_chan_spec *chan,
+					unsigned int type)
+{
+	struct rzt2h_adc *adc = iio_priv(indio_dev);
+
+	adc->scan_mode = type;
+	rzt2h_adc_set_power(indio_dev, true);
+	rzt2h_adc_update_bits(adc, ADCSR, ADCS, scan_mode_reg[type]);
+	writew(0x00, adc->base + ADANSA0);
+
+	if (type == CONTINUOUS_SCAN) {
+		writew(0xff, adc->base + ADANSA0);
+		rzt2h_adc_set_bit(adc, ADCSR, ADIE);
+		rzt2h_adc_set_bit(adc, ADCSR, ADST);
+		return 0;
+	}
+
+	if (type == STOP_SCAN) {
+		rzt2h_adc_clear_bit(adc, ADCSR, ADST);
+		rzt2h_adc_clear_bit(adc, ADCSR, ADIE);
+	}
+	rzt2h_adc_set_power(indio_dev, false);
+	return 0;
+}
+
+static const struct iio_enum rzt2h_adc_scan_mode_en = {
+	.items = rzt2h_adc_scan_mode,
+	.num_items = ARRAY_SIZE(rzt2h_adc_scan_mode),
+	.get = rzt2h_adc_get_scan_mode,
+	.set = rzt2h_adc_set_scan_mode,
+};
+
+static const struct iio_chan_spec_ext_info rzt2h_adc_cnt_ext_info[] = {
+	IIO_ENUM("scan_mode", IIO_SEPARATE, &rzt2h_adc_scan_mode_en),
+	IIO_ENUM_AVAILABLE("scan_mode", IIO_SHARED_BY_TYPE, &rzt2h_adc_scan_mode_en),
+	{}
+};
+
+static const struct iio_chan_spec rzt2h_adc_cnt_channels = {
+	.type = IIO_COUNT,
+	.channel = 0,
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			      BIT(IIO_CHAN_INFO_ENABLE),
+	.ext_info = rzt2h_adc_cnt_ext_info,
+	.indexed = 1,
+};
+
 static void rzt2h_adc_start_stop(struct rzt2h_adc *adc, bool start)
 {
 	int timeout = 5;
 
 	if (start) {
-		writew(readw(adc->base + ADCSR) | ADST, adc->base + ADCSR);
+		rzt2h_adc_set_bit(adc, ADCSR, ADST);
+		rzt2h_adc_set_bit(adc, ADCSR, ADIE);
 		return;
 	}
-	writew(readw(adc->base + ADCSR) & ~ADST, adc->base + ADCSR);
 
 	do {
 		usleep_range(100, 200);
@@ -90,7 +196,7 @@ static void rzt2h_adc_start_stop(struct rzt2h_adc *adc, bool start)
 			pr_err("%s stopping ADC timed out\n", __func__);
 			break;
 		}
-	} while (readw(adc->base + ADCSR) & ADST);
+	} while (rzt2h_adc_get_bit(adc, ADCSR, ADST));
 }
 
 static int rzt2h_adc_set_power(struct iio_dev *indio_dev, bool on)
@@ -111,30 +217,22 @@ static int rzt2h_adc_conversion(struct iio_dev *indio_dev, struct rzt2h_adc *adc
 	if (ret)
 		return ret;
 
-	if (readw(adc->base + ADCSR) & ADST) {
-		rzt2h_adc_set_power(indio_dev, false);
-		return -EBUSY;
-	}
-
 	/* Select trigger mode: software trigger. */
 	/* Select type of scan mode: single scan mode. */
-
-	/* Select analog input channel subjected to conversion. */
-	writew(BIT(ch), adc->base + ADANSA0);
-
-	/* Enable interrupt. */
-	writew(ADIE, adc->base + ADCSR);
 
 	reinit_completion(&adc->completion);
 
 	rzt2h_adc_start_stop(adc, true);
 
 	if (!wait_for_completion_timeout(&adc->completion, RZG2L_ADC_TIMEOUT)) {
-		writew(readw(adc->base + ADCSR) & ~ADIE, adc->base + ADCSR);
+		rzt2h_adc_clear_bit(adc, ADCSR, ADIE);
 		rzt2h_adc_start_stop(adc, false);
 		rzt2h_adc_set_power(indio_dev, false);
 		return -ETIMEDOUT;
 	}
+
+	if (adc->scan_mode == CONTINUOUS_SCAN)
+		return 0;
 
 	return rzt2h_adc_set_power(indio_dev, false);
 }
@@ -152,18 +250,44 @@ static int rzt2h_adc_read_raw(struct iio_dev *indio_dev,
 		if (chan->type != IIO_VOLTAGE)
 			return -EINVAL;
 
-		mutex_lock(&adc->lock);
-		ch = chan->channel;
-		ret = rzt2h_adc_conversion(indio_dev, adc, ch);
-		if (ret) {
-			mutex_unlock(&adc->lock);
-			return ret;
+		if (adc->scan_mode == STOP_SCAN) {
+			dev_info(&indio_dev->dev, "In STOP_SCAN mode\n");
+			return -EINVAL;
 		}
-		*val = adc->last_val[ch];
+
+		mutex_lock(&adc->lock);
+		rzt2h_adc_set_power(indio_dev, true);
+		ch = chan->channel;
+		writew(BIT(ch), adc->base + ADANSA0);
+		rzt2h_adc_start_stop(adc, true);
+		udelay(5);
+
+		if (adc->scan_mode == SINGLE_SCAN) {
+			ret = rzt2h_adc_conversion(indio_dev, adc, ch);
+			if (ret) {
+				mutex_unlock(&adc->lock);
+				return ret;
+			}
+			*val = adc->last_val[ch];
+		}
+
+		if (adc->scan_mode == CONTINUOUS_SCAN) {
+			int n = 100;
+
+			while (n--) {
+				ret = rzt2h_adc_conversion(indio_dev, adc, ch);
+				if (ret) {
+					mutex_unlock(&adc->lock);
+					return ret;
+				}
+				*val = adc->last_val[ch];
+				pr_info("Channel %d [Iteration %d]: %d\n", ch, n, *val);
+				mdelay(50);
+			}
+		}
+
 		mutex_unlock(&adc->lock);
-
 		return IIO_VAL_INT;
-
 	default:
 		return -EINVAL;
 	}
@@ -181,6 +305,8 @@ static irqreturn_t rzt2h_adc_isr(int irq, void *dev_id)
 	ch = ffs(readw(adc->base + ADANSA0)) - 1;
 	adc->last_val[ch] = readw(adc->base + ADDR(ch)) & ADDR_SINGLE_SCAN_MASK;
 
+	/*clear interrupt*/
+	rzt2h_adc_clear_bit(adc, ADCSR, ADIE);
 	complete(&adc->completion);
 
 	return IRQ_HANDLED;
@@ -237,7 +363,8 @@ static int rzt2h_adc_parse_properties(struct platform_device *pdev, struct rzt2h
 		i++;
 	}
 
-	data->num_channels = num_channels;
+	memcpy(&chan_array[i], &rzt2h_adc_cnt_channels, sizeof(rzt2h_adc_cnt_channels));
+	data->num_channels = num_channels + 1;
 	data->channels = chan_array;
 	adc->data = data;
 
@@ -254,7 +381,7 @@ static int rzt2h_adc_hw_init(struct rzt2h_adc *adc)
 		return ret;
 
 	writew(CAL, adc->base + ADCALCTL);
-	while (!(readw(adc->base + ADCALCTL) & CAL_DRY)) {
+	while (!rzt2h_adc_get_bit(adc, ADCALCTL, CAL_DRY)) {
 		if (!timeout) {
 			ret = -ETIMEDOUT;
 			clk_disable_unprepare(adc->clk);
@@ -264,12 +391,12 @@ static int rzt2h_adc_hw_init(struct rzt2h_adc *adc)
 		usleep_range(100, 200);
 	}
 
-	if (readw(adc->base + ADCALCTL) & CAL_ERR)
+	if (rzt2h_adc_get_bit(adc, ADCALCTL, CAL_ERR)) {
 		pr_err("adc: Calibration error\n");
-	/* Clear CAL bit to 0 */
-	writew(0, adc->base + ADCALCTL);
-
-	clk_disable_unprepare(adc->clk);
+		/* Clear CAL bit to 0 */
+		writew(0, adc->base + ADCALCTL);
+		clk_disable_unprepare(adc->clk);
+	}
 
 	return 0;
 }
