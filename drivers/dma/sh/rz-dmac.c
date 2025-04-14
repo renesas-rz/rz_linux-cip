@@ -19,6 +19,7 @@
 #include <linux/of.h>
 #include <linux/of_dma.h>
 #include <linux/of_platform.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
@@ -27,6 +28,12 @@
 
 #include "../dmaengine.h"
 #include "../virt-dma.h"
+#include <linux/irqchip/icu-t2h.h>
+
+struct rz_dmac_hw_info {
+	bool has_ext_res;
+	bool is_t2h;
+};
 
 enum  rz_dmac_prep_type {
 	RZ_DMAC_DESC_MEMCPY,
@@ -74,6 +81,7 @@ struct rz_dmac_chan {
 	u32 chcfg;
 	u32 chctrl;
 	int mid_rid;
+	int dmac_req;
 
 	struct list_head ld_free;
 	struct list_head ld_queue;
@@ -95,9 +103,13 @@ struct rz_dmac {
 	struct reset_control *rstc;
 	void __iomem *base;
 	void __iomem *ext_base;
+	struct platform_device *icu_dev;
 
 	unsigned int n_channels;
 	struct rz_dmac_chan *channels;
+
+	const struct rz_dmac_hw_info *info;
+	phys_addr_t reserved_mem_base;
 
 	DECLARE_BITMAP(modules, 1024);
 };
@@ -154,6 +166,7 @@ struct rz_dmac {
 #define CHCFG_FILL_HIEN(a)		(((a) & BIT(0)) << 5)
 
 #define MID_RID_MASK			GENMASK(9, 0)
+#define DMAC_REQ_MASK			GENMASK(9, 0)
 #define CHCFG_MASK			GENMASK(15, 10)
 #define CHCFG_DS_INVALID		0xFF
 #define DCTRL_LVINT			BIT(1)
@@ -324,7 +337,8 @@ static void rz_dmac_prepare_desc_for_memcpy(struct rz_dmac_chan *channel)
 	lmdesc->chext = 0;
 	lmdesc->header = HEADER_LV;
 
-	rz_dmac_set_dmars_register(dmac, channel->index, 0);
+	if (dmac->info->has_ext_res)
+		rz_dmac_set_dmars_register(dmac, channel->index, 0);
 
 	channel->chcfg = chcfg;
 	channel->chctrl = CHCTRL_STG | CHCTRL_SETEN;
@@ -375,7 +389,13 @@ static void rz_dmac_prepare_descs_for_slave_sg(struct rz_dmac_chan *channel)
 
 	channel->lmdesc.tail = lmdesc;
 
-	rz_dmac_set_dmars_register(dmac, channel->index, channel->mid_rid);
+	if (dmac->info->is_t2h) {
+		if (register_dmac_req_signal(dmac->icu_dev, dmac->dev->id,
+					     channel->index, channel->dmac_req) < 0)
+			dev_info(dmac->dev, "%s: Register dmac req fail\n", __func__);
+	} else
+		rz_dmac_set_dmars_register(dmac, channel->index, channel->mid_rid);
+
 	channel->chctrl = CHCTRL_SETEN;
 }
 
@@ -455,6 +475,11 @@ static void rz_dmac_free_chan_resources(struct dma_chan *chan)
 	if (channel->mid_rid >= 0) {
 		clear_bit(channel->mid_rid, dmac->modules);
 		channel->mid_rid = -EINVAL;
+	}
+
+	if (channel->dmac_req >= 0) {
+		clear_bit(channel->dmac_req, dmac->modules);
+		channel->dmac_req = 0x3FF;
 	}
 
 	spin_unlock_irqrestore(&channel->vc.lock, flags);
@@ -646,8 +671,12 @@ static void rz_dmac_device_synchronize(struct dma_chan *chan)
 				100, 100000, false, channel, CHSTAT, 1);
 	if (ret < 0)
 		dev_warn(dmac->dev, "DMA Timeout");
-
-	rz_dmac_set_dmars_register(dmac, channel->index, 0);
+	if (dmac->info->is_t2h) {
+		if (register_dmac_req_signal(dmac->icu_dev, dmac->dev->id,
+						channel->index, 0x3FF) < 0)
+			dev_info(dmac->dev, "%s: Unregister dmac req fail\n", __func__);
+	} else
+		rz_dmac_set_dmars_register(dmac, channel->index, 0);
 }
 
 /*
@@ -728,12 +757,18 @@ static bool rz_dmac_chan_filter(struct dma_chan *chan, void *arg)
 	struct of_phandle_args *dma_spec = arg;
 	u32 ch_cfg;
 
-	channel->mid_rid = dma_spec->args[0] & MID_RID_MASK;
+	if (dmac->info->has_ext_res)
+		channel->mid_rid = dma_spec->args[0] & MID_RID_MASK;
+	else
+		channel->dmac_req = dma_spec->args[0] & DMAC_REQ_MASK;
 	ch_cfg = (dma_spec->args[0] & CHCFG_MASK) >> 10;
 	channel->chcfg = CHCFG_FILL_TM(ch_cfg) | CHCFG_FILL_AM(ch_cfg) |
 			 CHCFG_FILL_LVL(ch_cfg) | CHCFG_FILL_HIEN(ch_cfg);
 
-	return !test_and_set_bit(channel->mid_rid, dmac->modules);
+	if (dmac->info->has_ext_res)
+		return !test_and_set_bit(channel->mid_rid, dmac->modules);
+	else
+		return !test_and_set_bit(channel->dmac_req, dmac->modules);
 }
 
 static struct dma_chan *rz_dmac_of_xlate(struct of_phandle_args *dma_spec,
@@ -768,6 +803,7 @@ static int rz_dmac_chan_probe(struct rz_dmac *dmac,
 
 	channel->index = index;
 	channel->mid_rid = -EINVAL;
+	channel->dmac_req = 0x3FF;
 
 	/* Request the channel interrupt. */
 	scnprintf(pdev_irqname, sizeof(pdev_irqname), "ch%u", index);
@@ -809,6 +845,7 @@ static int rz_dmac_chan_probe(struct rz_dmac *dmac,
 		dev_err(&pdev->dev, "Can't allocate memory (lmdesc)\n");
 		return -ENOMEM;
 	}
+	dev_info(dmac->dev, "Allocate memory (lmdesc) %pad\n", &channel->lmdesc.base_dma);
 	rz_lmdesc_setup(channel, lmdesc);
 
 	/* Initialize register for each channel */
@@ -847,6 +884,9 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	const char *irqname = "error";
 	struct dma_device *engine;
 	struct rz_dmac *dmac;
+	struct device_node *np = pdev->dev.of_node;
+	struct device_node *icu_np;
+	struct platform_device *icu_dev_np;
 	int channel_num;
 	int ret;
 	int irq;
@@ -858,6 +898,8 @@ static int rz_dmac_probe(struct platform_device *pdev)
 
 	dmac->dev = &pdev->dev;
 	platform_set_drvdata(pdev, dmac);
+
+	dmac->info = of_device_get_match_data(&pdev->dev);
 
 	ret = rz_dmac_parse_of(&pdev->dev, dmac);
 	if (ret < 0)
@@ -873,27 +915,28 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	if (IS_ERR(dmac->base))
 		return PTR_ERR(dmac->base);
 
-	dmac->ext_base = devm_platform_ioremap_resource(pdev, 1);
-	if (IS_ERR(dmac->ext_base))
-		return PTR_ERR(dmac->ext_base);
+	if (dmac->info->has_ext_res) {
+		dmac->ext_base = devm_platform_ioremap_resource(pdev, 1);
+		if (IS_ERR(dmac->ext_base))
+			return PTR_ERR(dmac->ext_base);
+	}
 
 	/* Register interrupt handler for error */
-	irq = platform_get_irq_byname(pdev, irqname);
-	if (irq < 0)
-		return irq;
-
-	ret = devm_request_irq(&pdev->dev, irq, rz_dmac_irq_handler, 0,
-			       irqname, NULL);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to request IRQ %u (%d)\n",
-			irq, ret);
-		return ret;
+	irq = platform_get_irq_byname_optional(pdev, irqname);
+	if (irq > 0) {
+		ret = devm_request_irq(&pdev->dev, irq, rz_dmac_irq_handler, 0,
+					irqname, NULL);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to request IRQ %u (%d)\n",
+					irq, ret);
+			return ret;
+		}
 	}
 
 	/* Initialize the channels. */
 	INIT_LIST_HEAD(&dmac->engine.channels);
 
-	dmac->rstc = devm_reset_control_array_get_exclusive(&pdev->dev);
+	dmac->rstc = devm_reset_control_array_get_optional_exclusive(&pdev->dev);
 	if (IS_ERR(dmac->rstc))
 		return dev_err_probe(&pdev->dev, PTR_ERR(dmac->rstc),
 				     "failed to get resets\n");
@@ -903,6 +946,18 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev, "pm_runtime_resume_and_get failed\n");
 		goto err_pm_disable;
+	}
+
+	if (dmac->info->is_t2h) {
+		/* Take the first memory-region property of controller device node to
+		 * set as reserved memory region.
+		 */
+		ret = of_reserved_mem_device_init_by_idx(&pdev->dev,
+							 pdev->dev.of_node, 0);
+		if (ret) {
+			dev_err(&pdev->dev, "Init reserved memory failed.\n");
+			return ret;
+		}
 	}
 
 	ret = reset_control_deassert(dmac->rstc);
@@ -948,6 +1003,26 @@ static int rz_dmac_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "unable to register\n");
 		goto dma_register_err;
 	}
+
+	if (dmac->info->is_t2h) {
+		ret = of_property_read_u32_index(np, "peripheral-request", 1, &dmac->dev->id);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "failed to get peripheral-request number (%d)\n",
+				dmac->dev->id);
+			return -EINVAL;
+		}
+
+		icu_np = of_parse_phandle(pdev->dev.of_node, "peripheral-request", 0);
+		if (icu_np != NULL) {
+			icu_dev_np = of_find_device_by_node(icu_np);
+			if (icu_dev_np) {
+				dmac->icu_dev = icu_dev_np;
+				dev_dbg(&pdev->dev, "DMAC using %s\n", dmac->icu_dev->name);
+			} else
+				dev_dbg(&pdev->dev, "DMAC not relate ICU\n");
+		}
+	}
+
 	return 0;
 
 dma_register_err:
@@ -992,8 +1067,19 @@ static void rz_dmac_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
+static struct rz_dmac_hw_info rz_common_info = {
+	.has_ext_res = true,
+	.is_t2h = false,
+};
+
+static struct rz_dmac_hw_info r9a09g077_info = {
+	.has_ext_res = false,
+	.is_t2h = true,
+};
+
 static const struct of_device_id of_rz_dmac_match[] = {
-	{ .compatible = "renesas,rz-dmac", },
+	{ .compatible = "renesas,rz-dmac", .data = &rz_common_info, },
+	{ .compatible = "renesas,r9a09g077-dmac", .data = &r9a09g077_info, },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, of_rz_dmac_match);
