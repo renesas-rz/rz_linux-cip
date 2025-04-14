@@ -540,6 +540,14 @@ config RZ_TIMER_CMTW
 	  the 32-bit Compare Match Timer W Unit (CMTW) hardware available
 	  on a wide range RZ SoCs from Renesas.
 
+config RZ_TIMER_MTU3
+	tristate "Renesas MTU3 timer driver"
+	depends on RZ_MTU3
+	help
+	  This enables build of a clocksource, clockevent driver for the
+	  Multi-Function Timer Pulse Unit 3 (MTU3) hardware available on
+	  SoCs from Renesas.
+	  This hardware comes with 16/32 bits timer registers.
 
 config SH_TIMER_MTU2
 	bool "Renesas MTU2 timer driver" if COMPILE_TEST
