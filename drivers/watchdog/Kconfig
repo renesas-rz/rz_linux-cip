@@ -964,6 +964,14 @@ config RENESAS_RZV2HWDT
 	  Renesas RZ/{G3E,V2H(P)} SoCs. These watchdogs can be used to reset a
 	  system.
 
+config RENESAS_RZT2HWDT
+	tristate "Renesas RZ/T2H WDT Watchdog"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  This driver adds watchdog support for the integrated watchdogs in the
+	  Renesas RZ/T2H SoCs. These watchdogs can be used to reset a system.
+
 config ASPEED_WATCHDOG
 	tristate "Aspeed BMC watchdog support"
 	depends on ARCH_ASPEED || COMPILE_TEST
