@@ -307,6 +307,47 @@
 			};
 		};
 
+		ethsw: ethsw@80120000 {
+			compatible = "renesas,rzt2-ethsw";
+			reg =  <0 0x80120000 0 0x10000>;
+			clocks = <&cpg CPG_MOD R9A07G076_ETHSW_CLK>;
+			resets = <&cpg R9A07G076_ETHSW_RST>;
+			power-domains = <&cpg>;
+			status = "disabled";
+
+			ethernet-ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				switch_port0: port@0 {
+					reg = <0>;
+					status = "disabled";
+				};
+
+				switch_port1: port@1 {
+					reg = <1>;
+					status = "disabled";
+				};
+
+				switch_port2: port@2 {
+					reg = <2>;
+					status = "disabled";
+				};
+
+				switch_port3: port@3 {
+					reg = <3>;
+					ethernet = <&gmac0>;
+					label = "cpu";
+					phy-mode = "internal";
+					status = "disabled";
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+					};
+				};
+			};
+		};
+
 		wdt0: watchdog@80082000 {
 			compatible = "renesas,r9a07g076-wdt";
 			reg = <0 0x80082000 0 0x400>,
