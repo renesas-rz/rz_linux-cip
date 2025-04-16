@@ -51,8 +51,10 @@
 	};
 
 	mtu3_pins: mtu3 {
-		mtu2-pwm {
-			pinmux = <RZG2L_PORT_PINMUX(4, 0, 4)>; /* MTIOC2A */
+		mtu3-pwm {
+			pinmux = <RZG2L_PORT_PINMUX(4, 0, 4)>, /* MTIOC2A */
+				 <RZG2L_PORT_PINMUX(4, 3, 4)>, /* MTIOC3B*/
+				 <RZG2L_PORT_PINMUX(4, 5, 4)>; /* MTIOC3D*/
 		};
 	};
 
