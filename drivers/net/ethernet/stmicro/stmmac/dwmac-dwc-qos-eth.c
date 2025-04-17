@@ -477,7 +477,7 @@ static int renesas_rzt2_eqos_probe(struct platform_device *pdev,
 	if (err < 0)
 		goto error;
 
-	eqos->reset = devm_gpiod_get(&pdev->dev, "phy-reset", GPIOD_OUT_HIGH);
+	eqos->reset = devm_gpiod_get_optional(&pdev->dev, "phy-reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(eqos->reset)) {
 		err = PTR_ERR(eqos->reset);
 		goto disable_clk;
@@ -485,9 +485,6 @@ static int renesas_rzt2_eqos_probe(struct platform_device *pdev,
 
 	usleep_range(2000, 4000);
 	gpiod_set_value(eqos->reset, 1);
-
-	/* MDIO bus was already reset just above */
-	data->mdio_bus_data->needs_reset = false;
 
 	eqos->rst_h = devm_reset_control_get(&pdev->dev, "reset_h");
 	if (IS_ERR(eqos->rst_h)) {
