@@ -448,6 +448,8 @@ static int ethss_match_dt_conf(struct device *dev,
 	struct modctrl_match *table_entry;
 	int i;
 
+	ethss_dump_conf(dev, dt_val);
+
 	for (i = 0; i < ARRAY_SIZE(modctrl_match_table); i++) {
 		table_entry = &modctrl_match_table[i];
 
@@ -458,7 +460,6 @@ static int ethss_match_dt_conf(struct device *dev,
 	}
 
 	dev_err(dev, "Failed to apply requested configuration\n");
-	ethss_dump_conf(dev, dt_val);
 
 	return -EINVAL;
 }
