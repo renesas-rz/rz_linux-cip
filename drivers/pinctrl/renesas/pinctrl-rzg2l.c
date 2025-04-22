@@ -2188,8 +2188,10 @@ static const u64 r9a08g046_gpio_configs[] = {
 	0x0,											/* PI */
 	RZG2L_GPIO_PORT_PACK(5, 0x33, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_IEN),			/* PJ */
 	RZG2L_GPIO_PORT_PACK(4, 0x34, RZG3L_MPXED_PIN_FUNCS(B)),				/* PK */
-	RZG2L_GPIO_PORT_PACK(5, 0x35, RZG3L_MPXED_PIN_FUNCS(B)),				/* PL */
-	RZG2L_GPIO_PORT_PACK(8, 0x36, RZG3L_MPXED_PIN_FUNCS(B)),				/* PM */
+	RZG2L_GPIO_PORT_PACK(5, 0x35, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_OEN |			/* PL */
+								 PIN_CFG_SOFT_PS),
+	RZG2L_GPIO_PORT_PACK(8, 0x36, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_OEN |			/* PM */
+								 PIN_CFG_SOFT_PS),
 	0x0,											/* PN */
 	0x0,											/* PO */
 	0x0,											/* PP */
