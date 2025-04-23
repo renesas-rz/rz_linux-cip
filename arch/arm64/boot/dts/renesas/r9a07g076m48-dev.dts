@@ -368,6 +368,13 @@
 	poe3_pins: poe3 {
 		pinmux = <RZT2_PORT_PINMUX(11, 5, 0x08)>; /* POE3 : POE0#/P11_5 */
 	};
+
+	pcie_rstout {
+		gpio-hog;
+		gpios = <RZT2_GPIO(24, 5) GPIO_ACTIVE_HIGH>; /* PCIE: RSTOUT/P24_5 */
+		output-high;
+		line-name = "pcie_rstout";
+	};
 };
 
 &extal {
@@ -817,4 +824,9 @@
 		dsmif_error_detection = <0 0>, <0 5>, <1 0>, <1 9>;
 	};
 #endif
+};
+
+&pcie0 {
+	pcie-lane = <1>;
+	status = "okay";
 };
