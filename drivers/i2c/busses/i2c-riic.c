@@ -207,17 +207,18 @@ static int riic_xfer_atomic(struct i2c_adapter *adap, struct i2c_msg msgs[],
 			    int num)
 {
 	struct riic_dev *riic = i2c_get_adapdata(adap);
+	struct device *dev = adap->dev.parent;
 	unsigned long time_left;
-	int i;
+	int i, ret;
 	u8 start_bit, val;
-	int ret;
 
-	pm_runtime_get_sync(adap->dev.parent);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret)
+		return ret;
 
-	if (riic_readb(riic, RIIC_ICCR2) & ICCR2_BBSY) {
-		riic->err = -EBUSY;
+	riic->err = riic_bus_barrier(riic);
+	if (riic->err)
 		goto out;
-	}
 
 	riic->err = 0;
 
@@ -337,7 +338,8 @@ static int riic_xfer_atomic(struct i2c_adapter *adap, struct i2c_msg msgs[],
 	}
 
 out:
-	pm_runtime_put(adap->dev.parent);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return riic->err ?: num;
 }
