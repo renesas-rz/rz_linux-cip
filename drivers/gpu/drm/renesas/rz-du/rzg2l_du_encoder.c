@@ -25,6 +25,27 @@
  * Encoder
  */
 
+static unsigned int rzg2l_du_encoder_count_ports(struct device_node *node)
+{
+	struct device_node *ports;
+	struct device_node *port;
+	unsigned int num_ports = 0;
+
+	ports = of_get_child_by_name(node, "ports");
+	if (!ports)
+		ports = of_node_get(node);
+
+	for_each_child_of_node(ports, port) {
+	if (of_node_name_eq(port, "port"))
+		num_ports++;
+	}
+
+	of_node_put(ports);
+
+	return num_ports;
+}
+
+
 static enum drm_mode_status
 rzg2l_du_encoder_mode_valid(struct drm_encoder *crtc,
 			 const struct drm_display_mode *mode)
@@ -66,10 +87,27 @@ int rzg2l_du_encoder_init(struct rzg2l_du_device  *rcdu,
 	struct drm_bridge *bridge;
 	int ret;
 
-	/* Locate the DRM bridge from the DT node. */
-	bridge = of_drm_find_bridge(enc_node);
-	if (!bridge)
-		return -EPROBE_DEFER;
+	/*
+	 * Locate the DRM bridge from the DT node. For the DPAD outputs, if the
+	 * DT node has a single port, assume that it describes a panel and
+	 * create a panel bridge.
+	 */
+	if ((output == RZG2L_DU_OUTPUT_DPAD0) && rzg2l_du_encoder_count_ports(enc_node) == 1) {
+		struct drm_panel *panel = of_drm_find_panel(enc_node);
+
+		if (IS_ERR(panel))
+			return PTR_ERR(panel);
+
+		bridge = devm_drm_panel_bridge_add_typed(rcdu->dev, panel,
+							 DRM_MODE_CONNECTOR_DPI);
+		if (IS_ERR(bridge))
+			return PTR_ERR(bridge);
+	} else {
+		/* Locate the DRM bridge from the DT node. */
+		bridge = of_drm_find_bridge(enc_node);
+		if (!bridge)
+			return -EPROBE_DEFER;
+	}
 
 	if (output == RZG2L_DU_OUTPUT_LVDS0 ||
 	    output == RZG2L_DU_OUTPUT_LVDS1)
