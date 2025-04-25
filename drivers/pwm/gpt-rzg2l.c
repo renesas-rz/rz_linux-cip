@@ -125,6 +125,16 @@
 
 #define NR_GPT_OPERATION	6
 
+#define RZT2H_INT_CCMPA				(1 << 0)
+#define RZT2H_INT_CCMPB				(1 << 1)
+#define RZT2H_INT_OVF				(1 << 6)
+#define RZT2H_NS_INTMSK_OFFSET			0x900
+#define RZT2H_NS_INTCLR_OFFSET			0x9e0
+#define RZT2H_NS_INTSTAT_OFFSET			0xac0
+#define RZT2H_S_INTMSK_OFFSET			0x030
+#define RZT2H_S_INTCLR_OFFSET			0x038
+#define RZT2H_S_INTSTAT_OFFSET			0x040
+
 struct prescale_info {
 		u32 prescale_mask;      /* Mask of prescaler */
 		u32 prescale;           /* Core clock divide */
@@ -163,6 +173,11 @@ static const struct rz_gpt_data_cfg rzg2l_cfg = {
 };
 
 static const struct rz_gpt_data_cfg rzv2h_cfg = {
+		.has_ovf_irq = false,
+		.presc = &rzv2h_prescale_info,
+};
+
+static const struct rz_gpt_data_cfg rzt2h_cfg = {
 		.has_ovf_irq = false,
 		.presc = &rzv2h_prescale_info,
 };
@@ -378,6 +393,11 @@ struct rzg2l_gpt_chip {
 	struct	pwm_chip *chip;
 	struct	clk *clk;
 	void	__iomem *mmio_base;
+	void	__iomem *int_base;
+	int	int_offset;
+	long	intmsk_offset;
+	long	intclr_offset;
+	long	intstat_offset;
 	spinlock_t lock;
 	struct reset_control *rstc;
 	wait_queue_head_t wait;
@@ -721,13 +741,23 @@ rzg2l_gpt_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 		result->duty_cycle = 0;
 		break;
 	case 2:
-		high = pc->snapshot[1] - pc->snapshot[0];
-		low = pc->snapshot[2] - pc->snapshot[1];
-		effective_ticks = clk_get_rate(pc->clk)/1024;
-		result->period = (high + low) * MSEC_PER_SEC;
-		result->period /= effective_ticks;
-		result->duty_cycle = high * MSEC_PER_SEC;
-		result->duty_cycle /= effective_ticks;
+		if (pc->cfg == &rzt2h_cfg) {
+			high = pc->snapshot[1] - pc->snapshot[0];
+			low = pc->snapshot[2] - pc->snapshot[1];
+			effective_ticks = clk_get_rate(pc->clk)/1024;
+			result->period = (high + low) * USEC_PER_SEC;
+			result->period /= effective_ticks;
+			result->duty_cycle = high * USEC_PER_SEC;
+			result->duty_cycle /= effective_ticks;
+		} else {
+			high = pc->snapshot[1] - pc->snapshot[0];
+			low = pc->snapshot[2] - pc->snapshot[1];
+			effective_ticks = clk_get_rate(pc->clk)/1024;
+			result->period = (high + low) * MSEC_PER_SEC;
+			result->period /= effective_ticks;
+			result->duty_cycle = high * MSEC_PER_SEC;
+			result->duty_cycle /= effective_ticks;
+		}
 		break;
 	default:
 		dev_err(&chip->dev, "internal error\n");
@@ -1142,6 +1172,156 @@ static const struct iio_chan_spec rzg2l_gpt_cnt_channels = {
 	.ext_info = rzg2l_gpt_cnt_ext_info,
 	.indexed = 1,
 };
+
+static irqreturn_t rzt2h_gpt_isr(int irq, void *data)
+{
+	struct rzg2l_gpt_chip *pc = data;
+	int ret = IRQ_NONE;
+	uint32_t irq_flags;
+	unsigned long flags;
+	uint32_t tmp;
+
+	spin_lock_irqsave(&pc->lock, flags);
+
+	irq_flags = readw(pc->int_base + pc->intstat_offset + 0x02 * pc->int_offset);
+	if (irq_flags & RZT2H_INT_OVF) {
+		pc->overflow_count++;
+		pc->buffer_mode_count_A--;
+		pc->buffer_mode_count_B--;
+
+		tmp = rzg2l_gpt_read(pc, GTBER);
+
+		if (tmp & GTCCRB_BUFFER_SINGLE) {
+			rzg2l_gpt_write(pc,
+				pc->bufferB[pc->buffer_mode_count_B],
+				GTCCRE);
+			if (pc->buffer_mode_count_B == 0)
+				pc->buffer_mode_count_B = 2;
+		}
+
+		if (tmp & GTCCRB_BUFFER_DOUBLE) {
+			rzg2l_gpt_write(pc,
+				pc->bufferB[pc->buffer_mode_count_B],
+				GTCCRF);
+			if (pc->buffer_mode_count_B == 0)
+				pc->buffer_mode_count_B = 3;
+		}
+
+		if (tmp & GTCCRA_BUFFER_SINGLE) {
+			rzg2l_gpt_write(pc,
+				pc->bufferA[pc->buffer_mode_count_A],
+				GTCCRC);
+			if (pc->buffer_mode_count_A == 0)
+				pc->buffer_mode_count_A = 2;
+		}
+
+		if (tmp & GTCCRA_BUFFER_DOUBLE) {
+			rzg2l_gpt_write(pc,
+				pc->bufferA[pc->buffer_mode_count_A],
+				GTCCRD);
+			if (pc->buffer_mode_count_A == 0)
+				pc->buffer_mode_count_A = 3;
+		}
+
+#if IS_BUILTIN(CONFIG_POEG_RZG2L)
+		if (pc->poeg) {
+			/*Clear input edge flag*/
+			rzg2l_poeg_clear_bit_export(POEG_mode_set[pc->poeg].poeg_dev, PIDF, POEGG);
+			/*Clear GPT disable flag*/
+			rzg2l_poeg_clear_bit_export(POEG_mode_set[pc->poeg].poeg_dev, IOCF, POEGG);
+
+		}
+#endif
+
+		if (pc->gpt_operation == DEADTIME_OUTPUT) {
+			rzg2l_gpt_write(pc, pc->bufferA[1], GTCCRC);
+			rzg2l_gpt_write(pc, pc->bufferA[2], GTCCRD);
+		}
+
+		if (pc->pulse_number) {
+			pc->pulse_number--;
+			if (!pc->pulse_number) {
+				/* Stop count */
+				rzg2l_gpt_write_mask(pc, 0, GTCR_CST, GTCR);
+				rzg2l_gpt_write(pc, 0, GTCNT);
+				pc->chip->pwms[0].state.enabled = 0;
+				if ((!pc->poeg) &&
+					(pc->gpt_operation == NORMAL_OUTPUT))
+					rzg2l_gpt_write_mask(pc, 0,
+						GTINTAD_GTINTPR_MASK, GTINTAD);
+			}
+		}
+
+		/* Disable overflow interrupt flags */
+		writew(RZT2H_INT_OVF, pc->int_base + pc->intclr_offset
+						+ 0x02 * pc->int_offset);
+		ret = IRQ_HANDLED;
+	}
+
+	if (irq_flags & RZT2H_INT_CCMPA) {
+		pc->snapshot[pc->index] = rzg2l_gpt_read(pc, GTCCRA) +
+			(pc->overflow_count) * GTPR_MAX_VALUE;
+		switch (pc->index) {
+		case 0:
+		case 1:
+			tmp = rzg2l_gpt_read(pc, GTICASR);
+			if (tmp & INPUT_CAP_GTIOA_RISING_EDGE)
+				rzg2l_gpt_write(pc,
+				INPUT_CAP_GTIOA_FALLING_EDGE, GTICASR);
+			if (tmp & INPUT_CAP_GTIOA_FALLING_EDGE)
+				rzg2l_gpt_write(pc, INPUT_CAP_GTIOA_RISING_EDGE,
+						GTICASR);
+			pc->index++;
+			break;
+		case 2:
+			/* Disable capture operation */
+			rzg2l_gpt_write(pc, 0, GTICASR);
+			wake_up(&pc->wait);
+			break;
+		default:
+			dev_err(&pc->chip->dev, "Internal error\n");
+		}
+
+		/* Disable input capture interrupt flags */
+		writew(RZT2H_INT_CCMPA, pc->int_base + pc->intclr_offset
+						+ 0x02 * pc->int_offset);
+		ret = IRQ_HANDLED;
+	}
+
+	if (irq_flags & RZT2H_INT_CCMPB) {
+		pc->snapshot[pc->index] = rzg2l_gpt_read(pc, GTCCRB) +
+			(pc->overflow_count) * GTPR_MAX_VALUE;
+		switch (pc->index) {
+		case 0:
+		case 1:
+			tmp = rzg2l_gpt_read(pc, GTICBSR);
+			if (tmp & INPUT_CAP_GTIOB_RISING_EDGE)
+				rzg2l_gpt_write(pc,
+					INPUT_CAP_GTIOB_FALLING_EDGE, GTICBSR);
+			if (tmp & INPUT_CAP_GTIOB_FALLING_EDGE)
+				rzg2l_gpt_write(pc, INPUT_CAP_GTIOB_RISING_EDGE,
+						GTICBSR);
+			pc->index++;
+			break;
+		case 2:
+			/* Disable capture operation */
+			rzg2l_gpt_write(pc, 0, GTICBSR);
+			wake_up(&pc->wait);
+			break;
+		default:
+			dev_err(&pc->chip->dev, "Internal error\n");
+		}
+
+		 /* Disable input capture interrupt flags */
+		writew(RZT2H_INT_CCMPA, pc->int_base + pc->intclr_offset
+						+ 0x02 * pc->int_offset);
+		ret = IRQ_HANDLED;
+	}
+
+	spin_unlock_irqrestore(&pc->lock, flags);
+
+	return ret;
+}
 
 static irqreturn_t gpt_gtciv_interrupt(int irq, void *data)
 {
@@ -1757,9 +1937,15 @@ static ssize_t polarityA_store(struct device *dev,
 		ret = -EINVAL;
 	}
 
-	rzg2l_gpt_write_mask(pc,
-	channel_set[CHANNEL_A].phase.polar[pc->channel_polar[CHANNEL_A]],
-	channel_set[CHANNEL_A].phase.mask, GTIOR);
+	if (pc->cfg == &rzt2h_cfg) {
+		rzg2l_gpt_write_mask(pc,
+		channel_set[CHANNEL_A].phase.polar[pc->channel_polar[CHANNEL_A]] | GTIOR_OBE,
+		channel_set[CHANNEL_A].phase.mask, GTIOR);
+	} else {
+		rzg2l_gpt_write_mask(pc,
+		channel_set[CHANNEL_A].phase.polar[pc->channel_polar[CHANNEL_A]],
+		channel_set[CHANNEL_A].phase.mask, GTIOR);
+	}
 
 	mutex_unlock(&pc->mutex);
 
@@ -1808,9 +1994,15 @@ static ssize_t polarityB_store(struct device *dev,
 		ret = -EINVAL;
 	}
 
-	rzg2l_gpt_write_mask(pc,
-	channel_set[CHANNEL_B].phase.polar[pc->channel_polar[CHANNEL_B]],
-	channel_set[CHANNEL_B].phase.mask, GTIOR);
+	if (pc->cfg == &rzt2h_cfg) {
+		rzg2l_gpt_write_mask(pc,
+		channel_set[CHANNEL_B].phase.polar[pc->channel_polar[CHANNEL_B]] | GTIOR_OAE,
+		channel_set[CHANNEL_B].phase.mask, GTIOR);
+	} else {
+		rzg2l_gpt_write_mask(pc,
+		channel_set[CHANNEL_B].phase.polar[pc->channel_polar[CHANNEL_B]],
+		channel_set[CHANNEL_B].phase.mask, GTIOR);
+	}
 
 	mutex_unlock(&pc->mutex);
 
@@ -2308,6 +2500,9 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	struct iio_dev *indio_dev;
 	int ret, irq = 0, i, j;
 	const char *read_string;
+	char gpt_idx_major_str[3];
+	long gpt_idx_major;
+	long gpt_idx_minor;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*rzg2l_gpt));
 	if (!indio_dev)
@@ -2379,51 +2574,116 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rzg2l_gpt->rstc = devm_reset_control_array_get(&pdev->dev, true, false);
-	if (IS_ERR(rzg2l_gpt->rstc)) {
-		dev_err(&pdev->dev, "failed to get cpg reset\n");
-		return PTR_ERR(rzg2l_gpt->rstc);
-	}
+	if (rzg2l_gpt->cfg == &rzt2h_cfg) {
+		strscpy(gpt_idx_major_str, &pdev->dev.of_node->name[3], 3);
+		ret = kstrtol(gpt_idx_major_str, 10, &gpt_idx_major);
+		if (ret != 0)
+			return -EINVAL;
 
-	ret = reset_control_deassert(rzg2l_gpt->rstc);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to deassert reset %d\n", ret);
-		return ret;
-	}
+		ret = kstrtol(&pdev->dev.of_node->name[6], 10, &gpt_idx_minor);
+		if (ret != 0)
+			return -EINVAL;
 
-	ret = devm_add_action_or_reset(&pdev->dev, gpt_reset_control_assert,
-				       rzg2l_gpt->rstc);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register assert devm action, %d\n", ret);
-		return ret;
-	}
+		if (0 <= gpt_idx_major && 9 >= gpt_idx_major) {
+			rzg2l_gpt->int_offset = 5 * gpt_idx_major
+								+ gpt_idx_minor;
+			rzg2l_gpt->intmsk_offset = RZT2H_NS_INTMSK_OFFSET;
+			rzg2l_gpt->intclr_offset = RZT2H_NS_INTCLR_OFFSET;
+			rzg2l_gpt->intstat_offset = RZT2H_NS_INTSTAT_OFFSET;
+			res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+								 "ns_int_base");
+			if (!res) {
+				dev_err(&pdev->dev, "missing IO resource\n");
+				return -ENXIO;
+			}
 
-	irq = platform_get_irq_byname(pdev, "gtcib");
-	if (irq < 0) {
-		dev_err(&pdev->dev, "Failed to obtain IRQ\n");
-		return irq;
-	}
+			rzg2l_gpt->int_base = ioremap(res->start,
+							resource_size(res));
+		} else if (gpt_idx_major == 10) {
+			rzg2l_gpt->int_offset = gpt_idx_minor;
+			rzg2l_gpt->intmsk_offset = RZT2H_S_INTMSK_OFFSET;
+			rzg2l_gpt->intclr_offset = RZT2H_S_INTCLR_OFFSET;
+			rzg2l_gpt->intstat_offset = RZT2H_S_INTSTAT_OFFSET;
+			res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+								"s_int_base");
+			if (!res) {
+				dev_err(&pdev->dev, "missing IO resource\n");
+				return -ENXIO;
+			}
 
-	ret = devm_request_irq(&pdev->dev, irq, gpt_gtcib_interrupt, 0,
-				dev_name(&pdev->dev), rzg2l_gpt);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to request IRQ\n");
-		return ret;
-	}
+			rzg2l_gpt->int_base = ioremap(res->start,
+							resource_size(res));
+		}
 
-	irq = platform_get_irq_byname(pdev, "gtcia");
-	if (irq < 0) {
-		dev_err(&pdev->dev, "Failed to obtain IRQ\n");
-		return irq;
-	}
+		if (IS_ERR(rzg2l_gpt->int_base)) {
+			dev_err(&pdev->dev, "Failed to request ioremap\n");
+			return PTR_ERR(rzg2l_gpt->int_base);
+		}
 
-	ret = devm_request_irq(&pdev->dev, irq, gpt_gtcia_interrupt, 0,
-				dev_name(&pdev->dev), rzg2l_gpt);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to request IRQ\n");
-		return ret;
-	}
+		writew(readw(rzg2l_gpt->int_base + rzg2l_gpt->intmsk_offset
+						+ 0x02 * rzg2l_gpt->int_offset)
+			& ~(RZT2H_INT_OVF | RZT2H_INT_CCMPA | RZT2H_INT_CCMPB),
+			rzg2l_gpt->int_base + rzg2l_gpt->intmsk_offset
+					+ 0x02 * rzg2l_gpt->int_offset);
+		irq = platform_get_irq_byname(pdev, "int4");
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Failed to obtain IRQ\n");
+			return irq;
+		}
 
+		ret = devm_request_irq(&pdev->dev, irq, rzt2h_gpt_isr, 0,
+					dev_name(&pdev->dev), rzg2l_gpt);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Failed to request IRQ\n");
+			return ret;
+		}
+
+	} else {
+		rzg2l_gpt->rstc = devm_reset_control_array_get(&pdev->dev, RESET_CONTROL_OPTIONAL_SHARED);
+		if (IS_ERR(rzg2l_gpt->rstc)) {
+			dev_err(&pdev->dev, "failed to get cpg reset\n");
+			return PTR_ERR(rzg2l_gpt->rstc);
+		}
+
+		ret = reset_control_deassert(rzg2l_gpt->rstc);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to deassert reset %d\n", ret);
+			return ret;
+		}
+
+		ret = devm_add_action_or_reset(&pdev->dev, gpt_reset_control_assert,
+					       rzg2l_gpt->rstc);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to register assert devm action, %d\n", ret);
+			return ret;
+		}
+
+		irq = platform_get_irq_byname(pdev, "gtcib");
+		if (irq < 0) {
+			dev_err(&pdev->dev, "Failed to obtain IRQ\n");
+			return irq;
+		}
+
+		ret = devm_request_irq(&pdev->dev, irq, gpt_gtcib_interrupt, 0,
+					dev_name(&pdev->dev), rzg2l_gpt);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Failed to request IRQ\n");
+			return ret;
+		}
+
+		irq = platform_get_irq_byname(pdev, "gtcia");
+		if (irq < 0) {
+			dev_err(&pdev->dev, "Failed to obtain IRQ\n");
+			return irq;
+		}
+
+		ret = devm_request_irq(&pdev->dev, irq, gpt_gtcia_interrupt, 0,
+					dev_name(&pdev->dev), rzg2l_gpt);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Failed to request IRQ\n");
+			return ret;
+		}
+	}
 
 	if (rzg2l_gpt->cfg->has_ovf_irq) {
 		irq = platform_get_irq_byname(pdev, "gtciv");
@@ -2507,6 +2767,7 @@ static const struct of_device_id rzg2l_gpt_of_table[] = {
 	{ .compatible = "renesas,gpt-r9a07g044", .data = &rzg2l_cfg,},
 	{ .compatible = "renesas,gpt-r9a09g057", .data = &rzv2h_cfg,},
 	{ .compatible = "renesas,gpt-r9a09g047", .data = &rzv2h_cfg,},
+	{ .compatible = "renesas,gpt-r9a09g077", .data = &rzt2h_cfg,},
 	{ },
 };
 
