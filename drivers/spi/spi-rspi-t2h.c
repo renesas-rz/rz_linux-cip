@@ -162,7 +162,7 @@ struct rspi_data {
 	u32 spcmd;
 	u16 spsr;
 	u8 sppcr;
-	int rx_irq, tx_irq;
+	int rx_irq, tx_irq, cend_irq;
 	int bits_per_word;
 	const struct spi_ops *ops;
 
@@ -317,6 +317,11 @@ static inline int rspi_wait_for_rx_full(struct rspi_data *rspi)
 	return rspi_wait_for_interrupt(rspi, SPSR_SPRF, SPCR_SPRIE);
 }
 
+static inline int rspi_wait_for_communication_end(struct rspi_data *rspi)
+{
+	return rspi_wait_for_interrupt(rspi, SPSR_CENDF, SPCR_CENDIE);
+}
+
 static void rspi_data_out_8(struct rspi_data *rspi, const void *tx, int count)
 {
 	const u8 *buf_8 = tx;
@@ -365,7 +370,7 @@ static int rspi_pio_transfer(struct rspi_data *rspi, const void *tx, void *rx,
 	int words = n / (rspi->bits_per_word / 8);
 	void (*tx_fifo)(struct rspi_data *rspi, const void *tx, int count);
 	void (*rx_fifo)(struct rspi_data *rspi, void *rx, int count);
-	int ret, count;
+	int ret, count, loop, loop_count, remained_words, words_per_loop;
 
 	switch (rspi->bits_per_word) {
 	case 8:
@@ -384,25 +389,46 @@ static int rspi_pio_transfer(struct rspi_data *rspi, const void *tx, void *rx,
 		return -EINVAL;
 	}
 
-	for (count = 0; count < words; count++) {
-		if (tx) {
-			ret = rspi_wait_for_tx_empty(rspi);
-			if (ret < 0) {
-				dev_err(&rspi->ctlr->dev, "transmit timeout\n");
-				return ret;
-			}
-			tx_fifo(rspi, tx, count);
-		}
-	}
+	if (words % rspi->ops->fifo_size)
+		loop = words / rspi->ops->fifo_size + 1;
+	else
+		loop = words / rspi->ops->fifo_size;
 
-	for (count = 0; count < words; count++) {
-		if (rx) {
-			ret = rspi_wait_for_rx_full(rspi);
-			if (ret < 0) {
-				dev_err(&rspi->ctlr->dev, "receive timeout %d\n", count);
-				return ret;
+	for (loop_count = 0; loop_count < loop; loop_count++) {
+		remained_words = words - loop_count * rspi->ops->fifo_size;
+		words_per_loop = (remained_words > rspi->ops->fifo_size) ?
+					rspi->ops->fifo_size : remained_words;
+
+		if (tx) {
+			for (count = 0; count < words_per_loop; count++) {
+				rspi_write16(rspi, SPSRC_SPTEFC, RSPI_SPSRC);
+
+				ret = rspi_wait_for_tx_empty(rspi);
+				if (ret < 0) {
+					dev_err(&rspi->ctlr->dev, "transmit timeout\n");
+					return ret;
+				}
+
+				tx_fifo(rspi, tx, count + loop_count * rspi->ops->fifo_size);
 			}
-			rx_fifo(rspi, rx, count);
+		}
+
+		if (rx) {
+			ret = rspi_wait_for_communication_end(rspi);
+			for (count = 0; count < words_per_loop; count++) {
+				if (ret < 0) {
+					rspi_write16(rspi, SPSRC_SPRFC, RSPI_SPSRC);
+
+					ret = rspi_wait_for_rx_full(rspi);
+					if (ret < 0) {
+						dev_err(&rspi->ctlr->dev,
+							"receive timeout %d\n", count);
+						return ret;
+					}
+				}
+
+				rx_fifo(rspi, rx, count + loop_count * rspi->ops->fifo_size);
+			}
 		}
 	}
 
@@ -683,9 +709,8 @@ static int rspi_prepare_message(struct spi_controller *ctlr,
 		rspi->spcmd |= SPCMD_LSBF;
 
 	/* Configure slave signal to assert */
-	rspi->spcmd |= SPCMD_SSLA(spi->cs_gpiod ? rspi->ctlr->unused_native_cs
+	rspi->spcmd |= SPCMD_SSLA(spi_get_csgpiod(spi, 0) ? rspi->ctlr->unused_native_cs
 							: spi_get_chipselect(spi, 0));
-
 	/* CMOS output mode and MOSI signal from previous transfer */
 	rspi->sppcr = 0;
 	if (spi->mode & SPI_LOOP)
@@ -703,10 +728,8 @@ static int rspi_prepare_message(struct spi_controller *ctlr,
 	rspi_write8(rspi, SPFCR_SPFRST, RSPI_SPFCR);
 
 	/* Prohibit SPII and SPCEND interrupt */
-
-	rspi_write32(rspi, rspi_read32(rspi, RSPI_SPCR) | SPCR_SPIIE, RSPI_SPCR);
-	rspi_write32(rspi, rspi_read32(rspi, RSPI_SPCR) | SPCR_CENDIE, RSPI_SPCR);
-
+	rspi_write32(rspi, rspi_read32(rspi, RSPI_SPCR) & ~(SPCR_CENDIE | SPCR_SPIIE)
+							, RSPI_SPCR);
 	/* Enable SPI function in master mode */
 	rspi_write32(rspi, rspi_read32(rspi, RSPI_SPCR) | SPCR_SPE, RSPI_SPCR);
 	return 0;
@@ -770,6 +793,20 @@ static irqreturn_t rspi_irq_tx(int irq, void *_sr)
 	rspi->spsr = spsr = rspi_read16(rspi, RSPI_SPSR);
 	if (spsr & SPSR_SPTEF) {
 		rspi_disable_irq(rspi, SPCR_SPTIE);
+		wake_up(&rspi->wait);
+		return IRQ_HANDLED;
+	}
+	return 0;
+}
+
+static irqreturn_t rspi_irq_cend(int irq, void *_sr)
+{
+	struct rspi_data *rspi = _sr;
+	u16 spsr;
+
+	rspi->spsr = spsr = rspi_read16(rspi, RSPI_SPSR);
+	if (spsr & SPSR_CENDF) {
+		rspi_disable_irq(rspi, SPCR_CENDIE);
 		wake_up(&rspi->wait);
 		return IRQ_HANDLED;
 	}
@@ -997,13 +1034,23 @@ static int rspi_probe(struct platform_device *pdev)
 		ret = platform_get_irq_byname_optional(pdev, "mux");
 		if (ret < 0)
 			ret = platform_get_irq(pdev, 0);
-		if (ret >= 0)
+		if (ret >= 0) {
 			rspi->rx_irq = rspi->tx_irq = ret;
+			rspi->cend_irq = ret;
+		}
 	} else {
 		rspi->rx_irq = ret;
 		ret = platform_get_irq_byname(pdev, "tx");
 		if (ret >= 0)
 			rspi->tx_irq = ret;
+
+		ret = platform_get_irq_byname(pdev, "cend");
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Failed to get CEND IRQ\n");
+			return ret;
+		}
+
+		rspi->cend_irq = ret;
 	}
 
 	if (rspi->rx_irq == rspi->tx_irq) {
@@ -1011,7 +1058,9 @@ static int rspi_probe(struct platform_device *pdev)
 		ret = rspi_request_irq(&pdev->dev, rspi->rx_irq, rspi_irq_mux,
 				"mux", rspi);
 	} else {
-		/* Multi-interrupt mode, only SPRI and SPTI are used */
+		/* Multi-interrupt mode, only SPRI, SPCEND and SPTI are used */
+		ret = rspi_request_irq(&pdev->dev, rspi->cend_irq, rspi_irq_cend,
+				"cend", rspi);
 		ret = rspi_request_irq(&pdev->dev, rspi->rx_irq, rspi_irq_rx,
 				"rx", rspi);
 		if (!ret)
