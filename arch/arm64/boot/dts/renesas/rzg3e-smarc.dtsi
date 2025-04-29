@@ -91,7 +91,7 @@
 		nmi {
 		        interrupt-parent = <&icu>;
 		        interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
-		        linux,code = <4>;
+			linux,code = <0>;
 		        label = "NMI";
 		        wakeup-source;
 		};
