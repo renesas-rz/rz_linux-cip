@@ -233,6 +233,7 @@ static void rzv2h_tint_irq_endisable(struct irq_data *d, bool enable)
 	else
 		tssr &= ~(priv->hw_info->tint_tien << tssel_shift);
 	writel_relaxed(tssr, priv->base + ICU_TSSR(tssr_index) + tint_offset);
+	writel_relaxed(BIT(tint_nr), priv->base + ICU_TSCLR + tint_offset);
 	raw_spin_unlock(&priv->lock);
 }
 
@@ -267,6 +268,7 @@ static int rzv2h_nmi_set_type(struct irq_data *d, unsigned int type)
 	}
 
 	writel_relaxed(sense, priv->base + ICU_NITSR);
+	writel_relaxed(ICU_NSCLR_NCLR, priv->base + ICU_NSCLR);
 
 	return 0;
 }
