@@ -16,6 +16,7 @@
 #include <sound/soc.h>
 #include <linux/iopoll.h>
 #include <linux/dmaengine.h>
+#include <linux/sys_soc.h>
 
 /* Register offset	*/
 /* Control registers	*/
@@ -137,6 +138,10 @@
 #define RZ_PDM_RATES		SNDRV_PCM_RATE_8000_48000
 #define RZ_PDM_FORMATS		(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_LE)
 
+/* PDM CCLK clock in Hz			*/
+#define	PDM_CCLK_SEL_OCS2_DIV3	8000000
+#define	PDM_CCLK_SEL_OCS2_DIV5	4800000
+
 struct rz_pdm_stream {
 	struct rz_pdm_priv *priv;
 	struct snd_pcm_substream *substream;
@@ -185,6 +190,11 @@ struct rz_pdm_priv {
 struct rz_pdm_irq_desc {
 	char *name;
 	irqreturn_t (*handler)(int irq, void *data);
+};
+
+static const struct soc_device_attribute rzg3l_match[] = {
+	{ .family = "RZ/G3L" },
+	{ /* Sentinel*/ }
 };
 
 static const unsigned int rz_pdm_hpf[] = {
@@ -434,6 +444,17 @@ static int rz_pdm_dai_hw_params(struct snd_pcm_substream *substream,
 {
 	struct rz_pdm_priv *pdm = snd_soc_dai_get_drvdata(dai);
 	u32 mdsr = 0;
+
+	/*
+	 * On the RZ/G3L platform, the PDM's CCLK can be selected
+	 * from 1/3 OCS2 (24Mhz) output and 1/5 of the OCS2 (24Mhz) output.
+	 * For compatibility with other RZ platforms and to match selectable values
+	 * used for PDM_CLK, the PDM's CCLK should be divided by 5 (4.8Mhz).
+	 */
+	if (soc_device_match(rzg3l_match)) {
+		if (clk_set_rate(pdm->cclk, PDM_CCLK_SEL_OCS2_DIV5))
+			return -EINVAL;
+	}
 
 	pdm->rate = params_rate(params);
 	pdm->width = params_width(params);
@@ -883,6 +904,10 @@ static int rz_pdm_probe(struct platform_device *pdev)
 		return PTR_ERR(pdm->base);
 
 	pdm->phys = res->start;
+
+	pdm->cclk = devm_clk_get(dev, "pdm_cclk");
+	if (IS_ERR(pdm->cclk))
+		return dev_err_probe(dev, PTR_ERR(pdm->cclk), "failed to get cclk\n");
 
 	/* Channel Enable Detection */
 	for (i = 0; i < MAX_CHANNELS; ++i) {
