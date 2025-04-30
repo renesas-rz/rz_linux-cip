@@ -2101,6 +2101,7 @@ static const char * const rzg3l_gpio_names[] = {
 	"PF0", "PF1", "PF2", "PF3", "PF4", "PF5", "PF6", "PF7",
 	"PG0", "PG1", "PG2", "PG3", "PG4", "PG5", "PG6", "PG7",
 	"PH0", "PH1", "PH2", "PH3", "PH4", "PH5", "PH6", "PH7",
+	"", "", "", "", "", "", "", "",
 	"PJ0", "PJ1", "PJ2", "PJ3", "PJ4", "PJ5", "PJ6", "PJ7",
 	"PK0", "PK1", "PK2", "PK3", "PK4", "PK5", "PK6", "PK7",
 	"PL0", "PL1", "PL2", "PL3", "PL4", "PL5", "PL6", "PL7",
@@ -2142,6 +2143,7 @@ static const u64 r9a08g046_gpio_configs[] = {
 							        PIN_CFG_IO_VMC_ETH1)),
 	RZG2L_GPIO_PORT_PACK(8, 0x30, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_IEN),			/* PG */
 	RZG2L_GPIO_PORT_PACK(6, 0x31, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_IEN),			/* PH */
+	0x0,											/* PI */
 	RZG2L_GPIO_PORT_PACK(5, 0x33, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_IEN),			/* PJ */
 	RZG2L_GPIO_PORT_PACK(4, 0x34, RZG3L_MPXED_PIN_FUNCS(B)),				/* PK */
 	RZG2L_GPIO_PORT_PACK(5, 0x35, RZG3L_MPXED_PIN_FUNCS(B)),				/* PL */
