@@ -65,6 +65,7 @@
 #define PIN_CFG_ELC			BIT(17)
 #define PIN_CFG_IOLH_RZV2H		BIT(18)
 #define PIN_CFG_IO_VMC_XSPI		BIT(19) /* known on RZ/G3L only */
+#define PIN_CFG_IO_VMC_SD2		BIT(20) /* known on RZ/G3L only */
 
 #define RZG2L_SINGLE_PIN		BIT_ULL(63)	/* Dedicated pin */
 #define RZG2L_VARIABLE_CFG		BIT_ULL(62)	/* Variable cfg for port pins */
@@ -155,6 +156,7 @@
 #define ETH_MODE		(0x3018)
 #define PFC_OEN			(0x3C40) /* known on RZ/V2H(P) only */
 #define XSPI			(0x300c) /* known on RZ/G3L only */
+#define SD_CH2_POC		(0x3024) /* known on RZ/G3L only */
 
 #define PVDD_2500		2	/* I/O domain voltage 2.5V */
 #define PVDD_1800		1	/* I/O domain voltage <= 1.8V */
@@ -185,14 +187,26 @@
 
 /* Custom pinconf parameters */
 #define RENESAS_RZV2H_PIN_CONFIG_OUTPUT_IMPEDANCE	(PIN_CONFIG_END + 1)
+#define RENESAS_PIN_CONFIG_SD_CH1_POC			(PIN_CONFIG_END + 2)
+#define RENESAS_PIN_CONFIG_SD_CH2_POC			(PIN_CONFIG_END + 3)
 
 static const struct pinconf_generic_params renesas_rzv2h_custom_bindings[] = {
 	{ "renesas,output-impedance", RENESAS_RZV2H_PIN_CONFIG_OUTPUT_IMPEDANCE, 1 },
 };
 
+static const struct pinconf_generic_params renesas_rzg3l_custom_bindings[] = {
+	{ "renesas,sd_ch1_poc", RENESAS_PIN_CONFIG_SD_CH1_POC, 0 },
+	{ "renesas,sd_ch2_poc", RENESAS_PIN_CONFIG_SD_CH2_POC, 0 },
+};
+
 #ifdef CONFIG_DEBUG_FS
 static const struct pin_config_item renesas_rzv2h_conf_items[] = {
 	PCONFDUMP(RENESAS_RZV2H_PIN_CONFIG_OUTPUT_IMPEDANCE, "output-impedance", "x", true),
+};
+
+static const struct pin_config_item renesas_rzg3l_conf_items[] = {
+	PCONFDUMP(RENESAS_PIN_CONFIG_SD_CH1_POC, "sd_ch1_poc", "x", false),
+	PCONFDUMP(RENESAS_PIN_CONFIG_SD_CH2_POC, "sd_ch2_poc", "x", false),
 };
 #endif
 
@@ -332,6 +346,7 @@ struct rzg2l_pinctrl_pin_settings {
  * @eth_mode: ETH_MODE register cache
  * @qspi: QSPI registers cache
  * @xspi: XSPI registers cache
+ * @sd_ch2: SD_CH2 registers cache
  */
 struct rzg2l_pinctrl_reg_cache {
 	u8	*p;
@@ -346,6 +361,7 @@ struct rzg2l_pinctrl_reg_cache {
 	u8	eth_mode;
 	u8	qspi;
 	u8	xspi;
+	u8	sd_ch2;
 };
 
 struct rzg2l_pinctrl {
@@ -871,6 +887,8 @@ static int rzg2l_caps_to_pwr_reg(const struct rzg2l_register_offsets *regs, u32 
 		return SD_CH(regs->sd_ch, 0);
 	if (caps & PIN_CFG_IO_VMC_SD1)
 		return SD_CH(regs->sd_ch, 1);
+	if (caps & PIN_CFG_IO_VMC_SD2)
+		return SD_CH2_POC;
 	if (caps & PIN_CFG_IO_VMC_ETH0)
 		return ETH_POC(regs->eth_poc, 0);
 	if (caps & PIN_CFG_IO_VMC_ETH1)
@@ -1422,6 +1440,20 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 
 		arg = rzg2l_read_pin_config(pctrl, IOLH(off), bit, IOLH_MASK);
 		break;
+	case RENESAS_PIN_CONFIG_SD_CH1_POC:
+		cfg |= PIN_CFG_IO_VMC_SD1;
+		ret = rzg2l_get_power_source(pctrl, _pin, cfg);
+		if (ret < 0)
+			return ret;
+		arg = ret;
+		break;
+	case RENESAS_PIN_CONFIG_SD_CH2_POC:
+		cfg |= PIN_CFG_IO_VMC_SD2;
+		ret = rzg2l_get_power_source(pctrl, _pin, cfg);
+		if (ret < 0)
+			return ret;
+		arg = ret;
+		break;
 
 	default:
 		return -ENOTSUPP;
@@ -1568,6 +1600,16 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 			if (arg > 3)
 				return -EINVAL;
 			rzg2l_rmw_pin_config(pctrl, IOLH(off), bit, IOLH_MASK, arg);
+			break;
+		case RENESAS_PIN_CONFIG_SD_CH1_POC:
+			if (arg > 2)
+				return -EINVAL;
+			cfg |= PIN_CFG_IO_VMC_SD1;
+			break;
+		case RENESAS_PIN_CONFIG_SD_CH2_POC:
+			if (arg > 2)
+				return -EINVAL;
+			cfg |= PIN_CFG_IO_VMC_SD2;
 			break;
 
 		default:
@@ -3263,6 +3305,7 @@ static int rzg2l_pinctrl_suspend_noirq(struct device *dev)
 	cache->qspi = readb(pctrl->base + QSPI);
 	cache->xspi = readb(pctrl->base + XSPI);
 	cache->eth_mode = readb(pctrl->base + ETH_MODE);
+	cache->sd_ch2 = readb(pctrl->base + SD_CH2_POC);
 
 	if (!atomic_read(&pctrl->wakeup_path))
 		clk_disable_unprepare(pctrl->clk);
@@ -3506,6 +3549,11 @@ static struct rzg2l_pinctrl_data r9a08g046_data = {
 	.n_port_pins = ARRAY_SIZE(r9a08g046_gpio_configs) * RZG2L_PINS_PER_PORT,
 	.n_dedicated_pins = ARRAY_SIZE(rzg3l_dedicated_pins),
 	.hwcfg = &rzg3l_hwcfg,
+	.num_custom_params = ARRAY_SIZE(renesas_rzg3l_custom_bindings),
+	.custom_params = renesas_rzg3l_custom_bindings,
+#ifdef CONFIG_DEBUG_FS
+	.custom_conf_items = renesas_rzg3l_conf_items,
+#endif
 	.pwpr_pfc_lock_unlock = &rzg2l_pwpr_pfc_lock_unlock,
 	.pmc_writeb = &rzg2l_pmc_writeb,
 	.oen_read = &rzg3s_oen_read,
