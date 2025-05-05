@@ -1313,7 +1313,7 @@ static irqreturn_t rzt2h_gpt_isr(int irq, void *data)
 		}
 
 		 /* Disable input capture interrupt flags */
-		writew(RZT2H_INT_CCMPA, pc->int_base + pc->intclr_offset
+		writew(RZT2H_INT_CCMPB, pc->int_base + pc->intclr_offset
 						+ 0x02 * pc->int_offset);
 		ret = IRQ_HANDLED;
 	}
