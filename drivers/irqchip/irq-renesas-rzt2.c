@@ -30,6 +30,9 @@
 #define S_PORTNF_MD		0x0C
 #define NS_PORTNF_MD_INIT	(0x3fffffff)
 #define S_PORTNF_MD_INIT	(0x3F)
+#define NS_PORT_SEL_IRQ		0xD00
+#define S_PORT_SEL_IRQ		0x100
+#define NS_PORT_SEL_IRQ_REG(n)	(NS_PORT_SEL_IRQ + ((n) * 4))
 
 /* Interrupt type support */
 enum {
@@ -112,6 +115,53 @@ static int irqc_irq_set_wake(struct irq_data *d, unsigned int on)
 static irqreturn_t irqc_irq_handler(int irq, void *dev_id)
 {
 	return IRQ_HANDLED;
+}
+
+static int configure_irq_ports(struct platform_device *pdev)
+{
+	struct irqc_priv *priv = (struct irqc_priv *)platform_get_drvdata(pdev);
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+	void __iomem *addr;
+	u32 port, pin, field, mask, shift, val;
+	int count, num_ports, i;
+
+	count = of_property_count_u32_elems(np, "irq-port");
+	if (count < 0)
+		return 0;
+
+	if (count < 2 || count % 2 != 0) {
+		dev_err(dev, "Invalid irq-port property\n");
+		return -EINVAL;
+	}
+
+	num_ports = count / 2;
+	if (num_ports > IRQC_IRQ_MAX) {
+		dev_err(dev, "Max IRQs supported is %d\n", IRQC_IRQ_MAX);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < num_ports; i++) {
+		if (of_property_read_u32_index(np, "irq-port", i * 2, &port) ||
+		    of_property_read_u32_index(np, "irq-port", i * 2 + 1, &pin)) {
+			return -EINVAL;
+		}
+
+		field = (port << 4) | pin;
+		mask  = (i % 2 == 0) ? GENMASK(9, 0) : GENMASK(25, 16);
+		shift = (i % 2 == 0) ? 0 : 16;
+		addr = (i < 14) ?
+		       (priv->base + NS_PORT_SEL_IRQ_REG(i / 2)) :
+		       (priv->base1 + S_PORT_SEL_IRQ);
+
+		val = readl(addr);
+		val = (val & ~mask) | (field << shift);
+		writel(val, addr);
+
+		dev_info(dev, "Mapped IRQ%u to P%u_%u\n", i, port, pin);
+	}
+
+	return 0;
 }
 
 static int irqc_request_irq(struct platform_device *pdev,
@@ -217,6 +267,9 @@ static int irqc_probe(struct platform_device *pdev)
 	priv->gc->chip_types[0].chip.irq_unmask = irq_gc_unmask_enable_reg;
 	/* Support Edge detection only */
 	priv->gc->chip_types[0].chip.flags = IRQCHIP_SET_TYPE_MASKED;
+
+	/* Configure IRQ ports if specified in device tree */
+	configure_irq_ports(pdev);
 
 	/* Initialized with BOTH_EDGE_LEVEL */
 	writel(NS_PORTNF_MD_INIT, priv->base + NS_PORTNF_MD);
