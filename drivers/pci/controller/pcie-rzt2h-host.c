@@ -39,6 +39,16 @@ struct rzt2h_msi {
 	int irq;
 };
 
+enum {
+	RZT2H_PCIE_THREAD_IDLE,
+	RZT2H_PCIE_THREAD_RESET
+};
+
+static int	pcie_thread_status;
+static int	pcie_receiver_detection;
+static struct task_struct *pcie_kthread_tsk;
+static struct rzt2h_pcie *tmp_pcie;
+
 static u32 r_configuration_space[] = {
 	0x00000004,
 	0x00000000,
@@ -703,6 +713,125 @@ static int rzt2h_pcie_hw_init(struct rzt2h_pcie *pcie, int lane)
 	return -ETIMEDOUT;
 }
 
+static void rzt2h_pcie_reset_assert(void)
+{
+	unsigned long reg;
+
+	reg = rzt2h_pci_read_reg(tmp_pcie, PCI_RC_RESET_REG) &
+			~(RST_GP_B | RST_PS_B | RST_CFG_B | RST_B);
+	rzt2h_pci_write_reg(tmp_pcie, reg,  PCI_RC_RESET_REG);
+}
+
+static void rzt2h_pcie_reset_deassert(void)
+{
+	rzt2h_rmw(tmp_pcie, PCI_RC_RESET_REG,
+					 (RST_GP_B | RST_PS_B | RST_CFG_B | RST_B),
+					 (RST_GP_B | RST_PS_B | RST_CFG_B | RST_B));
+}
+
+static int pcie_kthread(void *arg)
+{
+	unsigned long reg;
+	unsigned long tmp_cnt = 0;
+	unsigned int timeout = 50;
+
+	while (!kthread_should_stop()) {
+		if (pcie_thread_status == RZT2H_PCIE_THREAD_RESET) {
+			dev_info(tmp_pcie->dev, "PCIe link down\n");
+
+			mdelay(1000);
+			reg = rzt2h_pci_read_reg(tmp_pcie, PCIE_CORE_STATUS_1_REG);
+			if ((reg & LTSSM_ST_ALL_MASK) == LTSSM_ST_DETECT) {
+				reg = rzt2h_pci_read_reg(tmp_pcie, PCIE_CORE_STATUS_2_REG);
+
+				if (((reg & STATE_RECEIVER_DETECTED) >> 8) ==
+					pcie_receiver_detection) {
+					tmp_cnt++;
+					if (tmp_cnt >= 3) {
+						rzt2h_pcie_reset_assert();
+						usleep_range(1000, 1250);
+						rzt2h_pcie_reset_deassert();
+
+						tmp_cnt = 0;
+						pcie_thread_status	= RZT2H_PCIE_THREAD_IDLE;
+						pcie_receiver_detection = 0x00;
+
+						while (timeout--) {
+							if (!(rzt2h_pci_read_reg(tmp_pcie,
+								PCIE_CORE_STATUS_1_REG)
+								& DL_DOWN_STATUS))
+								break;
+
+							usleep_range(5000, 6250);
+						}
+
+						if (timeout) {
+							reg = rzt2h_pci_read_reg(tmp_pcie,
+								PCIE_CORE_STATUS_2_REG);
+							dev_info(tmp_pcie->dev,
+								"PCIe reset and Linx status [0x%lx]",
+								reg);
+						} else {
+							dev_err(tmp_pcie->dev, "PCIe reset and link down\n");
+						}
+					}
+				} else {
+					pcie_thread_status	= RZT2H_PCIE_THREAD_IDLE;
+					pcie_receiver_detection = 0x00;
+				}
+			}
+		} else {
+			mdelay(1000);
+		}
+	}
+	return 0;
+}
+
+static void rzt2h_pcie_enable_dl_updown(struct rzt2h_pcie_host *host)
+{
+	struct rzt2h_pcie *pcie = &host->pcie;
+
+	pcie_thread_status	= RZT2H_PCIE_THREAD_IDLE;
+	pcie_receiver_detection = 0x00;
+
+	pcie_kthread_tsk = kthread_run(pcie_kthread, NULL, "pcie kthread");
+	if (IS_ERR(pcie_kthread_tsk))
+		pr_err("pcie kthread run failed\n");
+	else
+		pr_info("pcie kthread pid:%d\n", pcie_kthread_tsk->pid);
+
+	/* enable DL_UpDown interrupts */
+	rzt2h_rmw(pcie, PCIE_EVENT_INTERRUPT_EANBLE_0_REG,
+					 DL_UPDOWN_ENABLE,
+					 DL_UPDOWN_ENABLE);
+}
+
+static void rzt2h_pcie_dl_updown(struct rzt2h_pcie_host *host)
+{
+	struct rzt2h_pcie *pcie = &host->pcie;
+	unsigned long reg;
+
+	reg = rzt2h_pci_read_reg(pcie, PCIE_EVENT_INTERRUPT_STATUS_0_REG);
+	// clear the interrupt
+	rzt2h_rmw(pcie, PCIE_EVENT_INTERRUPT_STATUS_0_REG,
+					 DL_UPDOWN_STATUS,
+					 DL_UPDOWN_STATUS);
+
+	if (reg & DL_UPDOWN_STATUS) {
+		// DL_UpDown interrupt
+		tmp_pcie = &host->pcie;
+
+		reg = rzt2h_pci_read_reg(pcie, PCIE_CORE_STATUS_1_REG);
+		if (reg & DL_DOWN_STATUS) {
+			// DL_Down_Status
+			reg = rzt2h_pci_read_reg(pcie, PCIE_CORE_STATUS_2_REG);
+			pcie_receiver_detection = (reg & STATE_RECEIVER_DETECTED) >> 8;
+
+			pcie_thread_status = RZT2H_PCIE_THREAD_RESET;
+		}
+	}
+}
+
 /* INTx Functions */
 
 /**
@@ -734,6 +863,8 @@ static irqreturn_t rzt2h_pcie_msi_irq(int irq, void *data)
 	struct rzt2h_pcie *pcie = &host->pcie;
 	struct rzt2h_msi *msi = &host->msi;
 	unsigned long reg, msi_stat;
+
+	rzt2h_pcie_dl_updown(host);
 
 	reg = rzt2h_pci_read_reg(pcie, PCI_INTX_RCV_INTERRUPT_STATUS_REG);
 
@@ -1212,6 +1343,8 @@ static int rzt2h_pcie_probe(struct platform_device *pdev)
 		break;
 	}
 	dev_info(&pdev->dev, "PCIe x%d: link up Lane number\n", data);
+
+	rzt2h_pcie_enable_dl_updown(host);
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		err = rzt2h_pcie_enable_msi(host);
