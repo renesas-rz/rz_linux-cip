@@ -187,6 +187,7 @@ static int vbattb_clk_probe(struct platform_device *pdev)
 
 static const struct of_device_id vbattb_clk_match[] = {
 	{ .compatible = "renesas,r9a08g045-vbattb" },
+	{ .compatible = "renesas,r9a08g046-vbattb" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, vbattb_clk_match);
