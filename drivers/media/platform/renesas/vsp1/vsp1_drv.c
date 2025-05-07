@@ -1000,6 +1000,7 @@ static const struct of_device_id vsp1_of_match[] = {
 	{ .compatible = "renesas,vsp2" },
 	{ .compatible = "renesas,r9a07g044-vsp2", .data = &rzg2l_vsp2_device_info },
 	{ .compatible = "renesas,r9a09g077-vsp2", .data = &rzg2l_vsp2_device_info },
+	{ .compatible = "renesas,r9a09g087-vsp2", .data = &rzg2l_vsp2_device_info },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, vsp1_of_match);
