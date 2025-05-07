@@ -575,6 +575,41 @@
 			status = "disabled";
 		};
 
+		fcpvd0: fcp@920D0000 {
+			compatible = "renesas,fcpv";
+			reg = <0 0x920D0000 0 0x10000>;
+		};
+
+		vspd0: vsp@920E0000 {
+			compatible = "renesas,r9a09g087-vsp2";
+			reg = <0 0x920E0000 0 0x8000>;
+			interrupts = <GIC_SPI 780 IRQ_TYPE_LEVEL_HIGH>;
+			renesas,fcp = <&fcpvd0>;
+		};
+
+		du: display@920C0000 {
+			compatible = "renesas,r9a09g087-du";
+			reg = <0 0x920C0000 0 0x10000>;
+			interrupts = <GIC_SPI 781 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_CORE R9A09G077_LCDC_CLKA>,
+				 <&cpg CPG_CORE R9A09G077_LCDC_CLKP>,
+				 <&cpg CPG_MOD R9A09G077_LCDC_CLK>;
+			clock-names = "aclk", "pclk", "vclk";
+			renesas,vsps = <&vspd0 0>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					du_out_rgb: endpoint {
+					};
+				};
+			};
+		};
+
 		gmac0: ethernet@80100000 {
 			compatible = "renesas,rzn2h-eqos",
 				     "snps,dwc-qos-ethernet-4.10";
