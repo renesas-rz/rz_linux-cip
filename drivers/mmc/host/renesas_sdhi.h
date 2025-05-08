@@ -36,6 +36,8 @@ struct renesas_sdhi_of_data {
 	unsigned int max_blk_count;
 	unsigned short max_segs;
 	unsigned long sdhi_flags;
+	bool internal_divider;
+	u8 max_divider_bits;
 };
 
 #define SDHI_CALIB_TABLE_MAX 32
@@ -96,6 +98,9 @@ struct renesas_sdhi {
 	struct reset_control *rstc;
 	struct tmio_mmc_host *host;
 	struct regulator_dev *rdev;
+
+	u8 internal_divider;
+	u8 max_divider_bits;
 };
 
 #define host_to_priv(host) \

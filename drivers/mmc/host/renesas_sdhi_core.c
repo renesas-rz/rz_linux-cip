@@ -109,13 +109,13 @@ static int renesas_sdhi_clk_enable(struct tmio_mmc_host *host)
 	 * was missing, assume the current frequency is the maximum.
 	 */
 	if (!mmc->f_max)
-		mmc->f_max = clk_get_rate(priv->clk);
+		mmc->f_max = clk_get_rate(priv->clk) / priv->internal_divider;
 
 	/*
 	 * Minimum frequency is the minimum input clock frequency
 	 * divided by our maximum divider.
 	 */
-	mmc->f_min = max(clk_round_rate(priv->clk, 1) / 512, 1L);
+	mmc->f_min = max(clk_round_rate(priv->clk, 1) / (1 << priv->max_divider_bits), 1L);
 
 	/* enable 16bit data access on SDBUF as default */
 	renesas_sdhi_sdbuf_width(host, 16);
@@ -183,7 +183,7 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 	clk_set_rate(ref_clk, best_freq);
 
 	if (priv->clkh)
-		clk_set_rate(priv->clk, best_freq >> clkh_shift);
+		clk_set_rate(priv->clk, (best_freq >> clkh_shift) * priv->internal_divider);
 
 	return clk_get_rate(priv->clk);
 }
@@ -191,8 +191,9 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
 				   unsigned int new_clock)
 {
+	struct renesas_sdhi *priv = host_to_priv(host);
 	unsigned int clk_margin;
-	u32 clk = 0, clock;
+	u64 clk = 0, clock;
 
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~CLK_CTL_SCLKEN &
 		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
@@ -202,8 +203,8 @@ static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
 		goto out;
 	}
 
-	host->mmc->actual_clock = renesas_sdhi_clk_update(host, new_clock);
-	clock = host->mmc->actual_clock / 512;
+	host->mmc->actual_clock = renesas_sdhi_clk_update(host, new_clock) / priv->internal_divider;
+	clock = host->mmc->actual_clock / (1 << priv->max_divider_bits);
 
 	/*
 	 * Add a margin of 1/1024 rate higher to the clock rate in order
@@ -211,7 +212,13 @@ static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
 	 * provided for actual_clock in renesas_sdhi_clk_update().
 	 */
 	clk_margin = new_clock >> 10;
-	for (clk = 0x80000080; new_clock + clk_margin >= (clock << 1); clk >>= 1)
+	if (priv->max_divider_bits == 9) {
+		clk = 0x80000080;
+	} else {
+		clk = 0x200000200;
+	}
+
+	for (; new_clock + clk_margin >= (clock << 1); clk >>= 1)
 		clock <<= 1;
 
 	/* 1/1 clock is option */
@@ -222,6 +229,7 @@ static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
 			clk &= ~0xff;
 	}
 
+	/* Need to fix this mask */
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, clk & CLK_CTL_DIV_MASK);
 	if (!(host->pdata->flags & TMIO_MMC_MIN_RCAR2))
 		usleep_range(10000, 11000);
@@ -1232,6 +1240,9 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		host->ops.hs400_downgrade = renesas_sdhi_disable_scc;
 		host->ops.hs400_complete = renesas_sdhi_hs400_complete;
 	}
+
+	priv->internal_divider = of_data->internal_divider ? 2 : 1;
+	priv->max_divider_bits = of_data->max_divider_bits ? of_data->max_divider_bits : 9;
 
 	sd_ctrl_write32_as_16_and_16(host, CTL_IRQ_MASK, host->sdcard_irq_mask_all);
 
