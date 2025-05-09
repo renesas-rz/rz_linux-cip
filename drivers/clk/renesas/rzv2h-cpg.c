@@ -74,10 +74,14 @@
 #define MIN_VCLK_FREQ		(5440000)
 #define LIMIT_VCLK_FREQ		(25000000)
 
+#define CPG_SSEL_WEN		(BIT(28) | BIT(24) | BIT(20) | BIT(16))
+#define CPG_SDDIV_WEN		(BIT(28) | BIT(24) | BIT(20) | BIT(16))
+
 struct rzv2h_cpg_cache {
 	u32 pll_clk1;
 	u32 pll_clk2;
 	u32 mux;
+	u32 sddiv;
 };
 
 /**
@@ -1191,20 +1195,26 @@ static int rzv2h_cpg_pm_suspend(struct device *dev)
 	int i;
 
 	for (i = 0; i < info->num_core_clks; i++) {
-		if ((info->core_clks[i].type == CLK_TYPE_PLLDSI) ||
-		    (info->core_clks[i].type == CLK_TYPE_PLL)) {
+		switch (info->core_clks[i].type) {
+		case CLK_TYPE_PLLDSI:
+		case CLK_TYPE_PLL:
 			priv->cache[i].pll_clk1 = readl(priv->base +
 						  PLL_CLK1_OFFSET(info->core_clks[i].cfg.conf));
 			priv->cache[i].pll_clk2 = readl(priv->base +
 						  PLL_CLK2_OFFSET(info->core_clks[i].cfg.conf));
-			continue;
+			break;
+		case CLK_TYPE_MUX:
+			priv->cache[i].mux = readl(priv->base +
+						   info->core_clks[i].cfg.mux.offset);
+			break;
+		case CLK_TYPE_SDIV:
+		case CLK_TYPE_DDIV:
+		case CLK_TYPE_PLLDSI_SDIV:
+			priv->cache[i].sddiv = readl(priv->base +
+						     info->core_clks[i].cfg.sddiv.offset);
+			break;
 		}
-
-		if (info->core_clks[i].type == CLK_TYPE_MUX) {
-			priv->cache[i].mux = readl(priv->base + info->core_clks[i].cfg.mux.offset);
-			continue;
-		}
-	};
+	}
 
 	return 0;
 };
@@ -1216,20 +1226,26 @@ static int rzv2h_cpg_pm_resume(struct device *dev)
 	int i;
 
 	for (i = 0; i < info->num_core_clks; i++) {
-		if ((info->core_clks[i].type == CLK_TYPE_PLLDSI) ||
-		    (info->core_clks[i].type == CLK_TYPE_PLL)) {
+		switch (info->core_clks[i].type) {
+		case CLK_TYPE_PLLDSI:
+		case CLK_TYPE_PLL:
 			writel(priv->cache[i].pll_clk1, priv->base +
-				PLL_CLK1_OFFSET(info->core_clks[i].cfg.conf));
+			       PLL_CLK1_OFFSET(info->core_clks[i].cfg.conf));
 			writel(priv->cache[i].pll_clk2, priv->base +
-				PLL_CLK2_OFFSET(info->core_clks[i].cfg.conf));
-			continue;
-		};
-		if (info->core_clks[i].type == CLK_TYPE_MUX) {
-			writel(priv->cache[i].mux | (0x1111 << 16), priv->base +
-				info->core_clks[i].cfg.mux.offset);
-			continue;
+			       PLL_CLK2_OFFSET(info->core_clks[i].cfg.conf));
+			break;
+		case CLK_TYPE_MUX:
+			writel(priv->cache[i].mux | CPG_SSEL_WEN, priv->base +
+			       info->core_clks[i].cfg.mux.offset);
+			break;
+		case CLK_TYPE_SDIV:
+		case CLK_TYPE_DDIV:
+		case CLK_TYPE_PLLDSI_SDIV:
+			writel(priv->cache[i].sddiv | CPG_SDDIV_WEN, priv->base +
+			       info->core_clks[i].cfg.sddiv.offset);
+			break;
 		}
-	};
+	}
 
 	return 0;
 };
