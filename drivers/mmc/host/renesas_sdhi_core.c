@@ -182,6 +182,9 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 
 	clk_set_rate(ref_clk, best_freq);
 
+	if ((priv->max_divider_bits != 9) && (host->mmc->ios.timing == MMC_TIMING_MMC_HS400))
+		clkh_shift = 1;
+
 	if (priv->clkh)
 		clk_set_rate(priv->clk, (best_freq >> clkh_shift) * priv->internal_divider);
 
@@ -203,7 +206,7 @@ static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
 		goto out;
 	}
 
-	host->mmc->actual_clock = renesas_sdhi_clk_update(host, new_clock) / priv->internal_divider;
+	host->mmc->actual_clock = renesas_sdhi_clk_update(host, new_clock) / ((priv->max_divider_bits == 11) ? 2 : 1);
 	clock = host->mmc->actual_clock / (1 << priv->max_divider_bits);
 
 	/*
@@ -300,12 +303,15 @@ static int renesas_sdhi_start_signal_voltage_switch(struct mmc_host *mmc,
 #define SH_MOBILE_SDHI_SCC_RVSCNTL	0x008
 #define SH_MOBILE_SDHI_SCC_RVSREQ	0x00A
 #define SH_MOBILE_SDHI_SCC_SMPCMP       0x00C
-#define SH_MOBILE_SDHI_SCC_TMPPORT2	0x00E
-#define SH_MOBILE_SDHI_SCC_TMPPORT3	0x014
-#define SH_MOBILE_SDHI_SCC_TMPPORT4	0x016
-#define SH_MOBILE_SDHI_SCC_TMPPORT5	0x018
-#define SH_MOBILE_SDHI_SCC_TMPPORT6	0x01A
-#define SH_MOBILE_SDHI_SCC_TMPPORT7	0x01C
+#define SH_MOBILE_SDHI_SCC_TMPPORT2	0x00E /* G3L: SDm_SCC_HS400MODE1 */
+#define RZG3L_SDHI_SCC_HWADJ2		0x010 /* G3L: SDm_SCC_HWADJ2 */
+#define SH_MOBILE_SDHI_SCC_TMPPORT3	0x014 /* G3L: SDm_SCC_HWADJ3 */
+#define SH_MOBILE_SDHI_SCC_TMPPORT4	0x016 /* R-Car */
+#define SH_MOBILE_SDHI_SCC_TMPPORT5	0x018 /* R-Car */
+#define SH_MOBILE_SDHI_SCC_TMPPORT6	0x01A /* R-Car */
+#define SH_MOBILE_SDHI_SCC_TMPPORT7	0x01C /* R-Car */
+#define RZG3L_SDHI_SCC_HS400MODE2	0x020 /* G3L: SDm_SCC_HS400MODE2 */
+#define RZG3L_SDHI_SCC_HWADJ4		0x022 /* G3L: SDm_SCC_HWADJ4 */
 
 #define SH_MOBILE_SDHI_SCC_DTCNTL_TAPEN		BIT(0)
 #define SH_MOBILE_SDHI_SCC_DTCNTL_TAPNUM_SHIFT	16
@@ -338,6 +344,7 @@ static int renesas_sdhi_start_signal_voltage_switch(struct mmc_host *mmc,
 #define SH_MOBILE_SDHI_SCC_TMPPORT_DISABLE_WP_CODE	0xa5000000
 #define SH_MOBILE_SDHI_SCC_TMPPORT_CALIB_CODE_MASK	0x1f
 #define SH_MOBILE_SDHI_SCC_TMPPORT_MANUAL_MODE		BIT(7)
+#define RZG3L_SDHI_SCC_HS400MODE2_HS400EN2		BIT(0)
 
 static inline u32 sd_scc_read32(struct tmio_mmc_host *host,
 				struct renesas_sdhi *priv, int addr)
@@ -414,6 +421,8 @@ static void renesas_sdhi_hs400_complete(struct mmc_host *mmc)
 		       (SH_MOBILE_SDHI_SCC_TMPPORT2_HS400EN |
 			SH_MOBILE_SDHI_SCC_TMPPORT2_HS400OSEL) |
 			sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT2));
+
+	sd_scc_write32(host, priv, RZG3L_SDHI_SCC_HS400MODE2, RZG3L_SDHI_SCC_HS400MODE2_HS400EN2);
 
 	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_DTCNTL,
 		       SH_MOBILE_SDHI_SCC_DTCNTL_TAPEN |
@@ -555,6 +564,8 @@ static void renesas_sdhi_reset_hs400_mode(struct tmio_mmc_host *host,
 		       ~(SH_MOBILE_SDHI_SCC_TMPPORT2_HS400EN |
 			 SH_MOBILE_SDHI_SCC_TMPPORT2_HS400OSEL) &
 			sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT2));
+
+	sd_scc_write32(host, priv, RZG3L_SDHI_SCC_HS400MODE2, 0x0);
 
 	if (sdhi_has_quirk(priv, hs400_calib_table) || sdhi_has_quirk(priv, hs400_bad_taps))
 		renesas_sdhi_adjust_hs400_mode_disable(host);
@@ -1241,7 +1252,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		host->ops.hs400_complete = renesas_sdhi_hs400_complete;
 	}
 
-	priv->internal_divider = of_data->internal_divider ? 2 : 1;
+	priv->internal_divider = of_data->internal_divider && !device_property_read_bool(dev, "mmc-hs400-1_8v") ? 2 : 1;
 	priv->max_divider_bits = of_data->max_divider_bits ? of_data->max_divider_bits : 9;
 
 	sd_ctrl_write32_as_16_and_16(host, CTL_IRQ_MASK, host->sdcard_irq_mask_all);
