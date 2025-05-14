@@ -11,6 +11,7 @@
 #include <linux/io.h>
 #include <linux/mod_devicetable.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
@@ -19,6 +20,8 @@
 
 #define VBATTB_BKSCCR			0x1c
 #define VBATTB_BKSCCR_SOSEL		6
+#define VBATTB_SOSCCR			0x20
+#define VBATTB_SOSCCR_SOSTP		0
 #define VBATTB_SOSCCR2			0x24
 #define VBATTB_SOSCCR2_SOSTP2		0
 #define VBATTB_XOSCCR			0x30
@@ -29,6 +32,11 @@
 #define VBATTB_XOSCCR_XSEL_9_PF		0x2
 #define VBATTB_XOSCCR_XSEL_12_5_PF	0x3
 
+enum rz_vbattb_type {
+	VBATTB_RZG3S,
+	VBATTB_RZG3L,
+};
+
 /**
  * struct vbattb_clk - VBATTB clock data structure
  * @base: base address
@@ -37,6 +45,7 @@
 struct vbattb_clk {
 	void __iomem *base;
 	spinlock_t lock;
+	enum rz_vbattb_type devtype;
 };
 
 static int vbattb_clk_validate_load_capacitance(u32 *reg_lc, u32 of_lc)
@@ -137,13 +146,23 @@ static int vbattb_clk_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	vbclk->devtype = (uintptr_t)of_device_get_match_data(dev);
+	if (!vbclk->devtype)
+		return -ENODEV;
+
 	spin_lock_init(&vbclk->lock);
 
 	parent_data.fw_name = "rtx";
-	hw = devm_clk_hw_register_gate_parent_data(dev, "xc", &parent_data, 0,
-						   vbclk->base + VBATTB_SOSCCR2,
-						   VBATTB_SOSCCR2_SOSTP2,
-						   CLK_GATE_SET_TO_DISABLE, &vbclk->lock);
+	if (vbclk->devtype == VBATTB_RZG3S)
+		hw = devm_clk_hw_register_gate_parent_data(dev, "xc", &parent_data, 0,
+							   vbclk->base + VBATTB_SOSCCR2,
+							   VBATTB_SOSCCR2_SOSTP2,
+							   CLK_GATE_SET_TO_DISABLE, &vbclk->lock);
+	if (vbclk->devtype == VBATTB_RZG3L)
+		hw = devm_clk_hw_register_gate_parent_data(dev, "xc", &parent_data, 0,
+							   vbclk->base + VBATTB_SOSCCR,
+							   VBATTB_SOSCCR_SOSTP,
+							   CLK_GATE_SET_TO_DISABLE, &vbclk->lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	clk_data->hws[VBATTB_XC] = hw;
@@ -186,8 +205,8 @@ static int vbattb_clk_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id vbattb_clk_match[] = {
-	{ .compatible = "renesas,r9a08g045-vbattb" },
-	{ .compatible = "renesas,r9a08g046-vbattb" },
+	{ .compatible = "renesas,r9a08g045-vbattb", .data = (void *)VBATTB_RZG3S },
+	{ .compatible = "renesas,r9a08g046-vbattb", .data = (void *)VBATTB_RZG3L },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, vbattb_clk_match);
