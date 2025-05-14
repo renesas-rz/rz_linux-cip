@@ -99,16 +99,15 @@ struct rzv2h_hw_info {
  * @fwspec:	IRQ firmware specific data
  * @lock:	Lock to serialize access to hardware registers
  */
-struct rzv2h_icu_priv {
+static struct rzv2h_icu_priv {
 	void __iomem			*base;
 	const struct irq_chip		*irqchip;
 	struct irq_fwspec		fwspec[ICU_NUM_IRQ];
 	raw_spinlock_t			lock;
 	const struct rzv2h_hw_info *hw_info;
-};
+} *rzv2h_icu_data;
 
 static struct rzv2h_irqc_reg_cache {
-	void __iomem	*base;
 	u32		nitsr;
 	u32		iitsr;
 	u32		iptsr;
@@ -403,24 +402,28 @@ static int rzv2h_icu_set_type(struct irq_data *d, unsigned int type)
 
 static int rzv2h_irqc_irq_suspend(void)
 {
-	void __iomem *base = rzv2h_irqc_reg_cache_data->base;
+	void __iomem *base = rzv2h_icu_data->base;
+	u16 tint_offset = rzv2h_icu_data->hw_info->tint_offset;
 
 	rzv2h_irqc_reg_cache_data->nitsr = readl_relaxed(base + ICU_NITSR);
 	rzv2h_irqc_reg_cache_data->iitsr = readl_relaxed(base + ICU_IITSR);
 	rzv2h_irqc_reg_cache_data->iptsr = readl_relaxed(base + ICU_IPTSR);
 
 	for (u8 i = 0; i < 2; i++)
-		rzv2h_irqc_reg_cache_data->titsr[i] = readl_relaxed(base + ICU_TITSR(i));
+		rzv2h_irqc_reg_cache_data->titsr[i] = readl_relaxed(base + ICU_TITSR(i)
+									+ tint_offset);
 
 	for (u8 i = 0; i < 16; i++)
-		rzv2h_irqc_reg_cache_data->tssr[i] = readl_relaxed(base + ICU_TSSR(i));
+		rzv2h_irqc_reg_cache_data->tssr[i] = readl_relaxed(base + ICU_TSSR(i)
+									+ tint_offset);
 
 	return 0;
 }
 
 static void rzv2h_irqc_irq_resume(void)
 {
-	void __iomem *base = rzv2h_irqc_reg_cache_data->base;
+	void __iomem *base = rzv2h_icu_data->base;
+	u16 tint_offset = rzv2h_icu_data->hw_info->tint_offset;
 
 	/*
 	 * Restore only interrupt type. TSSRx will be restored at the
@@ -428,10 +431,12 @@ static void rzv2h_irqc_irq_resume(void)
 	 * to invalid PIN states.
 	 */
 	for (u8 i = 0; i < 2; i++)
-		writel_relaxed(rzv2h_irqc_reg_cache_data->titsr[i], base + ICU_TITSR(i));
+		writel_relaxed(rzv2h_irqc_reg_cache_data->titsr[i], base + ICU_TITSR(i)
+									+ tint_offset);
 
 	for (u8 i = 0; i < 16; i++)
-		writel_relaxed(rzv2h_irqc_reg_cache_data->tssr[i], base + ICU_TSSR(i));
+		writel_relaxed(rzv2h_irqc_reg_cache_data->tssr[i], base + ICU_TSSR(i)
+									+ tint_offset);
 
 	writel_relaxed(rzv2h_irqc_reg_cache_data->nitsr, base + ICU_NITSR);
 	writel_relaxed(rzv2h_irqc_reg_cache_data->iitsr, base + ICU_IITSR);
@@ -588,7 +593,6 @@ static int icu_common_init(struct device_node *node,
 				 const struct rzv2h_hw_info *hw_info)
 {
 	struct irq_domain *irq_domain, *parent_domain;
-	struct rzv2h_icu_priv *rzv2h_icu_data;
 	struct platform_device *pdev;
 	struct reset_control *resetn;
 	int ret;
@@ -623,7 +627,6 @@ static int icu_common_init(struct device_node *node,
 
 	rzv2h_irqc_reg_cache_data = devm_kzalloc(&pdev->dev,
 					sizeof(*rzv2h_irqc_reg_cache_data), GFP_KERNEL);
-	rzv2h_irqc_reg_cache_data->base = rzv2h_icu_data->base;
 
 	ret = rzv2h_icu_parse_interrupts(rzv2h_icu_data, node);
 	if (ret) {
