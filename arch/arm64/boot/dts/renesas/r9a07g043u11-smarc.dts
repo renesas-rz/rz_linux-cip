@@ -7,6 +7,9 @@
 
 /dts-v1/;
 
+/* Please set this macro to 1 for enabling SCI0 on PMOD1 */
+#define PMOD_SCI0_EN	0
+
 /*
  * DIP-Switch SW1 setting
  * 1 : High; 0: Low

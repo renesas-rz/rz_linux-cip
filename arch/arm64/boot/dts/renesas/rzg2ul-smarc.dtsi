@@ -123,6 +123,29 @@
 };
 #endif
 
+#if (SW_ET0_EN_N && PMOD_SCI0_EN)
+&pinctrl {
+        can0-stb-hog {
+                status = "disabled";
+        };
+
+        can1-stb-hog {
+                status = "disabled";
+        };
+
+        sci0_pins: sci0-pins {
+                pinmux = <RZG2L_PORT_PINMUX(2, 2, 5)>, /* TxD */
+                         <RZG2L_PORT_PINMUX(2, 3, 5)>; /* RxD */
+        };
+};
+
+&sci0 {
+        pinctrl-0 = <&sci0_pins>;
+        pinctrl-names = "default";
+        status = "okay";
+};
+#endif
+
 #if (SW_ET0_EN_N)
 &ssi1 {
 	pinctrl-0 = <&ssi1_pins>;
