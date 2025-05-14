@@ -32,6 +32,8 @@ struct rz_sysc {
 	struct device *dev;
 	struct rz_sysc_signal *signals;
 	u8 num_signals;
+	unsigned int max_offset;
+	unsigned int start_offset;
 };
 
 static int rz_sysc_reg_read(void *context, unsigned int off, unsigned int *val)
@@ -130,12 +132,14 @@ static bool rz_sysc_writeable_reg(struct device *dev, unsigned int off)
 	struct rz_sysc *sysc = dev_get_drvdata(dev);
 	struct rz_sysc_signal *signal;
 
-	/* Any register containing a signal is writeable. */
-	signal = rz_sysc_off_to_signal(sysc, off, 0);
-	if (signal)
+	if (off >= sysc->start_offset && off <= sysc->max_offset) {
+		/* Any register containing a signal is writeable. */
+		signal = rz_sysc_off_to_signal(sysc, off, 0);
 		return true;
-
-	return false;
+	} else {
+		dev_err(sysc->dev, "Invalid register offset 0x%x", off);
+		return false;
+	}
 }
 
 static bool rz_sysc_readable_reg(struct device *dev, unsigned int off)
@@ -143,12 +147,14 @@ static bool rz_sysc_readable_reg(struct device *dev, unsigned int off)
 	struct rz_sysc *sysc = dev_get_drvdata(dev);
 	struct rz_sysc_signal *signal;
 
-	/* Any register containing a signal is readable. */
-	signal = rz_sysc_off_to_signal(sysc, off, 0);
-	if (signal)
+	if (off >= sysc->start_offset && off <= sysc->max_offset) {
+		/* Any register containing a signal is writeable. */
+		signal = rz_sysc_off_to_signal(sysc, off, 0);
 		return true;
-
-	return false;
+	} else {
+		dev_err(sysc->dev, "Invalid register offset 0x%x", off);
+		return false;
+	}
 }
 
 static int rz_sysc_signals_show(struct seq_file *s, void *what)
@@ -321,6 +327,8 @@ static int rz_sysc_probe(struct platform_device *pdev)
 		return ret;
 
 	data = match->data;
+	sysc->max_offset =  data->max_register_offset;
+	sysc->start_offset = data->start_register_offset;
 	if (!data->max_register_offset)
 		return -EINVAL;
 
