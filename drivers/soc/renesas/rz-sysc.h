@@ -63,6 +63,7 @@ struct rz_sysc_init_data {
 	const struct rz_sysc_signal_init_data *signals_init_data;
 	u32 num_signals;
 	u32 max_register_offset;
+	u32 start_register_offset;
 };
 
 extern const struct rz_sysc_init_data rzg3e_sys_init_data;
