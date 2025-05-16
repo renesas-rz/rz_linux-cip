@@ -118,6 +118,7 @@
 #define ETHSW_MDIO_CFG_STATUS_CLKDIV	GENMASK(15, 7)
 #define ETHSW_MDIO_CFG_STATUS_READERR	BIT(1)
 #define ETHSW_MDIO_CFG_STATUS_BUSY	BIT(0)
+#define ETHSW_MDIO_CFG_STATUS_HOLD	BIT(2)
 
 #define ETHSW_MDIO_COMMAND		0x704
 /* Register is named TRAININIT in datasheet and should be set when reading */
