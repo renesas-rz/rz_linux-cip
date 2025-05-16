@@ -1,0 +1,84 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/thermal/rzt2h-thermal.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas RZ/T2H Thermal Sensor Unit
+
+description:
+  On RZ/T2H SoCs, the thermal sensor unit (TSU) measures the
+  temperature(Tj) inside the LSI.
+
+maintainers:
+  - Biju Das <biju.das.jz@bp.renesas.com>
+
+$ref: rzg2l-thermal.yaml#
+
+properties:
+  compatible:
+    items:
+      - enum:
+        - renesas,r9a09g077-tsu # RZ/T2H
+        - renesas,r9a09g087-tsu # RZ/N2H
+      - const: renesas,rzt2h-tsu
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  "#thermal-sensor-cells":
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - power-domains
+  - resets
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/r9a09g077-cpg.h>
+
+    tsu: thermal@80086000 {
+      compatible = "renesas,r9a09g087-tsu";
+      reg = <0 0x80086000 0 0x1000>;
+      clocks = <&cpg CPG_MOD R9A09G077_TSU_CLK>;
+      clock-names = "tsu_clk";
+      #thermal-sensor-cells = <1>;
+    };
+
+    thermal-zones {
+      emergency {
+        polling-delay = <1000>;
+        on-temperature = <110000>;
+        off-temperature = <95000>;
+        target_cpus =   <&cpu1 &cpu2 &cpu3>;
+        status = "disabled";
+      };
+
+      sensor_thermal: sensor-thermal {
+        polling-delay-passive = <250>;
+        polling-delay = <1000>;
+        thermal-sensors = <&tsu 0>;
+
+        trips {
+          sensor_crit: sensor-crit {
+            temperature = <123000>;
+            hysteresis = <1000>;
+            type = "critical";
+          };
+        };
+      };
+    };
