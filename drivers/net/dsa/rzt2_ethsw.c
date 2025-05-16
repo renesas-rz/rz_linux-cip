@@ -1101,6 +1101,7 @@ static int ethsw_mdio_config(struct ethsw *ethsw, u32 mdio_freq)
 	unsigned long rate;
 	unsigned long div;
 	u32 cfgstatus;
+	u32 hold;
 
 	rate = clk_get_rate(ethsw->clk);
 	div = ((rate / mdio_freq) / 2);
@@ -1110,7 +1111,11 @@ static int ethsw_mdio_config(struct ethsw *ethsw, u32 mdio_freq)
 		return -ERANGE;
 	}
 
+	/* MDIO Hold Time Setting */
+	hold = ETHSW_MDIO_CFG_STATUS_HOLD; /* 3 PCLKM clock cycles */
+
 	cfgstatus = FIELD_PREP(ETHSW_MDIO_CFG_STATUS_CLKDIV, div);
+	cfgstatus |= hold;
 
 	ethsw_reg_writel(ethsw, ETHSW_MDIO_CFG_STATUS, cfgstatus);
 
