@@ -279,6 +279,24 @@
 #define  PAR_ENABLE		BIT(31)
 #define  IO_SPACE		BIT(8)
 
+/* PCIE SYSC Registers */
+#define SYS_PCIE_INTX_CH(x)			(0x1000 + ((x) * 0x30))
+#define SYS_PCIE_MSI1_CH(x)			(0x1004 + ((x) * 0x30))
+#define SYS_PCIE_MSI2_CH(x)			(0x1008 + ((x) * 0x30))
+#define SYS_PCIE_MSI3_CH(x)			(0x100c + ((x) * 0x30))
+#define SYS_PCIE_MSI4_CH(x)			(0x1010 + ((x) * 0x30))
+#define SYS_PCIE_MSI5_CH(x)			(0x1014 + ((x) * 0x30))
+#define SYS_PCIE_PME_CH(x)			(0x1018 + ((x) * 0x30))
+#define SYS_PCIE_ACK_CH(x)			(0x101c + ((x) * 0x30))
+#define SYS_PCIE_MISC_CH(x)			(0x1020 + ((x) * 0x30))
+	#define	ALLOW_ENTER_L1				0x01
+#define SYS_PCIE_MODE_CH(x)			(0x1024 + ((x) * 0x30))
+	#define MODE_PORT_SYS_RC			0x01
+	#define	MODE_PORT_SYS_EP			0x00
+#define SYS_PCIE_LANE_MODE			0x1060
+	#define LINK_MASTER_4_LANE_MODE			0x100	/* 4 lane * 1 mode */
+	#define LINK_MASTER_2_LANE_MODE			0x300	/* 2 lane * 2 mode */
+
 struct rzv2h_axi_window_set {
 	u32	base[RZV2H_PCI_MAX_RESOURCES];
 	u32	base_u[RZV2H_PCI_MAX_RESOURCES];
