@@ -9,10 +9,12 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 #include <linux/units.h>
 #include <linux/watchdog.h>
 
@@ -50,6 +52,10 @@
 #define CLOCK_DEV_BY_8192	8192
 
 #define WDT_DEFAULT_TIMEOUT	60U
+
+#define PERIERR_ERR_MASK	GENMASK(16, 13)
+#define PERIERR_CLR_OFFSET	0xc8
+#define PERIERR_RSTMSK_OFFSET	0xb0
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
@@ -165,6 +171,25 @@ static int rzt2h_wdt_stop(struct watchdog_device *wdev)
 	return 0;
 }
 
+static int rzt2h_wdt_init_perierr(struct device *dev, struct device_node *np)
+{
+	struct regmap *syscon;
+	int ret;
+
+	syscon = syscon_regmap_lookup_by_phandle(np, "renesas,syscon-perierr-error");
+	if (!IS_ERR(syscon)) {
+		/* Clear Peripheral Error Event Reset status */
+		ret = regmap_write(syscon, PERIERR_CLR_OFFSET, PERIERR_ERR_MASK);
+		if (ret)
+			return ret;
+
+		/* Unmask Peripheral Error Event Reset */
+		ret = regmap_update_bits(syscon, PERIERR_RSTMSK_OFFSET, PERIERR_ERR_MASK, 0);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
 
 static const struct watchdog_info rzt2h_wdt_ident = {
 	.options = WDIOF_MAGICCLOSE | WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT,
@@ -181,29 +206,13 @@ static const struct watchdog_ops rzt2h_wdt_ops = {
 static int rzt2h_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct rzt2h_wdt_priv *priv;
 	int ret;
 
-	{
-		/* FIXME: Hard code to access to ICU registers until can find
-		 * another way. PERIERR_RSTMSKn register is belong to ICU used
-		 * to mask/unmask Peripheral Error Event Reset
-		 */
-		u32 reg;
-		void __iomem *icu_base = ioremap(0x802A0000, 0x1000);
-
-		// Clear Peripheral Error Event Reset status
-		reg = 0;
-		reg |= 0x0001E000;
-		iowrite32(reg, icu_base + 0xc8);
-
-		// Unmask Peripheral Error Event Reset
-		reg = ioread32(icu_base + 0xb0);
-		reg &= ~0x0001E000;
-		iowrite32(reg, icu_base + 0xb0);
-
-		iounmap(icu_base);
-	}
+	ret = rzt2h_wdt_init_perierr(dev, np);
+	if (ret < 0)
+		return ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
