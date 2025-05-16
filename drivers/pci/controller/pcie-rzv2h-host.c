@@ -26,6 +26,9 @@
 #include <linux/reset.h>
 #include <linux/arm-smccc.h>
 #include <uapi/linux/psci.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
+#include <linux/of.h>
 
 #include "pcie-rzv2h.h"
 
@@ -103,6 +106,7 @@ struct rzv2h_pcie_host {
 	struct irq_domain	*intx_domain;
 	struct reset_control    *rst;
 	int			channel;
+	struct regmap		*syscon;
 };
 
 static struct rzv2h_pcie_host *msi_to_host(struct rzv2h_msi *msi)
@@ -587,7 +591,7 @@ static int PCIE_INT_Initialize(struct rzv2h_pcie *pcie)
 static int rzv2h_pcie_hw_init(struct rzv2h_pcie *pcie, int channel)
 {
 	unsigned int timeout = 50;
-	struct arm_smccc_res local_res;
+	struct rzv2h_pcie_host *host = container_of(pcie, struct rzv2h_pcie_host, pcie);
 
 	/* Set to the PCIe reset state   : step6 */
 	rzv2h_pci_write_reg(pcie, RESET_ALL_ASSERT, PCI_RC_RESET_REG);		/* PCI_RC 310h */
@@ -598,13 +602,8 @@ static int rzv2h_pcie_hw_init(struct rzv2h_pcie *pcie, int channel)
 	/* Setting of HWINT related registers : step11 */
 	PCIE_CFG_Initialize(pcie);
 
-	if (!channel) {
-		arm_smccc_smc(RZ_SIP_SVC_SET_SYSPCIE, 0x1020, 0x1, 0, 0, 0, 0, 0, &local_res);
-		arm_smccc_smc(RZ_SIP_SVC_SET_SYSPCIE, 0x1024, 0x1, 0, 0, 0, 0, 0, &local_res);
-	} else {
-		arm_smccc_smc(RZ_SIP_SVC_SET_SYSPCIE, 0x1050, 0x1, 0, 0, 0, 0, 0, &local_res);
-		arm_smccc_smc(RZ_SIP_SVC_SET_SYSPCIE, 0x1054, 0x1, 0, 0, 0, 0, 0, &local_res);
-	}
+	regmap_write(host->syscon, SYS_PCIE_MISC_CH(channel), ALLOW_ENTER_L1);
+	regmap_write(host->syscon, SYS_PCIE_MODE_CH(channel), MODE_PORT_SYS_RC);
 
 	/* Set Interrupt settings: step13  */
 	PCIE_INT_Initialize(pcie);
@@ -1199,6 +1198,11 @@ static int rzv2h_pcie_probe(struct platform_device *pdev)
 	pcie = &host->pcie;
 	pcie->dev = dev;
 	platform_set_drvdata(pdev, host);
+
+	host->syscon = syscon_regmap_lookup_by_phandle(dev->of_node, "renesas,pcie-sys");
+	if (IS_ERR(host->syscon))
+		return dev_err_probe(dev, PTR_ERR(host->syscon),
+				"Failed to get pcie syscon");
 
 	err = of_property_read_u32(dev->of_node, "pcie,channel", &channel);
 	if (err) {
