@@ -1142,6 +1142,20 @@
 			status = "disabled";
 		};
 
+		poe3: poe3@90018000 {
+			compatible = "renesas,r9a09g087-poe3", "renesas,rz-poe3";
+			reg = <0 0x90018000 0 0x42>;
+			interrupts = <GIC_SPI 463 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 464 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 465 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 466 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "oei1", "oei2", "oei3", "oei4";
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKL>;
+			clock-names = "pclkl";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
 		tsu: thermal@80086000 {
 			compatible = "renesas,r9a09g087-tsu";
 			reg = <0 0x80086000 0 0x1000>;
