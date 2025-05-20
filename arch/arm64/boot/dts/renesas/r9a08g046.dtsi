@@ -943,6 +943,60 @@
 			status = "disabled";
 		};
 
+		rsci1: spi@100f1000 {
+			compatible = "renesas,r9a08g046-rz-rsci";
+			reg = <0 0x100f1000 0 0x1000>;
+			interrupts = <GIC_SPI 422 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 423 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 424 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 425 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "eri", "rxi", "txi", "tei";
+			clocks = <&cpg CPG_MOD R9A08G046_RSCI1_PCLK>,
+				 <&cpg CPG_MOD R9A08G046_RSCI1_TCLK>;
+			clock-names = "fck", "tclk";
+			power-domains = <&cpg>;
+			resets = <&cpg R9A08G046_RSCI1_PRESETN>,
+				 <&cpg R9A08G046_RSCI1_TRESETN>;
+			reset-names = "presetn", "tresetn";
+			status = "disabled";
+		};
+
+		rsci2: spi@100f2000 {
+			compatible = "renesas,r9a08g046-rz-rsci";
+			reg = <0 0x100f2000 0 0x1000>;
+			interrupts = <GIC_SPI 428 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 429 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 430 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 431 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "eri", "rxi", "txi", "tei";
+			clocks = <&cpg CPG_MOD R9A08G046_RSCI2_PCLK>,
+				 <&cpg CPG_MOD R9A08G046_RSCI2_TCLK>;
+			clock-names = "fck", "tclk";
+			power-domains = <&cpg>;
+			resets = <&cpg R9A08G046_RSCI2_PRESETN>,
+				 <&cpg R9A08G046_RSCI2_TRESETN>;
+			reset-names = "presetn", "tresetn";
+			status = "disabled";
+		};
+
+		rsci3: spi@100f3000 {
+			compatible = "renesas,r9a08g046-rz-rsci";
+			reg = <0 0x100f3000 0 0x1000>;
+			interrupts = <GIC_SPI 434 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 435 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 436 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 437 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "eri", "rxi", "txi", "tei";
+			clocks = <&cpg CPG_MOD R9A08G046_RSCI3_PCLK>,
+				 <&cpg CPG_MOD R9A08G046_RSCI3_TCLK>;
+			clock-names = "fck", "tclk";
+			power-domains = <&cpg>;
+			resets = <&cpg R9A08G046_RSCI3_PRESETN>,
+				 <&cpg R9A08G046_RSCI3_TRESETN>;
+			reset-names = "presetn", "tresetn";
+			status = "disabled";
+		};
+
 		canfd: can@100c0000 {
 			compatible = "renesas,r9a08g046-canfd";
 			reg = <0 0x100c0000 0 0x20000>;
