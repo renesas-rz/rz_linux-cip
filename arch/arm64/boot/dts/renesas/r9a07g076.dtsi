@@ -535,6 +535,41 @@
 			clock-names = "tsu_clk";
 			#thermal-sensor-cells = <1>;
 		};
+
+		eswm: eswm@80140000 {
+			compatible = "renesas,r9a07g076-ether-switch";
+			reg = <0 0x80140000 0 0x30000>;
+			reg-names = "base";
+			interrupts = <GIC_SPI 456 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 457 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 458 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 459 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 460 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 630 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 631 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 632 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 633 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 634 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 635 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 636 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 637 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 638 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 639 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "gptp", "mfwd",
+					  "coma", "eth0",
+					  "eth1", "gwca0_rxtx0",
+					  "gwca0_rxtx1", "gwca0_rxtx2",
+					  "gwca0_rxtx3", "gwca0_rxtx4",
+					  "gwca0_rxtx5", "gwca0_rxtx6",
+					  "gwca0_rxtx7", "gwca0_rxts0",
+					  "gwca0_rxts1";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&cpg CPG_MOD R9A07G076_ESWM_CLK>;
+			resets = <&cpg R9A07G076_ESWM_RST>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
 	};
 
 	thermal-zones {
