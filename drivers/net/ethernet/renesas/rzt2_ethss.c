@@ -22,6 +22,10 @@
 #define ETHSS_MODCTRL			0x8
 #define ETHSS_MODCTRL_SW_MODE		GENMASK(4, 0)
 
+#define ETHSS_PHYLINK			0x14
+#define ETHSS_PHYLINK_ESWMLINK_HIGH(x)  (BIT(x) << 8)
+#define ETHSS_PHYLINK_ESWMLINK_MASK(x)  (BIT(x) << 8)
+
 #define ETHSS_CONVCTRL(port)		(0x100 + (port) * 4)
 
 #define ETHSS_CONVCTRL_CONV_SPEED	GENMASK(1, 0)
@@ -491,6 +495,31 @@ static int ethss_parse_dt(struct device *dev, u32 *mode_cfg)
 	return ethss_match_dt_conf(dev, dt_val, mode_cfg);
 }
 
+static void ethss_parse_eswmlink(struct ethss *ethss, struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct device_node *conv;
+	int val, eswmlink, port;
+
+	for_each_child_of_node(np, conv) {
+		if (of_property_read_u32(conv, "renesas,eswm-phylink", &eswmlink))
+			continue;
+
+		if (of_property_read_u32(conv, "reg", &port))
+			continue;
+
+		if (!of_device_is_available(conv))
+			continue;
+
+		/* ESWM_PHYLINK active high */
+		val = 0;
+		if (eswmlink == 0)
+			val = ETHSS_PHYLINK_ESWMLINK_HIGH(port);
+
+		ethss_reg_rmw(ethss, ETHSS_PHYLINK, ETHSS_PHYLINK_ESWMLINK_MASK(port), val);
+	}
+}
+
 static int ethss_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -544,6 +573,8 @@ static int ethss_probe(struct platform_device *pdev)
 	ret = ethss_init_hw(ethss, mode_cfg);
 	if (ret)
 		goto disable_runtime_pm;
+
+	ethss_parse_eswmlink(ethss, dev);
 
 	/* ethss_create() relies on that fact that data are attached to the
 	 * platform device to determine if the driver is ready so this needs to
