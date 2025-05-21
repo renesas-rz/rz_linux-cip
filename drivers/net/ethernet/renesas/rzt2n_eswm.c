@@ -1340,6 +1340,64 @@ static int eswm_etha_get_params(struct eswm_device *rdev)
 	return 0;
 }
 
+static void eswm_pcs_free(struct eswm_device *rdev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(rdev->pcs); i++) {
+		if (rdev->pcs[i])
+			ethss_destroy(rdev->pcs[i]);
+	}
+}
+
+static int eswm_pcs_get(struct eswm_device *rdev)
+{
+	struct device_node *ports, *port, *pcs_node;
+	struct phylink_pcs *pcs;
+	int ret;
+	u32 reg;
+
+	ports = of_get_child_by_name(rdev->np, "ports");
+	if (!ports)
+		return -EINVAL;
+
+	for_each_available_child_of_node(ports, port) {
+		pcs_node = of_parse_phandle(port, "pcs-handle", 0);
+		if (!pcs_node)
+			continue;
+
+		if (of_property_read_u32(port, "reg", &reg)) {
+			ret = -EINVAL;
+			goto free_pcs;
+		}
+
+		if (reg >= ARRAY_SIZE(rdev->pcs)) {
+			ret = -ENODEV;
+			goto free_pcs;
+		}
+
+		pcs = ethss_create(rdev->dev, pcs_node);
+		if (IS_ERR(pcs)) {
+			dev_err(rdev->dev, "Failed to create PCS for port %d\n", reg);
+			ret = PTR_ERR(pcs);
+			goto free_pcs;
+		}
+
+		rdev->pcs[reg] = pcs;
+		of_node_put(pcs_node);
+	}
+
+	of_node_put(ports);
+	return 0;
+
+free_pcs:
+	of_node_put(pcs_node);
+	of_node_put(port);
+	of_node_put(ports);
+	eswm_pcs_free(rdev);
+	return ret;
+}
+
 static int eswm_mii_register(struct eswm_device *rdev)
 {
 	struct device_node *mdio_np;
@@ -1882,6 +1940,7 @@ static int eswm_device_alloc(struct eswm_private *priv, unsigned int index)
 	rdev->port = index;
 	rdev->etha = &priv->etha[index];
 	rdev->addr = priv->addr;
+	rdev->dev = &pdev->dev;
 
 	ndev->base_addr = (unsigned long)rdev->addr;
 	snprintf(ndev->name, IFNAMSIZ, "tsn%d", index);
@@ -1908,6 +1967,10 @@ static int eswm_device_alloc(struct eswm_private *priv, unsigned int index)
 	if (err < 0)
 		goto out_get_params;
 
+	err = eswm_pcs_get(rdev);
+	if (err < 0)
+		goto out_pcs_get;
+
 	if (rdev->priv->gwca.speed < rdev->etha->speed)
 		rdev->priv->gwca.speed = rdev->etha->speed;
 
@@ -1926,6 +1989,7 @@ out_txdmac:
 
 out_rxdmac:
 out_get_params:
+out_pcs_get:
 	netif_napi_del(&rdev->napi);
 	free_netdev(ndev);
 
