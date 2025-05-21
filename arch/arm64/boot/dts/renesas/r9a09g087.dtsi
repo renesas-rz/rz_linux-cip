@@ -663,6 +663,30 @@
 			status = "disabled";
 		};
 
+		xspi0: spi@801c0000 {
+			compatible = "renesas,n2h-xspi-if";
+			reg = <0 0x801c0000 0 0x1000>,
+				<0 0x40000000 0 0x10000000>;
+			reg-names = "regs", "dirmap";
+			resets = <&cpg R9A09G077_xSPI0_RST>;
+			power-domains = <&cpg>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		xspi1: spi@801c1000 {
+			compatible = "renesas,n2h-xspi-if";
+			reg = <0 0x801c1000 0 0x1000>,
+				<0 0x50000000 0 0x10000000>;
+			reg-names = "regs", "dirmap";
+			resets = <&cpg R9A09G077_xSPI1_RST>;
+			power-domains = <&cpg>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		adc0: adc0@90014000 {
 			compatible = "renesas,rzn2h-adc";
 			reg = <0 0x90014000 0 0x400>;
