@@ -9,6 +9,7 @@
 #define __ESWM_H__
 
 #include <linux/platform_device.h>
+#include <linux/net/renesas/rzt2-ethss.h>
 #include "rzt2n_eswm_ptp.h"
 
 #define ESWM_MAX_NUM_QUEUES	128
@@ -1026,6 +1027,7 @@ struct eswm_device {
 	struct eswm_etha *etha;
 	struct device_node *np_port, *np;
 	struct device *dev;
+	struct phylink_pcs *pcs[ESWM_NUM_HW - 1];
 };
 
 struct eswm_mfwd_mac_table_entry {
