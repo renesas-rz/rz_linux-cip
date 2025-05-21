@@ -25,6 +25,7 @@
 #include <linux/spinlock.h>
 #include <linux/sys_soc.h>
 
+#include <linux/gpio/consumer.h>
 #include "rzt2n_eswm.h"
 
 static int eswm_reg_wait(void __iomem *addr, u32 offs, u32 mask, u32 expected)
@@ -2069,6 +2070,16 @@ static int renesas_eth_sw_probe(struct platform_device *pdev)
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk))
 		return PTR_ERR(priv->clk);
+
+	priv->reset = devm_gpiod_get(&pdev->dev, "phy-reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(priv->reset)) {
+		ret = PTR_ERR(priv->reset);
+		dev_err(&pdev->dev, "phy-reset no decleared\n");
+		return ret;
+	}
+
+	usleep_range(2000, 4000);
+	gpiod_set_value(priv->reset, 1);
 
 	attr = soc_device_match(eswm_soc_no_speed_change);
 	if (attr)
