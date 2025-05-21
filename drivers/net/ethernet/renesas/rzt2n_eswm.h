@@ -1024,7 +1024,7 @@ struct eswm_device {
 
 	int port;
 	struct eswm_etha *etha;
-	struct device_node *np_port;
+	struct device_node *np_port, *np;
 	struct device *dev;
 };
 

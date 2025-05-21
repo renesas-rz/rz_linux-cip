@@ -1358,7 +1358,7 @@ static int eswm_mii_register(struct eswm_device *rdev)
 	mii_bus->write_c45 = eswm_etha_mii_write_c45;
 	mii_bus->parent = &rdev->priv->pdev->dev;
 
-	mdio_np = of_get_child_by_name(rdev->np_port, "mdio");
+	mdio_np = of_get_child_by_name(rdev->np, "mdio");
 	err = of_mdiobus_register(mii_bus, mdio_np);
 	if (err < 0) {
 		mdiobus_free(mii_bus);
@@ -1892,6 +1892,7 @@ static int eswm_device_alloc(struct eswm_private *priv, unsigned int index)
 	netif_napi_add(ndev, &rdev->napi, eswm_poll);
 
 	rdev->np_port = eswm_get_port_node(rdev);
+	rdev->np = pdev->dev.of_node;
 	rdev->disabled = !rdev->np_port;
 	err = of_get_ethdev_address(rdev->np_port, ndev);
 	of_node_put(rdev->np_port);
