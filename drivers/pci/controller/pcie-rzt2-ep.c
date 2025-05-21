@@ -764,6 +764,8 @@ static int rzt2_pcie_ep_probe(struct platform_device *pdev)
 		goto err_pm_put;
 	}
 
+	pci_epc_init_notify(epc);
+
 	return 0;
 
 err_pm_put:
