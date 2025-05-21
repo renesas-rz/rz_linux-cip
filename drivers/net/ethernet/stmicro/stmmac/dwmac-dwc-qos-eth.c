@@ -492,12 +492,6 @@ static int renesas_rzt2_eqos_probe(struct platform_device *pdev,
 		goto reset_gpio;
 	}
 
-	err = reset_control_assert(eqos->rst_h);
-	if (err < 0)
-		goto reset_gpio;
-
-	usleep_range(2000, 4000);
-
 	err = reset_control_deassert(eqos->rst_h);
 	if (err < 0)
 		goto reset_gpio;
@@ -509,12 +503,6 @@ static int renesas_rzt2_eqos_probe(struct platform_device *pdev,
 		err = PTR_ERR(eqos->rst_m);
 		goto reset_h;
 	}
-
-	err = reset_control_assert(eqos->rst_m);
-	if (err < 0)
-		goto reset_h;
-
-	usleep_range(2000, 4000);
 
 	err = reset_control_deassert(eqos->rst_m);
 	if (err < 0)
