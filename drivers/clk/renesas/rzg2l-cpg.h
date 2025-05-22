@@ -116,6 +116,8 @@ struct cpg_core_clk {
 	u32 flag;
 	u32 mux_flags;
 	int num_parents;
+
+	const struct rzg3l_pll_div_limits *plldsi_limits;
 };
 
 enum clk_types {
@@ -144,6 +146,10 @@ enum clk_types {
 
 	/* Clock for DSI divider */
 	CLK_TYPE_DSI_DIV,
+
+	/* Clock for G3L DSI */
+	CLK_TYPE_G3L_PLLDSI,
+	CLK_TYPE_G3L_PLLDSI_DIV,
 
 };
 
@@ -207,6 +213,11 @@ enum clk_types {
 		 .num_parents = ARRAY_SIZE(_parent_names))
 #define DEF_DSI_DIV(_name, _id, _parent, _flag) \
 	DEF_TYPE(_name, _id, CLK_TYPE_DSI_DIV, .parent = _parent, .flag = _flag)
+#define DEF_G3L_PLLDSI_DIV(_name, _id, _parent, _conf) \
+	DEF_TYPE(_name, _id, CLK_TYPE_G3L_PLLDSI_DIV, .parent = _parent, .conf = _conf, \
+		 .flag = CLK_SET_RATE_PARENT)
+#define DEF_G3L_PLLDSI(_name, _id, _parent, _conf) \
+	DEF_TYPE(_name, _id, CLK_TYPE_G3L_PLLDSI, .parent = _parent, .conf = _conf)
 
 /**
  * struct rzg2l_mod_clk - Module Clocks definitions
@@ -317,6 +328,8 @@ struct rzg2l_cpg_info {
 	unsigned int num_crit_mod_clks;
 
 	bool has_clk_mon_regs;
+
+	const struct rzg3l_pll_div_limits *plldsi_limits;
 };
 
 extern const struct rzg2l_cpg_info r9a07g043_cpg_info;
