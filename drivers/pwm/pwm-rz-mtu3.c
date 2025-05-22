@@ -704,8 +704,8 @@ static const struct pwm_ops rz_mtu3_pwm_ops = {
 static ssize_t mtu34_pwm_deadtime_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rz_mtu3_pwm_chip *mtu3 = platform_get_drvdata(pdev);
+	struct pwm_chip *chip = dev_get_drvdata(dev);
+	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
 	unsigned int deadtime_ns;
 	int ret;
 
@@ -713,8 +713,8 @@ static ssize_t mtu34_pwm_deadtime_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	mtu3->channel_data[7].deadtime_ns = deadtime_ns;
-	mtu3->channel_data[8].deadtime_ns = deadtime_ns;
+	rz_mtu3_pwm->channel_data[7].deadtime_ns = deadtime_ns;
+	rz_mtu3_pwm->channel_data[8].deadtime_ns = deadtime_ns;
 
 	return ret ? : size;
 }
@@ -722,11 +722,11 @@ static ssize_t mtu34_pwm_deadtime_store(struct device *dev,
 static ssize_t mtu34_pwm_deadtime_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rz_mtu3_pwm_chip *mtu3 = platform_get_drvdata(pdev);
+	struct pwm_chip *chip = dev_get_drvdata(dev);
+	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
 
 	return snprintf(buf, PAGE_SIZE, "%u ns\n",
-				mtu3->channel_data[7].deadtime_ns);
+				rz_mtu3_pwm->channel_data[7].deadtime_ns);
 }
 
 static DEVICE_ATTR_RW(mtu34_pwm_deadtime);
@@ -735,8 +735,8 @@ static DEVICE_ATTR_RW(mtu34_pwm_deadtime);
 static ssize_t mtu67_pwm_deadtime_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct platform_device *pdev =  to_platform_device(dev);
-	struct rz_mtu3_pwm_chip *mtu3 = platform_get_drvdata(pdev);
+	struct pwm_chip *chip = dev_get_drvdata(dev);
+	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
 	unsigned int deadtime_ns;
 	int ret;
 
@@ -744,8 +744,8 @@ static ssize_t mtu67_pwm_deadtime_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	mtu3->channel_data[9].deadtime_ns = deadtime_ns;
-	mtu3->channel_data[10].deadtime_ns = deadtime_ns;
+	rz_mtu3_pwm->channel_data[9].deadtime_ns = deadtime_ns;
+	rz_mtu3_pwm->channel_data[10].deadtime_ns = deadtime_ns;
 
 	return ret ? : size;
 }
@@ -753,11 +753,11 @@ static ssize_t mtu67_pwm_deadtime_store(struct device *dev,
 static ssize_t mtu67_pwm_deadtime_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct platform_device *pdev =  to_platform_device(dev);
-	struct rz_mtu3_pwm_chip *mtu3 = platform_get_drvdata(pdev);
+	struct pwm_chip *chip = dev_get_drvdata(dev);
+	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
 
 	return snprintf(buf, PAGE_SIZE, "%u ns\n",
-				mtu3->channel_data[9].deadtime_ns);
+				rz_mtu3_pwm->channel_data[9].deadtime_ns);
 }
 
 static DEVICE_ATTR_RW(mtu67_pwm_deadtime);
