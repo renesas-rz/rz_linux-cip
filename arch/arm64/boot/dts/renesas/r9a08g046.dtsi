@@ -288,7 +288,7 @@
 		};
 
 		sysc: system-controller@11020000 {
-			compatible = "renesas,r9a08g046-sysc";
+			compatible = "renesas,r9a08g046-sysc", "syscon";
 			reg = <0 0x11020000 0 0x10000>;
 			interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>,
