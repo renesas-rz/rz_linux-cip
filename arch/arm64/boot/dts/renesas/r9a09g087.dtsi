@@ -13,6 +13,13 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	/* External CAN clock - to be overridden by boards that provide it */
+	can_clk: can {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+	};
+
 	extal: extal {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -1073,6 +1080,37 @@
 			clocks = <&cpg CPG_CORE R9A09G077_PCLKL>;
 			power-domains = <&cpg>;
 			status = "disabled";
+		};
+
+		canfd: can@80040000 {
+				compatible = "renesas,r9a09g087-canfd";
+				reg = <0 0x80040000 0 0x20000>;
+				interrupts =    <GIC_SPI 626 IRQ_TYPE_LEVEL_HIGH>,
+								<GIC_SPI 627 IRQ_TYPE_LEVEL_HIGH>,
+								<GIC_SPI 628 IRQ_TYPE_LEVEL_HIGH>,
+								<GIC_SPI 629 IRQ_TYPE_LEVEL_HIGH>,
+								<GIC_SPI 630 IRQ_TYPE_LEVEL_HIGH>,
+								<GIC_SPI 631 IRQ_TYPE_LEVEL_HIGH>,
+								<GIC_SPI 632 IRQ_TYPE_LEVEL_HIGH>,
+								<GIC_SPI 633 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "ch0_trx", "ch0_err", "ch0_rec",
+								"ch1_trx", "ch1_err", "ch1_rec",
+								"g_recc", "g_err";
+				clocks = <&cpg CPG_CORE R9A09G077_PCLKM>,
+						<&cpg CPG_MOD R9A09G077_CANFD_CLK>,
+						<&can_clk>;
+				clock-names = "fck", "canfd", "can_clk";
+				assigned-clocks = <&cpg CPG_MOD R9A09G077_CANFD_CLK>;
+				assigned-clock-rates = <80000000>;
+				power-domains = <&cpg>;
+				status = "disabled";
+
+				channel0 {
+						status = "disabled";
+				};
+				channel1 {
+						status = "disabled";
+				};
 		};
 
 		mtu3: timer@90001200 {
