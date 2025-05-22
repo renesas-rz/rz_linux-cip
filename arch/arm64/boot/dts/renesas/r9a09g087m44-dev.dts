@@ -52,6 +52,13 @@
 #define POEG_SUPPORT		1
 
 /*
+ * Set SEL_SDHI_CANFD to below values to select using of:
+ * - 0: SDHI (default)
+ * - 1: CANFD
+ */
+#define SEL_SDHI_CANFD		0
+
+/*
  * Set SEL_PCIE to below values to select using of:
  * - 0: ETH3 (default)
  * - 1: PCIE
@@ -229,6 +236,7 @@
 	};
 #endif
 
+#if (!SEL_SDHI_CANFD)
 #if (SEL_GPT_SD0)
 	sd0_pwr_en {
 		gpio-hog;
@@ -289,6 +297,13 @@
 			slew-rate	= <1>;
 		};
 	};
+
+#else
+	can1_pins: can1 {
+		pinmux = <RZT2H_PORT_PINMUX(12, 0, 0x19)>, /* CANFD : CANRX1/P12_0 */
+			 <RZT2H_PORT_PINMUX(12, 1, 0x19)>; /* CANFD : CANTX1/P12_1 */
+	};
+#endif
 
 	i2c0_pins: i2c0 {
 		pinmux = <RZT2H_PORT_PINMUX(14, 7, 0x17)>, /* IIC : IIC_SDA0/P14_7 */
@@ -573,6 +588,7 @@
 };
 #endif
 
+#if (!SEL_SDHI_CANFD)
 #if (SEL_SD0)
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_pins>;
@@ -615,6 +631,21 @@
 	sd-uhs-sdr104;
 	status = "okay";
 };
+
+#else
+&canfd {
+	pinctrl-0 = <&can1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	channel0 {
+		status = "disabled";
+	};
+	channel1 {
+		status = "okay";
+	};
+};
+#endif
 
 #if (SEL_SPI2)
 &spi2 {
