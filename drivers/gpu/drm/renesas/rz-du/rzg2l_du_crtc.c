@@ -10,6 +10,7 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
+#include <linux/clk-provider.h>
 #include <linux/reset.h>
 
 #include <drm/drm_atomic.h>
@@ -66,9 +67,22 @@ static void rzg2l_du_crtc_set_display_timing(struct rzg2l_du_crtc *rcrtc)
 	const struct drm_display_mode *mode = &rcrtc->crtc.state->adjusted_mode;
 	unsigned long mode_clock = mode->clock * 1000;
 	u32 ditr0, ditr1, ditr2, ditr3, ditr4, pbcr0;
+	struct rzg2l_du_crtc_state *rstate = to_rzg2l_crtc_state(rcrtc->crtc.state);
 	struct rzg2l_du_device *rcdu = rcrtc->dev;
 
 	clk_prepare_enable(rcrtc->rzg2l_clocks.dclk);
+
+	if ((rstate->outputs == BIT(RZG2L_DU_OUTPUT_DSI0)) &&
+	    of_device_is_compatible(rcrtc->dev->dev->of_node, "renesas,r9a08g046-du")) {
+		struct clk *clk_parent;
+		struct clk_hw *hw_parent, *hw_pparent;
+
+		clk_parent = clk_get_parent(rcrtc->rzg2l_clocks.dclk);
+		hw_parent = __clk_get_hw(clk_parent);
+		hw_pparent = clk_hw_get_parent_by_index(hw_parent, 1);
+		clk_set_parent(clk_parent, hw_pparent->clk);
+	}
+
 	clk_set_rate(rcrtc->rzg2l_clocks.dclk, mode_clock);
 
 	ditr0 = (DU_DITR0_DEMD_HIGH
