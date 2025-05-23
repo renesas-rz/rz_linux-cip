@@ -717,8 +717,12 @@ static int rspi_prepare_message(struct spi_controller *ctlr,
 	rspi_write32(rspi, rspi_read32(rspi, RSPI_SPCR) | SPCR_SPIIE, RSPI_SPCR);
 	rspi_write32(rspi, rspi_read32(rspi, RSPI_SPCR) | SPCR_CENDIE, RSPI_SPCR);
 
-	/* Enable SPI function in master mode */
-	rspi_write32(rspi, rspi_read32(rspi, RSPI_SPCR) | SPCR_SPE, RSPI_SPCR);
+	/* Enable SPI function and select MRCLK as the SPI
+	 * Master Receive Clock (Adjust with Digital Delay (MRCKD.ARST).
+	 */
+	rspi_write32(rspi, rspi_read32(rspi, RSPI_SPCR) |
+					(SPCR_SPE | SPCR_SPSCKSEL), RSPI_SPCR);
+
 	return 0;
 }
 
@@ -727,8 +731,9 @@ static int rspi_unprepare_message(struct spi_controller *ctlr,
 {
 	struct rspi_data *rspi = spi_controller_get_devdata(ctlr);
 
-	/* Disable SPI function */
-	rspi_write32(rspi, rspi_read32(rspi, RSPI_SPCR) & ~SPCR_SPE, RSPI_SPCR);
+	/* Disable SPI function and deselect MRCLK */
+	rspi_write32(rspi, rspi_read32(rspi, RSPI_SPCR) &
+					~(SPCR_SPE | SPCR_SPSCKSEL), RSPI_SPCR);
 
 	/* Reset sequencer for Single SPI Transfers */
 
