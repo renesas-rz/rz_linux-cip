@@ -147,6 +147,7 @@ enum clk_ids {
 	CLK_PLL2_DIV2,
 	CLK_PLL2_DIV2_2,
 	CLK_PLL2_DIV2_5,
+	CLK_PLL2_DIV2_4,
 	CLK_PLL2_DIV2_8,
 	CLK_PLL2_DIV2_16,
 	CLK_PLL2_DIV3,
@@ -280,7 +281,7 @@ static const char * const sel_eth1_clk_tx_i[] = { ".sel_eth1_tx", ".eth1_rm" };
 static const char * const sel_eth1_clk_rx_i[] = { ".sel_eth1_rx", ".eth1_rm" };
 static const char * const sel_ge3d[] = { ".pll2_div5", ".pll3_div3", ".pll6", ".pll3_div2_2" };
 static const char * const sel_pll4[] = { ".osc_div1000", ".pll4" };
-static const char * const sel_rsci[] = { ".pll2_div5", ".pll2_div6", ".pll2_div7", ".pll2_div2_8" };
+static const char * const sel_rsci[] = { ".pll2_div5", ".pll2_div6", ".pll2_div7", ".pll2_div2_4" };
 static const char * const sel_rspi[] = { ".pll2_div5", ".pll2_div6", ".pll2_div7", ".pll2_div2_8" };
 static const char * const sel_sdhi[] = { ".pll2_div2", ".pll1_div2",  ".pll6", ".pll2_div6" };
 static const char * const sel_xspi[] = { ".pll2_div2", ".pll1_div2", ".pll2_div3", ".pll6" };
@@ -309,6 +310,7 @@ static const struct cpg_core_clk r9a08g046_core_clks[] = {
 		    3000000000UL),
 	DEF_FIXED(".pll1_div2", CLK_PLL1_DIV2, CLK_PLL1, 1, 2),
 	DEF_FIXED(".pll2_div2", CLK_PLL2_DIV2, CLK_PLL2, 1, 2),
+	DEF_FIXED(".pll2_div2_4", CLK_PLL2_DIV2_4, CLK_PLL2_DIV2, 1, 4),
 	DEF_FIXED(".pll2_div2_8", CLK_PLL2_DIV2_8, CLK_PLL2_DIV2, 1, 8),
 	DEF_FIXED(".pll2_div3", CLK_PLL2_DIV3, CLK_PLL2, 1, 3),
 	DEF_FIXED(".pll2_div5", CLK_PLL2_DIV5, CLK_PLL2, 1, 5),
