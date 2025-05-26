@@ -1481,6 +1481,9 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 		arg = rzg2l_read_pin_config(pctrl, IOLH(off), bit, IOLH_MASK);
 		break;
 	case RENESAS_PIN_CONFIG_SD_CH1_POC:
+		if (!(cfg & PIN_CFG_IO_VMC_SD1))
+			return -EINVAL;
+
 		cfg |= PIN_CFG_IO_VMC_SD1;
 		ret = rzg2l_get_power_source(pctrl, _pin, cfg);
 		if (ret < 0)
@@ -1488,6 +1491,9 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 		arg = ret;
 		break;
 	case RENESAS_PIN_CONFIG_SD_CH2_POC:
+		if (!(cfg & PIN_CFG_IO_VMC_SD2))
+			return -EINVAL;
+
 		cfg |= PIN_CFG_IO_VMC_SD2;
 		ret = rzg2l_get_power_source(pctrl, _pin, cfg);
 		if (ret < 0)
@@ -1642,12 +1648,12 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 			rzg2l_rmw_pin_config(pctrl, IOLH(off), bit, IOLH_MASK, arg);
 			break;
 		case RENESAS_PIN_CONFIG_SD_CH1_POC:
-			if (arg > 2)
+			if ((arg > 1) && !(cfg & PIN_CFG_IO_VMC_SD1))
 				return -EINVAL;
 			cfg |= PIN_CFG_IO_VMC_SD1;
 			break;
 		case RENESAS_PIN_CONFIG_SD_CH2_POC:
-			if (arg > 2)
+			if ((arg > 1) && !(cfg & PIN_CFG_IO_VMC_SD2))
 				return -EINVAL;
 			cfg |= PIN_CFG_IO_VMC_SD2;
 			break;
@@ -2223,7 +2229,8 @@ static const u64 r9a08g046_gpio_configs[] = {
 							        PIN_CFG_OEN,
 	RZG2L_GPIO_PORT_PACK(3, 0x2f, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IOLH_C |		/* PF */
 							        PIN_CFG_IO_VMC_ETH1)),
-	RZG2L_GPIO_PORT_PACK(8, 0x30, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_IEN),			/* PG */
+	RZG2L_GPIO_PORT_PACK(8, 0x30, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_IEN |			/* PG */
+								 PIN_CFG_IO_VMC_SD1),
 	RZG2L_GPIO_PORT_PACK(6, 0x31, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_IEN),			/* PH */
 	0x0,											/* PI */
 	RZG2L_GPIO_PORT_PACK(5, 0x33, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_IEN),			/* PJ */
