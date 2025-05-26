@@ -236,6 +236,7 @@ config CLK_RZG2L
 
 config CLK_RZV2H
 	bool "RZ/V2H(P) family clock support" if COMPILE_TEST
+	select MFD_SYSCON
 	select RESET_CONTROLLER
 
 # Generic
