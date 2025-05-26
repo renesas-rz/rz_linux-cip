@@ -232,6 +232,9 @@ static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
 			clk &= ~0xff;
 	}
 
+	if (((clk & CLK_CTL_DIV_MASK) != 0xff) && ((clk & CLK_CTL_DIV_MASK) != 0))
+		host->mmc->actual_clock /= (1 << (ffs (clk & CLK_CTL_DIV_MASK) + 1));
+
 	/* Need to fix this mask */
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, clk & CLK_CTL_DIV_MASK);
 	if (!(host->pdata->flags & TMIO_MMC_MIN_RCAR2))
