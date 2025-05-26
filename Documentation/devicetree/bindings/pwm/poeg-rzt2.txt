@@ -1,0 +1,26 @@
+* Renesas RZ/T2 Port Output Enable for GPT (POEG)
+
+Required Properties:
+- compatible: Must be "renesas,poeg-rzt2"
+
+- reg: Base address and length of the registers block for the POEG.
+- interrupts: IRQ line for POEG.
+- clocks:      References to all the clocks specified in the clock-names
+               property as specified in
+               Documentation/devicetree/bindings/clock/clock-bindings.txt.
+- clock-names: Name of clock.
+- power-domains: Must contain a reference to the PM domain, if available.
+- pinctrl-0: phandle, referring to a default pin configuration node.
+- pinctrl-names: Set to "default".
+
+Example: R9A07G076 (RZ/T2N) Port Output Enable for GPT (POEG)
+
+       poeg0_a: poega@90019000 {
+               compatible = "renesas,poeg-r9a07g076";
+               reg = <0 0x90019000 0 0x400>;
+               interrupts = <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>;
+               clocks = <&cpg CPG_CORE R9A07G076_PCLKH>;
+               power-domains = <&cpg>;
+               llpp,disable-by-DSMIF-error;
+               status = "disabled";
+       };
