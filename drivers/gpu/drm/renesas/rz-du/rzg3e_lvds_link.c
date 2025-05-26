@@ -56,6 +56,7 @@ struct rzg3e_lvds_hw_info {
 	unsigned long max_dclk;
 	unsigned long min_dclk;
 	unsigned long max_dual_dclk;
+	const struct drm_bridge_funcs *bridge_ops;
 };
 
 struct rzg3e_lvds {
@@ -177,6 +178,70 @@ static void rzg3e_lvds_link_atomic_enable(struct drm_bridge *bridge,
 	rzg3e_lvds_write(lvds->dev->parent, LVDS_CMN, lvds->mode | LVDS_CMN_PHY_RESET_N);
 }
 
+static void __rzg3l_lvds_link_atomic_enable(struct drm_bridge *bridge,
+					    struct drm_atomic_state *state,
+					    struct drm_crtc *crtc,
+					    struct drm_connector *connector)
+{
+	struct rzg3e_lvds *lvds = bridge_to_rzg3e_lvds(bridge);
+	u32 out_mode = RZG3E_LVDS_MODE_VESA;
+
+	rzg3e_lvds_link_rmw(lvds, LVDS_PHY_OFFSET, LVDS_PHY_CH_EN_BGR, LVDS_PHY_CH_EN_BGR);
+
+	/* Wait 20us */
+	usleep_range(20, 25);
+	rzg3e_lvds_link_rmw(lvds, LVDS_PHY_OFFSET, LVDS_PHY_CH_EN_LDO, LVDS_PHY_CH_EN_LDO);
+
+	/* Wait 10us */
+	usleep_range(10, 15);
+	rzg3e_lvds_write(lvds->dev->parent, LVDS_CMN, LVDS_CMN_RST_PHY0_SEL);
+
+	rzg3e_lvds_link_rmw(lvds, LVDS_CTL_OFFSET, GENMASK(23,20), out_mode << 20);
+
+	rzg3e_lvds_link_rmw(lvds, LVDS_PHY_OFFSET, LVDS_PHY_CH_IO_EN, 0x1F);
+
+	rzg3e_lvds_write(lvds->dev->parent, LVDS_CMN, LVDS_CMN_RST_PHY0_SEL | LVDS_CMN_PHY_RESET_N);
+
+	/* Wait 100us */
+	usleep_range(100, 150);
+}
+
+static void rzg3l_lvds_link_atomic_enable(struct drm_bridge *bridge,
+					  struct drm_bridge_state *old_bridge_state)
+{
+	struct drm_atomic_state *state = old_bridge_state->base.state;
+	struct rzg3e_lvds *lvds = bridge_to_rzg3e_lvds(bridge);
+	struct drm_connector *connector;
+	struct drm_crtc *crtc;
+	int ret;
+
+	ret = clk_prepare_enable(lvds->clocks.phyclk);
+	if (ret < 0) {
+		dev_err(lvds->dev, "phyclk error");
+		return;
+	}
+
+	ret = clk_prepare_enable(lvds->clocks.dotclk);
+	if (ret < 0) {
+		dev_err(lvds->dev, "dotclk error");
+		return;
+	}
+
+	ret = rzg3e_lvds_reset_deassert_pclk_enable(lvds->dev->parent);
+	if (ret < 0) {
+		dev_err(lvds->dev, "deassert error");
+		return;
+	}
+
+	connector = drm_atomic_get_new_connector_for_encoder(state,
+							     bridge->encoder);
+	crtc = drm_atomic_get_new_connector_state(state, connector)->crtc;
+
+	rzg3e_lvds_write(lvds->dev->parent, LVDS_CMN, LVDS_UNUSED);
+
+	__rzg3l_lvds_link_atomic_enable(bridge, state, crtc, connector);
+}
+
 static void __rzg3e_lvds_link_atomic_disable(struct drm_bridge *bridge,
 					     struct drm_bridge_state *old_bridge_state)
 {
@@ -196,6 +261,28 @@ static void rzg3e_lvds_link_atomic_disable(struct drm_bridge *bridge,
 	struct rzg3e_lvds *lvds = bridge_to_rzg3e_lvds(bridge);
 
 	__rzg3e_lvds_link_atomic_disable(bridge, old_bridge_state);
+	rzg3e_lvds_reset_assert_pclk_disable(lvds->dev->parent);
+}
+
+static void __rzg3l_lvds_link_atomic_disable(struct drm_bridge *bridge,
+					     struct drm_bridge_state *old_bridge_state)
+{
+	struct rzg3e_lvds *lvds = bridge_to_rzg3e_lvds(bridge);
+
+	rzg3e_lvds_write(lvds->dev->parent, LVDS_CMN, 0);
+	rzg3e_lvds_link_rmw(lvds, LVDS_PHY_OFFSET, LVDS_PHY_CH_IO_EN, 0);
+	rzg3e_lvds_link_rmw(lvds, LVDS_CTL_OFFSET, LVDS_PHY_CH_EN_BGR, 0);
+
+	clk_disable_unprepare(lvds->clocks.phyclk);
+	clk_disable_unprepare(lvds->clocks.dotclk);
+}
+
+static void rzg3l_lvds_link_atomic_disable(struct drm_bridge *bridge,
+					   struct drm_bridge_state *old_bridge_state)
+{
+	struct rzg3e_lvds *lvds = bridge_to_rzg3e_lvds(bridge);
+
+	__rzg3l_lvds_link_atomic_disable(bridge, old_bridge_state);
 	rzg3e_lvds_reset_assert_pclk_disable(lvds->dev->parent);
 }
 
@@ -241,6 +328,16 @@ static const struct drm_bridge_funcs rzg3e_lvds_link_bridge_ops = {
 	.atomic_reset = drm_atomic_helper_bridge_reset,
 	.atomic_enable = rzg3e_lvds_link_atomic_enable,
 	.atomic_disable = rzg3e_lvds_link_atomic_disable,
+	.mode_valid = rzg3e_lvds_link_mode_valid,
+};
+
+static const struct drm_bridge_funcs rzg3l_lvds_link_bridge_ops = {
+	.attach = rzg3e_lvds_link_attach,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_enable = rzg3l_lvds_link_atomic_enable,
+	.atomic_disable = rzg3l_lvds_link_atomic_disable,
 	.mode_valid = rzg3e_lvds_link_mode_valid,
 };
 
@@ -427,30 +524,39 @@ static int rzg3e_lvds_link_probe(struct platform_device *pdev)
 	lvds->ch = ch;
 	rzg3e_lvds_set_lvds_ch_dot_clk(lvds->dev->parent, ch, lvds->clocks.dotclk);
 
-	lvds->bridge.funcs = &rzg3e_lvds_link_bridge_ops;
+	lvds->bridge.funcs = lvds->info->bridge_ops;
 	lvds->bridge.of_node = pdev->dev.of_node;
 	drm_bridge_add(&lvds->bridge);
 
 	return 0;
 }
 
-static int rzg3e_lvds_link_remove(struct platform_device *pdev)
+static void rzg3e_lvds_link_remove(struct platform_device *pdev)
 {
 	struct rzg3e_lvds *lvds = platform_get_drvdata(pdev);
 
 	drm_bridge_remove(&lvds->bridge);
 
-	return 0;
+	return;
 }
 
 static const struct rzg3e_lvds_hw_info rzg3e_info = {
 	.max_dclk	= 87000,
 	.min_dclk	= 5400,
 	.max_dual_dclk	= 187500,
+	.bridge_ops 	= &rzg3e_lvds_link_bridge_ops,
+};
+
+static const struct rzg3e_lvds_hw_info rzg3l_info = {
+	.max_dclk	= 87000,
+	.min_dclk	= 5400,
+	.max_dual_dclk	= 187500,
+	.bridge_ops 	= &rzg3l_lvds_link_bridge_ops,
 };
 
 static const struct of_device_id rzg3e_lvds_link_of_table[] = {
 	{ .compatible = "renesas,rzg3e-lvds-link", .data = &rzg3e_info },
+	{ .compatible = "renesas,rzg3l-lvds-link", .data = &rzg3l_info },
 	{ /* sentinel */ }
 };
 

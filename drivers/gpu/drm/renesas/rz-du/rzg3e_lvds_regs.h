@@ -37,6 +37,8 @@
 #define LVDS_PHY_CH_IO_EN_MSK          (0x1F)
 #define LVDS_PHY_CH_IO_EN_SHT          (0)
 #define LVDS_PHY_CH_IO_EN              (LVDS_PHY_CH_IO_EN_MSK << LVDS_PHY_CH_IO_EN_SHT)
+#define LVDS_PHY_CH_EN_BGR		BIT(8)
+#define LVDS_PHY_CH_EN_LDO		BIT(9)
 
 /* bit_name : CH_SKW_ADJ, CH_IO_EN */
 #define LVDS_PHY_GET(bit_name, m)	\
