@@ -140,19 +140,6 @@ static const char *index_to_string[ETHSS_MODCTRL_CONF_CONV_NUM] = {
 	"CONV4",
 };
 
-/**
- * struct ethss_port - Per port MII converter struct
- * @ethss: backiling to MII converter structure
- * @port: port number
- * @interface: interface mode of the port
- */
-struct ethss_port {
-	struct ethss *ethss;
-	struct phylink_pcs pcs;
-	int port;
-	phy_interface_t interface;
-};
-
 //For other module related to ETHSS can reference base address
 static struct ethss *ethss_base_refer;
 
@@ -161,11 +148,6 @@ struct ethss *ethss_get_base(void)
 	return ethss_base_refer;
 }
 EXPORT_SYMBOL(ethss_get_base);
-
-static struct ethss_port *phylink_pcs_to_ethss_port(struct phylink_pcs *pcs)
-{
-	return container_of(pcs, struct ethss_port, pcs);
-}
 
 static void ethss_reg_writel(struct ethss *ethss, int offset, u32 value)
 {

@@ -3,6 +3,11 @@
 #ifndef __RZT2_ETHSS_H__
 #define __RZT2_ETHSS_H__
 
+#include <linux/phylink.h>
+
+struct phylink;
+struct device_node;
+
 /**
  * struct ethss - MII converter structure
  * @base: base address of the MII converter
@@ -18,8 +23,23 @@ struct ethss {
 	spinlock_t lock;
 };
 
-struct phylink;
-struct device_node;
+/**
+ * struct ethss_port - Per port MII converter struct
+ * @ethss: backiling to MII converter structure
+ * @port: port number
+ * @interface: interface mode of the port
+ */
+struct ethss_port {
+	struct ethss *ethss;
+	struct phylink_pcs pcs;
+	int port;
+	phy_interface_t interface;
+};
+
+static inline struct ethss_port *phylink_pcs_to_ethss_port(struct phylink_pcs *pcs)
+{
+	return container_of(pcs, struct ethss_port, pcs);
+}
 
 struct ethss *ethss_get_base(void);
 int ethss_eswm_ptp_timer(struct ethss *ethss, int eswm_timer);
