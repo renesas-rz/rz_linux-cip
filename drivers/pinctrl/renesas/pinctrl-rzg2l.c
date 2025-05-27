@@ -2746,6 +2746,20 @@ static int rzg2l_gpio_get_gpioint(unsigned int virq, struct rzg2l_pinctrl *pctrl
 	return gpioint;
 }
 
+static int rzg2l_gpio_irq_request_resources(struct irq_data *d)
+{
+	struct irq_data *data = d->parent_data;
+	int ret;
+
+	if (data->chip->irq_request_resources) {
+		ret = data->chip->irq_request_resources(data);
+		if (ret)
+			return ret;
+	}
+
+	return gpiochip_irq_reqres(d);
+}
+
 static void rzg2l_gpio_irq_endisable(struct rzg2l_pinctrl *pctrl,
 				     unsigned int hwirq, bool enable)
 {
@@ -2831,6 +2845,8 @@ static const struct irq_chip rzg2l_gpio_irqchip = {
 	.name = "rzg2l-gpio",
 	.irq_disable = rzg2l_gpio_irq_disable,
 	.irq_enable = rzg2l_gpio_irq_enable,
+	.irq_request_resources = rzg2l_gpio_irq_request_resources,
+	.irq_release_resources = gpiochip_irq_relres,
 	.irq_mask = irq_chip_mask_parent,
 	.irq_unmask = irq_chip_unmask_parent,
 	.irq_set_type = rzg2l_gpio_irq_set_type,
@@ -2839,7 +2855,6 @@ static const struct irq_chip rzg2l_gpio_irqchip = {
 	.irq_set_affinity = irq_chip_set_affinity_parent,
 	.irq_set_wake = rzg2l_gpio_irq_set_wake,
 	.flags = IRQCHIP_IMMUTABLE,
-	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static int rzg2l_gpio_interrupt_input_mode(struct gpio_chip *chip, unsigned int offset)
