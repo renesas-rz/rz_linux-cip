@@ -38,16 +38,6 @@ struct tegra_eqos {
 	struct gpio_desc *reset;
 };
 
-struct renesas_rzt2h_eqos {
-	struct device *dev;
-	void __iomem *regs;
-
-	struct clk *clk;
-	struct reset_control *rst_h;
-	struct reset_control *rst_m;
-	struct gpio_desc *reset;
-};
-
 static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
 				   struct plat_stmmacenet_data *plat_dat)
 {

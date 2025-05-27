@@ -46,5 +46,21 @@ void ethss_destroy(struct phylink_pcs *pcs);
 
 void ethss_switchcore_adjust(struct phylink_pcs *pcs, int duplex, int speed);
 
+/**
+ * struct renesas_rzt2h_eqos - GMAC ethernet struct
+ */
+struct renesas_rzt2h_eqos {
+	struct device *dev;
+	void __iomem *regs;
+
+	struct clk *clk;
+	struct reset_control *rst_h;
+	struct reset_control *rst_m;
+	struct gpio_desc *reset;
+
+	struct ethss *ethss;
+	struct ethss_port *ethss_port;
+};
+
 #endif /* __RZT2H_ETHSS_H__ */
 
