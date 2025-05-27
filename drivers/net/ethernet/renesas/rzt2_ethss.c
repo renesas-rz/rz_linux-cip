@@ -57,6 +57,8 @@
 #define ETHSS_TMSEL_ESWM_TIMER0		2
 #define ETHSS_TMSEL_ESWM_TIMER1		3
 
+#define ETHSS_TMSEL_GMAC(gmac)		BIT(4 * (gmac) + 4)
+
 #define ETHSS_SWCTRL			0x304
 #define ETHSS_SWCTRL_MPBS_10(x)		(((0 << 4) | (1 << 0)) << (x))
 #define ETHSS_SWCTRL_MPBS_100(x)	(((0 << 4) | (0 << 0)) << (x))
@@ -414,6 +416,22 @@ void ethss_switchcore_adjust(struct phylink_pcs *pcs, int duplex, int speed)
 	ethss_reg_rmw(ethss, ETHSS_SWDUPC, ETHSS_SWDUPC_DUPLEX_MASK(port), val);
 }
 EXPORT_SYMBOL(ethss_switchcore_adjust);
+
+int ethss_gmac_ptp_timer(struct ethss *ethss, int gmac, int ethsw_timer)
+{
+	if (gmac > 2)
+		return -EINVAL;
+
+	if (ethsw_timer > 1)
+		return -EINVAL;
+
+	if (ethsw_timer)
+		ethss_reg_rmw(ethss, ETHSS_TMSEL, ETHSS_TMSEL_GMAC(gmac),
+			      ETHSS_TMSEL_GMAC(gmac));
+
+	return 0;
+}
+EXPORT_SYMBOL(ethss_gmac_ptp_timer);
 
 static int ethss_init_hw(struct ethss *ethss, u32 cfg_mode)
 {
