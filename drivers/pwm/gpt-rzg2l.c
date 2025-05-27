@@ -2893,6 +2893,7 @@ static const struct of_device_id rzg2l_gpt_of_table[] = {
 	{ .compatible = "renesas,gpt-r9a09g057", .data = &rzv2h_cfg,},
 	{ .compatible = "renesas,gpt-r9a09g047", .data = &rzv2h_cfg,},
 	{ .compatible = "renesas,gpt-r9a09g077", .data = &rzt2h_cfg,},
+	{ .compatible = "renesas,gpt-r9a09g087", .data = &rzt2h_cfg,},
 	{ },
 };
 
