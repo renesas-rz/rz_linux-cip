@@ -1164,6 +1164,7 @@ static int ethsw_pcs_get(struct ethsw *ethsw)
 {
 	struct device_node *ports, *port, *pcs_node;
 	struct phylink_pcs *pcs;
+	struct ethss_port *ethss_port;
 	int ret;
 	u32 reg;
 
@@ -1195,6 +1196,8 @@ static int ethsw_pcs_get(struct ethsw *ethsw)
 		}
 
 		ethsw->pcs[reg] = pcs;
+		ethss_port = phylink_pcs_to_ethss_port(pcs);
+		ethsw->ethss = ethss_port->ethss;
 		of_node_put(pcs_node);
 
 	}
@@ -1236,6 +1239,8 @@ static int ethsw_probe(struct platform_device *pdev)
 	ret = ethsw_pcs_get(ethsw);
 	if (ret)
 		return ret;
+
+	ethsw->ethss->ethsw_base = ethsw->base;
 
 	ethsw->reset = devm_gpiod_get(&pdev->dev, "phy-reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ethsw->reset)) {
