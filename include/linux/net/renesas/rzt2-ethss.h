@@ -46,8 +46,8 @@ struct ethss *ethss_get_base(void);
 int ethss_eswm_ptp_timer(struct ethss *ethss, int eswm_timer);
 struct phylink_pcs *ethss_create(struct device *dev, struct device_node *np);
 void ethss_destroy(struct phylink_pcs *pcs);
-
 void ethss_switchcore_adjust(struct phylink_pcs *pcs, int duplex, int speed);
+int ethss_gmac_ptp_timer(struct ethss *ethss, int gmac, int ethsw_timer);
 
 /**
  * struct renesas_rzt2_eqos - GMAC ethernet struct
