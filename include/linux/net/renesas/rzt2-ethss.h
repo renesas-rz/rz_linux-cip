@@ -16,6 +16,7 @@ struct device_node;
  */
 struct ethss {
 	void __iomem *base;
+	void __iomem *ethsw_base;
 	struct device *dev;
 	struct clk *clk;
 	struct reset_control *rst_ethss;
