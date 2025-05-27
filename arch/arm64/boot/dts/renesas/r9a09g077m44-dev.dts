@@ -390,6 +390,7 @@
 &gmac0 {
 	status = "okay";
 	phy-mode = "gmii";
+	ethss-handle = <&ethss>;
 
 	fixed-link {
 		speed = <1000>;

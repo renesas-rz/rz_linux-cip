@@ -18,6 +18,7 @@
 #include <linux/of_net.h>
 #include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
+#include <linux/of_platform.h>
 #include <linux/reset.h>
 #include <linux/stmmac.h>
 #include <linux/net/renesas/rzt2h-ethss.h>
@@ -397,13 +398,17 @@ static void tegra_eqos_remove(struct platform_device *pdev)
 
 static int renesas_rzt2h_eqos_pcs_init(struct stmmac_priv *priv)
 {
+	struct renesas_rzt2h_eqos *eqos = priv->plat->bsp_priv;
 	struct device_node *np = priv->device->of_node;
 	struct device_node *pcs_node;
 	struct phylink_pcs *pcs;
+	struct ethss_port *ethss_port;
 
 	pcs_node = of_parse_phandle(np, "pcs-handle", 0);
 	if (pcs_node) {
 		pcs = ethss_create(priv->device, pcs_node);
+		ethss_port = phylink_pcs_to_ethss_port(pcs);
+		eqos->ethss = ethss_port->ethss;
 		of_node_put(pcs_node);
 		if (IS_ERR(pcs))
 			return PTR_ERR(pcs);
@@ -444,7 +449,10 @@ static int renesas_rzt2h_eqos_probe(struct platform_device *pdev,
 				struct stmmac_resources *res)
 {
 	struct device *dev = &pdev->dev;
+	struct device_node *node = pdev->dev.of_node;
 	struct renesas_rzt2h_eqos *eqos;
+	struct device_node *ethss_node;
+	struct platform_device *ethss_dev_np;
 	int err;
 
 	eqos = devm_kzalloc(&pdev->dev, sizeof(*eqos), GFP_KERNEL);
@@ -456,6 +464,17 @@ static int renesas_rzt2h_eqos_probe(struct platform_device *pdev,
 
 	if (!is_of_node(dev->fwnode))
 		goto bypass_clk_reset_gpio;
+
+	ethss_node = of_parse_phandle(node, "ethss-handle", 0);
+	if (ethss_node) {
+		ethss_dev_np = of_find_device_by_node(ethss_node);
+		if (ethss_dev_np) {
+			dev_dbg(&pdev->dev, "GMAC using %s\n", ethss_dev_np->name);
+			eqos->ethss = platform_get_drvdata(ethss_dev_np);
+		} else {
+			dev_dbg(&pdev->dev, "GMAC not use ethss-handle\n");
+		}
+	}
 
 	eqos->clk = devm_clk_get(&pdev->dev, "clk");
 	if (IS_ERR(eqos->clk)) {
