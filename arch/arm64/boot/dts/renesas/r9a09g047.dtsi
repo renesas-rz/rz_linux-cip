@@ -168,6 +168,7 @@
 			next-level-cache = <&L3_CA55>;
 			enable-method = "psci";
 			clocks = <&cpg CPG_CORE R9A09G047_CA55_0_CORE_CLK0>;
+			#cooling-cells = <2>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
 
@@ -178,6 +179,7 @@
 			next-level-cache = <&L3_CA55>;
 			enable-method = "psci";
 			clocks = <&cpg CPG_CORE R9A09G047_CA55_0_CORE_CLK1>;
+			#cooling-cells = <2>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
 
@@ -188,6 +190,7 @@
 			next-level-cache = <&L3_CA55>;
 			enable-method = "psci";
 			clocks = <&cpg CPG_CORE R9A09G047_CA55_0_CORE_CLK2>;
+			#cooling-cells = <2>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
 
@@ -198,6 +201,7 @@
 			next-level-cache = <&L3_CA55>;
 			enable-method = "psci";
 			clocks = <&cpg CPG_CORE R9A09G047_CA55_0_CORE_CLK3>;
+			#cooling-cells = <2>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
 
@@ -2373,13 +2377,17 @@
 		};
 
 		tsu: thermal@14002000 {
-			compatible = "renesas,tsu-r9a09g047";
+			compatible = "renesas,r9a09g047-tsu";
 			reg = <0 0x14002000 0 0x1000>;
+			interrupts = <GIC_SPI 250 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 251 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "adi", "adcmpi";
 			clocks = <&cpg CPG_MOD 266>;
 			resets = <&cpg 248>;
 			power-domains = <&cpg>;
 			tsu,channel = <1>;
-			#thermal-sensor-cells = <1>;
+			#thermal-sensor-cells = <0>;
+			renesas,tsu-calibration-sys = <&sys>;
 		};
 
 		vspi0: vspm@16050000 {
@@ -3278,12 +3286,27 @@
 			status = "disabled";
 		};
 
-		sensor_thermal: sensor-thermal {
-			polling-delay-passive = <250>;
+		cpu-thermal {
 			polling-delay = <1000>;
-			thermal-sensors = <&tsu 0>;
+			polling-delay-passive = <250>;
+			thermal-sensors = <&tsu>;
+
+			cooling-maps {
+				map0 {
+					trip = <&target>;
+					cooling-device = <&cpu0 0 3>, <&cpu1 0 3>,
+							 <&cpu2 0 3>, <&cpu3 0 3>;
+					contribution = <1024>;
+				};
+			};
 
 			trips {
+				target: trip-point {
+					temperature = <95000>;
+					hysteresis = <1000>;
+					type = "passive";
+				};
+
 				sensor_crit: sensor-crit {
 					temperature = <120000>;
 					hysteresis = <1000>;
