@@ -168,6 +168,7 @@
 			next-level-cache = <&L3_CA55>;
 			enable-method = "psci";
 			clocks = <&cpg CPG_CORE R9A09G057_CA55_0_CORE_CLK0>;
+			#cooling-cells = <2>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
 
@@ -178,6 +179,7 @@
 			next-level-cache = <&L3_CA55>;
 			enable-method = "psci";
 			clocks = <&cpg CPG_CORE R9A09G057_CA55_0_CORE_CLK1>;
+			#cooling-cells = <2>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
 
@@ -188,6 +190,7 @@
 			next-level-cache = <&L3_CA55>;
 			enable-method = "psci";
 			clocks = <&cpg CPG_CORE R9A09G057_CA55_0_CORE_CLK2>;
+			#cooling-cells = <2>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
 
@@ -198,6 +201,7 @@
 			next-level-cache = <&L3_CA55>;
 			enable-method = "psci";
 			clocks = <&cpg CPG_CORE R9A09G057_CA55_0_CORE_CLK3>;
+			#cooling-cells = <2>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
 
@@ -2419,23 +2423,31 @@
 		};
 
 		tsu0: thermal@11000000 {
-			compatible = "renesas,tsu-r9a09g057";
+			compatible = "renesas,r9a09g057-tsu";
 			reg = <0 0x11000000 0 0x1000>;
+			interrupts = <GIC_SPI 248 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 249 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "adi", "adcmpi";
 			clocks = <&cpg CPG_MOD 265>;
 			resets = <&cpg 247>;
 			power-domains = <&cpg>;
 			tsu,channel = <0>;
-			#thermal-sensor-cells = <1>;
+			#thermal-sensor-cells = <0>;
+			renesas,tsu-calibration-sys = <&sys>;
 		};
 
 		tsu1: thermal@14002000 {
-			compatible = "renesas,tsu-r9a09g057";
+			compatible = "renesas,r9a09g057-tsu";
 			reg = <0 0x14002000 0 0x1000>;
+			interrupts = <GIC_SPI 250 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 251 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "adi", "adcmpi";
 			clocks = <&cpg CPG_MOD 266>;
 			resets = <&cpg 248>;
 			power-domains = <&cpg>;
 			tsu,channel = <1>;
-			#thermal-sensor-cells = <1>;
+			#thermal-sensor-cells = <0>;
+			renesas,tsu-calibration-sys = <&sys>;
 		};
 
 		wdt0: watchdog@11c00400 {
@@ -3191,28 +3203,57 @@
 			status = "disabled";
 		};
 
-		sensor_thermal0: sensor-thermal0 {
-			polling-delay-passive = <250>;
+		cpu-thermal0 {
 			polling-delay = <1000>;
-			thermal-sensors = <&tsu0 0>;
+			polling-delay-passive = <250>;
+			thermal-sensors = <&tsu0>;
+
+			cooling-maps {
+				map0 {
+					trip = <&target0>;
+					cooling-device = <&cpu0 0 3>, <&cpu1 0 3>,
+							 <&cpu2 0 3>, <&cpu3 0 3>;
+					contribution = <1024>;
+				};
+			};
 
 			trips {
-				sensor0_crit: sensor0-crit {
+				target0: trip-point {
+					temperature = <95000>;
+					hysteresis = <1000>;
+					type = "passive";
+				};
+
+				sensor0_crit: sensor-crit {
 					temperature = <120000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
-
 			};
 		};
 
-		sensor_thermal1: sensor-thermal1 {
-			polling-delay-passive = <250>;
+		cpu-thermal1 {
 			polling-delay = <1000>;
-			thermal-sensors = <&tsu1 0>;
+			polling-delay-passive = <250>;
+			thermal-sensors = <&tsu1>;
+
+			cooling-maps {
+				map0 {
+					trip = <&target1>;
+					cooling-device = <&cpu0 0 3>, <&cpu1 0 3>,
+							 <&cpu2 0 3>, <&cpu3 0 3>;
+					contribution = <1024>;
+				};
+			};
 
 			trips {
-				sensor1_crit: sensor1-crit {
+				target1: trip-point {
+					temperature = <95000>;
+					hysteresis = <1000>;
+					type = "passive";
+				};
+
+				sensor1_crit: sensor-crit {
 					temperature = <120000>;
 					hysteresis = <1000>;
 					type = "critical";
