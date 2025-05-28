@@ -1441,54 +1441,49 @@ static void eswm_mii_unregister(struct eswm_device *rdev)
 	}
 }
 
-static void eswm_adjust_link(struct net_device *ndev)
+static struct phylink_pcs *eswm_phylink_mac_select_pcs(struct phylink_config *config,
+							phy_interface_t interface)
 {
-	struct eswm_device *rdev = netdev_priv(ndev);
-	struct phy_device *phydev = ndev->phydev;
+	struct eswm_device *rdev = container_of(config, struct eswm_device, phylink_config);
 
-	if (phydev->link != rdev->etha->link) {
-		phy_print_status(phydev);
-		rdev->etha->link = phydev->link;
-
-		if (!rdev->priv->etha_no_runtime_change &&
-		    phydev->speed != rdev->etha->speed) {
-			rdev->etha->speed = phydev->speed;
-
-			eswm_etha_hw_init(rdev->etha, rdev->ndev->dev_addr);
-		}
-	}
+	return rdev->pcs[rdev->port];
 }
 
-static void eswm_phy_remove_link_mode(struct eswm_device *rdev,
-					 struct phy_device *phydev)
+static void eswm_phylink_mac_config(struct phylink_config *config,
+					unsigned int mode,
+					const struct phylink_link_state *state)
 {
-	if (!rdev->priv->etha_no_runtime_change)
-		return;
-
-	switch (rdev->etha->speed) {
-	case SPEED_1000:
-		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_100baseT_Full_BIT);
-		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Full_BIT);
-		break;
-	case SPEED_100:
-		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Full_BIT);
-		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Full_BIT);
-		break;
-	case SPEED_10:
-		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Full_BIT);
-		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_100baseT_Full_BIT);
-		break;
-	default:
-		break;
-	}
-
-	phy_set_max_speed(phydev, rdev->etha->speed);
+	//TODO
 }
+
+static void eswm_phylink_mac_link_down(struct phylink_config *config,
+					unsigned int mode, phy_interface_t interface)
+{
+	pr_info("ESWM MAC link is down\n");
+}
+
+static void eswm_phylink_mac_link_up(struct phylink_config *config,
+					struct phy_device *phydev,
+					unsigned int mode,
+					phy_interface_t interface,
+					int speed, int duplex, bool tx_pause,
+					bool rx_pause)
+{
+	pr_info("ESWM MAC link is up\n");
+}
+
+static const struct phylink_mac_ops eswm_mac_ops = {
+	.mac_select_pcs = eswm_phylink_mac_select_pcs,
+	.mac_config = eswm_phylink_mac_config,
+	.mac_link_down = eswm_phylink_mac_link_down,
+	.mac_link_up = eswm_phylink_mac_link_up,
+};
 
 static int eswm_phy_device_init(struct eswm_device *rdev)
 {
 	struct phy_device *phydev;
 	struct device_node *phy;
+	struct phylink *phylink;
 	int err = -ENOENT;
 
 	if (!rdev->np_port)
@@ -1498,40 +1493,47 @@ static int eswm_phy_device_init(struct eswm_device *rdev)
 	if (!phy)
 		return -ENODEV;
 
-	/* Set phydev->host_interfaces before calling of_phy_connect() to
-	 * configure the PHY with the information of host_interfaces.
-	 */
+	//configuration for phylink_config
+	memset(&rdev->phylink_config, 0, sizeof(rdev->phylink_config));
+	rdev->phylink_config.dev = &rdev->ndev->dev;
+	rdev->phylink_config.type = PHYLINK_NETDEV;
+	rdev->phylink_config.mac_capabilities = MAC_10FD | MAC_100FD | MAC_1000FD;
+
+	//create phylink
+	__set_bit(rdev->etha->phy_interface, rdev->phylink_config.supported_interfaces);
+	phylink = phylink_create(&rdev->phylink_config,
+					of_fwnode_handle(rdev->np_port),
+					rdev->etha->phy_interface,
+					&eswm_mac_ops);
+
+	if (IS_ERR(phylink)) {
+		err = PTR_ERR(phylink);
+		dev_err(rdev->dev, "Can not create phylink (%pe)\n", phylink);
+		return err;
+	}
+
+	dev_info(rdev->dev, "phylink created with interface: %s\n", phy_modes(rdev->etha->phy_interface));
+
+	rdev->phylink = phylink;
 	phydev = of_phy_find_device(phy);
 	if (!phydev)
-		goto out;
-	__set_bit(rdev->etha->phy_interface, phydev->host_interfaces);
-	phydev->mac_managed_pm = true;
+		dev_err(rdev->dev, "of_phy_find_device failed\n");
 
-	phydev = of_phy_connect(rdev->ndev, phy, eswm_adjust_link, 0,
-				rdev->etha->phy_interface);
-	if (!phydev)
-		goto out;
+	err = phylink_connect_phy(phylink, phydev);
+	if (err) {
+		dev_err(rdev->dev, "Can not connect to PHY: %pe\n", ERR_PTR(err));
+		phylink_destroy(phylink);
+		rdev->phylink = NULL;
+		return err;
+	}
 
-	phy_set_max_speed(phydev, SPEED_1000);
-	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Half_BIT);
-	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Full_BIT);
-	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_100baseT_Half_BIT);
-	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
-	eswm_phy_remove_link_mode(rdev, phydev);
-
-	phy_attached_info(phydev);
-
-	err = 0;
-out:
-	of_node_put(phy);
-
-	return err;
+	return 0;
 }
 
 static void eswm_phy_device_deinit(struct eswm_device *rdev)
 {
 	if (rdev->ndev->phydev)
-		phy_disconnect(rdev->ndev->phydev);
+		phylink_disconnect_phy(rdev->phylink);
 }
 
 static int eswm_ether_port_init_one(struct eswm_device *rdev)
@@ -1600,7 +1602,7 @@ static int eswm_open(struct net_device *ndev)
 	struct eswm_device *rdev = netdev_priv(ndev);
 	unsigned long flags;
 
-	phy_start(ndev->phydev);
+	phylink_start(rdev->phylink);
 
 	napi_enable(&rdev->napi);
 	netif_start_queue(ndev);
@@ -1643,7 +1645,7 @@ static int eswm_stop(struct net_device *ndev)
 	eswm_enadis_data_irq(rdev->priv, rdev->rx_queue->index, false);
 	spin_unlock_irqrestore(&rdev->priv->lock, flags);
 
-	phy_stop(ndev->phydev);
+	phylink_stop(rdev->phylink);
 	napi_disable(&rdev->napi);
 
 	return 0;
