@@ -400,4 +400,15 @@ config SYS_R9A09G057
 	bool "Renesas RZ/V2H System controller support" if COMPILE_TEST
 	select SYSC_RZ
 
+#
+# Renesas SoC drivers
+#
+config RCAR_THERMAL_EMS
+	tristate "Renesas R-Car Gen3 Enable Emergency Shutdown"
+	depends on RCAR_GEN3_THERMAL || RCAR_THERMAL
+	default y
+	help
+	  Enable this option if you want to have support for Emergency Shutdown
+	  in R-Car Gen3.
+
 endif # SOC_RENESAS
