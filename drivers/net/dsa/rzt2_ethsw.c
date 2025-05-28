@@ -15,6 +15,7 @@
 #include <linux/reset.h>
 #include <net/dsa.h>
 #include <linux/net/renesas/rzt2-ethss.h>
+#include <linux/net/renesas/rzt2_timer_hwtstamp.h>
 
 #include "rzt2_ethsw.h"
 
@@ -931,6 +932,7 @@ static int ethsw_setup(struct dsa_switch *ds)
 	int port, vlan, ret;
 	struct dsa_port *dp;
 	u32 reg;
+	struct timespec64 now;
 
 	/* Validate that there is only 1 CPU port with index ETHSW_CPU_PORT */
 	dsa_switch_for_each_cpu_port(dp, ds) {
@@ -1002,6 +1004,11 @@ static int ethsw_setup(struct dsa_switch *ds)
 
 		ethsw_vlan_setup(ethsw, port);
 	}
+
+	/* Initialize both ethsw timer with current system time */
+	ktime_get_real_ts64(&now);
+	ethsw_time_init(ethsw->base, 0);
+	ethsw_time_init(ethsw->base, 1);
 
 	return 0;
 }
