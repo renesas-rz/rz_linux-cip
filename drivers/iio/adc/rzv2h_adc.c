@@ -296,7 +296,6 @@ static void adc_set_mstp_ada_b(struct rzv2h_adc *adc, bool act)
 
 	if (!mstp_ada_b)
 		return;
-
 	regmap_update_bits(mstp_ada_b->regmap, mstp_ada_b->offset, mstp_ada_b->mask, act);
 }
 
@@ -428,6 +427,7 @@ static int __maybe_unused rzv2h_adc_suspend(struct device *dev)
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct rzv2h_adc *adc = iio_priv(indio_dev);
 
+	adc_set_mstp_ada_b(adc, true);
 	reset_control_assert(adc->adrstn);
 
 	return pm_runtime_force_suspend(dev);
