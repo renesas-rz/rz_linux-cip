@@ -237,7 +237,7 @@ static int rz_sysc_soc_init(struct rz_sysc *sysc, const struct of_device_id *mat
 
 	soc_id_start = strchr(match->compatible, ',') + 1;
 	soc_id_end = strchr(match->compatible, '-');
-	size = soc_id_end - soc_id_start;
+	size = soc_id_end - soc_id_start + 1;
 	if (size > 32)
 		size = 32;
 	strscpy(soc_id, soc_id_start, size);
