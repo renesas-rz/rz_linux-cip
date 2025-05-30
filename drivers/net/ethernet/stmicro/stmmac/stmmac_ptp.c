@@ -11,6 +11,185 @@
 #include "stmmac_ptp.h"
 #include "dwmac4.h"
 
+static int stmmac_enable(struct ptp_clock_info *ptp,
+			 struct ptp_clock_request *rq, int on)
+{
+	struct stmmac_priv *priv =
+	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
+	void __iomem *ptpaddr = priv->ptpaddr;
+	struct stmmac_pps_cfg *cfg;
+	int ret = -EOPNOTSUPP;
+	unsigned long flags;
+	u32 acr_value;
+
+	switch (rq->type) {
+	case PTP_CLK_REQ_PEROUT:
+		/* Reject requests with unsupported flags */
+		if (rq->perout.flags)
+			return -EOPNOTSUPP;
+
+		cfg = &priv->pps[rq->perout.index];
+
+		cfg->start.tv_sec = rq->perout.start.sec;
+		cfg->start.tv_nsec = rq->perout.start.nsec;
+		cfg->period.tv_sec = rq->perout.period.sec;
+		cfg->period.tv_nsec = rq->perout.period.nsec;
+
+		write_lock_irqsave(&priv->ptp_lock, flags);
+		ret = stmmac_flex_pps_config(priv, priv->ioaddr,
+					     rq->perout.index, cfg, on,
+					     priv->sub_second_inc,
+					     priv->systime_flags);
+		write_unlock_irqrestore(&priv->ptp_lock, flags);
+		break;
+	case PTP_CLK_REQ_EXTTS: {
+		u8 channel;
+
+		mutex_lock(&priv->aux_ts_lock);
+		acr_value = readl(ptpaddr + PTP_ACR);
+		channel = ilog2(FIELD_GET(PTP_ACR_MASK, acr_value));
+		acr_value &= ~PTP_ACR_MASK;
+
+		if (on) {
+			if (FIELD_GET(PTP_ACR_MASK, acr_value)) {
+				netdev_err(priv->dev,
+					   "Cannot enable auxiliary snapshot %d as auxiliary snapshot %d is already enabled",
+					rq->extts.index, channel);
+				mutex_unlock(&priv->aux_ts_lock);
+				return -EBUSY;
+			}
+
+			priv->plat->flags |= STMMAC_FLAG_EXT_SNAPSHOT_EN;
+
+			/* Enable External snapshot trigger */
+			acr_value |= PTP_ACR_ATSEN(rq->extts.index);
+			acr_value |= PTP_ACR_ATSFC;
+		} else {
+			priv->plat->flags &= ~STMMAC_FLAG_EXT_SNAPSHOT_EN;
+		}
+		netdev_dbg(priv->dev, "Auxiliary Snapshot %d %s.\n",
+			   rq->extts.index, on ? "enabled" : "disabled");
+		writel(acr_value, ptpaddr + PTP_ACR);
+		mutex_unlock(&priv->aux_ts_lock);
+		/* wait for auxts fifo clear to finish */
+		ret = readl_poll_timeout(ptpaddr + PTP_ACR, acr_value,
+					 !(acr_value & PTP_ACR_ATSFC),
+					 10, 10000);
+		break;
+	}
+
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+#if IS_ENABLED(CONFIG_RZT2H_ETHSS)
+#include <linux/net/renesas/rzt2h-ethss.h>
+#include <linux/net/renesas/rzt2h_timer_hwtstamp.h>
+
+static int ethsw_timer_adjust_freq(struct ptp_clock_info *ptp, long scaled_ppm)
+{
+	s32 ppb = scaled_ppm_to_ppb(scaled_ppm);
+	struct stmmac_priv *priv =
+	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
+	struct renesas_rzt2h_eqos *eqos = (struct renesas_rzt2h_eqos *)(priv->plat->bsp_priv);
+	unsigned long flags;
+	u64 tick;
+	s64 delta;
+	u32 tick_diff;
+	int neg_adj = 0;
+
+	tick = NSEC_PER_SEC;
+
+	delta = (s64)tick * ppb;
+	delta = div_s64(delta, NSEC_PER_SEC);
+
+	tick += delta;
+
+	if (tick < NSEC_PER_SEC) {
+		neg_adj = 1;
+		tick_diff = NSEC_PER_SEC - tick;
+	} else {
+		tick_diff = tick - NSEC_PER_SEC;
+	}
+
+	write_lock_irqsave(&priv->ptp_lock, flags);
+	ethsw_time_adjust_inc(eqos->ethss->ethsw_base, tick_diff, neg_adj,
+			      priv->plat->clk_ptp_rate, eqos->ethsw_ptp_timer);
+	write_unlock_irqrestore(&priv->ptp_lock, flags);
+
+	return 0;
+}
+
+static int ethsw_timer_adjust_time(struct ptp_clock_info *ptp, s64 delta)
+{
+	struct stmmac_priv *priv =
+	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
+	struct renesas_rzt2h_eqos *eqos = (struct renesas_rzt2h_eqos *)(priv->plat->bsp_priv);
+	struct timespec64 ts;
+	unsigned long flags;
+	s64 now;
+
+	write_lock_irqsave(&priv->ptp_lock, flags);
+	ethsw_time_get(eqos->ethss->ethsw_base, &now, eqos->ethsw_ptp_timer);
+	ts = ns_to_timespec64(now + delta);
+	ethsw_time_set(eqos->ethss->ethsw_base, ts.tv_sec, ts.tv_nsec, eqos->ethsw_ptp_timer);
+	write_unlock_irqrestore(&priv->ptp_lock, flags);
+
+	return 0;
+}
+
+static int ethsw_timer_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts)
+{
+	struct stmmac_priv *priv =
+	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
+	struct renesas_rzt2h_eqos *eqos = (struct renesas_rzt2h_eqos *)(priv->plat->bsp_priv);
+	unsigned long flags;
+	u64 ns = 0;
+
+	read_lock_irqsave(&priv->ptp_lock, flags);
+	ethsw_time_get(eqos->ethss->ethsw_base, &ns, eqos->ethsw_ptp_timer);
+	read_unlock_irqrestore(&priv->ptp_lock, flags);
+
+	*ts = ns_to_timespec64(ns);
+
+	return 0;
+}
+
+static int ethsw_timer_set_time(struct ptp_clock_info *ptp,
+				const struct timespec64 *ts)
+{
+	struct stmmac_priv *priv =
+	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
+	struct renesas_rzt2h_eqos *eqos = (struct renesas_rzt2h_eqos *)(priv->plat->bsp_priv);
+	unsigned long flags;
+
+	write_lock_irqsave(&priv->ptp_lock, flags);
+	ethsw_time_set(eqos->ethss->ethsw_base, ts->tv_sec, ts->tv_nsec, eqos->ethsw_ptp_timer);
+	write_unlock_irqrestore(&priv->ptp_lock, flags);
+
+	return 0;
+}
+
+/* structure describing a PTP hardware clock */
+static struct ptp_clock_info stmmac_ptp_clock_ops = {
+	.owner = THIS_MODULE,
+	.name = "stmmac ptp",
+	.max_adj = 100000000,
+	.n_alarm = 0,
+	.n_ext_ts = 0,
+	.n_per_out = 0, /* will be overwritten in stmmac_ptp_register */
+	.n_pins = 0,
+	.pps = 0,
+	.adjfine = ethsw_timer_adjust_freq,
+	.adjtime = ethsw_timer_adjust_time,
+	.gettime64 = ethsw_timer_get_time,
+	.settime64 = ethsw_timer_set_time,
+	.enable = stmmac_enable,
+};
+#else
 /**
  * stmmac_adjust_freq
  *
@@ -160,79 +339,7 @@ static int stmmac_set_time(struct ptp_clock_info *ptp,
 	return 0;
 }
 
-static int stmmac_enable(struct ptp_clock_info *ptp,
-			 struct ptp_clock_request *rq, int on)
-{
-	struct stmmac_priv *priv =
-	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
-	void __iomem *ptpaddr = priv->ptpaddr;
-	struct stmmac_pps_cfg *cfg;
-	int ret = -EOPNOTSUPP;
-	unsigned long flags;
-	u32 acr_value;
 
-	switch (rq->type) {
-	case PTP_CLK_REQ_PEROUT:
-		/* Reject requests with unsupported flags */
-		if (rq->perout.flags)
-			return -EOPNOTSUPP;
-
-		cfg = &priv->pps[rq->perout.index];
-
-		cfg->start.tv_sec = rq->perout.start.sec;
-		cfg->start.tv_nsec = rq->perout.start.nsec;
-		cfg->period.tv_sec = rq->perout.period.sec;
-		cfg->period.tv_nsec = rq->perout.period.nsec;
-
-		write_lock_irqsave(&priv->ptp_lock, flags);
-		ret = stmmac_flex_pps_config(priv, priv->ioaddr,
-					     rq->perout.index, cfg, on,
-					     priv->sub_second_inc,
-					     priv->systime_flags);
-		write_unlock_irqrestore(&priv->ptp_lock, flags);
-		break;
-	case PTP_CLK_REQ_EXTTS: {
-		u8 channel;
-
-		mutex_lock(&priv->aux_ts_lock);
-		acr_value = readl(ptpaddr + PTP_ACR);
-		channel = ilog2(FIELD_GET(PTP_ACR_MASK, acr_value));
-		acr_value &= ~PTP_ACR_MASK;
-
-		if (on) {
-			if (FIELD_GET(PTP_ACR_MASK, acr_value)) {
-				netdev_err(priv->dev,
-					   "Cannot enable auxiliary snapshot %d as auxiliary snapshot %d is already enabled",
-					rq->extts.index, channel);
-				mutex_unlock(&priv->aux_ts_lock);
-				return -EBUSY;
-			}
-
-			priv->plat->flags |= STMMAC_FLAG_EXT_SNAPSHOT_EN;
-
-			/* Enable External snapshot trigger */
-			acr_value |= PTP_ACR_ATSEN(rq->extts.index);
-			acr_value |= PTP_ACR_ATSFC;
-		} else {
-			priv->plat->flags &= ~STMMAC_FLAG_EXT_SNAPSHOT_EN;
-		}
-		netdev_dbg(priv->dev, "Auxiliary Snapshot %d %s.\n",
-			   rq->extts.index, on ? "enabled" : "disabled");
-		writel(acr_value, ptpaddr + PTP_ACR);
-		mutex_unlock(&priv->aux_ts_lock);
-		/* wait for auxts fifo clear to finish */
-		ret = readl_poll_timeout(ptpaddr + PTP_ACR, acr_value,
-					 !(acr_value & PTP_ACR_ATSFC),
-					 10, 10000);
-		break;
-	}
-
-	default:
-		break;
-	}
-
-	return ret;
-}
 
 /**
  * stmmac_get_syncdevicetime
@@ -281,6 +388,7 @@ static struct ptp_clock_info stmmac_ptp_clock_ops = {
 	.enable = stmmac_enable,
 	.getcrosststamp = stmmac_getcrosststamp,
 };
+#endif
 
 /**
  * stmmac_ptp_register
