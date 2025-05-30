@@ -593,6 +593,7 @@
 			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
 			clocks =  <&cpg CPG_MOD R9A09G077_GMAC0_CLK>;
 			clock-names = "clk";
+			ethsw_ptp_timer = <0 0>; /* GMAC0 PTP use ETHSW timer 0*/
 			resets = <&cpg R9A09G077_GMAC0_PCLKH_RST>,
 				 <&cpg R9A09G077_GMAC0_PCLKM_RST>;
 			reset-names = "reset_h", "reset_m";
@@ -614,6 +615,7 @@
 			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
 			clocks =  <&cpg CPG_MOD R9A09G077_GMAC1_CLK>;
 			clock-names = "clk";
+			ethsw_ptp_timer = <1 0>; /* GMAC1 PTP use ETHSW timer 0*/
 			resets = <&cpg R9A09G077_GMAC1_PCLKAH_RST>,
 				 <&cpg R9A09G077_GMAC1_PCLKAM_RST>;
 			reset-names = "reset_h", "reset_m";
@@ -635,6 +637,7 @@
 			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
 			clocks =  <&cpg CPG_MOD R9A09G077_GMAC2_CLK>;
 			clock-names = "clk";
+			ethsw_ptp_timer = <2 0>; /* GMAC2 PTP use ETHSW timer 0*/
 			resets = <&cpg R9A09G077_GMAC2_PCLKAH_RST>,
 				 <&cpg R9A09G077_GMAC2_PCLKAM_RST>;
 			reset-names = "reset_h", "reset_m";
