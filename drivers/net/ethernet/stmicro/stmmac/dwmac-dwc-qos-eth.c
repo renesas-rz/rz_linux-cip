@@ -453,7 +453,7 @@ static int renesas_rzt2h_eqos_probe(struct platform_device *pdev,
 	struct renesas_rzt2h_eqos *eqos;
 	struct device_node *ethss_node;
 	struct platform_device *ethss_dev_np;
-	int err;
+	int err, gmac_num;
 
 	eqos = devm_kzalloc(&pdev->dev, sizeof(*eqos), GFP_KERNEL);
 	if (!eqos)
@@ -553,6 +553,24 @@ static int renesas_rzt2h_eqos_probe(struct platform_device *pdev,
 	}
 
 	dev_dbg(&pdev->dev, "Get eth_lpi OK\n");
+
+	err = of_property_read_u32_index(node, "ethsw_ptp_timer", 0, &gmac_num);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to get GMAC number\n");
+	} else {
+		err = of_property_read_u32_index(node, "ethsw_ptp_timer",
+						1, &eqos->ethsw_ptp_timer);
+		if (err) {
+			dev_info(&pdev->dev, "GMAC not use ETHSW timer for PTP\n");
+		} else {
+			data->clk_ptp_rate = 125000000;
+			err = ethss_gmac_ptp_timer(eqos->ethss, gmac_num, eqos->ethsw_ptp_timer);
+			if (err)
+				dev_dbg(&pdev->dev, "Invalid ptp params\n");
+			dev_info(&pdev->dev, "GMAC%d use ETHSW timer %d for PTP\n",gmac_num,
+									eqos->ethsw_ptp_timer);
+		}
+	}
 
 bypass_clk_reset_gpio:
 	data->init = renesas_rzt2h_eqos_init;
