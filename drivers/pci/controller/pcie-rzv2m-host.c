@@ -117,6 +117,7 @@ struct rzv2m_pcie_hw_info {
 				       struct rzv2m_msi *);
 	u32		flags;
 	u32		irq_flags;
+	u32		device_id;
 };
 
 /* Structure representing the PCIe interface */
@@ -495,17 +496,20 @@ static void rzv2m_pcie_fixup_pcibridge(struct pci_dev *pdev)
 	}
 
 }
-DECLARE_PCI_FIXUP_EARLY(PCIE_CONF_VENDOR_ID, PCIE_CONF_DEVICE_ID, rzv2m_pcie_fixup_pcibridge);
+DECLARE_PCI_FIXUP_EARLY(PCIE_CONF_VENDOR_ID, 0x1135, rzv2m_pcie_fixup_pcibridge);
+DECLARE_PCI_FIXUP_EARLY(PCIE_CONF_VENDOR_ID, 0x0033, rzv2m_pcie_fixup_pcibridge);
 
 static void rzv2m_pcie_setting_config(struct rzv2m_pcie *pcie)
 {
+	struct rzv2m_pcie_host *host = container_of(pcie, struct rzv2m_pcie_host, pcie);
+
 	rzv2m_pci_write_reg(pcie, RESET_CONFIG_DEASSERT, PCI_RESET_REG);
 
 	/* Configuration space(Root complex) setting */
 
 	/* Vendor and Device ID*/
 	rzv2m_write_conf(pcie,
-			(PCIE_CONF_DEVICE_ID << 16) |
+			(host->info->device_id << 16) |
 			 PCIE_CONF_VENDOR_ID,
 			 PCI_RC_VID_ADR);
 
@@ -536,9 +540,12 @@ static void rzv2m_pcie_setting_config(struct rzv2m_pcie *pcie)
 
 static int PCIE_CFG_Initialize(struct rzv2m_pcie *pcie)
 {
+	struct rzv2m_pcie_host *host = container_of(pcie, struct rzv2m_pcie_host, pcie);
+
 	/* Vendor and Device ID */
 	rzv2m_write_conf(pcie,
-			(PCIE_CONF_DEVICE_ID << 16) | PCIE_CONF_VENDOR_ID,
+			(host->info->device_id << 16) |
+			 PCIE_CONF_VENDOR_ID,
 			 PCI_RC_VID_ADR);
 
 	/* Revision ID and Class Code */
@@ -1706,6 +1713,7 @@ static const struct rzv2m_pcie_hw_info rzv2m_pcie_info = {
 	.irq_handler = rzv2m_pcie_irq_handler,
 	.set_inbound = rzv2m_pcie_set_inbound,
 	.irq_flags = IRQF_SHARED | IRQF_NO_THREAD | IRQF_ONESHOT,
+	.device_id = 0x1135,
 };
 
 static const struct rzv2m_pcie_hw_info rzv2ma_pcie_info = {
@@ -1715,6 +1723,7 @@ static const struct rzv2m_pcie_hw_info rzv2ma_pcie_info = {
 	.irq_handler = rzv2m_pcie_irq_handler,
 	.set_inbound = rzv2m_pcie_set_inbound,
 	.irq_flags = IRQF_SHARED | IRQF_NO_THREAD | IRQF_ONESHOT,
+	.device_id = 0x1135,
 };
 
 static const struct rzv2m_pcie_hw_info rzg3s_pcie_info = {
@@ -1725,6 +1734,7 @@ static const struct rzv2m_pcie_hw_info rzg3s_pcie_info = {
 	.irq_handler = rzg3s_pcie_irq_handler,
 	.set_inbound = rzg3s_pcie_set_inbound,
 	.irq_flags = IRQF_SHARED,
+	.device_id = 0x0033,
 };
 
 static const struct of_device_id rzv2m_pcie_of_match[] = {

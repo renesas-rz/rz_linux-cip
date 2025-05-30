@@ -286,7 +286,6 @@
   PCIe Configuration setting value
 -------------------------------------------------------*/
 #define PCIE_CONF_VENDOR_ID						0x1912
-#define PCIE_CONF_DEVICE_ID						0x1135
 
 #define PCIE_CONF_REVISION_ID					0x00
 
