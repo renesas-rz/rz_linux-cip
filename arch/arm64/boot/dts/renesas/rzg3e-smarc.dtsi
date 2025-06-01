@@ -38,7 +38,13 @@
  * RSPI0_RSCI8_SPI_SEL:
  *	0 - RSPI0 (default)
  *	1 - RSCI_SPI8
+ *
+ * SEL_PCIE_MODE:
+ * - 0: Root Complex (default)
+ * - 1: Endpoint
  */
+
+#define SEL_PCIE_MODE		0
 
 / {
 	aliases {
@@ -507,8 +513,16 @@
 	status = "okay";
 };
 
+#if (!SEL_PCIE_MODE)
 &pcie0 {
 	status = "okay";
 	pinctrl-0 = <&pcie0_pins>;
 	pinctrl-names = "default";
 };
+#else
+&pcie0_ep {
+	status = "okay";
+	pinctrl-0 = <&pcie0_pins>;
+	pinctrl-names = "default";
+};
+#endif

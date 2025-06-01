@@ -56,12 +56,16 @@
  *	0 - RSCI9_UART (default)
  *	1 - RSCI9_I2C
  *	2 - RSCI9_SPI
+ * SEL_PCIE_MODE:
+ * - 0: Root Complex (default)
+ * - 1: Endpoint
  */
 
 #define SEL_CAN01_HEADER	1
 #define RSCI5_UART_I2C_SEL	0
 #define RSPI2_RSCI9_SEL		0
 #define RSCI9_SEL		0
+#define SEL_PCIE_MODE		0
 
 #if (RSCI9_SEL != 0 && RSCI9_SEL != 1 && RSCI9_SEL != 2)
 #error "Cannot set mode for RSCI9"
@@ -1203,11 +1207,17 @@
 	/* status = "okay"; */
 };
 
+#if (!SEL_PCIE_MODE)
 &pcie0 {
 	/* Map all possible DDR as inbound ranges */
 	dma-ranges = <0x42000000 0 0x40000000 0 0x40000000 0x4 0x00000000>;
 	status = "okay";
 };
+#else
+&pcie0_ep {
+	status = "okay";
+};
+#endif
 
 &rcar_sound {
 	pinctrl-0 = <&sound_clk_pins &sound_pins_hdmi &sound_pins>;
