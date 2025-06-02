@@ -487,6 +487,7 @@ static int rzt2h_adc_probe(struct platform_device *pdev)
 
 static const struct of_device_id rzt2h_adc_match[] = {
 	{ .compatible = "renesas,rzt2h-adc",},
+	{ .compatible = "renesas,rzn2h-adc",},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rzt2h_adc_match);

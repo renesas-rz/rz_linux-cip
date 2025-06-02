@@ -1188,7 +1188,7 @@ config RZG2L_ADC
 
 config RZT2H_ADC
 	tristate "Renesas RZ/T2H ADC driver"
-	depends on ARCH_T2H || ARCH_R9A09G077 || COMPILE_TEST
+	depends on ARCH_T2H || ARCH_R9A09G077 || ARCH_R9A09G087 || COMPILE_TEST
 	help
 	  Say yes here to build support for the ADC found in Renesas
 	  RZ/T2H family.
