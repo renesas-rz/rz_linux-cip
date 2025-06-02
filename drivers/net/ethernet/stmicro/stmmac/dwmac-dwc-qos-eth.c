@@ -453,7 +453,7 @@ static int renesas_rzt2h_eqos_probe(struct platform_device *pdev,
 	struct renesas_rzt2h_eqos *eqos;
 	struct device_node *ethss_node;
 	struct platform_device *ethss_dev_np;
-	int err, gmac_num;
+	int err, gmac_num, i;
 
 	eqos = devm_kzalloc(&pdev->dev, sizeof(*eqos), GFP_KERNEL);
 	if (!eqos)
@@ -579,6 +579,15 @@ bypass_clk_reset_gpio:
 	data->pcs_exit = renesas_rzt2h_eqos_pcs_exit;
 	data->select_pcs = renesas_rzt2h_eqos_select_pcs;
 	data->flags |= STMMAC_FLAG_SPH_DISABLE;
+
+	/* Disable TSO and enable TBS on all queues */
+	if (of_property_read_bool(node, "enable-time-based-scheduling")) {
+		dev_info(dev, "TBS enabled: configuring TX queues for time-based scheduling\n");
+		for (i = 0; i < data->tx_queues_to_use; i++) {
+			data->tx_queues_cfg[i].tbs_en = 1;
+			dev_dbg(dev, "TX queue %d: TBS enabled\n", i);
+		}
+	}
 
 	err = renesas_rzt2h_eqos_init(pdev, eqos);
 	if (err < 0)
