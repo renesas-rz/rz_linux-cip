@@ -23,7 +23,8 @@
 #include "../thermal_hwmon.h"
 
 /* SYS Trimming register offsets macro */
-#define SYS_TSU_TRMVAL(x) (0x330 + (x) * 4)
+#define SYS_TSU0_TRMVAL(x) (0x320 + (x) * 4)
+#define SYS_TSU1_TRMVAL(x) (0x330 + (x) * 4)
 
 /* TSU Register offsets and bits */
 #define TSU_SSUSR		0x00
@@ -290,15 +291,35 @@ static int rzg3e_thermal_set_trips(struct thermal_zone_device *tz, int low, int 
 
 static int rzg3e_thermal_get_trimming(struct rzg3e_thermal_priv *priv)
 {
+	const char *propname = "tsu,channel";
+	struct device *dev = priv->dev;
+	struct device_node *np = dev->of_node;
 	int ret;
+	u32 id;
 
-	ret = regmap_read(priv->syscon, SYS_TSU_TRMVAL(0), &priv->trmval[0]);
-	if (ret)
-		return ret;
+	ret = of_property_read_u32_index(np, propname, 0, &id);
+	if (ret < 0) {
+		dev_err(priv->dev, "not found TSU channel id");
+		return -EINVAL;
+	}
 
-	ret = regmap_read(priv->syscon, SYS_TSU_TRMVAL(1), &priv->trmval[1]);
-	if (ret)
-		return ret;
+	if (id) {
+		ret = regmap_read(priv->syscon, SYS_TSU1_TRMVAL(0), &priv->trmval[0]);
+		if (ret)
+			return ret;
+
+		ret = regmap_read(priv->syscon, SYS_TSU1_TRMVAL(1), &priv->trmval[1]);
+		if (ret)
+			return ret;
+	} else {
+		ret = regmap_read(priv->syscon, SYS_TSU0_TRMVAL(0), &priv->trmval[0]);
+		if (ret)
+			return ret;
+
+		ret = regmap_read(priv->syscon, SYS_TSU0_TRMVAL(1), &priv->trmval[1]);
+		if (ret)
+			return ret;
+	}
 
 	priv->trmval[0] &= TSU_TRMVAL_MASK;
 	priv->trmval[1] &= TSU_TRMVAL_MASK;
@@ -429,6 +450,7 @@ static int rzg3e_thermal_probe(struct platform_device *pdev)
 
 static const struct of_device_id rzg3e_thermal_dt_ids[] = {
 	{ .compatible = "renesas,r9a09g047-tsu" },
+	{ .compatible = "renesas,r9a09g057-tsu" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rzg3e_thermal_dt_ids);
