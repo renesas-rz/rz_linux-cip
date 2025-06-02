@@ -3,7 +3,7 @@
 The Renesas RZ/T2H supply 3 ADC units with 4 or 12 chanels per unit.
 
 Required properties:
-- compatible:	Must be set to "renesas,rzt2h-adc".
+- compatible:	Must be set to "renesas,rzt2h-adc, renesas,rzn2h-adc".
 - reg:		Address and length of the register set for the device.
 - clocks:	References to all the clocks specified in the clock-names
 		property as specified in
