@@ -44,6 +44,8 @@ struct phylink_pcs *ethss_create(struct device *dev, struct device_node *np);
 void ethss_destroy(struct phylink_pcs *pcs);
 void ethss_switchcore_adjust(struct phylink_pcs *pcs, int duplex, int speed);
 int ethss_gmac_ptp_timer(struct ethss *ethss, int gmac, int ethsw_timer);
+void ethss_esc_config(struct ethss *ethss, int eeprom_size, int phy_offset, int port_delay);
+void ethss_esc_reset_out(struct ethss *ethss, int rst_val);
 
 /**
  * struct renesas_rzt2h_eqos - GMAC ethernet struct
