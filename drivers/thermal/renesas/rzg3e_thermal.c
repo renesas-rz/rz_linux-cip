@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/thermal.h>
@@ -357,7 +358,6 @@ static int rzg3e_thermal_probe(struct platform_device *pdev)
 	struct reset_control *rstc;
 	char *adc_name, *cmp_name;
 	int adc_irq, cmp_irq;
-	struct clk *clk;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -398,15 +398,8 @@ static int rzg3e_thermal_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->reg_lock);
 	init_completion(&priv->conv_complete);
 
-	clk = devm_clk_get_enabled(dev, NULL);
-	if (IS_ERR(clk))
-		return dev_err_probe(dev, PTR_ERR(clk),
-				     "Failed to get and enable clock");
-
-	if (clk_get_rate(clk) < TSU_MIN_CLOCK_RATE)
-		return dev_err_probe(dev, -EINVAL,
-				     "Clock rate too low (minimum %d Hz required)",
-				     TSU_MIN_CLOCK_RATE);
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
 
 	ret = rzg3e_thermal_get_trimming(priv);
 	if (ret)
@@ -448,6 +441,27 @@ static int rzg3e_thermal_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused rzg3e_thermal_suspend(struct device *dev)
+{
+	struct rzg3e_thermal_priv *priv = dev_get_drvdata(dev);
+
+	pm_runtime_put(dev);
+	reset_control_assert(priv->rstc);
+
+	return 0;
+}
+
+static int __maybe_unused rzg3e_thermal_resume(struct device *dev)
+{
+	struct rzg3e_thermal_priv *priv = dev_get_drvdata(dev);
+
+	reset_control_deassert(priv->rstc);
+	pm_runtime_get_sync(dev);
+	rzg3e_thermal_hw_enable(priv);
+
+	return 0;
+}
+
 static const struct of_device_id rzg3e_thermal_dt_ids[] = {
 	{ .compatible = "renesas,r9a09g047-tsu" },
 	{ .compatible = "renesas,r9a09g057-tsu" },
@@ -455,10 +469,16 @@ static const struct of_device_id rzg3e_thermal_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, rzg3e_thermal_dt_ids);
 
+static const struct dev_pm_ops rzg3e_thermal_pm = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(rzg3e_thermal_suspend,
+					rzg3e_thermal_resume)
+};
+
 static struct platform_driver rzg3e_thermal_driver = {
 	.driver = {
 		.name	= "rzg3e_thermal",
 		.of_match_table = rzg3e_thermal_dt_ids,
+		.pm		= &rzg3e_thermal_pm,
 	},
 	.probe = rzg3e_thermal_probe,
 };
