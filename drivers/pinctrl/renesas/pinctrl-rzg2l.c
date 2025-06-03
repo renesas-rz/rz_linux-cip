@@ -66,6 +66,9 @@
 #define PIN_CFG_IOLH_RZV2H		BIT(18)
 #define PIN_CFG_IO_VMC_XSPI		BIT(19) /* known on RZ/G3L only */
 #define PIN_CFG_IO_VMC_SD2		BIT(20) /* known on RZ/G3L only */
+#define PIN_CFG_IO_VMC_OTHER_0		BIT(21) /* known on RZ/G3L only */
+#define PIN_CFG_IO_VMC_OTHER_1		BIT(22) /* known on RZ/G3L only */
+#define PIN_CFG_IO_VMC_OTHER_2		BIT(23) /* known on RZ/G3L only */
 
 #define RZG2L_SINGLE_PIN		BIT_ULL(63)	/* Dedicated pin */
 #define RZG2L_VARIABLE_CFG		BIT_ULL(62)	/* Variable cfg for port pins */
@@ -157,6 +160,9 @@
 #define PFC_OEN			(0x3C40) /* known on RZ/V2H(P) only */
 #define XSPI			(0x300c) /* known on RZ/G3L only */
 #define SD_CH2_POC		(0x3024) /* known on RZ/G3L only */
+#define OTHER_POC_0		(0x3028 + 0) /* known on RZ/G3L only */
+#define OTHER_POC_1		(0x3028 + 1) /* known on RZ/G3L only */
+#define OTHER_POC_2		(0x3028 + 2) /* known on RZ/G3L only */
 
 #define PVDD_2500		2	/* I/O domain voltage 2.5V */
 #define PVDD_1800		1	/* I/O domain voltage <= 1.8V */
@@ -937,6 +943,12 @@ static int rzg2l_caps_to_pwr_reg(const struct rzg2l_register_offsets *regs, u32 
 		return QSPI;
 	if (caps & PIN_CFG_IO_VMC_XSPI)
 		return XSPI;
+	if (caps & PIN_CFG_IO_VMC_OTHER_0)
+		return OTHER_POC_0;
+	if (caps & PIN_CFG_IO_VMC_OTHER_1)
+		return OTHER_POC_1;
+	if (caps & PIN_CFG_IO_VMC_OTHER_2)
+		return OTHER_POC_2;
 
 	return -EINVAL;
 }
@@ -946,6 +958,7 @@ static int rzg2l_get_power_source(struct rzg2l_pinctrl *pctrl, u32 pin, u32 caps
 	const struct rzg2l_hwcfg *hwcfg = pctrl->data->hwcfg;
 	const struct rzg2l_register_offsets *regs = &hwcfg->regs;
 	int pwr_reg;
+	u8 offs;
 	u8 val;
 
 	if (caps & PIN_CFG_SOFT_PS)
@@ -955,7 +968,9 @@ static int rzg2l_get_power_source(struct rzg2l_pinctrl *pctrl, u32 pin, u32 caps
 	if (pwr_reg < 0)
 		return pwr_reg;
 
-	val = readb(pctrl->base + pwr_reg);
+	offs = pwr_reg % 4;
+	val = readb(pctrl->base + (pwr_reg & 0xFFFC));
+	val = (val >> offs) & 0x1;
 	switch (val) {
 	case PVDD_1800:
 		return 1800;
@@ -974,6 +989,7 @@ static int rzg2l_set_power_source(struct rzg2l_pinctrl *pctrl, u32 pin, u32 caps
 	const struct rzg2l_hwcfg *hwcfg = pctrl->data->hwcfg;
 	const struct rzg2l_register_offsets *regs = &hwcfg->regs;
 	int pwr_reg;
+	u8 offs;
 	u8 val;
 
 	if (caps & PIN_CFG_SOFT_PS) {
@@ -981,27 +997,31 @@ static int rzg2l_set_power_source(struct rzg2l_pinctrl *pctrl, u32 pin, u32 caps
 		return 0;
 	}
 
+	pwr_reg = rzg2l_caps_to_pwr_reg(regs, caps);
+	if (pwr_reg < 0)
+		return pwr_reg;
+
+	offs = pwr_reg % 4;
+	val = readb(pctrl->base + (pwr_reg & 0xFFFC));
+	val &= ~BIT(offs);
+
 	switch (ps) {
 	case 1800:
-		val = PVDD_1800;
+		val |= (PVDD_1800 << offs);
 		break;
 	case 2500:
 		if (!(caps & (PIN_CFG_IO_VMC_ETH0 | PIN_CFG_IO_VMC_ETH1)))
 			return -EINVAL;
-		val = PVDD_2500;
+		val |= (PVDD_2500 << offs);
 		break;
 	case 3300:
-		val = PVDD_3300;
+		val |= (PVDD_3300 << offs);
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	pwr_reg = rzg2l_caps_to_pwr_reg(regs, caps);
-	if (pwr_reg < 0)
-		return pwr_reg;
-
-	writeb(val, pctrl->base + pwr_reg);
+	writeb(val, pctrl->base + (pwr_reg & 0xFFFC));
 	pctrl->settings[pin].power_source = ps;
 
 	return 0;
@@ -2208,10 +2228,10 @@ static const u64 r9a08g046_gpio_configs[] = {
 	RZG2L_GPIO_PORT_PACK(2, 0x22, PIN_CFG_NF | PIN_CFG_IEN),				/* P2 */
 	RZG2L_GPIO_PORT_PACK(7, 0x23, RZG3L_MPXED_PIN_FUNCS(A)),				/* P3 */
 	0x0,											/* P4 */
-	RZG2L_GPIO_PORT_PACK(7, 0x25, RZG3L_MPXED_PIN_FUNCS(A)),				/* P5 */
-	RZG2L_GPIO_PORT_PACK(7, 0x26, RZG3L_MPXED_PIN_FUNCS(A)),				/* P6 */
-	RZG2L_GPIO_PORT_PACK(8, 0x27, RZG3L_MPXED_PIN_FUNCS(A)),				/* P7 */
-	RZG2L_GPIO_PORT_PACK(6, 0x28, RZG3L_MPXED_PIN_FUNCS(A)),				/* P8 */
+	RZG2L_GPIO_PORT_PACK(7, 0x25, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_IO_VMC_OTHER_1),	/* P5 */
+	RZG2L_GPIO_PORT_PACK(7, 0x26, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_IO_VMC_OTHER_1),	/* P6 */
+	RZG2L_GPIO_PORT_PACK(8, 0x27, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_IO_VMC_OTHER_1),	/* P7 */
+	RZG2L_GPIO_PORT_PACK(6, 0x28, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_IO_VMC_OTHER_1),	/* P8 */
 	0x0,											/* P9 */
 	RZG2L_GPIO_PORT_PACK(8, 0x2a, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IOLH_C |		/* PA */
 							        PIN_CFG_IO_VMC_ETH0)) |
