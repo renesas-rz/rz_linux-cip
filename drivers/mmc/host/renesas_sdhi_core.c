@@ -78,13 +78,15 @@ static void renesas_sdhi_sdbuf_width(struct tmio_mmc_host *host, int width)
 		break;
 	case SDHI_VER_GEN3_SD:
 	case SDHI_VER_GEN3_SDMMC:
-	case SDHI_VER_RZ_G3L_SDMMC:
 		if (width == 64)
 			val = HOST_MODE_GEN3_64BIT;
 		else if (width == 32)
 			val = HOST_MODE_GEN3_32BIT;
 		else
 			val = HOST_MODE_GEN3_16BIT;
+		break;
+	case SDHI_VER_RZ_G3L_SDMMC:
+		val = HOST_MODE_GEN3_64BIT;
 		break;
 	default:
 		/* nothing to do */
