@@ -21,6 +21,13 @@
 		clock-frequency = <125000000>;
 	};
 
+	/* External CAN clock - to be overridden by boards that provide it */
+	can_clk: can-clk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+	};
+
 	/* et0_txc_tx_clk clock input */
 	et0_txc_tx_clk: et0_txc_tx_clk {
 		compatible = "fixed-clock";
@@ -541,6 +548,47 @@
 			reg = <0x0 0x12400000 0 0x40000>,
 			      <0x0 0x12440000 0 0x80000>;
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_LOW>;
+		};
+
+		canfd: can@100c0000 {
+			compatible = "renesas,r9a08g046-canfd";
+			reg = <0 0x100c0000 0 0x20000>;
+			interrupts = <GIC_SPI 455 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 456 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 457 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 458 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 459 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 463 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 464 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 465 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 469 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 470 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 471 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "g_err", "g_recc",
+					  "ch0_err", "ch0_rec", "ch0_trx",
+					  "ch1_err", "ch1_rec", "ch1_trx",
+					  "ch2_err", "ch2_rec", "ch2_trx";
+			clocks = <&cpg CPG_MOD R9A08G046_CANFD_PCLK>,
+				 <&cpg CPG_MOD R9A08G046_CANFD_CLK_RAM>,
+				 <&cpg CPG_CORE R9A08G046_CLK_P4_DIV2>,
+				 <&can_clk>;
+			clock-names = "fck", "ram_clk", "canfd", "can_clk";
+			assigned-clocks = <&cpg CPG_CORE R9A08G046_CLK_P4_DIV2>;
+			assigned-clock-rates = <80000000>;
+			resets = <&cpg R9A08G046_CANFD_RSTP_N>, <&cpg R9A08G046_CANFD_RSTC_N>;
+			reset-names = "rstp_n", "rstc_n";
+			power-domains = <&cpg>;
+			status = "disabled";
+
+			channel0 {
+				status = "disabled";
+			};
+			channel1 {
+				status = "disabled";
+			};
+			channel2 {
+				status = "disabled";
+			};
 		};
 	};
 
