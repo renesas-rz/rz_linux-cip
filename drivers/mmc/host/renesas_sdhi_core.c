@@ -377,6 +377,9 @@ static int renesas_sdhi_start_signal_voltage_switch(struct mmc_host *mmc,
 	if (ret < 0)
 		return ret;
 
+	/* 3.3v to 1.8v switching needs as delay of 1.2 msec */
+	fsleep(1500);
+
 	renesas_sdhi_set_delay(host);
 
 	return pinctrl_select_state(priv->pinctrl, pin_state);
