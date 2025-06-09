@@ -122,7 +122,7 @@ static int rzg3e_lvds_probe(struct platform_device *pdev)
 	if (IS_ERR(lvds->pclk))
 		return PTR_ERR(lvds->pclk);
 
-	lvds->rstc = devm_reset_control_get_shared(lvds->dev, NULL);
+	lvds->rstc = devm_reset_control_array_get(lvds->dev, RESET_CONTROL_SHARED);
 	if (IS_ERR(lvds->rstc))
 		return dev_err_probe(lvds->dev, PTR_ERR(lvds->rstc),
 				     "failed to get rst\n");
