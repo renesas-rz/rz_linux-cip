@@ -140,6 +140,7 @@
 /* MSI receive register group */
 #define PCI_RC_MSIRCVE(x)				(0x600 + 0x10 * (x))
 #define PCI_RC_MSIRCVE_EN					BIT(0)
+#define PCI_RC_MSIRMD(x)				(0x604 + 0x10 * (x))
 #define PCI_RC_MSIRCVMSK(x)				(0x608 + 0x10 * (x))
 #define PCI_RC_MSIRCVMSK_MSI_MASK				0xFFFFFFFF
 #define PCI_RC_MSIRCVSTAT(x)				(0x60C + 0x10 * (x))
@@ -301,23 +302,29 @@ struct rzv2h_axi_window_set {
 	u32	base[RZV2H_PCI_MAX_RESOURCES];
 	u32	base_u[RZV2H_PCI_MAX_RESOURCES];
 	u32	mask[RZV2H_PCI_MAX_RESOURCES];
+	u32	mask_u[RZV2H_PCI_MAX_RESOURCES];
 	u32	dest[RZV2H_PCI_MAX_RESOURCES];
 	u32	dest_u[RZV2H_PCI_MAX_RESOURCES];
 };
 
 struct rzv2h_pci_window_set {
 	u32	base[RZV2H_PCI_MAX_RESOURCES];
+	u32	base_u[RZV2H_PCI_MAX_RESOURCES];
 	u32	mask[RZV2H_PCI_MAX_RESOURCES];
+	u32	mask_u[RZV2H_PCI_MAX_RESOURCES];
 	u32	dest_u[RZV2H_PCI_MAX_RESOURCES];
 	u32	dest_l[RZV2H_PCI_MAX_RESOURCES];
 };
 
 struct rzv2h_interrupt_set {
-	u32	msi_win_addrl;
+	u32	msi_win_addr;
 	u32	msi_win_addru;
 	u32	msi_win_mask;
+	u32	msi_win_masku;
 	u32	intx_ena;
 	u32	msi_ena;
+	u32	msi_mask;
+	u32	msi_data;
 };
 
 struct rzv2h_save_reg {

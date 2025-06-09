@@ -1280,35 +1280,49 @@ static int rzv2h_pcie_suspend(struct device *dev)
 	int idx, err;
 
 	for (idx = 0; idx < RZV2H_PCI_MAX_RESOURCES; idx++) {
-		/* Save AXI window setting	*/
+		/* Save AXI window setting */
 		pcie->save_reg.axi_window.base[idx] = rzv2h_pci_read_reg(pcie,
 								AXI_WINDOW_BASEL_REG(idx));
+		pcie->save_reg.axi_window.base_u[idx] = rzv2h_pci_read_reg(pcie,
+								AXI_WINDOW_BASEU_REG(idx));
 		pcie->save_reg.axi_window.mask[idx] = rzv2h_pci_read_reg(pcie,
 								AXI_WINDOW_MASKL_REG(idx));
+		pcie->save_reg.axi_window.mask_u[idx] = rzv2h_pci_read_reg(pcie,
+								AXI_WINDOW_MASKU_REG(idx));
 		pcie->save_reg.axi_window.dest[idx] = rzv2h_pci_read_reg(pcie,
 								AXI_DESTINATIONL_REG(idx));
+		pcie->save_reg.axi_window.dest_u[idx] = rzv2h_pci_read_reg(pcie,
+								AXI_DESTINATIONU_REG(idx));
 
-		/* Save PCIe window setting	*/
+		/* Save PCIe window setting */
 		pcie->save_reg.pci_window.base[idx]   = rzv2h_pci_read_reg(pcie,
 								PCIE_WINDOW_BASEL_REG(idx));
+		pcie->save_reg.pci_window.base_u[idx]   = rzv2h_pci_read_reg(pcie,
+								PCIE_WINDOW_BASEU_REG(idx));
 		pcie->save_reg.pci_window.mask[idx]   = rzv2h_pci_read_reg(pcie,
 								PCIE_WINDOW_MASKL_REG(idx));
+		pcie->save_reg.pci_window.mask_u[idx]   = rzv2h_pci_read_reg(pcie,
+								PCIE_WINDOW_MASKU_REG(idx));
 		pcie->save_reg.pci_window.dest_u[idx] = rzv2h_pci_read_reg(pcie,
 								PCIE_DESTINATION_HI_REG(idx));
 		pcie->save_reg.pci_window.dest_l[idx] = rzv2h_pci_read_reg(pcie,
 								PCIE_DESTINATION_LO_REG(idx));
 	}
-	/* Save MSI setting*/
-	pcie->save_reg.interrupt.msi_win_addrl	= rzv2h_pci_read_reg(pcie,
-								MSI_RCV_WINDOW_ADDRL_REG);
+
+	/* Save MSI setting */
+	pcie->save_reg.interrupt.msi_win_addr	= rzv2h_pci_read_reg(pcie,
+							MSI_RCV_WINDOW_ADDRL_REG);
 	pcie->save_reg.interrupt.msi_win_addru	= rzv2h_pci_read_reg(pcie,
-								MSI_RCV_WINDOW_ADDRU_REG);
+							MSI_RCV_WINDOW_ADDRL_REG + 0x4);
 	pcie->save_reg.interrupt.msi_win_mask	= rzv2h_pci_read_reg(pcie,
-								MSI_RCV_WINDOW_MASK_REG);
+							MSI_RCV_WINDOW_MASK_REG);
+	pcie->save_reg.interrupt.msi_win_masku	= rzv2h_pci_read_reg(pcie,
+							MSI_RCV_WINDOW_MASK_REG + 0x4);
 	pcie->save_reg.interrupt.intx_ena	= rzv2h_pci_read_reg(pcie,
-								PCI_INTX_RCV_INTERRUPT_ENABLE_REG);
-	pcie->save_reg.interrupt.msi_ena	= rzv2h_pci_read_reg(pcie,
-								MSG_RCV_INTERRUPT_ENABLE_REG);
+							PCI_INTX_RCV_INTERRUPT_ENABLE_REG);
+	pcie->save_reg.interrupt.msi_ena	= rzv2h_pci_read_reg(pcie, PCI_RC_MSIRCVE(0));
+	pcie->save_reg.interrupt.msi_mask	= rzv2h_pci_read_reg(pcie, PCI_RC_MSIRCVMSK(0));
+	pcie->save_reg.interrupt.msi_data	= rzv2h_pci_read_reg(pcie, PCI_RC_MSIRMD(0));
 
 	err = reset_control_assert(host->rst);
 	if (err) {
@@ -1331,48 +1345,73 @@ static int rzv2h_pcie_resume(struct device *dev)
 		return err;
 	}
 
+	err = rzv2h_pcie_parse_map_dma_ranges(host);
+
 	rzv2h_pcie_setting_config(pcie);
+
+	err = rzv2h_pcie_hw_init(pcie, host->channel);
+	if (err) {
+		dev_info(pcie->dev, "resume PCIe link down\n");
+		return err;
+	}
 
 	if (rzv2h_pci_read_reg(pcie, AXI_WINDOW_BASEL_REG(0)) !=
 		pcie->save_reg.axi_window.base[0]) {
 
-		err = rzv2h_pcie_hw_init(pcie, host->channel);
-		if (err) {
-			dev_info(pcie->dev, "resume PCIe link down\n");
-			return err;
-		}
-
 		for (idx = 0; idx < RZV2H_PCI_MAX_RESOURCES; idx++) {
-			/* Restores AXI window setting	*/
+			/* Restores AXI window setting */
 			rzv2h_pci_write_reg(pcie, pcie->save_reg.axi_window.mask[idx],
 								AXI_WINDOW_MASKL_REG(idx));
 			rzv2h_pci_write_reg(pcie, pcie->save_reg.axi_window.dest[idx],
 								AXI_DESTINATIONL_REG(idx));
 			rzv2h_pci_write_reg(pcie, pcie->save_reg.axi_window.base[idx],
 								AXI_WINDOW_BASEL_REG(idx));
+			rzv2h_pci_write_reg(pcie, pcie->save_reg.axi_window.mask_u[idx],
+								AXI_WINDOW_MASKU_REG(idx));
+			rzv2h_pci_write_reg(pcie, pcie->save_reg.axi_window.dest_u[idx],
+								AXI_DESTINATIONU_REG(idx));
+			rzv2h_pci_write_reg(pcie, pcie->save_reg.axi_window.base_u[idx],
+								AXI_WINDOW_BASEU_REG(idx));
 
 			/* Restores PCIe window setting	*/
 			rzv2h_pci_write_reg(pcie, pcie->save_reg.pci_window.mask[idx],
 								PCIE_WINDOW_MASKL_REG(idx));
+			rzv2h_pci_write_reg(pcie, pcie->save_reg.pci_window.mask_u[idx],
+								PCIE_WINDOW_MASKU_REG(idx));
 			rzv2h_pci_write_reg(pcie, pcie->save_reg.pci_window.dest_u[idx],
 								PCIE_DESTINATION_HI_REG(idx));
 			rzv2h_pci_write_reg(pcie, pcie->save_reg.pci_window.dest_l[idx],
 								PCIE_DESTINATION_LO_REG(idx));
 			rzv2h_pci_write_reg(pcie, pcie->save_reg.pci_window.base[idx],
 								PCIE_WINDOW_BASEL_REG(idx));
+			rzv2h_pci_write_reg(pcie, pcie->save_reg.pci_window.base_u[idx],
+								PCIE_WINDOW_BASEU_REG(idx));
 
 		}
-		/* Restores MSI setting*/
+		/* Restores MSI setting */
 		rzv2h_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_win_mask,
-								MSI_RCV_WINDOW_MASK_REG);
-		pcie->save_reg.interrupt.msi_win_addrl	= rzv2h_pci_read_reg(pcie,
-								MSI_RCV_WINDOW_ADDRL_REG);
-		pcie->save_reg.interrupt.msi_win_addru	= rzv2h_pci_read_reg(pcie,
-								MSI_RCV_WINDOW_ADDRU_REG);
+							MSI_RCV_WINDOW_MASK_REG);
+		rzv2h_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_win_masku,
+							MSI_RCV_WINDOW_MASK_REG + 0x4);
+		rzv2h_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_win_addr,
+							MSI_RCV_WINDOW_ADDRL_REG);
+		rzv2h_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_win_addru,
+							MSI_RCV_WINDOW_ADDRL_REG + 0x4);
 		rzv2h_pci_write_reg(pcie, pcie->save_reg.interrupt.intx_ena,
-								PCI_INTX_RCV_INTERRUPT_ENABLE_REG);
-		rzv2h_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_ena,
-								MSG_RCV_INTERRUPT_ENABLE_REG);
+							PCI_INTX_RCV_INTERRUPT_ENABLE_REG);
+		rzv2h_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_ena, PCI_RC_MSIRCVE(0));
+		rzv2h_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_mask, PCI_RC_MSIRCVMSK(0));
+		rzv2h_pci_write_reg(pcie, pcie->save_reg.interrupt.msi_data, PCI_RC_MSIRMD(0));
+	}
+
+	if (IS_ENABLED(CONFIG_PCI_MSI)) {
+		struct resource res;
+
+		of_address_to_resource(dev->of_node, 0, &res);
+		/* setup MSI data target */
+		rzv2h_pcie_hw_enable_msi(host);
+
+		rzv2h_pcie_hw_enable(host);
 	}
 
 	return 0;
