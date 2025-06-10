@@ -818,6 +818,7 @@ static struct counter_comp rz_mtu3_device_ext[] = {
 				 rz_mtu3_ext_input_phase_clock_select_enum),
 };
 
+#ifdef CONFIG_PM_SLEEP
 static int rz_mtu3_cnt_pm_runtime_suspend(struct device *dev)
 {
 	struct rz_mtu3_cnt *const priv = dev_get_drvdata(dev);
@@ -931,6 +932,7 @@ static int rz_mtu3_cnt_pm_runtime_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static DEFINE_RUNTIME_DEV_PM_OPS(rz_mtu3_cnt_pm_ops,
 				 rz_mtu3_cnt_pm_runtime_suspend,
