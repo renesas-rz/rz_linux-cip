@@ -7,6 +7,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/clk.h>
+#include <linux/clk/renesas.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
@@ -829,6 +830,9 @@ static int rzg2l_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 	}
 
 	drm_bridge_add(&dsi->bridge);
+
+	/* Report required division ratio setting for the MIPI clock */
+	rzg2l_cpg_dsi_div_set_divider(mipi_dsi_pixel_format_to_bpp(dsi->format) / dsi->lanes);
 
 	return 0;
 }
