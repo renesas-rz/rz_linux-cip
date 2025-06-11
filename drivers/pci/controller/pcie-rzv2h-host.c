@@ -484,7 +484,7 @@ static int rzv2h_pcie_enable(struct rzv2h_pcie_host *host)
 
 static void rzv2h_pcie_setting_config(struct rzv2h_pcie *pcie)
 {
-	rzv2h_pci_write_reg(pcie, RESET_CONFIG_DEASSERT, PCI_RC_RESET_REG);
+	rzv2h_pci_write_reg(pcie, RESET_CONFIG_DEASSERT, PCI_RESET_REG);
 
 	rzv2h_write_conf(pcie,
 			((PCIE_CONF_SUBORDINATE_BUS << 16) |
@@ -573,14 +573,14 @@ static int rzv2h_pcie_hw_init(struct rzv2h_pcie *pcie, int channel)
 	regmap_write(host->syscon, SYS_PCIE_MODE_CH(channel), MODE_PORT_SYS_RC);
 
 	/* Set to the PCIe reset state   : step6 */
-	rzv2h_pci_write_reg(pcie, RESET_ALL_ASSERT, PCI_RC_RESET_REG);		/* PCI_RC 310h */
+	rzv2h_pci_write_reg(pcie, RESET_ALL_ASSERT, PCI_RESET_REG);		/* PCI_RC 310h */
 
 	/* SYS set lane mode - only valid RZ/V2H IP */
 	if (host->soc_cfg->device_id == 0x003b)
 		regmap_write(host->syscon, SYS_PCIE_LANE_MODE, LINK_MASTER_4_LANE_MODE);
 
 	/* Release the PCIe reset : step10 : RST_LOAD_B, RST_CFG_B)*/
-	rzv2h_pci_write_reg(pcie, RESET_LOAD_CFG_RELEASE, PCI_RC_RESET_REG);	/* PCI_RC 310h */
+	rzv2h_pci_write_reg(pcie, RESET_LOAD_CFG_RELEASE, PCI_RESET_REG);	/* PCI_RC 310h */
 
 	/* config Device ID for PCIE RC here */
 	rzv2h_write_conf(pcie, host->soc_cfg->device_id << 16
@@ -605,12 +605,12 @@ static int rzv2h_pcie_hw_init(struct rzv2h_pcie *pcie, int channel)
 	PCIE_INT_Initialize(pcie);
 
 	/* Release the PCIe reset : step14 : RST_PS_B, RST_GP_B, RST_B */
-	rzv2h_pci_write_reg(pcie, RESET_PS_GP_RELEASE, PCI_RC_RESET_REG);	/* PCI_RC 310h */
+	rzv2h_pci_write_reg(pcie, RESET_PS_GP_RELEASE, PCI_RESET_REG);	/* PCI_RC 310h */
 
 	msleep(20);
 
 	/* Release the PCIe reset : step16 : RST_OUT_B, RST_RSM_B) */
-	rzv2h_pci_write_reg(pcie, RESET_ALL_DEASSERT,  PCI_RC_RESET_REG);	/* PCI_RC 310h */
+	rzv2h_pci_write_reg(pcie, RESET_ALL_DEASSERT,  PCI_RESET_REG);	/* PCI_RC 310h */
 
 	rzv2h_pci_write_reg(pcie, 0x3ff2, MODE_SET_1_REG);			/* PCI_RC 318h */
 
@@ -629,14 +629,14 @@ static void rzv2h_pcie_reset_assert(void)
 {
 	unsigned long reg;
 
-	reg = rzv2h_pci_read_reg(tmp_pcie, PCI_RC_RESET_REG)
+	reg = rzv2h_pci_read_reg(tmp_pcie, PCI_RESET_REG)
 			& ~(RST_GP_B | RST_PS_B | RST_CFG_B | RST_B);
-	rzv2h_pci_write_reg(tmp_pcie, reg,  PCI_RC_RESET_REG);
+	rzv2h_pci_write_reg(tmp_pcie, reg,  PCI_RESET_REG);
 }
 
 static void rzv2h_pcie_reset_deassert(void)
 {
-	rzv2h_rmw(tmp_pcie, PCI_RC_RESET_REG,
+	rzv2h_rmw(tmp_pcie, PCI_RESET_REG,
 					 (RST_GP_B | RST_PS_B | RST_CFG_B | RST_B),
 					 (RST_GP_B | RST_PS_B | RST_CFG_B | RST_B));
 }
