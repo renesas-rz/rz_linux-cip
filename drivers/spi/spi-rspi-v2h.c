@@ -158,11 +158,17 @@ struct rspi_data {
 	u8 sppcr;
 	int rx_irq, tx_irq, cend_irq;
 	int bits_per_word;
+	const struct rspi_info *info;
 	const struct spi_ops *ops;
 
 	unsigned dma_callbacked:1;
 	unsigned byte_access:1;
 	struct reset_control *rstc;
+};
+
+struct rspi_info {
+	const struct spi_ops *ops;
+	bool has_cendf_irq;
 };
 
 static void rspi_write8(const struct rspi_data *rspi, u8 data, u16 offset)
@@ -363,6 +369,7 @@ static int rspi_pio_transfer(struct rspi_data *rspi, const void *tx, void *rx,
 	void (*tx_fifo)(struct rspi_data *rspi, const void *tx, int count);
 	void (*rx_fifo)(struct rspi_data *rspi, void *rx, int count);
 	int ret, count, loop, loop_count, remained_words, words_per_loop;
+	u16 val;
 
 	switch (rspi->bits_per_word) {
 	case 8:
@@ -406,7 +413,12 @@ static int rspi_pio_transfer(struct rspi_data *rspi, const void *tx, void *rx,
 		}
 
 		if (rx) {
-			ret = rspi_wait_for_communication_end(rspi);
+			if (rspi->info->has_cendf_irq)
+				ret = rspi_wait_for_communication_end(rspi);
+			else
+				ret = read_poll_timeout(rspi_read16, val, (val & SPSR_CENDF),
+							100, 1000000, false, rspi, RSPI_SPSR);
+
 			for (count = 0; count < words_per_loop; count++) {
 				if (ret < 0) {
 					rspi_write16(rspi, SPSRC_SPRFC, RSPI_SPSRC);
@@ -888,11 +900,22 @@ static const struct spi_ops rspi_v2h_ops = {
 	.num_hw_ss		=	1,
 };
 
+static struct rspi_info rspi_v2h_info = {
+	.ops                    = &rspi_v2h_ops,
+	.has_cendf_irq          = true,
+};
+
+static struct rspi_info rspi_g3l_info = {
+	.ops                    = &rspi_v2h_ops,
+	.has_cendf_irq          = false,
+};
+
 #ifdef CONFIG_OF
 static const struct of_device_id rspi_of_match[] = {
 	/* RSPI on RZ/V2H */
-	{ .compatible = "renesas,rspi-v2h", .data = &rspi_v2h_ops },
-	{ .compatible = "renesas,rspi-g3e", .data = &rspi_v2h_ops },
+	{ .compatible = "renesas,rspi-v2h", .data = &rspi_v2h_info },
+	{ .compatible = "renesas,rspi-g3e", .data = &rspi_v2h_info },
+	{ .compatible = "renesas,rspi-g3l", .data = &rspi_g3l_info },
 	{ /* sentinel */ }
 };
 
@@ -972,6 +995,7 @@ static int rspi_probe(struct platform_device *pdev)
 	struct rspi_data *rspi;
 	int ret;
 	const struct rspi_plat_data *rspi_pd;
+	const struct rspi_info *info;
 	const struct spi_ops *ops;
 	unsigned long clksrc;
 
@@ -987,7 +1011,8 @@ static int rspi_probe(struct platform_device *pdev)
 	rspi = spi_controller_get_devdata(ctlr);
 	platform_set_drvdata(pdev, rspi);
 
-	ops = of_device_get_match_data(&pdev->dev);
+	info = of_device_get_match_data(&pdev->dev);
+	ops = info->ops;
 	if (ops) {
 		ret = rspi_parse_dt(&pdev->dev, ctlr);
 		if (ret)
@@ -1001,6 +1026,7 @@ static int rspi_probe(struct platform_device *pdev)
 			ctlr->num_chipselect = 2; /* default */
 	}
 
+	rspi->info = info;
 	rspi->ops = ops;
 	rspi->ctlr = ctlr;
 
@@ -1047,7 +1073,8 @@ static int rspi_probe(struct platform_device *pdev)
 			ret = platform_get_irq(pdev, 0);
 		if (ret >= 0) {
 			rspi->rx_irq = rspi->tx_irq = ret;
-			rspi->cend_irq = ret;
+			if (rspi->info->has_cendf_irq)
+				rspi->cend_irq = ret;
 		}
 	} else {
 		rspi->rx_irq = ret;
@@ -1055,13 +1082,15 @@ static int rspi_probe(struct platform_device *pdev)
 		if (ret >= 0)
 			rspi->tx_irq = ret;
 
-		ret = platform_get_irq_byname(pdev, "cend");
-		if (ret < 0) {
-			dev_err(&pdev->dev, "Failed to get CEND IRQ\n");
-			return ret;
-		}
+		if (rspi->info->has_cendf_irq) {
+			ret = platform_get_irq_byname(pdev, "cend");
+			if (ret < 0) {
+				dev_err(&pdev->dev, "Failed to get CEND IRQ\n");
+				return ret;
+			}
 
-		rspi->cend_irq = ret;
+			rspi->cend_irq = ret;
+		}
 	}
 
 	if (rspi->rx_irq == rspi->tx_irq) {
@@ -1069,9 +1098,13 @@ static int rspi_probe(struct platform_device *pdev)
 		ret = rspi_request_irq(&pdev->dev, rspi->rx_irq, rspi_irq_mux,
 				"mux", rspi);
 	} else {
+		if (rspi->info->has_cendf_irq) {
 		/* Multi-interrupt mode, only SPRI, SPCEND and SPTI are used */
 		ret = rspi_request_irq(&pdev->dev, rspi->cend_irq, rspi_irq_cend,
 				"cend", rspi);
+		}
+
+		/* Multi-interrupt mode, only SPRI and SPTI are used */
 		ret = rspi_request_irq(&pdev->dev, rspi->rx_irq, rspi_irq_rx,
 				"rx", rspi);
 		if (!ret)
