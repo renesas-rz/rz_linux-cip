@@ -94,6 +94,10 @@ static u32 r_device_serial_number_capability[] = {
 	0x00000000
 };
 
+struct pcie_soc_config {
+	u32 device_id;
+};
+
 /* Structure representing the PCIe interface */
 struct rzv2h_pcie_host {
 	struct rzv2h_pcie	pcie;
@@ -107,6 +111,7 @@ struct rzv2h_pcie_host {
 	struct reset_control    *rst;
 	int			channel;
 	struct regmap		*syscon;
+	const struct pcie_soc_config	*soc_cfg;
 };
 
 static struct rzv2h_pcie_host *msi_to_host(struct rzv2h_msi *msi)
@@ -481,21 +486,6 @@ static void rzv2h_pcie_setting_config(struct rzv2h_pcie *pcie)
 {
 	rzv2h_pci_write_reg(pcie, RESET_CONFIG_DEASSERT, PCI_RC_RESET_REG);
 
-	// Configuration space(Root complex) setting
-	// Vendor and Device ID      : PCI Express Configuration Registers Adr 6000h
-	rzv2h_write_conf(pcie,
-			((PCIE_CONF_DEVICE_ID << 16) |
-			  (PCIE_CONF_VENDOR_ID)),
-			PCI_RC_VID_ADR);
-
-	// Revision ID and Class Code : PCI Express Configuration Registers Adr 6008h
-	rzv2h_write_conf(pcie,
-			((PCIE_CONF_BASE_CLASS << 24) |
-			  (PCIE_CONF_SUB_CLASS << 16) |
-			  (PCIE_CONF_PROGRAMING_IF << 8) |
-			  (PCIE_CONF_REVISION_ID)),
-			PCI_RC_RID_CC_ADR);
-
 	rzv2h_write_conf(pcie,
 			((PCIE_CONF_SUBORDINATE_BUS << 16) |
 			  (PCIE_CONF_SECOUNDARY_BUS << 8) |
@@ -513,20 +503,6 @@ static void rzv2h_pcie_setting_config(struct rzv2h_pcie *pcie)
 
 static int PCIE_CFG_Initialize(struct rzv2h_pcie *pcie)
 {
-	// Vendor and Device ID: PCI Express Configuration Registers Adr 6000h
-	rzv2h_write_conf(pcie,
-			((PCIE_CONF_DEVICE_ID << 16) |
-			  (PCIE_CONF_VENDOR_ID)),
-			PCI_RC_VID_ADR);
-
-	// Revision ID and Class Code: PCI Express Configuration Registers Adr 6008h
-	rzv2h_write_conf(pcie,
-			((PCIE_CONF_BASE_CLASS << 24) |
-			  (PCIE_CONF_SUB_CLASS << 16) |
-			  (PCIE_CONF_PROGRAMING_IF << 8) |
-			  (PCIE_CONF_REVISION_ID)),
-			PCI_RC_RID_CC_ADR);
-
 	// Base Address Register Mask00 (Lower) (Function #1) : PCIe Configuration Registers 60A0h
 	rzv2h_write_conf(pcie, BASEADR_MKL_ALLM, PCI_RC_BARMSK00L_ADR);
 
@@ -593,17 +569,37 @@ static int rzv2h_pcie_hw_init(struct rzv2h_pcie *pcie, int channel)
 	unsigned int timeout = 50;
 	struct rzv2h_pcie_host *host = container_of(pcie, struct rzv2h_pcie_host, pcie);
 
+	/* SYS setting mode port */
+	regmap_write(host->syscon, SYS_PCIE_MODE_CH(channel), MODE_PORT_SYS_RC);
+
 	/* Set to the PCIe reset state   : step6 */
 	rzv2h_pci_write_reg(pcie, RESET_ALL_ASSERT, PCI_RC_RESET_REG);		/* PCI_RC 310h */
+
+	/* SYS set lane mode - only valid RZ/V2H IP */
+	if (host->soc_cfg->device_id == 0x003b)
+		regmap_write(host->syscon, SYS_PCIE_LANE_MODE, LINK_MASTER_4_LANE_MODE);
 
 	/* Release the PCIe reset : step10 : RST_LOAD_B, RST_CFG_B)*/
 	rzv2h_pci_write_reg(pcie, RESET_LOAD_CFG_RELEASE, PCI_RC_RESET_REG);	/* PCI_RC 310h */
 
+	/* config Device ID for PCIE RC here */
+	rzv2h_write_conf(pcie, host->soc_cfg->device_id << 16
+				| PCIE_CONF_VENDOR_ID, PCI_RC_VID_ADR);
+
+	// Revision ID and Class Code : PCI Express Configuration Registers Adr 6008h
+	rzv2h_write_conf(pcie,
+			((PCIE_CONF_BASE_CLASS << 24) |
+			 (PCIE_CONF_SUB_CLASS << 16) |
+			 (PCIE_CONF_PROGRAMING_IF << 8) |
+			 (PCIE_CONF_REVISION_ID)),
+			PCI_RC_RID_CC_ADR);
+
+
 	/* Setting of HWINT related registers : step11 */
 	PCIE_CFG_Initialize(pcie);
 
+	/* SYS setting allow_enter_l1  */
 	regmap_write(host->syscon, SYS_PCIE_MISC_CH(channel), ALLOW_ENTER_L1);
-	regmap_write(host->syscon, SYS_PCIE_MODE_CH(channel), MODE_PORT_SYS_RC);
 
 	/* Set Interrupt settings: step13  */
 	PCIE_INT_Initialize(pcie);
@@ -1173,9 +1169,17 @@ static int rzv2h_pcie_parse_map_dma_ranges(struct rzv2h_pcie_host *host)
 	return err;
 }
 
+static const struct pcie_soc_config rzv2h_pcie_cfg = {
+	.device_id = 0x003b,
+};
+
+static const struct pcie_soc_config rzg3e_pcie_cfg = {
+	.device_id = 0x0039,
+};
+
 static const struct of_device_id rzv2h_pcie_of_match[] = {
-	{ .compatible = "renesas,rzv2h-pcie", },
-	{ .compatible = "renesas,rzg3e-pcie", },
+	{ .compatible = "renesas,rzv2h-pcie", .data = &rzv2h_pcie_cfg},
+	{ .compatible = "renesas,rzg3e-pcie", .data = &rzg3e_pcie_cfg},
 	{},
 };
 
@@ -1187,6 +1191,7 @@ static int rzv2h_pcie_probe(struct platform_device *pdev)
 	u32 data;
 	int err, channel;
 	struct pci_host_bridge *bridge;
+	const struct pcie_soc_config *soc_cfg;
 
 	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 
@@ -1198,6 +1203,12 @@ static int rzv2h_pcie_probe(struct platform_device *pdev)
 	pcie = &host->pcie;
 	pcie->dev = dev;
 	platform_set_drvdata(pdev, host);
+
+	soc_cfg = of_device_get_match_data(dev);
+	if (!soc_cfg)
+		return -ENODEV;
+
+	host->soc_cfg = soc_cfg;
 
 	host->syscon = syscon_regmap_lookup_by_phandle(dev->of_node, "renesas,pcie-sys");
 	if (IS_ERR(host->syscon))

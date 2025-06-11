@@ -249,10 +249,7 @@
 /* PCIe Configuration setting value */
 
 #define PCIE_CONF_VENDOR_ID					0x1912
-#define PCIE_CONF_DEVICE_ID					0x1135
-
 #define PCIE_CONF_REVISION_ID					0x00
-
 #define PCIE_CONF_BASE_CLASS					0x06
 #define PCIE_CONF_SUB_CLASS					0x04
 #define PCIE_CONF_PROGRAMING_IF					0x00
