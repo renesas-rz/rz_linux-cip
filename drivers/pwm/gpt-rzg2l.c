@@ -25,6 +25,8 @@
 #include <linux/of_address.h>
 #include <linux/bitfield.h>
 #include <linux/iio/iio.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 #define GTPR_MAX_VALUE	0xFFFFFFFF
 #define GTSTR		0x0004
@@ -128,6 +130,8 @@
 #define RZT2H_INT_CCMPA				(1 << 0)
 #define RZT2H_INT_CCMPB				(1 << 1)
 #define RZT2H_INT_OVF				(1 << 6)
+#define RZT2H_INT_MASK				(RZT2H_INT_CCMPA | RZT2H_INT_CCMPB | \
+						RZT2H_INT_OVF)
 #define RZT2H_NS_INTMSK_OFFSET			0x900
 #define RZT2H_NS_INTCLR_OFFSET			0x9e0
 #define RZT2H_NS_INTSTAT_OFFSET			0xac0
@@ -393,7 +397,7 @@ struct rzg2l_gpt_chip {
 	struct	pwm_chip *chip;
 	struct	clk *clk;
 	void	__iomem *mmio_base;
-	void	__iomem *int_base;
+	struct	regmap *int_regmap;
 	int	int_offset;
 	long	intmsk_offset;
 	long	intclr_offset;
@@ -1183,7 +1187,7 @@ static irqreturn_t rzt2h_gpt_isr(int irq, void *data)
 
 	spin_lock_irqsave(&pc->lock, flags);
 
-	irq_flags = readw(pc->int_base + pc->intstat_offset + 0x02 * pc->int_offset);
+	regmap_read(pc->int_regmap, pc->intstat_offset + 0x02 * pc->int_offset, &irq_flags);
 	if (irq_flags & RZT2H_INT_OVF) {
 		pc->overflow_count++;
 		pc->buffer_mode_count_A--;
@@ -1253,8 +1257,8 @@ static irqreturn_t rzt2h_gpt_isr(int irq, void *data)
 		}
 
 		/* Disable overflow interrupt flags */
-		writew(RZT2H_INT_OVF, pc->int_base + pc->intclr_offset
-						+ 0x02 * pc->int_offset);
+		regmap_write(pc->int_regmap, pc->intclr_offset
+				+ 0x02 * pc->int_offset, RZT2H_INT_OVF);
 		ret = IRQ_HANDLED;
 	}
 
@@ -1283,8 +1287,8 @@ static irqreturn_t rzt2h_gpt_isr(int irq, void *data)
 		}
 
 		/* Disable input capture interrupt flags */
-		writew(RZT2H_INT_CCMPA, pc->int_base + pc->intclr_offset
-						+ 0x02 * pc->int_offset);
+		regmap_write(pc->int_regmap, pc->intclr_offset
+				+ 0x02 * pc->int_offset, RZT2H_INT_CCMPA);
 		ret = IRQ_HANDLED;
 	}
 
@@ -1313,8 +1317,8 @@ static irqreturn_t rzt2h_gpt_isr(int irq, void *data)
 		}
 
 		 /* Disable input capture interrupt flags */
-		writew(RZT2H_INT_CCMPB, pc->int_base + pc->intclr_offset
-						+ 0x02 * pc->int_offset);
+		regmap_write(pc->int_regmap, pc->intclr_offset
+				+ 0x02 * pc->int_offset, RZT2H_INT_CCMPB);
 		ret = IRQ_HANDLED;
 	}
 
@@ -2575,6 +2579,8 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	}
 
 	if (rzg2l_gpt->cfg == &rzt2h_cfg) {
+		struct regmap *syscon;
+		struct device_node *syscon_np;
 		strscpy(gpt_idx_major_str, &pdev->dev.of_node->name[3], 3);
 		ret = kstrtol(gpt_idx_major_str, 10, &gpt_idx_major);
 		if (ret != 0)
@@ -2590,41 +2596,40 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 			rzg2l_gpt->intmsk_offset = RZT2H_NS_INTMSK_OFFSET;
 			rzg2l_gpt->intclr_offset = RZT2H_NS_INTCLR_OFFSET;
 			rzg2l_gpt->intstat_offset = RZT2H_NS_INTSTAT_OFFSET;
-			res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-								 "ns_int_base");
-			if (!res) {
-				dev_err(&pdev->dev, "missing IO resource\n");
-				return -ENXIO;
-			}
 
-			rzg2l_gpt->int_base = ioremap(res->start,
-							resource_size(res));
+			syscon = syscon_regmap_lookup_by_phandle_args(pdev->dev.of_node,
+						"renesas,syscon-perierr-error", 0, NULL);
+			if (IS_ERR(syscon)) {
+				dev_err(&pdev->dev, "Failed to get syscon regmap for ICU Non-Safety\n");
+				return PTR_ERR(syscon);
+			}
+			rzg2l_gpt->int_regmap = syscon;
+
 		} else if (gpt_idx_major == 10) {
 			rzg2l_gpt->int_offset = gpt_idx_minor;
 			rzg2l_gpt->intmsk_offset = RZT2H_S_INTMSK_OFFSET;
 			rzg2l_gpt->intclr_offset = RZT2H_S_INTCLR_OFFSET;
 			rzg2l_gpt->intstat_offset = RZT2H_S_INTSTAT_OFFSET;
-			res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-								"s_int_base");
-			if (!res) {
-				dev_err(&pdev->dev, "missing IO resource\n");
-				return -ENXIO;
+
+			syscon_np = of_parse_phandle(pdev->dev.of_node,
+							"renesas,syscon-perierr-error", 1);
+			if (!syscon_np) {
+				dev_err(&pdev->dev, "missing ICU Safety phandle\n");
+				return -ENODEV;
 			}
-
-			rzg2l_gpt->int_base = ioremap(res->start,
-							resource_size(res));
+			syscon = syscon_node_to_regmap(syscon_np);
+			of_node_put(syscon_np);
+			if (IS_ERR(syscon)) {
+				dev_err(&pdev->dev, "Failed to get syscon regmap for ICU Safety\n");
+				return PTR_ERR(syscon);
+			}
+			rzg2l_gpt->int_regmap = syscon;
 		}
 
-		if (IS_ERR(rzg2l_gpt->int_base)) {
-			dev_err(&pdev->dev, "Failed to request ioremap\n");
-			return PTR_ERR(rzg2l_gpt->int_base);
-		}
+		regmap_update_bits(rzg2l_gpt->int_regmap,
+				    rzg2l_gpt->intmsk_offset + 0x02 * rzg2l_gpt->int_offset,
+				    RZT2H_INT_MASK, 0);
 
-		writew(readw(rzg2l_gpt->int_base + rzg2l_gpt->intmsk_offset
-						+ 0x02 * rzg2l_gpt->int_offset)
-			& ~(RZT2H_INT_OVF | RZT2H_INT_CCMPA | RZT2H_INT_CCMPB),
-			rzg2l_gpt->int_base + rzg2l_gpt->intmsk_offset
-					+ 0x02 * rzg2l_gpt->int_offset);
 		irq = platform_get_irq_byname(pdev, "int4");
 		if (ret < 0) {
 			dev_err(&pdev->dev, "Failed to obtain IRQ\n");
