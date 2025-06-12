@@ -81,6 +81,11 @@ properties:
               - renesas,scif-r9a08g045      # RZ/G3S
           - const: renesas,scif-r9a07g044   # RZ/G2{L,LC} fallback
 
+      - items:
+          - enum:
+              - renesas,r9a09g087-rz-rscif  # RZ/N2H
+          - const: renesas,rz-rscif
+
       - const: renesas,scif-r9a09g057       # RZ/V2H(P)
 
       - items:
