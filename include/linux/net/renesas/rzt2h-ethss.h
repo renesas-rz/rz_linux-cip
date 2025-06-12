@@ -3,6 +3,11 @@
 #ifndef __RZT2H_ETHSS_H__
 #define __RZT2H_ETHSS_H__
 
+#include <linux/phylink.h>
+
+struct phylink;
+struct device_node;
+
 /**
  * struct ethss - MII converter structure
  * @base: base address of the MII converter
@@ -36,9 +41,6 @@ static inline struct ethss_port *phylink_pcs_to_ethss_port(struct phylink_pcs *p
 {
 	return container_of(pcs, struct ethss_port, pcs);
 }
-
-struct phylink;
-struct device_node;
 
 struct phylink_pcs *ethss_create(struct device *dev, struct device_node *np);
 void ethss_destroy(struct phylink_pcs *pcs);
