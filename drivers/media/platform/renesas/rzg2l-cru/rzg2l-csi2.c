@@ -982,7 +982,8 @@ static int rzg2l_csi2_pm_runtime_suspend(struct device *dev)
 {
 	struct rzg2l_csi2 *csi2 = dev_get_drvdata(dev);
 
-	reset_control_assert(csi2->presetn);
+	if (!(reset_control_status(csi2->presetn)))
+		reset_control_assert(csi2->presetn);
 
 	return 0;
 }
@@ -990,8 +991,13 @@ static int rzg2l_csi2_pm_runtime_suspend(struct device *dev)
 static int rzg2l_csi2_pm_runtime_resume(struct device *dev)
 {
 	struct rzg2l_csi2 *csi2 = dev_get_drvdata(dev);
+	int ret;
 
-	return reset_control_deassert(csi2->presetn);
+	ret = reset_control_status(csi2->presetn);
+	if (ret > 0)
+		return reset_control_deassert(csi2->presetn);
+	else
+		return ret;
 }
 
 static const struct dev_pm_ops rzg2l_csi2_pm_ops = {
