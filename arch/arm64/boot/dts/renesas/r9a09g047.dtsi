@@ -2529,6 +2529,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			pcie,channel = <0>;
+			renesas,pcie-sys = <&sys>;
 			status = "disabled";
 		};
 
