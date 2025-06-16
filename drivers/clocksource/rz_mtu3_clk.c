@@ -352,6 +352,10 @@ static int rz_mtu3_clk_setup_channel(struct rz_mtu3_clk_channel_priv *ch,
 		return 0;
 	}
 
+	/* Setting to select irq for MTU3 on RZ/G3L. */
+	if (ddata->has_mixed_irq)
+		rz_mtu3_irq_sel(ddata, name);
+
 	ret = request_irq(irq, rz_mtu3_clk_interrupt,
 			  IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
 			  dev_name(&ch->mtu->pdev->dev), ch->chan);
