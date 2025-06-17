@@ -736,11 +736,11 @@
        status = "okay";
 };
 
-&ostm0 {
+&ostm3 {
 	status = "okay";
 };
 
-&ostm1 {
+&ostm4 {
 	status = "okay";
 };
 
