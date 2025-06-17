@@ -143,6 +143,21 @@
 			status = "disabled";
 		};
 
+		sci3: serial@80005c00 {
+			compatible = "renesas,scif-r9a07g076",
+				     "renesas,rz-rscif";
+			reg = <0 0x80005c00 0 0x400>;
+			interrupts = <GIC_SPI 477 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 478 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 479 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 480 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "eri", "rxi", "txi", "tei";
+			clocks = <&cpg CPG_MOD R9A07G076_SCI3_CLK>;
+			clock-names = "fck";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
 		gic: interrupt-controller@83000000 {
 			compatible = "arm,gic-v3";
 			#interrupt-cells = <3>;
