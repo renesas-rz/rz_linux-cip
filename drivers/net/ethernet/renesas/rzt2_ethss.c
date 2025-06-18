@@ -161,7 +161,16 @@ static struct ethss_port *phylink_pcs_to_ethss_port(struct phylink_pcs *pcs)
 
 static void ethss_reg_writel(struct ethss *ethss, int offset, u32 value)
 {
+	/* ETHSS: Unprotect register writes */
+	writel(0x00A5, ethss->base + ETHSS_PRCMD);
+	writel(0x0001, ethss->base + ETHSS_PRCMD);
+	writel(0xFFFE, ethss->base + ETHSS_PRCMD);
+	writel(0x0001, ethss->base + ETHSS_PRCMD);
+
 	writel(value, ethss->base + offset);
+
+	/* Enable protection */
+	writel(0x0000, ethss->base + ETHSS_PRCMD);
 }
 
 static u32 ethss_reg_readl(struct ethss *ethss, int offset)
@@ -389,15 +398,6 @@ EXPORT_SYMBOL(ethss_destroy);
 static int ethss_init_hw(struct ethss *ethss, u32 cfg_mode)
 {
 	int port;
-
-	/* Unlock write access to accessory registers (cf datasheet). If this
-	 * is going to be used in conjunction with the Cortex-M3, this sequence
-	 * will have to be moved in register write
-	 */
-	ethss_reg_writel(ethss, ETHSS_PRCMD, 0x00A5);
-	ethss_reg_writel(ethss, ETHSS_PRCMD, 0x0001);
-	ethss_reg_writel(ethss, ETHSS_PRCMD, 0xFFFE);
-	ethss_reg_writel(ethss, ETHSS_PRCMD, 0x0001);
 
 	for (port = 0; port < ETHSS_MAX_NR_PORTS; port++) {
 		ethss_converter_enable(ethss, port, 0);
