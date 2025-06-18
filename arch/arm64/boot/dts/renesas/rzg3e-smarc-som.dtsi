@@ -497,7 +497,7 @@
 		};
 #endif
 #else
-#if (!SW_LCD_EN) && (RZG3E_SMARC_MIPI_DSI_ENABLE) && (!SW_HDMI_EN))
+#if ((!SW_LCD_EN) && (RZG3E_SMARC_MIPI_DSI_ENABLE) && (!SW_HDMI_EN))
 		rsnd_port0: port@0 {
 			reg = <0>;
 			rsnd_endpoint0: endpoint {
