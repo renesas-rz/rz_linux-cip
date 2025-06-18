@@ -32,17 +32,43 @@
 #include <linux/reset.h>
 #include <linux/time.h>
 #include <linux/units.h>
+#include <linux/interrupt.h>
 
 #define RZG2L_GET_CH(hwpwm)	((hwpwm) / 2)
+#define RZG2L_GET_HWPWM(ch, sub_ch) ((ch) * 2 + (sub_ch))
 #define RZG2L_GET_CH_OFFS(ch)	(0x100 * (ch))
 
 #define RZG2L_GTCR(ch)		(0x2c + RZG2L_GET_CH_OFFS(ch))
 #define RZG2L_GTUDDTYC(ch)	(0x30 + RZG2L_GET_CH_OFFS(ch))
 #define RZG2L_GTIOR(ch)		(0x34 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTINTAD(ch)	(0x38 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTST(ch)		(0x3c + RZG2L_GET_CH_OFFS(ch))
 #define RZG2L_GTBER(ch)		(0x40 + RZG2L_GET_CH_OFFS(ch))
 #define RZG2L_GTCNT(ch)		(0x48 + RZG2L_GET_CH_OFFS(ch))
-#define RZG2L_GTCCR(ch, sub_ch)	(0x4c + RZG2L_GET_CH_OFFS(ch) + 4 * (sub_ch))
+#define RZG2L_GTCCRAB(ch, sub_ch)	(0x4c + RZG2L_GET_CH_OFFS(ch) + 4 * (sub_ch))
+#define RZG2L_GTCCRCE(ch, sub_ch)	(0x54 + RZG2L_GET_CH_OFFS(ch) + 4 * (sub_ch))
+#define RZG2L_GTCCRDF(ch, sub_ch)	(0x5c + RZG2L_GET_CH_OFFS(ch) + 4 * (sub_ch))
 #define RZG2L_GTPR(ch)		(0x64 + RZG2L_GET_CH_OFFS(ch))
+
+#define RZG2L_GTCCRA_BUFFER_MASK	GENMASK(17, 16)
+#define RZG2L_GTCCRB_BUFFER_MASK	GENMASK(19, 18)
+#define RZG2L_GTCCRx_BUFFER_MASK(sub_ch) \
+	((sub_ch) ? RZG2L_GTCCRB_BUFFER_MASK : RZG2L_GTCCRA_BUFFER_MASK)
+
+#define RZG2L_GTCCRA_SINGLE_BUFFER	FIELD_PREP(RZG2L_GTCCRA_BUFFER_MASK, 0x1)
+#define RZG2L_GTCCRB_SINGLE_BUFFER	FIELD_PREP(RZG2L_GTCCRB_BUFFER_MASK, 0x1)
+#define RZG2L_GTCCRx_SINGLE_BUFFER(sub_ch) \
+	((sub_ch) ? RZG2L_GTCCRB_SINGLE_BUFFER : RZG2L_GTCCRA_SINGLE_BUFFER)
+
+#define RZG2L_GTCCRA_DOUBLE_BUFFER	FIELD_PREP(RZG2L_GTCCRA_BUFFER_MASK, 0x2)
+#define RZG2L_GTCCRB_DOUBLE_BUFFER	FIELD_PREP(RZG2L_GTCCRB_BUFFER_MASK, 0x2)
+#define RZG2L_GTCCRx_DOUBLE_BUFFER(sub_ch) \
+	((sub_ch) ? RZG2L_GTCCRB_DOUBLE_BUFFER : RZG2L_GTCCRA_DOUBLE_BUFFER)
+
+#define RZG2L_GTST_TCFPO	BIT(6)
+
+#define RZG2L_GTINTAD_GTINTPR_MASK	GENMASK(7, 6)
+#define RZG2L_GTINTPROV		BIT(6)
 
 #define RZG2L_GTCR_CST		BIT(0)
 #define RZG2L_GTCR_MD		GENMASK(18, 16)
@@ -77,13 +103,57 @@
 #define RZG2L_MAX_SCALE_FACTOR	1024
 #define RZG2L_MAX_TICKS		((u64)U32_MAX * RZG2L_MAX_SCALE_FACTOR)
 
+enum {
+	NOT_USE,
+	RZG2L_CHANNEL_A,
+	RZG2L_CHANNEL_B,
+	RZG2L_BOTH_AB,
+};
+
+enum {
+	BUFF_0,
+	BUFF_1,
+	BUFF_2,
+	NR_BUFFER,
+};
+
+enum {
+	GTCIV,
+	GTCIA,
+	GTCIB,
+	NR_IRQ_TYPE,
+};
+
+struct rz_gpt_pwm_channel {
+	unsigned int buffer_mode_count;
+	unsigned long buffer[NR_BUFFER];
+	unsigned int operation;
+};
+
 struct rzg2l_gpt_chip {
+	struct pwm_chip *chip;
 	void __iomem *mmio;
-	struct mutex lock; /* lock to protect shared channel resources */
+	struct mutex mutex; /* lock to protect shared channel resources */
 	unsigned long rate_khz;
 	u32 period_ticks[RZG2L_MAX_HW_CHANNELS];
-	u32 channel_request_count[RZG2L_MAX_HW_CHANNELS];
-	u32 channel_enable_count[RZG2L_MAX_HW_CHANNELS];
+	u8 channel_request[RZG2L_MAX_HW_CHANNELS];
+	u8 channel_enable[RZG2L_MAX_HW_CHANNELS];
+	unsigned int irq_map[RZG2L_MAX_HW_CHANNELS][NR_IRQ_TYPE];
+	struct rz_gpt_pwm_channel channel_data[RZG2L_MAX_PWM_CHANNELS];
+	spinlock_t lock;
+};
+
+static const char *const gpt_operation_enum[] = {
+	"normal_output",
+	"single_buffer_output",
+	"double_buffer_output",
+};
+
+enum {
+	NORMAL_OUTPUT,
+	SINGLE_BUFFER_OUTPUT,
+	DOUBLE_BUFFER_OUTPUT,
+	NR_GPT_OPERATION,
 };
 
 static inline struct rzg2l_gpt_chip *to_rzg2l_gpt_chip(struct pwm_chip *chip)
@@ -118,6 +188,19 @@ static void rzg2l_gpt_modify(struct rzg2l_gpt_chip *rzg2l_gpt, u32 reg, u32 clr,
 			(rzg2l_gpt_read(rzg2l_gpt, reg) & ~clr) | set);
 }
 
+static inline int hwpwm_from_pwmdev(struct device *dev)
+{
+	unsigned int pwm_id;
+	int ret;
+
+	ret = sscanf(dev_name(dev), "pwm%d", &pwm_id);
+	if (ret != 1) {
+		dev_err(dev, "Failed to parse PWM ID from device name\n");
+		return -EINVAL;
+	}
+	return pwm_id;
+}
+
 static u8 rzg2l_gpt_calculate_prescale(struct rzg2l_gpt_chip *rzg2l_gpt,
 				       u64 period_ticks)
 {
@@ -137,9 +220,10 @@ static int rzg2l_gpt_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct rzg2l_gpt_chip *rzg2l_gpt = to_rzg2l_gpt_chip(chip);
 	u32 ch = RZG2L_GET_CH(pwm->hwpwm);
+	u8 sub_ch = rzg2l_gpt_subchannel(pwm->hwpwm);
 
-	guard(mutex)(&rzg2l_gpt->lock);
-	rzg2l_gpt->channel_request_count[ch]++;
+	guard(mutex)(&rzg2l_gpt->mutex);
+	rzg2l_gpt->channel_request[ch] |= BIT(sub_ch);
 
 	return 0;
 }
@@ -148,9 +232,10 @@ static void rzg2l_gpt_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct rzg2l_gpt_chip *rzg2l_gpt = to_rzg2l_gpt_chip(chip);
 	u32 ch = RZG2L_GET_CH(pwm->hwpwm);
+	u8 sub_ch = rzg2l_gpt_subchannel(pwm->hwpwm);
 
-	guard(mutex)(&rzg2l_gpt->lock);
-	rzg2l_gpt->channel_request_count[ch]--;
+	guard(mutex)(&rzg2l_gpt->mutex);
+	rzg2l_gpt->channel_request[ch] &= ~BIT(sub_ch);
 }
 
 static bool rzg2l_gpt_is_ch_enabled(struct rzg2l_gpt_chip *rzg2l_gpt, u8 hwpwm)
@@ -179,10 +264,10 @@ static void rzg2l_gpt_enable(struct rzg2l_gpt_chip *rzg2l_gpt,
 	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTIOR(ch), val,
 			 RZG2L_GTIOR_GTIOx_OUT_HI_END_TOGGLE_CMP_MATCH(sub_ch));
 
-	if (!rzg2l_gpt->channel_enable_count[ch])
+	if (!rzg2l_gpt_is_ch_enabled(rzg2l_gpt, pwm->hwpwm))
 		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), 0, RZG2L_GTCR_CST);
 
-	rzg2l_gpt->channel_enable_count[ch]++;
+	rzg2l_gpt->channel_enable[ch] |= BIT(sub_ch);
 }
 
 /* Caller holds the lock while calling rzg2l_gpt_disable() */
@@ -193,13 +278,27 @@ static void rzg2l_gpt_disable(struct rzg2l_gpt_chip *rzg2l_gpt,
 	u8 ch = RZG2L_GET_CH(pwm->hwpwm);
 
 	/* Stop count, Output low on GTIOCx pin when counting stops */
-	rzg2l_gpt->channel_enable_count[ch]--;
+	rzg2l_gpt->channel_enable[ch] &= ~BIT(sub_ch);
 
-	if (!rzg2l_gpt->channel_enable_count[ch])
+	if (!rzg2l_gpt->channel_enable[ch])
 		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, 0);
 
 	/* Disable pin output */
 	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTIOR(ch), RZG2L_GTIOR_OxE(sub_ch), 0);
+}
+
+static void rzg2l_reset_period_and_duty(struct rzg2l_gpt_chip *rzg2l_gpt, unsigned int pwm_id)
+{
+	struct pwm_device *pwm = &rzg2l_gpt->chip->pwms[pwm_id];
+
+	rzg2l_gpt_disable(rzg2l_gpt, pwm);
+
+	rzg2l_gpt->channel_data[pwm_id].buffer_mode_count = 0;
+	for (unsigned int i = 0; i < NR_BUFFER; i++)
+		rzg2l_gpt->channel_data[pwm_id].buffer[i] = 0;
+
+	/* Reset the channel (A or B) states */
+	pwm->state = (struct pwm_state){ 0 };
 }
 
 static u64 rzg2l_gpt_calculate_period_or_duty(struct rzg2l_gpt_chip *rzg2l_gpt,
@@ -238,7 +337,8 @@ static int rzg2l_gpt_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		val = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTPR(ch));
 		state->period = rzg2l_gpt_calculate_period_or_duty(rzg2l_gpt, val, prescale);
 
-		val = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTCCR(ch, sub_ch));
+		val = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTCCRAB(ch, sub_ch));
+
 		state->duty_cycle = rzg2l_gpt_calculate_period_or_duty(rzg2l_gpt, val, prescale);
 		if (state->duty_cycle > state->period)
 			state->duty_cycle = state->period;
@@ -275,7 +375,7 @@ static int rzg2l_gpt_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * prescale and period can NOT be modified when there are multiple IOs
 	 * in use with different settings.
 	 */
-	if (rzg2l_gpt->channel_request_count[ch] > 1) {
+	if (rzg2l_gpt->channel_request[ch] == RZG2L_BOTH_AB) {
 		u8 sibling_ch = rzg2l_gpt_sibling(pwm->hwpwm);
 
 		if (rzg2l_gpt_is_ch_enabled(rzg2l_gpt, sibling_ch)) {
@@ -307,7 +407,7 @@ static int rzg2l_gpt_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * between both channels. So allow updating these registers only for the
 	 * first enabled channel.
 	 */
-	if (rzg2l_gpt->channel_enable_count[ch] <= 1) {
+	if (!rzg2l_gpt->channel_enable[ch]) {
 		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, 0);
 
 		/* GPT set operating mode (saw-wave up-counting) */
@@ -326,18 +426,18 @@ static int rzg2l_gpt_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	/* Set duty cycle */
-	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCR(ch, sub_ch), dc);
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRAB(ch, sub_ch), dc);
 
-	if (rzg2l_gpt->channel_enable_count[ch] <= 1) {
+	/* Store duty cycle in buffer 0 to support buffer mode */
+	rzg2l_gpt->channel_data[pwm->hwpwm].buffer[BUFF_0] = dc;
+
+	if (!rzg2l_gpt->channel_enable[ch]) {
 		/* Set initial value for counter */
 		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCNT(ch), 0);
 
-		/* Set no buffer operation */
-		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTBER(ch), 0);
-
-		/* Restart the counter after updating the registers */
-		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch),
-				 RZG2L_GTCR_CST, RZG2L_GTCR_CST);
+		/* Enable overflow interrupt */
+		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTINTAD(ch),
+				 RZG2L_GTINTAD_GTINTPR_MASK, RZG2L_GTINTPROV);
 	}
 
 	return 0;
@@ -353,7 +453,7 @@ static int rzg2l_gpt_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (state->polarity != PWM_POLARITY_NORMAL)
 		return -EINVAL;
 
-	guard(mutex)(&rzg2l_gpt->lock);
+	guard(mutex)(&rzg2l_gpt->mutex);
 	if (!state->enabled) {
 		if (enabled)
 			rzg2l_gpt_disable(rzg2l_gpt, pwm);
@@ -367,6 +467,300 @@ static int rzg2l_gpt_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	return ret;
 }
+
+static int rzg2l_gpt_get_ch_from_irq(struct rzg2l_gpt_chip *rzg2l_gpt,
+				     int irq, unsigned int irq_type)
+{
+	int ch;
+
+	for (ch = 0; ch < RZG2L_MAX_HW_CHANNELS; ch++) {
+		if (rzg2l_gpt->irq_map[ch][irq_type] == irq)
+			return ch;
+	}
+	return -EINVAL;
+}
+
+static irqreturn_t gpt_gtciv_interrupt(int irq, void *data)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = data;
+	unsigned int pwm_id;
+	int ch;
+	u8 sub_ch;
+
+	ch = rzg2l_gpt_get_ch_from_irq(rzg2l_gpt, irq, GTCIV);
+	if (ch < 0)
+		return IRQ_NONE;
+
+	guard(spinlock_irqsave)(&rzg2l_gpt->lock);
+
+	for_each_set_bit(sub_ch,
+			(unsigned long *)&rzg2l_gpt->channel_enable[ch],
+			RZG2L_CHANNELS_PER_IO) {
+		pwm_id = RZG2L_GET_HWPWM(ch, sub_ch);
+
+		switch (rzg2l_gpt->channel_data[pwm_id].operation) {
+		case NORMAL_OUTPUT:
+			break;
+		case SINGLE_BUFFER_OUTPUT:
+			rzg2l_gpt->channel_data[pwm_id].buffer_mode_count--;
+
+			rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRCE(ch, sub_ch),
+					rzg2l_gpt->channel_data[pwm_id].buffer[
+					rzg2l_gpt->channel_data[pwm_id].buffer_mode_count]);
+
+			if (rzg2l_gpt->channel_data[pwm_id].buffer_mode_count == 0)
+				rzg2l_gpt->channel_data[pwm_id].buffer_mode_count = 2;
+			break;
+		case DOUBLE_BUFFER_OUTPUT:
+			rzg2l_gpt->channel_data[pwm_id].buffer_mode_count--;
+
+			rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRDF(ch, sub_ch),
+					rzg2l_gpt->channel_data[pwm_id].buffer[
+					rzg2l_gpt->channel_data[pwm_id].buffer_mode_count]);
+
+			if (rzg2l_gpt->channel_data[pwm_id].buffer_mode_count == 0)
+				rzg2l_gpt->channel_data[pwm_id].buffer_mode_count = 3;
+			break;
+		}
+	}
+
+	/* Disable overflow interrupt flags */
+	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTST(ch), RZG2L_GTST_TCFPO, 0);
+
+	return IRQ_HANDLED;
+}
+
+static ssize_t buff0_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+	unsigned int pwm_id = hwpwm_from_pwmdev(dev);
+	struct pwm_device *pwm = &rzg2l_gpt->chip->pwms[pwm_id];
+	u8 ch = RZG2L_GET_CH(pwm_id);
+	u8 sub_ch = rzg2l_gpt_subchannel(pwm_id);
+	unsigned int val;
+	int ret;
+	u8 prescale;
+	u64 val_ticks;
+	u32 tmp;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	val_ticks = mul_u64_u64_div_u64(val, rzg2l_gpt->rate_khz, USEC_PER_SEC);
+
+	if (pwm->state.period < val_ticks)
+		return -EINVAL;
+
+	guard(mutex)(&rzg2l_gpt->mutex);
+
+	tmp = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTCR(ch));
+	prescale = FIELD_GET(RZG2L_GTCR_TPCS, tmp);
+	rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_1] =
+			rzg2l_gpt_calculate_pv_or_dc(val_ticks, prescale);
+	if (rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_1] == 0)
+		return -EINVAL;
+
+	/* Set buffer value for single buffer mode: A in GTCCRC and B in GTCCRE */
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRCE(ch, sub_ch),
+			rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_1]);
+
+	return ret ? : count;
+}
+
+static ssize_t buff0_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+	unsigned int pwm_id = hwpwm_from_pwmdev(dev);
+	u8 ch = RZG2L_GET_CH(pwm_id);
+	u8 prescale;
+	u32 tmp;
+	unsigned long long time_ns;
+
+	tmp = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTCR(ch));
+	prescale = FIELD_GET(RZG2L_GTCR_TPCS, tmp);
+	time_ns = rzg2l_gpt_calculate_period_or_duty(rzg2l_gpt,
+		  rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_1],
+		  prescale);
+
+	return sprintf(buf, "%llu\n", time_ns);
+}
+
+static ssize_t buff1_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+	unsigned int pwm_id = hwpwm_from_pwmdev(dev);
+	struct pwm_device *pwm = &rzg2l_gpt->chip->pwms[pwm_id];
+	u8 ch = RZG2L_GET_CH(pwm_id);
+	u8 sub_ch = rzg2l_gpt_subchannel(pwm_id);
+	unsigned int val;
+	int ret;
+	u8 prescale;
+	u64 val_ticks;
+	u32 tmp;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	val_ticks = mul_u64_u64_div_u64(val, rzg2l_gpt->rate_khz, USEC_PER_SEC);
+
+	if (pwm->state.period < val_ticks)
+		return -EINVAL;
+
+	guard(mutex)(&rzg2l_gpt->mutex);
+
+	tmp = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTCR(ch));
+	prescale = FIELD_GET(RZG2L_GTCR_TPCS, tmp);
+	rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_2] =
+			rzg2l_gpt_calculate_pv_or_dc(val_ticks, prescale);
+	if (rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_2] == 0)
+		return -EINVAL;
+
+	/* Set buffer value for double buffer mode: A in GTCCRD and B in GTCCRF */
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRDF(ch, sub_ch),
+			rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_2]);
+
+	return ret ? : count;
+}
+
+static ssize_t buff1_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+	unsigned int pwm_id = hwpwm_from_pwmdev(dev);
+	u8 ch = RZG2L_GET_CH(pwm_id);
+	u8 prescale;
+	u32 tmp;
+	unsigned long long time_ns;
+
+	tmp = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTCR(ch));
+	prescale = FIELD_GET(RZG2L_GTCR_TPCS, tmp);
+	time_ns = rzg2l_gpt_calculate_period_or_duty(rzg2l_gpt,
+		  rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_2],
+		  prescale);
+
+	return sprintf(buf, "%llu\n", time_ns);
+}
+
+static ssize_t gpt_operation_available_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	unsigned int i;
+	size_t len = 0;
+
+	for (i = 0; i < NR_GPT_OPERATION; ++i)
+		len += sysfs_emit_at(buf, len, "%s  ", gpt_operation_enum[i]);
+
+	/* replace last space with a newline */
+	buf[len - 1] = '\n';
+
+	return len;
+}
+
+static ssize_t gpt_operation_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+	unsigned int pwm_id = hwpwm_from_pwmdev(dev);
+	u8 ch = RZG2L_GET_CH(pwm_id);
+	u8 sub_ch = rzg2l_gpt_subchannel(pwm_id);
+	int ret;
+
+	ret = sysfs_match_string(gpt_operation_enum, buf);
+	if (ret < 0)
+		return ret;
+
+	guard(mutex)(&rzg2l_gpt->mutex);
+
+	rzg2l_gpt->channel_data[pwm_id].operation = ret;
+
+	/* Reset registers to prevent conflict setting between modes */
+	rzg2l_reset_period_and_duty(rzg2l_gpt, pwm_id);
+
+	switch (rzg2l_gpt->channel_data[pwm_id].operation) {
+	case NORMAL_OUTPUT:
+		/* Set no buffer operation */
+		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTBER(ch),
+				RZG2L_GTCCRx_BUFFER_MASK(sub_ch), 0);
+		break;
+	case SINGLE_BUFFER_OUTPUT:
+		rzg2l_gpt->channel_data[pwm_id].buffer_mode_count = 2;
+		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTBER(ch),
+				RZG2L_GTCCRx_BUFFER_MASK(sub_ch),
+				RZG2L_GTCCRx_SINGLE_BUFFER(sub_ch));
+		break;
+	case DOUBLE_BUFFER_OUTPUT:
+		rzg2l_gpt->channel_data[pwm_id].buffer_mode_count = 3;
+		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTBER(ch),
+				RZG2L_GTCCRx_BUFFER_MASK(sub_ch),
+				RZG2L_GTCCRx_DOUBLE_BUFFER(sub_ch));
+		break;
+	}
+
+	return count;
+}
+
+static ssize_t gpt_operation_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+	unsigned int pwm_id = hwpwm_from_pwmdev(dev);
+
+	return sysfs_emit(buf, "%s\n",
+		gpt_operation_enum[rzg2l_gpt->channel_data[pwm_id].operation]);
+}
+
+static DEVICE_ATTR_RW(buff0);
+static DEVICE_ATTR_RW(buff1);
+static DEVICE_ATTR_RO(gpt_operation_available);
+static DEVICE_ATTR_RW(gpt_operation);
+
+static struct attribute *common_attrs[] = {
+	&dev_attr_gpt_operation_available.attr,
+	&dev_attr_gpt_operation.attr,
+	&dev_attr_buff0.attr,
+	&dev_attr_buff1.attr,
+	NULL,
+};
+
+static const struct attribute_group common_group = {
+	.attrs = common_attrs,
+};
+
+static ssize_t enhanced_function_channels_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct rzg2l_gpt_chip *rzg2l_gpt = platform_get_drvdata(pdev);
+	struct device *pwm_dev;
+	char name[6];
+	unsigned int pwm_id;
+	int ret;
+
+	if (kstrtouint(buf, 0, &pwm_id))
+		return -EINVAL;
+
+	snprintf(name, sizeof(name), "pwm%u", pwm_id);
+
+	pwm_dev = device_find_child_by_name(&rzg2l_gpt->chip->dev, name);
+	if (!pwm_dev)
+		return -ENODEV;
+
+	dev_set_drvdata(pwm_dev, rzg2l_gpt);
+
+	ret = device_add_group(pwm_dev, &common_group);
+	if (ret)
+		return ret;
+
+	rzg2l_gpt->channel_data[pwm_id].operation = NORMAL_OUTPUT;
+
+	return count;
+}
+static DEVICE_ATTR_WO(enhanced_function_channels);
 
 static const struct pwm_ops rzg2l_gpt_ops = {
 	.request = rzg2l_gpt_request,
@@ -383,7 +777,9 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	struct pwm_chip *chip;
 	unsigned long rate;
 	struct clk *clk;
-	int ret;
+	unsigned int i;
+	int ret, irq;
+	char irq_name[10];
 
 	chip = devm_pwmchip_alloc(dev, RZG2L_MAX_PWM_CHANNELS, sizeof(*rzg2l_gpt));
 	if (IS_ERR(chip))
@@ -398,6 +794,20 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	reset_control_deassert(rstc);
 	if (IS_ERR(rstc))
 		return dev_err_probe(dev, PTR_ERR(rstc), "Cannot deassert reset control\n");
+
+	for (i = 0; i < RZG2L_MAX_HW_CHANNELS; i++) {
+		snprintf(irq_name, sizeof(irq_name), "gtciv_n_%d", i);
+		irq = platform_get_irq_byname(pdev, irq_name);
+		if (irq < 0)
+			return dev_err_probe(dev, irq, "Failed to obtain IRQ\n");
+
+		ret = devm_request_irq(dev, irq, gpt_gtciv_interrupt,
+				      0, dev_name(dev), rzg2l_gpt);
+		if (ret < 0)
+			return dev_err_probe(dev, ret, "Failed to request IRQ\n");
+
+		rzg2l_gpt->irq_map[i][GTCIV] = irq;
+	}
 
 	clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(clk))
@@ -427,12 +837,21 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	if (rzg2l_gpt->rate_khz * KILO != rate)
 		return dev_err_probe(dev, -EINVAL, "Rate is not multiple of 1000");
 
-	mutex_init(&rzg2l_gpt->lock);
+	spin_lock_init(&rzg2l_gpt->lock);
+	mutex_init(&rzg2l_gpt->mutex);
 
 	chip->ops = &rzg2l_gpt_ops;
+	rzg2l_gpt->chip = chip;
 	ret = devm_pwmchip_add(dev, chip);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to add PWM chip\n");
+
+	ret = device_create_file(dev, &dev_attr_enhanced_function_channels);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Failed to create sysfs\n");
+
+	dev_info(dev, "RZ/G2L GPT Driver probed\n");
+	platform_set_drvdata(pdev, rzg2l_gpt);
 
 	return 0;
 }
