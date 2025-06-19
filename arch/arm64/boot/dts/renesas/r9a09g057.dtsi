@@ -2587,6 +2587,7 @@
 				 <&cpg CPG_MOD 0xc5>;
 			power-domains = <&cpg>;
 			resets = <&cpg 0xb2>;
+			pcie,channel = <0>;
 			renesas,pcie-sys = <&sys>;
 			status = "disabled";
 		};
@@ -2602,6 +2603,7 @@
 				 <&cpg CPG_MOD 0xc5>;
 			power-domains = <&cpg>;
 			resets = <&cpg 0xb2>;
+			pcie,channel = <1>;
 			renesas,pcie-sys = <&sys>;
 			status = "disabled";
 		};
