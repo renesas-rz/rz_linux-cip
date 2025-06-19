@@ -208,7 +208,7 @@
 		gpios = <&pinctrl RZV2H_GPIO(A, 0) GPIO_ACTIVE_HIGH>;
 
 		gpios-states = <0>;
-		states = <3300000 0 1800000 1>;
+		states = <3300000 0>, <1800000 1>;
 	};
 
 	vqmmc_sdhi1: regulator-vccq-sdhi1 {
@@ -221,7 +221,7 @@
 		gpios = <&pinctrl RZV2H_GPIO(A, 2) GPIO_ACTIVE_HIGH>;
 
 		gpios-states = <0>;
-		states = <3300000 0 1800000 1>;
+		states = <3300000 0>, <1800000 1>;
 	};
 
 	hdmi-out {
