@@ -21,6 +21,8 @@ struct ethss {
 struct phylink;
 struct device_node;
 
+struct ethss *ethss_get_base(void);
+int ethss_eswm_ptp_timer(struct ethss *ethss, int eswm_timer);
 struct phylink_pcs *ethss_create(struct device *dev, struct device_node *np);
 void ethss_destroy(struct phylink_pcs *pcs);
 

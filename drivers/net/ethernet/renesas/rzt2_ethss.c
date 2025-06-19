@@ -47,6 +47,14 @@
 #define ETHSS_CONVRST_PHYIF_RST(port)	BIT(port)
 #define ETHSS_CONVRST_PHYIF_RST_MASK	GENMASK(4, 0)
 
+#define ETHSS_TMSEL			0x010
+#define ETHSS_TMSEL_CLK_SEL		GENMASK(1, 0)
+#define ETHSS_TMSEL_CLK_SEL_ESWM	1	/*ESWM CLOCK 200 MHz*/
+#define ETHSS_TMSEL_ESWM0_SEL		GENMASK(18, 16)
+#define ETHSS_TMSEL_ESWM1_SEL		GENMASK(22, 20)
+#define ETHSS_TMSEL_ESWM_TIMER0		2
+#define ETHSS_TMSEL_ESWM_TIMER1		3
+
 #define ETHSS_SWCTRL			0x304
 #define ETHSS_SWDUPC			0x308
 
@@ -136,6 +144,15 @@ struct ethss_port {
 	int port;
 	phy_interface_t interface;
 };
+
+//For other module related to ETHSS can reference base address
+static struct ethss *ethss_base_refer;
+
+struct ethss *ethss_get_base(void)
+{
+	return ethss_base_refer;
+}
+EXPORT_SYMBOL(ethss_get_base);
 
 static struct ethss_port *phylink_pcs_to_ethss_port(struct phylink_pcs *pcs)
 {
@@ -505,6 +522,22 @@ static void ethss_parse_eswmlink(struct ethss *ethss, struct device *dev)
 	}
 }
 
+int ethss_eswm_ptp_timer(struct ethss *ethss, int eswm_timer)
+{
+	if (eswm_timer > 1)
+		return -EINVAL;
+
+	if (eswm_timer) {
+		ethss_reg_rmw(ethss, ETHSS_TMSEL, ETHSS_TMSEL_CLK_SEL,
+				ETHSS_TMSEL_CLK_SEL_ESWM);
+		ethss_reg_rmw(ethss, ETHSS_TMSEL, ETHSS_TMSEL_ESWM0_SEL,
+				FIELD_PREP(ETHSS_TMSEL_ESWM0_SEL, ETHSS_TMSEL_ESWM_TIMER0));
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(ethss_eswm_ptp_timer);
+
 static int ethss_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -525,6 +558,9 @@ static int ethss_probe(struct platform_device *pdev)
 	ethss->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ethss->base))
 		return PTR_ERR(ethss->base);
+
+	//For other module can reference base address
+	ethss_base_refer = ethss;
 
 	ethss->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(ethss->clk)) {

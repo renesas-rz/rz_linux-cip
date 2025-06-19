@@ -2120,6 +2120,7 @@ static int renesas_eth_sw_probe(struct platform_device *pdev)
 	const struct soc_device_attribute *attr;
 	struct eswm_private *priv;
 	struct resource *res;
+	struct device_node *node = pdev->dev.of_node;
 	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2162,6 +2163,20 @@ static int renesas_eth_sw_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->addr);
 
 	priv->ptp_priv->addr = priv->addr + ESWM_GPTP_OFFSET;
+
+	priv->ethss = ethss_get_base();
+	ret = of_property_read_u32_index(node, "eswm_ptp_timer",
+					0, &priv->eswm_ptp_timer);
+
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Missing timer for ESWM\n");
+	} else {
+		ret = ethss_eswm_ptp_timer(priv->ethss, priv->eswm_ptp_timer);
+		if (ret < 0)
+			dev_err(&pdev->dev, "Invalid ptp params\n");
+
+		dev_info(&pdev->dev, "ESWM using ESWM Timer %d for PTP\n", priv->eswm_ptp_timer);
+	}
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(40));
 	if (ret < 0) {
