@@ -125,21 +125,6 @@ static const char *index_to_string[ETHSS_MODCTRL_CONF_CONV_NUM] = {
 };
 
 /**
- * struct ethss - MII converter structure
- * @base: base address of the MII converter
- * @dev: Device associated to the MII converter
- * @lock: Lock used for read-modify-write access
- */
-struct ethss {
-	void __iomem *base;
-	struct device *dev;
-	struct clk *clk;
-	struct reset_control *rst_ethss;
-	struct reset_control *rst_conv;
-	spinlock_t lock;
-};
-
-/**
  * struct ethss_port - Per port MII converter struct
  * @ethss: backiling to MII converter structure
  * @port: port number
