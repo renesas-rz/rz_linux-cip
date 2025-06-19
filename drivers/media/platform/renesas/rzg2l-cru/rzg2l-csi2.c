@@ -997,6 +997,7 @@ static int rzg2l_csi2_pm_runtime_resume(struct device *dev)
 static const struct dev_pm_ops rzg2l_csi2_pm_ops = {
 	RUNTIME_PM_OPS(rzg2l_csi2_pm_runtime_suspend,
 		       rzg2l_csi2_pm_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static const struct rzg2l_csi2_info rzv2h_csi2_info = {
