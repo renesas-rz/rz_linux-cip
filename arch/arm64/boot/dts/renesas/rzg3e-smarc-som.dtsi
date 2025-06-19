@@ -197,7 +197,7 @@
 		gpios = <&pinctrl RZV2H_GPIO(K, 1) GPIO_ACTIVE_HIGH>;
 
 		gpios-states = <0>;
-		states = <3300000 0 1800000 1>;
+		states = <3300000 0>, <1800000 1>;
 	};
 
 	x2: x2-clock {
