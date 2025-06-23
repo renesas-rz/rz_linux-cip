@@ -1263,6 +1263,15 @@ static irqreturn_t rzt2h_gpt_isr(int irq, void *data)
 	}
 
 	if (irq_flags & RZT2H_INT_CCMPA) {
+		if (pc->gpt_operation != INPUT_CAPTURE && pc->pulse_number >= 0) {
+			if (pc->pulse_number == 1) {
+				/* Retain output at GTCCRA */
+				rzg2l_gpt_write_mask(pc, 0, GTIOA_RETAIN_OUTPUT, GTIOR);
+				/* Disable interrupt GTINTA */
+				rzg2l_gpt_write_mask(pc, 0, GTINTA, GTINTAD);
+			}
+		}
+
 		pc->snapshot[pc->index] = rzg2l_gpt_read(pc, GTCCRA) +
 			(pc->overflow_count) * GTPR_MAX_VALUE;
 		switch (pc->index) {
@@ -1293,6 +1302,15 @@ static irqreturn_t rzt2h_gpt_isr(int irq, void *data)
 	}
 
 	if (irq_flags & RZT2H_INT_CCMPB) {
+		if (pc->gpt_operation != INPUT_CAPTURE && pc->pulse_number >= 0) {
+			if (pc->pulse_number == 1) {
+				/* Retain output at GTCCRB */
+				rzg2l_gpt_write_mask(pc, 0, GTIOB_RETAIN_OUTPUT, GTIOR);
+				/* Disable interrupt GTINTB */
+				rzg2l_gpt_write_mask(pc, 0, GTINTB, GTINTAD);
+			}
+		}
+
 		pc->snapshot[pc->index] = rzg2l_gpt_read(pc, GTCCRB) +
 			(pc->overflow_count) * GTPR_MAX_VALUE;
 		switch (pc->index) {
