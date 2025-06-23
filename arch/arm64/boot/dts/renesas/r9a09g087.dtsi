@@ -883,14 +883,16 @@
 			reg = <0 0x802a0000 0 0x1000>;
 		};
 
+		icu_s_int: icu@812a0000 {
+			compatible = "syscon";
+			reg = <0 0x812a0000 0 0x100>;
+		};
+
 		gpt02_0: gpt02_0@90004000 {
 			compatible = "renesas,gpt-r9a09g087";
 			reg = <0 0x90004000 0 0x100>,
-				<0 0x80290000 0 0x0c>,
-				<0 0x802a0000 0 0x1000>,
-				<0 0x812a0000 0 0x100>;
-			reg-names = "base1", "base2",
-				    "ns_int_base", "s_int_base";
+			<0 0x80290000 0 0x0c>;
+			reg-names = "base1", "base2";
 			#pwm-cells = <2>;
 			interrupts = <GIC_SPI 887 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 888 IRQ_TYPE_EDGE_RISING>,
@@ -903,6 +905,8 @@
 					  "int2", "int3", "int4";
 			clocks = <&cpg CPG_MOD R9A09G077_GPT2_CLK>;
 			power-domains = <&cpg>;
+			renesas,syscon-perierr-error = <&icu_ns_int>,
+						       <&icu_s_int>;
 			status = "disabled";
 		};
 
