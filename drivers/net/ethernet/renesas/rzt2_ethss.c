@@ -58,6 +58,7 @@
 #define ETHSS_TMSEL_ESWM_TIMER1		3
 
 #define ETHSS_TMSEL_GMAC(gmac)		BIT(4 * (gmac) + 4)
+#define ETHSS_TMSEL_PULSE_GEN		BIT(0)
 
 #define ETHSS_SWCTRL			0x304
 #define ETHSS_SWCTRL_MPBS_10(x)		(((0 << 4) | (1 << 0)) << (x))
@@ -69,6 +70,9 @@
 #define ETHSS_SWDUPC_DUPLEX_FULL(x)	BIT(x)
 
 #define ETHSS_MAX_NR_PORTS		5
+
+#define ETHSS_PLSRST			0x00C
+#define ETHSS_PLSRSTn			BIT(16)
 
 #define ETHSS_MODCTRL_CONF_CONV_NUM	6
 #define ETHSS_MODCTRL_CONF_NONE		-1
@@ -601,6 +605,22 @@ int ethss_eswm_ptp_timer(struct ethss *ethss, int eswm_timer)
 }
 EXPORT_SYMBOL(ethss_eswm_ptp_timer);
 
+static int ethss_parse_pulse_gen(struct ethss *ethss, struct device *dev)
+{
+	u32 pulse_gen_timer;
+
+	of_property_read_u32(dev->of_node, "ethsw_pulse_gen_timer", &pulse_gen_timer);
+
+	if (pulse_gen_timer > 1)
+		return -EINVAL;
+
+	if (pulse_gen_timer)
+		ethss_reg_rmw(ethss, ETHSS_TMSEL,
+			      ETHSS_TMSEL_PULSE_GEN, ETHSS_TMSEL_PULSE_GEN);
+
+	return 0;
+}
+
 static int ethss_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -659,6 +679,15 @@ static int ethss_probe(struct platform_device *pdev)
 		goto disable_runtime_pm;
 
 	ethss_parse_phylnk(ethss, dev);
+
+	/* Release Pulse Generator reset state */
+	ethss_reg_rmw(ethss, ETHSS_PLSRST, ETHSS_PLSRSTn,
+		      ETHSS_PLSRSTn);
+
+	ret = ethss_parse_pulse_gen(ethss, dev);
+	if (ret)
+		dev_err(dev, "failed to set Pulse Generator\n");
+
 	ethss_parse_eswmlink(ethss, dev);
 
 	/* ethss_create() relies on that fact that data are attached to the
