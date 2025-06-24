@@ -109,8 +109,8 @@ void rzt2_pcie_ep_set_outbound(struct rzt2_pcie *pcie, int win, struct resource_
 	rzt2_rmw(pcie, PCIE_WINDOW_BASEL_REG(win), 0xFFFFF000, (u32)(cpu_addr & 0xFFFFF000));
 
 	/* PW0 mask: PCIE_WINDOW_MASKU_REG: 0x110C   PCIE_WINDOW_MASKL_REG: 0x1108 */
-	rzt2_pci_write_reg(pcie, (u64)(mask >> 32), PCIE_WINDOW_MASKU_REG(win));
-	rzt2_pci_write_reg(pcie, (u64)(mask << 12), PCIE_WINDOW_MASKL_REG(win));
+	rzt2_pci_write_reg(pcie, (u32)(mask >> 32), PCIE_WINDOW_MASKU_REG(win));
+	rzt2_pci_write_reg(pcie, (u32)(mask << 12), PCIE_WINDOW_MASKL_REG(win));
 
 	/* PD0 addr: PCIE_DESTINATION_HI_REG: 0x1114   PCIE_DESTINATION_LO_REG: 0x1110 */
 	rzt2_pci_write_reg(pcie, (u32)(pci_addr >> 32), PCIE_DESTINATION_HI_REG(win));
@@ -144,6 +144,11 @@ void rzt2_pcie_set_inbound(struct rzt2_pcie *pcie, u64 cpu_addr,
 void rzt2_pcie_ep_set_inbound(struct rzt2_pcie *pcie, phys_addr_t cpu_addr,
 			      u64 pci_addr, u64 flags, int idx, bool host)
 {
+	if (flags > 4096)
+		flags = (roundup_pow_of_two(flags) / SZ_4K) - 1;
+	else
+		flags = 0x0;
+
 	/* AXI_WINDOW_BASEL_REG: 0x1000   AXI_WINDOW_BASEU_REG: 0x1004 */
 	rzt2_pci_write_reg(pcie, lower_32_bits(pci_addr), AXI_WINDOW_BASEL_REG(idx));
 	rzt2_pci_write_reg(pcie, upper_32_bits(pci_addr), AXI_WINDOW_BASEU_REG(idx));
@@ -155,7 +160,7 @@ void rzt2_pcie_ep_set_inbound(struct rzt2_pcie *pcie, phys_addr_t cpu_addr,
 	pcie->save_reg.axi_window.dest_u[idx] = upper_32_bits(cpu_addr);
 
 	/* AXI_WINDOW_MASKL_REG: 0x1008   AXI_WINDOW_MASKU_REG: 0x100C */
-	rzt2_pci_write_reg(pcie, lower_32_bits(flags), AXI_WINDOW_MASKL_REG(idx));
+	rzt2_pci_write_reg(pcie, (u32)(flags << 12), AXI_WINDOW_MASKL_REG(idx));
 	rzt2_pci_write_reg(pcie, upper_32_bits(flags), AXI_WINDOW_MASKU_REG(idx));
 
 	rzt2_rmw(pcie, AXI_WINDOW_BASEL_REG(idx), AXI_WINDOW_ENABLE, AXI_WINDOW_ENABLE);

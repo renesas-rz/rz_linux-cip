@@ -427,7 +427,7 @@ static int rzt2_pcie_ep_write_header(struct pci_epc *epc, u8 fn, u8 vfn,
 static int rzt2_pcie_ep_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 				struct pci_epf_bar *epf_bar)
 {
-	int flags = epf_bar->flags | LAR_ENABLE | LAM_64BIT;
+	int flags = epf_bar->flags | PCIE_CONF_BAR_CTRL_64BITS;
 	struct rzt2_pcie_endpoint *ep = epc_get_drvdata(epc);
 	u64 size = 1ULL << fls64(epf_bar->size - 1);
 	dma_addr_t cpu_addr = epf_bar->phys_addr;
@@ -442,8 +442,8 @@ static int rzt2_pcie_ep_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 		return -EINVAL;
 	}
 
-	if ((flags & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_IO)
-		flags |= IO_SPACE;
+	if (!(flags & PCI_BASE_ADDRESS_SPACE))
+		flags |= PCIE_CONF_BAR_CTRL_AS_MEM;
 
 	ep->bar_to_atu[bar] = idx;
 	/* use 64-bit BARs */
