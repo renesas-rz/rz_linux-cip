@@ -147,6 +147,17 @@ static void stmmac_exit_fs(struct net_device *dev);
 
 #define STMMAC_COAL_TIMER(x) (ns_to_ktime((x) * NSEC_PER_USEC))
 
+#if IS_ENABLED(CONFIG_RZT2H_ETHSS)
+// VSC8541 PHY DELAY and MII to timestamp
+#define INGRESS_DELAY_10M		(2968+1212)
+#define INGRESS_DELAY_100M		(396+132)
+#define INGRESS_DELAY_1G		(247+28)
+
+#define EGRESS_DELAY_10M		(3565-12)
+#define EGRESS_DELAY_100M		(374-12)
+#define EGRESS_DELAY_1G			(76-12)
+#endif
+
 int stmmac_bus_clks_config(struct stmmac_priv *priv, bool enabled)
 {
 	int ret = 0;
@@ -552,6 +563,14 @@ static void stmmac_get_tx_hwtstamp(struct stmmac_priv *priv,
 		ns -= priv->plat->cdc_error_adj;
 
 		memset(&shhwtstamp, 0, sizeof(struct skb_shared_hwtstamps));
+#if IS_ENABLED(CONFIG_RZT2H_ETHSS)
+		if (priv->speed == SPEED_10)
+			ns += EGRESS_DELAY_10M;
+		else if (priv->speed == SPEED_100)
+			ns += EGRESS_DELAY_100M;
+		else if (priv->speed == SPEED_1000)
+			ns += EGRESS_DELAY_1G;
+#endif
 		shhwtstamp.hwtstamp = ns_to_ktime(ns);
 
 		netdev_dbg(priv->dev, "get valid TX hw timestamp %llu\n", ns);
@@ -587,7 +606,14 @@ static void stmmac_get_rx_hwtstamp(struct stmmac_priv *priv, struct dma_desc *p,
 		stmmac_get_timestamp(priv, desc, priv->adv_ts, &ns);
 
 		ns -= priv->plat->cdc_error_adj;
-
+#if IS_ENABLED(CONFIG_RZT2H_ETHSS)
+		if (priv->speed == SPEED_10)
+			ns -= INGRESS_DELAY_10M;
+		else if (priv->speed == SPEED_100)
+			ns -= INGRESS_DELAY_100M;
+		else if (priv->speed == SPEED_1000)
+			ns -= INGRESS_DELAY_1G;
+#endif
 		netdev_dbg(priv->dev, "get valid RX hw timestamp %llu\n", ns);
 		shhwtstamp = skb_hwtstamps(skb);
 		memset(shhwtstamp, 0, sizeof(struct skb_shared_hwtstamps));
