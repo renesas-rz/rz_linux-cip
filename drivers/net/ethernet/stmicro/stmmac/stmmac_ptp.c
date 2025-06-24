@@ -96,28 +96,25 @@ static int ethsw_timer_adjust_freq(struct ptp_clock_info *ptp, long scaled_ppm)
 	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
 	struct renesas_rzt2h_eqos *eqos = (struct renesas_rzt2h_eqos *)(priv->plat->bsp_priv);
 	unsigned long flags;
-	u64 tick;
-	s64 delta;
-	u32 tick_diff;
-	int neg_adj = 0;
 
-	tick = NSEC_PER_SEC;
-
-	delta = (s64)tick * ppb;
-	delta = div_s64(delta, NSEC_PER_SEC);
-
-	tick += delta;
-
-	if (tick < NSEC_PER_SEC) {
-		neg_adj = 1;
-		tick_diff = NSEC_PER_SEC - tick;
-	} else {
-		tick_diff = tick - NSEC_PER_SEC;
-	}
 
 	write_lock_irqsave(&priv->ptp_lock, flags);
-	ethsw_time_adjust_inc(eqos->ethss->ethsw_base, tick_diff, neg_adj,
-			      priv->plat->clk_ptp_rate, eqos->ethsw_ptp_timer);
+	ethsw_time_adjust_frequency(eqos->ethss->ethsw_base, eqos->ethsw_ptp_timer,
+					ppb, priv->plat->clk_ptp_rate);
+	write_unlock_irqrestore(&priv->ptp_lock, flags);
+
+	return 0;
+}
+
+static int ethsw_timer_adjust_phase(struct ptp_clock_info *ptp, s32 phase)
+{
+	struct stmmac_priv *priv =
+	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
+	struct renesas_rzt2h_eqos *eqos = (struct renesas_rzt2h_eqos *)(priv->plat->bsp_priv);
+	unsigned long flags;
+
+	write_lock_irqsave(&priv->ptp_lock, flags);
+	ethsw_time_adjust_offset(eqos->ethss->ethsw_base, eqos->ethsw_ptp_timer, phase);
 	write_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	return 0;
@@ -128,14 +125,12 @@ static int ethsw_timer_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 	struct stmmac_priv *priv =
 	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
 	struct renesas_rzt2h_eqos *eqos = (struct renesas_rzt2h_eqos *)(priv->plat->bsp_priv);
-	struct timespec64 ts;
 	unsigned long flags;
-	s64 now;
+	u64 now;
 
 	write_lock_irqsave(&priv->ptp_lock, flags);
 	ethsw_time_get(eqos->ethss->ethsw_base, &now, eqos->ethsw_ptp_timer);
-	ts = ns_to_timespec64(now + delta);
-	ethsw_time_set(eqos->ethss->ethsw_base, ts.tv_sec, ts.tv_nsec, eqos->ethsw_ptp_timer);
+	ethsw_time_set(eqos->ethss->ethsw_base, now + delta, eqos->ethsw_ptp_timer);
 	write_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	return 0;
@@ -165,9 +160,12 @@ static int ethsw_timer_set_time(struct ptp_clock_info *ptp,
 	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
 	struct renesas_rzt2h_eqos *eqos = (struct renesas_rzt2h_eqos *)(priv->plat->bsp_priv);
 	unsigned long flags;
+	u64 ns = 0;
+
+	ns = timespec64_to_ns(ts);
 
 	write_lock_irqsave(&priv->ptp_lock, flags);
-	ethsw_time_set(eqos->ethss->ethsw_base, ts->tv_sec, ts->tv_nsec, eqos->ethsw_ptp_timer);
+	ethsw_time_set(eqos->ethss->ethsw_base, ns, eqos->ethsw_ptp_timer);
 	write_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	return 0;
@@ -176,7 +174,7 @@ static int ethsw_timer_set_time(struct ptp_clock_info *ptp,
 /* structure describing a PTP hardware clock */
 static struct ptp_clock_info stmmac_ptp_clock_ops = {
 	.owner = THIS_MODULE,
-	.name = "stmmac ptp",
+	.name = "ethsw ptp",
 	.max_adj = 100000000,
 	.n_alarm = 0,
 	.n_ext_ts = 0,
@@ -184,6 +182,7 @@ static struct ptp_clock_info stmmac_ptp_clock_ops = {
 	.n_pins = 0,
 	.pps = 0,
 	.adjfine = ethsw_timer_adjust_freq,
+	.adjphase = ethsw_timer_adjust_phase,
 	.adjtime = ethsw_timer_adjust_time,
 	.gettime64 = ethsw_timer_get_time,
 	.settime64 = ethsw_timer_set_time,
