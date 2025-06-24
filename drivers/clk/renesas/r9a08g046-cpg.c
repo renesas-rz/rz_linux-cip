@@ -145,24 +145,16 @@ enum clk_ids {
 	CLK_PLL1_DIV2,
 	CLK_PLL2,
 	CLK_PLL2_DIV2,
-	CLK_PLL2_DIV2_2,
-	CLK_PLL2_DIV2_5,
 	CLK_PLL2_DIV2_4,
-	CLK_PLL2_DIV2_8,
-	CLK_PLL2_DIV2_16,
 	CLK_PLL2_DIV3,
 	CLK_PLL2_DIV5,
 	CLK_PLL2_DIV6,
 	CLK_PLL2_DIV7,
 	CLK_PLL3,
 	CLK_PLL3_DIV2,
-	CLK_PLL3_DIV2_2,
-	CLK_PLL3_DIV2_8,
-	CLK_PLL3_DIV2_16,
 	CLK_PLL3_DIV3,
 	CLK_PLL3_DIV5,
 	CLK_PLL3_DIV6,
-	CLK_PLL3_DIV6_2,
 	CLK_PLL3_DIV7,
 	CLK_PLL4,
 	CLK_PLL6,
@@ -207,6 +199,14 @@ static const struct clk_div_table dtable_1_4[] = {
 	{ 0, 0 },
 };
 
+static const struct clk_div_table dtable_1_8[] = {
+	{ 0, 1 },
+	{ 1, 2 },
+	{ 2, 4 },
+	{ 3, 8 },
+	{ 0, 0 },
+};
+
 static const struct clk_div_table dtable_1_32[] = {
 	{ 0, 1 },
 	{ 1, 2 },
@@ -214,14 +214,6 @@ static const struct clk_div_table dtable_1_32[] = {
 	{ 3, 8 },
 	{ 4, 16 },
 	{ 5, 32 },
-	{ 0, 0 },
-};
-
-static const struct clk_div_table dtable_2_8[] = {
-	{ 0, 2 },
-	{ 1, 4 },
-	{ 2, 6 },
-	{ 3, 8 },
 	{ 0, 0 },
 };
 
@@ -279,10 +271,10 @@ static const char * const sel_eth0_clk_tx_i[] = { ".sel_eth0_tx", ".eth0_rm" };
 static const char * const sel_eth0_clk_rx_i[] = { ".sel_eth0_rx", ".eth0_rm" };
 static const char * const sel_eth1_clk_tx_i[] = { ".sel_eth1_tx", ".eth1_rm" };
 static const char * const sel_eth1_clk_rx_i[] = { ".sel_eth1_rx", ".eth1_rm" };
-static const char * const sel_ge3d[] = { ".pll2_div5", ".pll3_div3", ".pll6", ".pll3_div2_2" };
+static const char * const sel_ge3d[] = { ".pll1_div2", ".pll3_div3", ".pll6", ".pll3_div2_2" };
 static const char * const sel_pll4[] = { ".osc_div1000", ".pll4" };
 static const char * const sel_rsci[] = { ".pll2_div5", ".pll2_div6", ".pll2_div7", ".pll2_div2_4" };
-static const char * const sel_rspi[] = { ".pll2_div5", ".pll2_div6", ".pll2_div7", ".pll2_div2_8" };
+static const char * const sel_rspi[] = { ".pll2_div5", ".pll2_div6", ".pll2_div7", ".pll2_div2_4" };
 static const char * const sel_sdhi[] = { ".pll2_div2", ".pll1_div2",  ".pll6", ".pll2_div6" };
 static const char * const sel_xspi[] = { ".pll2_div2", ".pll1_div2", ".pll2_div3", ".pll6" };
 
@@ -311,14 +303,11 @@ static const struct cpg_core_clk r9a08g046_core_clks[] = {
 	DEF_FIXED(".pll1_div2", CLK_PLL1_DIV2, CLK_PLL1, 1, 2),
 	DEF_FIXED(".pll2_div2", CLK_PLL2_DIV2, CLK_PLL2, 1, 2),
 	DEF_FIXED(".pll2_div2_4", CLK_PLL2_DIV2_4, CLK_PLL2_DIV2, 1, 4),
-	DEF_FIXED(".pll2_div2_8", CLK_PLL2_DIV2_8, CLK_PLL2_DIV2, 1, 8),
 	DEF_FIXED(".pll2_div3", CLK_PLL2_DIV3, CLK_PLL2, 1, 3),
 	DEF_FIXED(".pll2_div5", CLK_PLL2_DIV5, CLK_PLL2, 1, 5),
 	DEF_FIXED(".pll2_div6", CLK_PLL2_DIV6, CLK_PLL2, 1, 6),
 	DEF_FIXED(".pll2_div7", CLK_PLL2_DIV7, CLK_PLL2, 1, 7),
 	DEF_FIXED(".pll3_div2", CLK_PLL3_DIV2, CLK_PLL3, 1, 2),
-	DEF_FIXED(".pll3_div2_2", CLK_PLL3_DIV2_2, CLK_PLL3_DIV2, 1, 2),
-	DEF_FIXED(".pll3_div2_8", CLK_PLL3_DIV2_8, CLK_PLL3_DIV2, 1, 8),
 	DEF_FIXED(".pll3_div3", CLK_PLL3_DIV3, CLK_PLL3, 1, 3),
 	DEF_FIXED(".pll3_div5", CLK_PLL3_DIV5, CLK_PLL3, 1, 5),
 	DEF_FIXED(".pll3_div6", CLK_PLL3_DIV6, CLK_PLL3, 1, 6),
@@ -373,13 +362,12 @@ static const struct cpg_core_clk r9a08g046_core_clks[] = {
 		    dtable_4_128, 0, 0, 0, NULL),
 	DEF_FIXED("P4", R9A08G046_CLK_P4, CLK_PLL2_DIV2, 1, 5),
 	DEF_FIXED("P4_DIV2", R9A08G046_CLK_P4_DIV2, R9A08G046_CLK_P4, 1, 2),
-	DEF_FIXED("P5", R9A08G046_CLK_P5, CLK_PLL2_DIV2, 1, 8),
+	DEF_FIXED("P5", R9A08G046_CLK_P5, CLK_PLL2_DIV2, 1, 4),
 	DEF_G3S_DIV("P7", R9A08G046_CLK_P7, CLK_PLL2_DIV2, G3L_DIVCLKQSPI, G3L_DIVCLKQSPI_STS,
 		    dtable_4_128, 0, 0, 0, NULL),
-	DEF_FIXED("P8", R9A08G046_CLK_P8, CLK_PLL3_DIV2, 1, 16),
+	DEF_FIXED("P8", R9A08G046_CLK_P8, CLK_PLL3_DIV2, 1, 8),
 	DEF_FIXED("P9", R9A08G046_CLK_P9, CLK_PLL3_DIV6, 1, 1),
 	DEF_FIXED("P10", R9A08G046_CLK_P10, CLK_PLL3_DIV6, 1, 2),
-	DEF_FIXED("P11", R9A08G046_CLK_P11, CLK_PLL3_DIV6, 1, 2),
 	DEF_G3S_DIV("P13", R9A08G046_CLK_P13, CLK_SEL_RSCI0, G3L_DIV_RSCI0, G3L_DIV_RSCI0_STS,
 		    dtable_2_16, 0, 0, 0, NULL),
 	DEF_G3S_DIV("P14", R9A08G046_CLK_P14, CLK_SEL_RSCI1, G3L_DIV_RSCI1, G3L_DIV_RSCI1_STS,
@@ -389,11 +377,12 @@ static const struct cpg_core_clk r9a08g046_core_clks[] = {
 	DEF_G3S_DIV("P16", R9A08G046_CLK_P16, CLK_SEL_RSCI3, G3L_DIV_RSCI3, G3L_DIV_RSCI3_STS,
 		    dtable_2_16, 0, 0, 0, NULL),
 	DEF_G3S_DIV("P17", R9A08G046_CLK_P17, CLK_SEL_RSPI0, G3L_DIV_RSPI0, G3L_DIV_RSPI0_STS,
-		    dtable_2_16, 0, 0, 0, NULL),
+		    dtable_1_8, 0, 0, 0, NULL),
 	DEF_G3S_DIV("P18", R9A08G046_CLK_P18, CLK_SEL_RSPI1, G3L_DIV_RSPI1, G3L_DIV_RSPI1_STS,
-		    dtable_2_16, 0, 0, 0, NULL),
+		    dtable_1_8, 0, 0, 0, NULL),
 	DEF_G3S_DIV("P19", R9A08G046_CLK_P19, CLK_SEL_RSPI2, G3L_DIV_RSPI2, G3L_DIV_RSPI2_STS,
-		    dtable_2_16, 0, 0, 0, NULL),
+		    dtable_1_8, 0, 0, 0, NULL),
+	DEF_FIXED("P20", R9A08G046_CLK_P20, CLK_PLL2_DIV2, 1, 8),
 	DEF_G3S_DIV("SD0", R9A08G046_CLK_SD0, CLK_SEL_SDHI0, G3L_DIV_SDHI0, G3L_DIV_SDHI0_STS,
 		    dtable_1_4, 800000000UL, 600000000UL, CLK_SET_RATE_PARENT, rzg3s_cpg_div_clk_notifier),
 	DEF_G3S_DIV("SD1", R9A08G046_CLK_SD1, CLK_SEL_SDHI1, G3L_DIV_SDHI1, G3L_DIV_SDHI1_STS,
@@ -404,16 +393,15 @@ static const struct cpg_core_clk r9a08g046_core_clks[] = {
 	DEF_FIXED(".sd1_div2", CLK_SD1_DIV2, R9A08G046_CLK_SD1, 1, 2),
 	DEF_FIXED(".sd2_div2", CLK_SD2_DIV2, R9A08G046_CLK_SD2, 1, 2),
 	DEF_G3S_DIV("SPI0", R9A08G046_CLK_SPI0, CLK_SEL_XSPI, G3L_DIV_XSPI, G3L_DIV_XSPI_STS,
-		    dtable_2_8, 0, 0, 0, NULL),
+		    dtable_2_16, 0, 0, 0, NULL),
 	DEF_FIXED("SPI1", R9A08G046_CLK_SPI1, R9A08G046_CLK_SPI0, 1, 2),
 	DEF_FIXED("AT", R9A08G046_CLK_AT, CLK_PLL3_DIV2, 1, 2),
-	DEF_FIXED("M0", R9A08G046_CLK_M0, CLK_PLL3_DIV2_8, 1, 1),
+	DEF_FIXED("M0", R9A08G046_CLK_M0, CLK_PLL3_DIV2, 1, 4),
 	DEF_FIXED("M4", R9A08G046_CLK_M4, CLK_PLL7, 1, 1),
-	DEF_FIXED("M5", R9A08G046_CLK_M5, CLK_PLL3_DIV2_2, 1, 1),
-	DEF_FIXED("M6", R9A08G046_CLK_M6, CLK_PLL3_DIV2_2, 1, 2),
+	DEF_FIXED("M5", R9A08G046_CLK_M5, CLK_PLL3_DIV6, 1, 2),
+	DEF_FIXED("M6", R9A08G046_CLK_M6, R9A08G046_CLK_P1, 1, 2),
 	DEF_FIXED("S0", R9A08G046_CLK_S0, CLK_SEL_PLL4, 1, 2),
 	DEF_FIXED("HP", R9A08G046_CLK_HP, CLK_PLL6_DIV10, 1, 1),
-	DEF_FIXED("TSU", R9A08G046_CLK_TSU, CLK_PLL2_DIV2, 1, 16),
 	DEF_MUX_FLAGS("ETHTX01", R9A08G046_CLK_ETHTX01, G3L_SEL_ETH0_CLK_TX_I, sel_eth0_clk_tx_i,
 		      CLK_SET_RATE_PARENT),
 	DEF_MUX("ETHRX01", R9A08G046_CLK_ETHRX01, G3L_SEL_ETH0_CLK_RX_I, sel_eth0_clk_rx_i),
@@ -623,15 +611,15 @@ static const struct rzg2l_mod_clk r9a08g046_mod_clks[] = {
 					MSTOP(BUS_MCPU2, BIT(9))),
 	DEF_MOD("gpio_hclk",		R9A08G046_GPIO_HCLK, CLK_EXTAL, 0x598, 0,
 					MSTOP(BUS_PERI_CPU, BIT(6))),
-	DEF_MOD("adc0_adclk",		R9A08G046_ADC0_ADCLK, R9A08G046_CLK_TSU, 0x5a8, 0,
+	DEF_MOD("adc0_adclk",		R9A08G046_ADC0_ADCLK, R9A08G046_CLK_P20, 0x5a8, 0,
 					MSTOP(BUS_MCPU2, BIT(14))),
-	DEF_MOD("adc0_pclk",		R9A08G046_ADC0_PCLK, R9A08G046_CLK_TSU, 0x5a8, 1,
+	DEF_MOD("adc0_pclk",		R9A08G046_ADC0_PCLK, R9A08G046_CLK_P20, 0x5a8, 1,
 					MSTOP(BUS_MCPU2, BIT(14))),
-	DEF_MOD("adc1_adclk",		R9A08G046_ADC1_ADCLK, R9A08G046_CLK_TSU, 0x5a8, 2,
+	DEF_MOD("adc1_adclk",		R9A08G046_ADC1_ADCLK, R9A08G046_CLK_P20, 0x5a8, 2,
 					MSTOP(BUS_PERI_VIDEO1, BIT(14))),
-	DEF_MOD("adc1_pclk",		R9A08G046_ADC1_PCLK, R9A08G046_CLK_TSU, 0x5a8, 3,
+	DEF_MOD("adc1_pclk",		R9A08G046_ADC1_PCLK, R9A08G046_CLK_P20, 0x5a8, 3,
 					MSTOP(BUS_PERI_VIDEO1, BIT(14))),
-	DEF_MOD("tsu_pclk",		R9A08G046_TSU_PCLK, R9A08G046_CLK_TSU, 0x5ac, 0,
+	DEF_MOD("tsu_pclk",		R9A08G046_TSU_PCLK, R9A08G046_CLK_P20, 0x5ac, 0,
 					MSTOP(BUS_PERI_VIDEO1, BIT(15))),
 	DEF_MOD("pdm_pclk",		R9A08G046_PDM_PCLK, R9A08G046_CLK_P0, 0x604, 0,
 					MSTOP(BUS_MCPU3, BIT(9))),
@@ -645,7 +633,7 @@ static const struct rzg2l_mod_clk r9a08g046_mod_clks[] = {
 					MSTOP(BUS_PERI_COM, BIT(10))),
 	DEF_MOD("spdif_pclk",		R9A08G046_SPDIF_PCLK, R9A08G046_CLK_P0,	0x60c, 0,
 					MSTOP(BUS_MCPU3, BIT(6))),
-	DEF_MOD("i3c_pclk",		R9A08G046_I3C_PCLK, R9A08G046_CLK_TSU, 0x610, 0,
+	DEF_MOD("i3c_pclk",		R9A08G046_I3C_PCLK, R9A08G046_CLK_P20, 0x610, 0,
 					MSTOP(BUS_MCPU3, BIT(10))),
 	DEF_MOD("i3c_tclk",		R9A08G046_I3C_TCLK, R9A08G046_CLK_P5, 0x610, 1,
 					MSTOP(BUS_MCPU3, BIT(10))),
