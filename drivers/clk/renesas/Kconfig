@@ -269,6 +269,7 @@ config CLK_RENESAS_VBATTB
 
 config CLK_RZT2
 	bool "RZ/T2 family clock support" if COMPILE_TEST
+	select MFD_SYSCON
 	select RESET_CONTROLLER
 
 # Generic
