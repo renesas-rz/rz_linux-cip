@@ -275,5 +275,7 @@ struct plat_stmmacenet_data {
 	int msi_tx_base_vec;
 	const struct dwmac4_addrs *dwmac4_addrs;
 	unsigned int flags;
+	int tx_threshold;
+	int rx_threshold;
 };
 #endif

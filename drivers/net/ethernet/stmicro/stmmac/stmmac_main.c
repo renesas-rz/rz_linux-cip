@@ -2395,8 +2395,15 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 	}
 
 	if (priv->plat->force_thresh_dma_mode) {
-		txmode = tc;
-		rxmode = tc;
+		if (priv->plat->tx_threshold)
+			txmode = priv->plat->tx_threshold;
+		else
+			txmode = tc;
+
+		if (priv->plat->rx_threshold)
+			rxmode = priv->plat->rx_threshold;
+		else
+			rxmode = tc;
 	} else if (priv->plat->force_sf_dma_mode || priv->plat->tx_coe) {
 		/*
 		 * In case of GMAC, SF mode can be enabled
@@ -2409,7 +2416,11 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 		rxmode = SF_DMA_MODE;
 		priv->xstats.threshold = SF_DMA_MODE;
 	} else {
-		txmode = tc;
+		if (priv->plat->tx_threshold)
+			txmode = priv->plat->tx_threshold;
+		else
+			txmode = tc;
+
 		rxmode = SF_DMA_MODE;
 	}
 
@@ -2603,16 +2614,29 @@ static bool stmmac_xdp_xmit_zc(struct stmmac_priv *priv, u32 queue, u32 budget)
 
 static void stmmac_bump_dma_threshold(struct stmmac_priv *priv, u32 chan)
 {
+	u32 txmode = 0;
+	u32 rxmode = 0;
+
+	if (priv->plat->tx_threshold)
+		txmode = priv->plat->tx_threshold;
+	else
+		txmode = tc;
+
+	if (priv->plat->rx_threshold)
+		rxmode = priv->plat->rx_threshold;
+	else
+		rxmode = tc;
+
 	if (unlikely(priv->xstats.threshold != SF_DMA_MODE) && tc <= 256) {
 		tc += 64;
 
 		if (priv->plat->force_thresh_dma_mode)
-			stmmac_set_dma_operation_mode(priv, tc, tc, chan);
+			stmmac_set_dma_operation_mode(priv, txmode, rxmode, chan);
 		else
-			stmmac_set_dma_operation_mode(priv, tc, SF_DMA_MODE,
+			stmmac_set_dma_operation_mode(priv, txmode, SF_DMA_MODE,
 						      chan);
 
-		priv->xstats.threshold = tc;
+		priv->xstats.threshold = txmode;
 	}
 }
 
