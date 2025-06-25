@@ -26,3 +26,12 @@ config RZG2L_THERMAL
 	help
 	  Enable this to plug the RZ/G2L thermal sensor driver into the Linux
 	  thermal framework.
+
+config RZT2H_THERMAL
+	tristate "Renesas RZ/T2H thermal driver"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on HAS_IOMEM
+	depends on OF
+	help
+	  Enable this to plug the RZ/T2H thermal sensor driver into the Linux
+	  thermal framework.
