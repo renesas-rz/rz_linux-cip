@@ -856,6 +856,7 @@ static int rzg3l_cpg_dsi_div_determine_rate(struct clk_hw *hw,
 	struct rzg2l_cpg_priv *priv = dsi_div->priv;
 	struct rzg3l_plldsi_parameters *dsi_dividers = &priv->plldsi_div_parameters;
 	u32 divider;
+	int div_a, div_b;
 
 	/*
 	 * Adjust the requested clock rate (`req->rate`) to ensure it falls within
@@ -864,9 +865,27 @@ static int rzg3l_cpg_dsi_div_determine_rate(struct clk_hw *hw,
 	req->rate = clamp(req->rate, 5440000UL, 187500000UL);
 
 	if (dsi_dividers->is_dsi) {
-		dsi_div->div_a = 1; /* Divided by 2 */
-		dsi_div->div_b = 5; /* Divided by 6 */
+		/* The relationship between hsclk and vclk must follow
+		 * vclk * bpp = hsclk * 8 * lanes [1]
+		 *
+		 * For RZ/G3L, hsclk = pllclk/16 and pllclk = vclk * DSI divider
+		 * Therefore, the equation [1] becomes:
+		 * vclk * bpp = vclk * DSI divider / 16  * 8 * num_lanes
+		 * DSI divider = (bpp / num_lanes) * 2
+		 */
+		divider = dsi_div_ab * 2;
+		/* Calculate the DIV_DSI_A and DIV_DSI_B */
+		for (div_a = 6; div_a >= 0; div_a--) {
+			for (div_b = 0; div_b < 17; div_b++) {
+				if (((1 << div_a) * (div_b + 1)) == divider) {
+					dsi_div->div_a = div_a;
+					dsi_div->div_b = div_b;
+					goto out;
+				}
+			}
+		}
 	}
+out:
 
 	divider = (1 << dsi_div->div_a) * (dsi_div->div_b + 1);
 	req->best_parent_rate = req->rate * divider;
