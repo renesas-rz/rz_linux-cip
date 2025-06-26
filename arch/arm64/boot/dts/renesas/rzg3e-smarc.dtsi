@@ -193,7 +193,9 @@
 #if (!SW_LCD_EN)
 	sci4_pins: sci4 {
 		pinmux = <RZV2H_PORT_PINMUX(7, 7, 5)>, /* SCI4_TXD_MOSI_SDA */
-			 <RZV2H_PORT_PINMUX(7, 6, 5)>; /* SCI4_RXD_MISO_SCL */
+			 <RZV2H_PORT_PINMUX(7, 6, 5)>, /* SCI4_RXD_MISO_SCL */
+			 <RZV2H_PORT_PINMUX(8, 0, 6)>, /* SCI4_CTS# */
+			 <RZV2H_PORT_PINMUX(8, 1, 5)>; /* SCI4_RTS# */
 		bias-pull-up;
 	};
 
@@ -228,7 +230,9 @@
 #if ((SW_SER0_PMOD) && (!SW_SER2_EN))
 	sci2_pins: sci2 {
 		pinmux = <RZV2H_PORT_PINMUX(1, 1, 1)>, /* SCI2_TXD_MOSI_SDA */
-			 <RZV2H_PORT_PINMUX(1, 0, 1)>; /* SCI2_RXD_MISO_SCL */
+			 <RZV2H_PORT_PINMUX(1, 0, 1)>, /* SCI2_RXD_MISO_SCL */
+			 <RZV2H_PORT_PINMUX(1, 2, 6)>, /* SCI2_CTS# */
+			 <RZV2H_PORT_PINMUX(1, 3, 1)>; /* SCI2_RTS# */
 		bias-pull-up;
 	};
 #endif
@@ -316,6 +320,8 @@
 &sci4 {
 	pinctrl-0 = <&sci4_pins>;
 	pinctrl-names = "default";
+
+	uart-has-rtscts;
 	status = "okay";
 };
 
@@ -348,6 +354,8 @@
 &sci2 {
 	pinctrl-0 = <&sci2_pins>;
 	pinctrl-names = "default";
+
+	uart-has-rtscts;
 	status = "okay";
 };
 #endif
