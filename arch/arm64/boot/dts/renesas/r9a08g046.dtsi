@@ -485,7 +485,10 @@
 		lvds: lvds@164c0000 {
 			compatible = "renesas,rzg3e-lvds";
 			reg = <0x0 0x108a0000 0x0 0x10>;
-			resets = <&cpg R9A08G046_LVDS_RESET_N>;
+			clocks = <&cpg CPG_MOD R9A08G046_MIPI_DSI_PCLK>;
+			clock-names = "dsi_pclk";
+			resets = <&cpg R9A08G046_LVDS_RESET_N>,
+				 <&cpg R9A08G046_MIPI_DSI_PRESET_N>;
 			power-domains = <&cpg>;
 			status = "disabled";
 			ranges;
