@@ -171,7 +171,7 @@ struct fixed_mod_conf {
 				 FIELD_PREP_CONST(BUS_MSTOP_BITS_MASK, (mask)))
 #define BUS_MSTOP_NONE		GENMASK(31, 0)
 
-#define FIXED_MOD_CONF_XSPI    FIXED_MOD_CONF_PACK(5, 1)
+#define FIXED_MOD_CONF_XSPI	FIXED_MOD_CONF_PACK(5, 1)
 
 /**
  * Definitions of CPG Core Clocks
