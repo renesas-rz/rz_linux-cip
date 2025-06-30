@@ -6,6 +6,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/clk/renesas-rzg3l-dsi.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -21,6 +22,7 @@
 #define G3L_CPG_SDHI_DDIV		(0x218)
 #define G3L_CPG_XSPI_DDIV		(0x220)
 #define G3L_CPG_GE3D_DDIV		(0x224)
+#define G3L_CPG_DSI_DDIV		(0x228)
 #define G3L_CPG_PDM_DDIV		(0x22c)
 #define G3L_CPG_CA55CORE_DDIV		(0x234)
 #define G3L_CPG_RSCI_DDIV		(0x238)
@@ -30,10 +32,12 @@
 #define G3L_CLKDIVSTATUS		(0x280)
 #define G3L_CLKSELSTATUS		(0x284)
 #define G3L_CPG_XSPI_SSEL		(0x404)
+#define G3L_CPG_DSI_SSEL		(0x408)
 #define G3L_CPG_GE3D_SSEL		(0x40c)
 #define G3L_CPG_ETH_SSEL		(0x410)
 #define G3L_CPG_RSCI_SSEL		(0x414)
 #define G3L_CPG_RSPI_SSEL		(0x418)
+#define G3L_CPG_DSI_SDIV		(0x430)
 #define G3L_CPG_ETH_SDIV		(0x434)
 
 /* RZ/G3L Specific division configuration.  */
@@ -62,8 +66,10 @@
 #define G3L_SDIV_ETH_B		DDIV_PACK(G3L_CPG_ETH_SDIV, 4, 1)
 #define G3L_SDIV_ETH_C		DDIV_PACK(G3L_CPG_ETH_SDIV, 8, 2)
 #define G3L_SDIV_ETH_D		DDIV_PACK(G3L_CPG_ETH_SDIV, 12, 1)
+#define G3L_SDIV_LVDS		DDIV_PACK(G3L_CPG_DSI_SDIV, 8, 1)
 #define G3L_DIV_XSPI		DDIV_PACK(G3L_CPG_XSPI_DDIV, 0, 3)
 #define G3L_DIV_PDM		DDIV_PACK(G3L_CPG_PDM_DDIV, 0, 1)
+#define G3L_DIV_DSI		DDIV_PACK(G3L_CPG_DSI_DDIV, 0, 2)
 
 /* RZ/G3L Clock status configuration. */
 #define G3L_DIVPL1_STS		DDIV_PACK(G3L_CLKDIVSTATUS, 0, 1)
@@ -87,6 +93,7 @@
 #define G3L_DIV_SDHI1_STS	DDIV_PACK(G3L_CLKDIVSTATUS, 25, 1)
 #define G3L_DIV_SDHI2_STS	DDIV_PACK(G3L_CLKDIVSTATUS, 26, 1)
 #define G3L_DIV_GE3D_STS	DDIV_PACK(G3L_CLKDIVSTATUS, 27, 1)
+#define G3L_DIV_DSI_STS		DDIV_PACK(G3L_CLKDIVSTATUS, 28, 1)
 #define G3L_DIV_XSPI_STS	DDIV_PACK(G3L_CLKDIVSTATUS, 29, 1)
 #define G3L_DIV_PDM_STS		DDIV_PACK(G3L_CLKDIVSTATUS, 30, 1)
 
@@ -119,6 +126,7 @@
 #define G3L_SEL_RSPI0		SEL_PLL_PACK(G3L_CPG_RSPI_SSEL, 0, 2)
 #define G3L_SEL_RSPI1		SEL_PLL_PACK(G3L_CPG_RSPI_SSEL, 2, 2)
 #define G3L_SEL_RSPI2		SEL_PLL_PACK(G3L_CPG_RSPI_SSEL, 4, 2)
+#define G3L_SEL_DSI		SEL_PLL_PACK(G3L_CPG_DSI_SSEL, 0, 1)
 
 /* PLL 1/4/6/7 configuration registers macro. */
 #define G3L_PLL1467_CONF(clk1, clk2, setting)	((clk1) << 22 | (clk2) << 12 | (setting))
@@ -160,6 +168,7 @@ enum clk_ids {
 	CLK_PLL6,
 	CLK_PLL6_DIV10,
 	CLK_PLL7,
+	CLK_PLL7_DSI_SDIV,
 	CLK_SEL_GE3D,
 	CLK_SEL_SDHI0,
 	CLK_SEL_SDHI1,
@@ -186,12 +195,19 @@ enum clk_ids {
 	CLK_SD0_DIV2,
 	CLK_SD1_DIV2,
 	CLK_SD2_DIV2,
+	R9A08G046_CLK_M2_DIV7,
 
 	/* Module Clocks */
 	MOD_CLK_BASE,
 };
 
 /* Divider tables */
+static const struct clk_div_table dtable_1_2[] = {
+	{ 0, 1 },
+	{ 1, 2 },
+	{ 0, 0 },
+};
+
 static const struct clk_div_table dtable_1_4[] = {
 	{ 0, 1 },
 	{ 1, 2 },
@@ -260,6 +276,14 @@ static const struct clk_div_table dtable_8_256[] = {
 	{ 0, 0 },
 };
 
+static const struct clk_div_table dtable_16_128[] = {
+	{ 0, 16 },
+	{ 1, 32 },
+	{ 2, 64 },
+	{ 3, 128 },
+	{ 0, 0 },
+};
+
 /* Mux clock names tables. */
 static const char * const sel_eth0_tx[] = { ".eth0_tr", "et0_txc_tx_clk_in" };
 static const char * const sel_eth0_rx[] = { ".eth0_tr", "et0_rxc_rx_clk_in" };
@@ -277,6 +301,7 @@ static const char * const sel_rsci[] = { ".pll2_div5", ".pll2_div6", ".pll2_div7
 static const char * const sel_rspi[] = { ".pll2_div5", ".pll2_div6", ".pll2_div7", ".pll2_div2_4" };
 static const char * const sel_sdhi[] = { ".pll2_div2", ".pll1_div2",  ".pll6", ".pll2_div6" };
 static const char * const sel_xspi[] = { ".pll2_div2", ".pll1_div2", ".pll2_div3", ".pll6" };
+static const char * const sel_dsi[] = { "M2_DIV7", ".pll7_dsi_div"};
 
 /* Mux clock indices tables. */
 static const u32 mtable_sd[] = { 0, 1, 2, 3 };
@@ -298,8 +323,7 @@ static const struct cpg_core_clk r9a08g046_core_clks[] = {
 		    1067000000UL),
 	DEF_G3L_PLL(".pll6", CLK_PLL6, CLK_EXTAL, G3L_PLL1467_CONF(0x54, 0x58, 0),
 		    500000000UL),
-	DEF_G3L_PLL(".pll7", CLK_PLL7, CLK_EXTAL, G3L_PLL1467_CONF(0x84, 0x88, 0),
-		    3000000000UL),
+	DEF_G3L_PLLDSI(".pll7", CLK_PLL7, CLK_EXTAL, G3L_PLL1467_CONF(0x84, 0x88, 0)),
 	DEF_FIXED(".pll1_div2", CLK_PLL1_DIV2, CLK_PLL1, 1, 2),
 	DEF_FIXED(".pll2_div2", CLK_PLL2_DIV2, CLK_PLL2, 1, 2),
 	DEF_FIXED(".pll2_div2_4", CLK_PLL2_DIV2_4, CLK_PLL2_DIV2, 1, 4),
@@ -313,6 +337,7 @@ static const struct cpg_core_clk r9a08g046_core_clks[] = {
 	DEF_FIXED(".pll3_div6", CLK_PLL3_DIV6, CLK_PLL3, 1, 6),
 	DEF_FIXED(".pll3_div7", CLK_PLL3_DIV7, CLK_PLL3, 1, 7),
 	DEF_FIXED(".pll6_div10", CLK_PLL6_DIV10, CLK_PLL6, 1, 10),
+	DEF_G3L_PLLDSI_DIV(".pll7_dsi_div", CLK_PLL7_DSI_SDIV, CLK_PLL7, G3L_CPG_DSI_SDIV),
 	DEF_MUX(".sel_ge3d", CLK_SEL_GE3D, G3L_SEL_GE3D, sel_ge3d),
 	DEF_SD_MUX(".sel_sd0", CLK_SEL_SDHI0, G3L_SEL_SDHI0, G3L_SEL_SDHI0_STS, sel_sdhi,
 		   mtable_sd, 0, NULL),
@@ -397,6 +422,12 @@ static const struct cpg_core_clk r9a08g046_core_clks[] = {
 	DEF_FIXED("SPI1", R9A08G046_CLK_SPI1, R9A08G046_CLK_SPI0, 1, 2),
 	DEF_FIXED("AT", R9A08G046_CLK_AT, CLK_PLL3_DIV2, 1, 2),
 	DEF_FIXED("M0", R9A08G046_CLK_M0, CLK_PLL3_DIV2, 1, 4),
+	DEF_G3S_DIV("M1", R9A08G046_CLK_M1, CLK_PLL2_DIV6, G3L_DIV_DSI, G3L_DIV_DSI_STS,
+		    dtable_16_128, 0, 0, 0, NULL),
+	DEF_DIV("M2", R9A08G046_CLK_M2, CLK_PLL7, G3L_SDIV_LVDS, dtable_1_2),
+	DEF_FIXED("M2_DIV7", R9A08G046_CLK_M2_DIV7, R9A08G046_CLK_M2, 1, 7),
+	DEF_MUX_FLAGS("M3", R9A08G046_CLK_M3, G3L_SEL_DSI, sel_dsi,
+		      CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT),
 	DEF_FIXED("M4", R9A08G046_CLK_M4, CLK_PLL7, 1, 1),
 	DEF_FIXED("M5", R9A08G046_CLK_M5, CLK_PLL3_DIV6, 1, 2),
 	DEF_FIXED("M6", R9A08G046_CLK_M6, R9A08G046_CLK_P1, 1, 2),
@@ -523,6 +554,22 @@ static const struct rzg2l_mod_clk r9a08g046_mod_clks[] = {
 					MSTOP(BUS_PERI_VIDEO1, BIT(3))),
 	DEF_MOD("cru_aclk",		R9A08G046_CRU_ACLK, R9A08G046_CLK_P1, 0x564, 3,
 					MSTOP(BUS_PERI_VIDEO1, BIT(3))),
+	DEF_MOD("dsi_sysclk",		R9A08G046_MIPI_DSI_SYSCLK, R9A08G046_CLK_M5, 0x568, 1,
+					MSTOP(BUS_PERI_VIDEO1, BIT(5) | BIT(6))),
+	DEF_MOD("dsi_aclk",		R9A08G046_MIPI_DSI_ACLK, R9A08G046_CLK_P1, 0x568, 2,
+					MSTOP(BUS_PERI_VIDEO1, BIT(5) | BIT(6))),
+	DEF_MOD("dsi_pclk",		R9A08G046_MIPI_DSI_PCLK, R9A08G046_CLK_P2, 0x568, 3,
+					MSTOP(BUS_PERI_VIDEO1, BIT(5) | BIT(6))),
+	DEF_MOD("dsi_vclk",		R9A08G046_MIPI_DSI_VCLK, R9A08G046_CLK_M3, 0x568, 4,
+					MSTOP(BUS_PERI_VIDEO1, BIT(5) | BIT(6))),
+	DEF_MOD("dsi_lpclk",		R9A08G046_MIPI_DSI_LPCLK, R9A08G046_CLK_M1, 0x568, 5,
+					MSTOP(BUS_PERI_VIDEO1, BIT(5) | BIT(6))),
+	DEF_MOD("lcdc_clk_a",		R9A08G046_LCDC_CLK_A, R9A08G046_CLK_P1, 0x56c, 0,
+					MSTOP(BUS_PERI_VIDEO1, BIT(7) | BIT(8) | BIT(9))),
+	DEF_MOD("lcdc_clk_d",		R9A08G046_LCDC_CLK_D, R9A08G046_CLK_M3, 0x56c, 1,
+					MSTOP(BUS_PERI_VIDEO1, BIT(7) | BIT(8) | BIT(9))),
+	DEF_MOD("lcdc_clk_p",		R9A08G046_LCDC_CLK_P, R9A08G046_CLK_P2, 0x56c, 2,
+					MSTOP(BUS_PERI_VIDEO1, BIT(7) | BIT(8) | BIT(9))),
 	DEF_MOD("ssi0_pclk2",		R9A08G046_SSI0_PCLK2, R9A08G046_CLK_P0,	0x570, 0,
 					MSTOP(BUS_MCPU1, BIT(10))),
 	DEF_MOD("ssi0_pclk_sfr",	R9A08G046_SSI0_PCLK_SFR, R9A08G046_CLK_P0, 0x570, 1,
@@ -695,6 +742,10 @@ static const struct rzg2l_reset r9a08g046_resets[] = {
 	DEF_RST(R9A08G046_H264_X_RESET_VCP, 0x860, 0),
 	DEF_RST(R9A08G046_H264_CP_PRESET_P, 0x860, 1),
 	DEF_RST(R9A08G046_CRU_CMN_RSTB, 0x864, 0),
+	DEF_RST(R9A08G046_MIPI_DSI_CMN_RSTB, 0x868, 0),
+	DEF_RST(R9A08G046_MIPI_DSI_ARESET_N, 0x868, 1),
+	DEF_RST(R9A08G046_MIPI_DSI_PRESET_N, 0x868, 2),
+	DEF_RST(R9A08G046_LCDC_RESET_N, 0x86c, 0),
 	DEF_RST(R9A08G046_CRU_PRESETN, 0x864, 1),
 	DEF_RST(R9A08G046_CRU_ARESETN, 0x864, 2),
 	DEF_RST(R9A08G046_SSI0_RST_M2_REG, 0x870, 0),
@@ -780,4 +831,6 @@ const struct rzg2l_cpg_info r9a08g046_cpg_info = {
 	.num_resets = R9A08G046_VBAT_BRESETN + 1, /* Last reset ID + 1 */
 
 	.has_clk_mon_regs = true,
+
+	.plldsi_limits = &rzg3l_cpg_pll_dsi_limits,
 };
