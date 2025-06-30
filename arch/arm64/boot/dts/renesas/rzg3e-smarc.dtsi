@@ -391,7 +391,7 @@
 
 	status = "okay";
 
-	/delete-node/ vqmmc_regulator;
+	/delete-node/ vqmmc-regulator;
 };
 #endif
 

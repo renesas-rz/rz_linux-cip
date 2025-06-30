@@ -729,7 +729,7 @@
 	sd-uhs-sdr104;
 	status = "okay";
 
-	/delete-node/ vqmmc_regulator;
+	/delete-node/ vqmmc-regulator;
 };
 
 &adc {
