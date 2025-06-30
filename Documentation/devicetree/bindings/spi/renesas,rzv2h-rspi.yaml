@@ -11,24 +11,38 @@ allOf:
 
 properties:
   compatible:
-    const: renesas,rspi-v2h # RZ/V2H(P)
+    oneOf:
+      - items:
+          - const: renesas,rspi-v2h # RZ/V2H(P)
+      - items:
+          - const: renesas,rspi-g3l # RZ/G3L
 
   reg:
     maxItems: 1
 
   interrupts:
-    items:
-      - description: Error Interrupt
-      - description: Communication End Interrupt
-      - description: Receive Buffer Full Interrupt
-      - description: Transmit Buffer Empty Interrupt
+    oneOf:
+      - items:
+          - description: Error Interrupt
+          - description: Communication End Interrupt
+          - description: Receive Buffer Full Interrupt
+          - description: Transmit Buffer Empty Interrupt
+      - items:
+          - description: Error Interrupt
+          - description: Receive Buffer Full Interrupt
+          - description: Transmit Buffer Empty Interrupt
 
   interrupt-names:
-    items:
-      - const: error
-      - const: cend
-      - const: rx
-      - const: tx
+    oneOf:
+      - items:
+          - const: error
+          - const: cend
+          - const: rx
+          - const: tx
+      - items:
+          - const: error
+          - const: rx
+          - const: tx
 
   clocks:
     maxItems: 3
@@ -80,6 +94,13 @@ required:
   - '#address-cells'
   - '#size-cells'
   - status
+
+spi-delay:
+  type: u32
+  description:
+      This is optional property that use to modify digital delay
+      This property is used for specific board in dts file
+      Value = 4 for RZ/G3L development board.
 
 unevaluatedProperties: false
 
