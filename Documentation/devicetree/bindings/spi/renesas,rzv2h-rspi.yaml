@@ -11,7 +11,11 @@ allOf:
 
 properties:
   compatible:
-    const: renesas,rspi-v2h # RZ/V2H(P)
+    oneOf:
+      - items:
+          - const: renesas,rspi-v2h # RZ/V2H(P)
+      - items:
+          - const: renesas,rspi-g3e # RZ/G3E
 
   reg:
     maxItems: 1
@@ -80,6 +84,13 @@ required:
   - '#address-cells'
   - '#size-cells'
   - status
+
+  spi-delay:
+    type: u32
+    description:
+      This is optional property that use to modify digital delay
+      This property is used for specific board in dts file
+      Value = 3 for RZ/G3E development board.
 
 unevaluatedProperties: false
 
