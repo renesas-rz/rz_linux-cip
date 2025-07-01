@@ -418,6 +418,8 @@ static unsigned int renesas_sdhi_init_tuning(struct tmio_mmc_host *host)
 	    (host->mmc->ios.timing == MMC_TIMING_MMC_HS200))
 		sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT2, 0x0);
 
+	sd_scc_write32(host, priv, RZG3L_SDHI_SCC_HWADJ4, 0x0);
+
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, CLK_CTL_SCLKEN |
 			sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
 
