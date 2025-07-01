@@ -154,6 +154,7 @@ struct rspi_data {
 	spinlock_t lock;	/* Protects RMW-access to RSPI_SSLP */
 	struct clk *tclk;
 	u32 spcmd;
+	u8 spi_clk_delay;
 	u16 spsr;
 	u8 sppcr;
 	int rx_irq, tx_irq, cend_irq;
@@ -273,6 +274,10 @@ static int rspi_v2h_set_config_register(struct rspi_data *rspi, int access_size)
 	/* Sets RSPI mode */
 	if (!spi_controller_is_target(rspi->ctlr))
 		rspi_write32(rspi, SPCR_MSTR, RSPI_SPCR);
+
+	rspi_write8(rspi, rspi->spi_clk_delay, RSPI_MRCKD);
+	rspi_write32(rspi, rspi_read32(rspi, RSPI_SPCR) | SPCR_SPSCKSEL,
+		     RSPI_SPCR);
 
 	return 0;
 }
@@ -998,6 +1003,7 @@ static int rspi_probe(struct platform_device *pdev)
 	const struct rspi_info *info;
 	const struct spi_ops *ops;
 	unsigned long clksrc;
+	u8 clk_delay;
 
 	ret = rspi_mode(&pdev->dev);
 	if (ret == RSPI_SPI_MASTER)
@@ -1035,6 +1041,20 @@ static int rspi_probe(struct platform_device *pdev)
 		ret = PTR_ERR(rspi->addr);
 		goto error1;
 	}
+
+	/* Get Digital delay value */
+	ret = device_property_read_u8(&pdev->dev, "spi-clk-delay", &clk_delay);
+	if (!ret) {
+		if (clk_delay > 7) {
+			dev_err(&pdev->dev, "Invalid delay Value\n");
+			ret = -EINVAL;
+			goto error1;
+		}
+	} else {
+		clk_delay = 0;
+	}
+
+	rspi->spi_clk_delay = clk_delay;
 
 	rspi->tclk = devm_clk_get(&pdev->dev, "tclk");
 	if (IS_ERR(rspi->tclk)) {
