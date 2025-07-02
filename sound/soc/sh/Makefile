@@ -30,3 +30,7 @@ obj-$(CONFIG_SND_SOC_RZ)	+= snd-soc-rz-ssi.o
 # PDM units for RZ
 snd-soc-rz-pdm-y                := rz-pdm.o
 obj-$(CONFIG_SND_SOC_RZ_PDM)	+= snd-soc-rz-pdm.o
+
+# RZ/G3S
+snd-soc-rz-spdif-objs          := rz-spdif.o
+obj-$(CONFIG_SND_SOC_RZ_SPDIF) += snd-soc-rz-spdif.o

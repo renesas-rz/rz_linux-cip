@@ -65,6 +65,16 @@ config SND_SOC_RZ_PDM
           Select this option if your platform includes a PDM interface
 	  and requires audio input from PDM microphones.
 
+config SND_SOC_RZ_SPDIF
+	tristate "RZ/G3S series SPDIF support"
+	depends on ARCH_R9A08G045 || COMPILE_TEST
+	help
+	  This option enables RZ/G3S Sony/Philips digital interface format (SPDIF)
+	  sound support.
+	  The SPDIF interface on RZ/G3S support data 16-24 bits PCM format.
+	  Enabling this option will allow the use of the SPDIF driver for supported
+	  SoCs, providing playback capture functions.
+
 ##
 ## Boards
 ##
