@@ -45,6 +45,11 @@
 #define RAVB_RXTSTAMP_TYPE_ALL	0x00000006
 #define RAVB_RXTSTAMP_ENABLED	0x00000010	/* Enable RX timestamping */
 
+/* GbEthernet TOE hardware checksum values */
+#define TOE_RX_CSUM_OK		0x0000
+
+#define PAUSE_FRAME_TIMER	0xFFF0	/* 512 x 65520 bit time */
+
 enum ravb_reg {
 	/* AVB-DMAC registers */
 	CCC	= 0x0000,
@@ -191,6 +196,7 @@ enum ravb_reg {
 	PIPR	= 0x052c,
 	CXR31	= 0x0530,	/* RZ/G2L only */
 	CXR35	= 0x0540,	/* RZ/G2L only */
+	APR	= 0x0554,
 	MPR	= 0x0558,
 	PFTCR	= 0x055c,
 	PFRCR	= 0x0560,
@@ -228,6 +234,7 @@ enum CCC_BIT {
 	CCC_CSEL_ETH_TX	= 0x00020000,
 	CCC_CSEL_GMII_REF = 0x00030000,
 	CCC_LBME	= 0x01000000,
+	CCC_FCE		= 0x02000000,
 };
 
 /* CSR */
@@ -822,7 +829,7 @@ enum ECMR_BIT {
 	ECMR_TXF	= 0x00010000,	/* Documented for R-Car Gen3 only */
 	ECMR_RXF	= 0x00020000,
 	ECMR_PFR	= 0x00040000,
-	ECMR_ZPF	= 0x00080000,	/* Documented for R-Car Gen3 and RZ/G2L */
+	ECMR_TZPF	= 0x00080000,	/* Documented for R-Car Gen3 and RZ/G2L */
 	ECMR_RZPF	= 0x00100000,
 	ECMR_DPAD	= 0x00200000,
 	ECMR_RCSC	= 0x00800000,
@@ -844,6 +851,7 @@ enum ECSIPR_BIT {
 	ECSIPR_ICDIP	= 0x00000001,
 	ECSIPR_MPDIP	= 0x00000002,
 	ECSIPR_LCHNGIP	= 0x00000004,
+	ECSIPR_PFRIM	= 0x00000010,
 };
 
 /* PIR */
@@ -1048,6 +1056,7 @@ struct ravb_ptp {
 struct ravb_hw_info {
 	int (*receive)(struct net_device *ndev, int budget, int q);
 	void (*set_rate)(struct net_device *ndev);
+	void (*set_flowctrl)(struct net_device *ndev);
 	int (*set_feature)(struct net_device *ndev, netdev_features_t features);
 	int (*dmac_init)(struct net_device *ndev);
 	void (*emac_init)(struct net_device *ndev);
@@ -1143,6 +1152,11 @@ struct ravb_private {
 	unsigned int num_tx_desc;	/* TX descriptors per packet */
 
 	int duplex;
+	int aneg_pause;		/* Pause autonegotiation */
+	int tx_pause;		/* Requested flow control */
+	int rx_pause;
+	int cur_tx_pause;	/* Resolved flow control */
+	int cur_rx_pause;
 
 	const struct ravb_hw_info *info;
 	struct reset_control *rstc;
