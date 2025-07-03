@@ -461,6 +461,7 @@ struct rcar_canfd_hw_info {
 	unsigned ch_interface_mode:1;	/* Has channel interface mode */
 	unsigned shared_can_regs:1;	/* Has shared classical can registers */
 	unsigned external_clk:1;	/* Has external clock */
+	unsigned shared_bittiming:1;	/* Has shared nominal bittiming constants */
 };
 
 /* Channel priv data */
@@ -632,6 +633,7 @@ static const struct rcar_canfd_hw_info rcar_gen3_hw_info = {
 	.ch_interface_mode = 0,
 	.shared_can_regs = 0,
 	.external_clk = 1,
+	.shared_bittiming = 0,
 };
 
 static const struct rcar_canfd_hw_info rcar_gen4_hw_info = {
@@ -649,6 +651,7 @@ static const struct rcar_canfd_hw_info rcar_gen4_hw_info = {
 	.ch_interface_mode = 1,
 	.shared_can_regs = 1,
 	.external_clk = 1,
+	.shared_bittiming = 0,
 };
 
 static const struct rcar_canfd_hw_info rzg2l_hw_info = {
@@ -666,6 +669,7 @@ static const struct rcar_canfd_hw_info rzg2l_hw_info = {
 	.ch_interface_mode = 0,
 	.shared_can_regs = 0,
 	.external_clk = 1,
+	.shared_bittiming = 0,
 };
 
 static const struct rcar_canfd_hw_info r9a08g045_hw_info = {
@@ -682,7 +686,8 @@ static const struct rcar_canfd_hw_info r9a08g045_hw_info = {
 	.multi_channel_irqs = 1,
 	.ch_interface_mode = 1,
 	.shared_can_regs = 1,
-	.external_clk = 1,
+	.external_clk = 0,
+	.shared_bittiming = 1,
 };
 
 /* Helper functions */
@@ -1913,7 +1918,10 @@ static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 		priv->can.do_get_auto_tdcv = rcar_canfd_get_auto_tdcv;
 	} else {
 		/* Controller starts in Classical CAN only mode */
-		priv->can.bittiming_const = &rcar_canfd_bittiming_const;
+		if (gpriv->info->shared_bittiming)
+			priv->can.bittiming_const = gpriv->info->nom_bittiming;
+		else
+			priv->can.bittiming_const = &rcar_canfd_bittiming_const;
 		priv->can.ctrlmode_supported = CAN_CTRLMODE_BERR_REPORTING;
 	}
 
