@@ -696,8 +696,9 @@ static int rspi_prepare_message(struct spi_controller *ctlr,
 		rspi->bits_per_word = xfer->bits_per_word;
 	}
 
+	rspi->spcmd = rspi_read32(rspi, RSPI_SPCMD0);
 	if (!spi_controller_is_slave(rspi->ctlr))
-		rspi->spcmd = SPCMD_SSLKP;
+		rspi->spcmd |= SPCMD_SSLKP;
 	if (spi->mode & SPI_CPOL)
 		rspi->spcmd |= SPCMD_CPOL;
 	if (spi->mode & SPI_CPHA)
