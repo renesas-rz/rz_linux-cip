@@ -958,6 +958,8 @@
 			resets = <&cpg R9A08G046_RSCI1_PRESETN>,
 				 <&cpg R9A08G046_RSCI1_TRESETN>;
 			reset-names = "presetn", "tresetn";
+			dmas = <&dmac 0xc6d9>, <&dmac 0xc6da>;
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
@@ -976,6 +978,8 @@
 			resets = <&cpg R9A08G046_RSCI2_PRESETN>,
 				 <&cpg R9A08G046_RSCI2_TRESETN>;
 			reset-names = "presetn", "tresetn";
+			dmas = <&dmac 0xc6e1>, <&dmac 0xc6e2>;
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
@@ -994,6 +998,8 @@
 			resets = <&cpg R9A08G046_RSCI3_PRESETN>,
 				 <&cpg R9A08G046_RSCI3_TRESETN>;
 			reset-names = "presetn", "tresetn";
+			dmas = <&dmac 0xc6e9>, <&dmac 0xc6ea>;
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
