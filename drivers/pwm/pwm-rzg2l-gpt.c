@@ -33,6 +33,8 @@
 #include <linux/time.h>
 #include <linux/units.h>
 #include <linux/interrupt.h>
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 
 #define RZG2L_GET_CH(hwpwm)	((hwpwm) / 2)
 #define RZG2L_GET_HWPWM(ch, sub_ch) ((ch) * 2 + (sub_ch))
@@ -103,6 +105,22 @@
 #define RZG2L_MAX_SCALE_FACTOR	1024
 #define RZG2L_MAX_TICKS		((u64)U32_MAX * RZG2L_MAX_SCALE_FACTOR)
 
+/* Support GPT Error Interrupt Status Control for RZ/G3L only */
+#define RZG3L_PEISR_OFFSET		0x0088
+#define RZG3L_PEVSTATn_BIT(ch)		BIT(ch)
+
+struct rz_gpt_data_cfg {
+	bool has_icu_errint_status;
+};
+
+static const struct rz_gpt_data_cfg rzg2l_cfg = {
+	.has_icu_errint_status = false,
+};
+
+static const struct rz_gpt_data_cfg rzg3l_cfg = {
+	.has_icu_errint_status = true,
+};
+
 enum {
 	NOT_USE,
 	RZG2L_CHANNEL_A,
@@ -133,7 +151,9 @@ struct rz_gpt_pwm_channel {
 struct rzg2l_gpt_chip {
 	struct pwm_chip *chip;
 	void __iomem *mmio;
+	struct regmap *icu_regmap;
 	struct mutex mutex; /* lock to protect shared channel resources */
+	const struct rz_gpt_data_cfg *cfg;
 	unsigned long rate_khz;
 	u32 period_ticks[RZG2L_MAX_HW_CHANNELS];
 	u8 channel_request[RZG2L_MAX_HW_CHANNELS];
@@ -486,12 +506,23 @@ static irqreturn_t gpt_gtciv_interrupt(int irq, void *data)
 	unsigned int pwm_id;
 	int ch;
 	u8 sub_ch;
+	u32 tmp;
 
 	ch = rzg2l_gpt_get_ch_from_irq(rzg2l_gpt, irq, GTCIV);
 	if (ch < 0)
 		return IRQ_NONE;
 
 	guard(spinlock_irqsave)(&rzg2l_gpt->lock);
+
+	if (rzg2l_gpt->cfg->has_icu_errint_status) {
+		regmap_read(rzg2l_gpt->icu_regmap, RZG3L_PEISR_OFFSET, &tmp);
+		if (!(tmp & RZG3L_PEVSTATn_BIT(ch)))
+			return IRQ_NONE;
+
+		/* Clear error interrupt */
+		regmap_update_bits(rzg2l_gpt->icu_regmap, RZG3L_PEISR_OFFSET,
+			RZG3L_PEVSTATn_BIT(ch), ~RZG3L_PEVSTATn_BIT(ch));
+	}
 
 	for_each_set_bit(sub_ch,
 			(unsigned long *)&rzg2l_gpt->channel_enable[ch],
@@ -790,6 +821,19 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	if (IS_ERR(rzg2l_gpt->mmio))
 		return PTR_ERR(rzg2l_gpt->mmio);
 
+	rzg2l_gpt->cfg = device_get_match_data(dev);
+	if (rzg2l_gpt->cfg->has_icu_errint_status) {
+		struct device_node *icu_np __free(device_node) =
+			of_parse_phandle(dev->of_node, "renesas,icu", 0);
+		if (icu_np != NULL) {
+			rzg2l_gpt->icu_regmap = device_node_to_regmap(icu_np);
+
+			if (IS_ERR(rzg2l_gpt->icu_regmap))
+				return dev_err_probe(dev, PTR_ERR(rzg2l_gpt->icu_regmap),
+						    "Failed to get regmap from IRQC\n");
+		}
+	}
+
 	rstc = devm_reset_control_get_exclusive(dev, NULL);
 	reset_control_deassert(rstc);
 	if (IS_ERR(rstc))
@@ -857,7 +901,8 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id rzg2l_gpt_of_table[] = {
-	{ .compatible = "renesas,rzg2l-gpt", },
+	{ .compatible = "renesas,rzg2l-gpt", .data = &rzg2l_cfg,},
+	{ .compatible = "renesas,rzg3l-gpt", .data = &rzg3l_cfg,},
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rzg2l_gpt_of_table);
