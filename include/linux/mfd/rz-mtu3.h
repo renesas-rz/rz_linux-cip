@@ -114,6 +114,10 @@
 	FIELD_PREP(RZ_MTU3_TIOR_IOA, RZ_MTU3_TIOR_OC_INIT_OUT_LO_HI_OUT)
 #define RZ_MTU3_TIOR_OC_IOA_L_COMP_MATCH \
 	FIELD_PREP(RZ_MTU3_TIOR_IOA, RZ_MTU3_TIOR_OC_INIT_OUT_HI_LO_OUT)
+#define RZ_MTU3_TIOR_OC_IOB_H_COMP_MATCH \
+	FIELD_PREP(RZ_MTU3_TIOR_IOB, RZ_MTU3_TIOR_OC_INIT_OUT_LO_HI_OUT)
+#define RZ_MTU3_TIOR_OC_IOB_L_COMP_MATCH \
+	FIELD_PREP(RZ_MTU3_TIOR_IOB, RZ_MTU3_TIOR_OC_INIT_OUT_HI_LO_OUT)
 #define RZ_MTU3_TIOR_OC_IOB_TOGGLE \
 	FIELD_PREP(RZ_MTU3_TIOR_IOB, RZ_MTU3_TIOR_OC_INIT_OUT_HI_TOGGLE_OUT)
 
@@ -160,11 +164,13 @@ struct rz_mtu3_channel {
  *
  * @clk: MTU3 module clock
  * @rz_mtu3_channel: HW channels
+ * @pdev: platform device
  * @priv_data: MTU3 core driver private data
  */
 struct rz_mtu3 {
 	struct clk *clk;
 	struct rz_mtu3_channel channels[RZ_MTU_NUM_CHANNELS];
+	struct platform_device *pdev;
 
 	void *priv_data;
 };
