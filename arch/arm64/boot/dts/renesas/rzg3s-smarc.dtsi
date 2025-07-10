@@ -54,20 +54,41 @@
 		};
 	};
 
+	dummy_codec: codec_test {
+		compatible = "linux,snd-soc-dummy";
+		#sound-dai-cells = <0>;
+	};
+
 	snd_rzg3s: sound {
 		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,bitclock-master = <&cpu_dai>;
-		simple-audio-card,frame-master = <&cpu_dai>;
-		simple-audio-card,mclk-fs = <256>;
 
-		cpu_dai: simple-audio-card,cpu {
-			sound-dai = <&ssi3>;
+		ssi_link: simple-audio-card,dai-link@0 {
+			format = "i2s";
+			bitclock-master = <&cpu_dai0>;
+			frame-master = <&cpu_dai0>;
+			mclk-fs = <256>;
+
+			cpu_dai0: cpu {
+				sound-dai = <&ssi3>;
+			};
+
+			codec {
+				sound-dai = <&da7212>;
+				clocks = <&versa3 1>;
+			};
 		};
 
-		codec_dai: simple-audio-card,codec {
-			sound-dai = <&da7212>;
-			clocks = <&versa3 1>;
+		spdif_link: simple-audio-card,dai-link@1 {
+			bitclock-master = <&cpu_dai1>;
+			frame-master = <&cpu_dai1>;
+
+			cpu_dai1: cpu {
+				sound-dai = <&spdif>;
+			};
+
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
 		};
 	};
 
@@ -154,6 +175,11 @@
 			 <RZG2L_PORT_PINMUX(6, 4, 1)>; /* TXD */
 	};
 
+	spdif_pins: spdif {
+		pinmux = <RZG2L_PORT_PINMUX(16, 0, 2)>, /* SPDIF_IN */
+			 <RZG2L_PORT_PINMUX(16, 1, 2)>; /* SPDIF_OUT */
+	};
+
 	scif3_pins: scif3 {
 		pinmux = <RZG2L_PORT_PINMUX(17, 2, 7)>, /* RXD */
 			 <RZG2L_PORT_PINMUX(17, 3, 7)>; /* TXD */
@@ -209,6 +235,12 @@
 &scif0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&scif0_pins>;
+	status = "okay";
+};
+
+&spdif {
+	pinctrl-0 = <&spdif_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
