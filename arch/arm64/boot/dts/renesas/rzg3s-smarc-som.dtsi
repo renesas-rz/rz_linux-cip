@@ -84,6 +84,11 @@
 	};
 };
 
+&pcie {
+	/* First 128MB is reserved for secure area. */
+	dma-ranges = <0x42000000 0 0x48000000 0 0x48000000 0x0 0x38000000>;
+};
+
 &adc {
 	status = "okay";
 };
