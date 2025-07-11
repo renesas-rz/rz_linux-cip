@@ -300,6 +300,7 @@
 
 		pinctrl: pinctrl@11030000 {
 			compatible = "renesas,r9a08g046-pinctrl";
+			syscon = <&sysc>;
 			reg = <0 0x11030000 0 0x10000>;
 			gpio-controller;
 			#gpio-cells = <2>;

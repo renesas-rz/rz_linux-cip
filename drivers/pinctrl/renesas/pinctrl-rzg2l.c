@@ -26,6 +26,10 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
+#include <linux/soc/renesas/rz-sysc.h>
+
 #include <dt-bindings/pinctrl/renesas,r9a09g047-pinctrl.h>
 #include <dt-bindings/pinctrl/renesas,r9a09g057-pinctrl.h>
 #include <dt-bindings/pinctrl/renesas,r9a08g046-pinctrl.h>
@@ -69,6 +73,7 @@
 #define PIN_CFG_IO_VMC_OTHER_0		BIT(21) /* known on RZ/G3L only */
 #define PIN_CFG_IO_VMC_OTHER_1		BIT(22) /* known on RZ/G3L only */
 #define PIN_CFG_IO_VMC_OTHER_2		BIT(23) /* known on RZ/G3L only */
+#define PIN_CFG_SEL_CLONECH		BIT(24) /* known on RZ/G3L only */
 
 #define RZG2L_SINGLE_PIN		BIT_ULL(63)	/* Dedicated pin */
 #define RZG2L_VARIABLE_CFG		BIT_ULL(62)	/* Variable cfg for port pins */
@@ -232,6 +237,7 @@ static const int rzg3l_tint_pin_info[] = {
 #define RENESAS_RZV2H_PIN_CONFIG_OUTPUT_IMPEDANCE	(PIN_CONFIG_END + 1)
 #define RENESAS_PIN_CONFIG_SD_CH1_POC			(PIN_CONFIG_END + 2)
 #define RENESAS_PIN_CONFIG_SD_CH2_POC			(PIN_CONFIG_END + 3)
+#define RENESAS_PIN_CONFIG_SEL_CLONECH			(PIN_CONFIG_END + 4)
 
 static const struct pinconf_generic_params renesas_rzv2h_custom_bindings[] = {
 	{ "renesas,output-impedance", RENESAS_RZV2H_PIN_CONFIG_OUTPUT_IMPEDANCE, 1 },
@@ -240,6 +246,7 @@ static const struct pinconf_generic_params renesas_rzv2h_custom_bindings[] = {
 static const struct pinconf_generic_params renesas_rzg3l_custom_bindings[] = {
 	{ "renesas,sd_ch1_poc", RENESAS_PIN_CONFIG_SD_CH1_POC, 0 },
 	{ "renesas,sd_ch2_poc", RENESAS_PIN_CONFIG_SD_CH2_POC, 0 },
+	{ "renesas,sys_sel_clonech", RENESAS_PIN_CONFIG_SEL_CLONECH, 0 },
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -250,6 +257,7 @@ static const struct pin_config_item renesas_rzv2h_conf_items[] = {
 static const struct pin_config_item renesas_rzg3l_conf_items[] = {
 	PCONFDUMP(RENESAS_PIN_CONFIG_SD_CH1_POC, "sd_ch1_poc", "x", false),
 	PCONFDUMP(RENESAS_PIN_CONFIG_SD_CH2_POC, "sd_ch2_poc", "x", false),
+	PCONFDUMP(RENESAS_PIN_CONFIG_SEL_CLONECH, "sys_sel_clonech", "bit", true),
 };
 #endif
 
@@ -416,6 +424,8 @@ struct rzg2l_pinctrl {
 	struct pinctrl_pin_desc		*pins;
 
 	const struct rzg2l_pinctrl_data	*data;
+	struct regmap			*syscon;
+	u32                             *val_clone;
 	void __iomem			*base;
 	struct device			*dev;
 
@@ -501,6 +511,67 @@ static const u64 r9a09g057_variable_pin_cfg[] = {
 	RZG2L_VARIABLE_PIN_CFG_PACK(RZV2H_PB, 3, RZV2H_MPXED_PIN_FUNCS | PIN_CFG_IEN),
 	RZG2L_VARIABLE_PIN_CFG_PACK(RZV2H_PB, 4, RZV2H_MPXED_PIN_FUNCS | PIN_CFG_IEN),
 	RZG2L_VARIABLE_PIN_CFG_PACK(RZV2H_PB, 5, RZV2H_MPXED_PIN_FUNCS | PIN_CFG_IEN),
+};
+
+static const u64 r9a08g046_variable_pin_cfg[] = {
+	RZG2L_VARIABLE_PIN_CFG_PACK(2, 0, PIN_CFG_NF | PIN_CFG_IEN | PIN_CFG_SEL_CLONECH),
+	RZG2L_VARIABLE_PIN_CFG_PACK(2, 1, PIN_CFG_NF | PIN_CFG_IEN | PIN_CFG_SEL_CLONECH),
+	RZG2L_VARIABLE_PIN_CFG_PACK(5, 0, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(5, 1, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(5, 2, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(5, 3, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(5, 4, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(5, 5, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(5, 6, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(6, 0, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(6, 1, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(6, 2, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(6, 3, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(6, 4, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(6, 5, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(6, 6, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(7, 0, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(7, 1, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(7, 2, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(7, 3, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(7, 4, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(7, 5, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(7, 6, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(7, 7, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(8, 0, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(8, 1, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(8, 2, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(8, 3, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(8, 4, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
+	RZG2L_VARIABLE_PIN_CFG_PACK(8, 5, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_SEL_CLONECH |
+					  PIN_CFG_IO_VMC_OTHER_1),
 };
 
 #ifdef CONFIG_RISCV
@@ -1521,6 +1592,11 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 		arg = ret;
 		break;
 
+	case RENESAS_PIN_CONFIG_SEL_CLONECH:
+		if (!(cfg & PIN_CFG_SEL_CLONECH))
+			return -EINVAL;
+		arg = rzg3l_sysc_get_clone_channel(pctrl->syscon, pctrl->val_clone[_pin]);
+		break;
 	default:
 		return -ENOTSUPP;
 	}
@@ -1678,6 +1754,12 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 			cfg |= PIN_CFG_IO_VMC_SD2;
 			break;
 
+		case RENESAS_PIN_CONFIG_SEL_CLONECH:
+			if (!(cfg & PIN_CFG_SEL_CLONECH))
+				return -EINVAL;
+			pctrl->val_clone[_pin] = arg;
+			rzg3l_sysc_set_clone_channel(pctrl->syscon, arg);
+			break;
 		default:
 			return -EOPNOTSUPP;
 		}
@@ -2223,48 +2305,48 @@ static const char * const rzg3l_gpio_names[] = {
 };
 
 static const u64 r9a08g046_gpio_configs[] = {
-	0x0,											/* P0 */
-	0x0,											/* P1 */
-	RZG2L_GPIO_PORT_PACK(2, 0x22, PIN_CFG_NF | PIN_CFG_IEN),				/* P2 */
-	RZG2L_GPIO_PORT_PACK(7, 0x23, RZG3L_MPXED_PIN_FUNCS(A)),				/* P3 */
-	0x0,											/* P4 */
-	RZG2L_GPIO_PORT_PACK(7, 0x25, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_IO_VMC_OTHER_1),	/* P5 */
-	RZG2L_GPIO_PORT_PACK(7, 0x26, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_IO_VMC_OTHER_1),	/* P6 */
-	RZG2L_GPIO_PORT_PACK(8, 0x27, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_IO_VMC_OTHER_1),	/* P7 */
-	RZG2L_GPIO_PORT_PACK(6, 0x28, RZG3L_MPXED_PIN_FUNCS(A) | PIN_CFG_IO_VMC_OTHER_1),	/* P8 */
-	0x0,											/* P9 */
-	RZG2L_GPIO_PORT_PACK(8, 0x2a, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IOLH_C |		/* PA */
+	0x0,										/* P0 */
+	0x0,										/* P1 */
+	RZG2L_GPIO_PORT_PACK_VARIABLE(2, 0x22),						/* P2 */
+	RZG2L_GPIO_PORT_PACK(7, 0x23, RZG3L_MPXED_PIN_FUNCS(A)),			/* P3 */
+	0x0,										/* P4 */
+	RZG2L_GPIO_PORT_PACK_VARIABLE(7, 0x25),						/* P5 */
+	RZG2L_GPIO_PORT_PACK_VARIABLE(7, 0x26),						/* P6 */
+	RZG2L_GPIO_PORT_PACK_VARIABLE(8, 0x27),						/* P7 */
+	RZG2L_GPIO_PORT_PACK_VARIABLE(6, 0x28),						/* P8 */
+	0x0,										/* P9 */
+	RZG2L_GPIO_PORT_PACK(8, 0x2a, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IOLH_C |	/* PA */
 							        PIN_CFG_IO_VMC_ETH0)) |
 							        PIN_CFG_IEN,
-	RZG2L_GPIO_PORT_PACK(8, 0x2b, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IOLH_C |		/* PB */
+	RZG2L_GPIO_PORT_PACK(8, 0x2b, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IOLH_C |	/* PB */
 							        PIN_CFG_IO_VMC_ETH0)) |
 							        PIN_CFG_OEN,
-	RZG2L_GPIO_PORT_PACK(3, 0x2c, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IOLH_C |		/* PC */
+	RZG2L_GPIO_PORT_PACK(3, 0x2c, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IOLH_C |	/* PC */
 							        PIN_CFG_IO_VMC_ETH0)),
-	RZG2L_GPIO_PORT_PACK(8, 0x2d, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IOLH_C |		/* PD */
+	RZG2L_GPIO_PORT_PACK(8, 0x2d, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IOLH_C |	/* PD */
 							        PIN_CFG_IO_VMC_ETH1)) |
 							        PIN_CFG_IEN,
-	RZG2L_GPIO_PORT_PACK(8, 0x2e, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IOLH_C |		/* PE */
+	RZG2L_GPIO_PORT_PACK(8, 0x2e, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IOLH_C |	/* PE */
 							        PIN_CFG_IO_VMC_ETH1)) |
 							        PIN_CFG_OEN,
-	RZG2L_GPIO_PORT_PACK(3, 0x2f, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IOLH_C |		/* PF */
+	RZG2L_GPIO_PORT_PACK(3, 0x2f, RZG2L_MPXED_ETH_PIN_FUNCS(PIN_CFG_IOLH_C |	/* PF */
 							        PIN_CFG_IO_VMC_ETH1)),
-	RZG2L_GPIO_PORT_PACK(8, 0x30, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_IEN |			/* PG */
+	RZG2L_GPIO_PORT_PACK(8, 0x30, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_IEN |		/* PG */
 								 PIN_CFG_IO_VMC_SD1),
-	RZG2L_GPIO_PORT_PACK(6, 0x31, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_IEN),			/* PH */
-	0x0,											/* PI */
-	RZG2L_GPIO_PORT_PACK(5, 0x33, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_IEN),			/* PJ */
-	RZG2L_GPIO_PORT_PACK(4, 0x34, RZG3L_MPXED_PIN_FUNCS(B)),				/* PK */
-	RZG2L_GPIO_PORT_PACK(5, 0x35, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_OEN |			/* PL */
+	RZG2L_GPIO_PORT_PACK(6, 0x31, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_IEN),		/* PH */
+	0x0,										/* PI */
+	RZG2L_GPIO_PORT_PACK(5, 0x33, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_IEN),		/* PJ */
+	RZG2L_GPIO_PORT_PACK(4, 0x34, RZG3L_MPXED_PIN_FUNCS(B)),			/* PK */
+	RZG2L_GPIO_PORT_PACK(5, 0x35, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_OEN |		/* PL */
 								 PIN_CFG_SOFT_PS),
-	RZG2L_GPIO_PORT_PACK(8, 0x36, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_OEN |			/* PM */
+	RZG2L_GPIO_PORT_PACK(8, 0x36, RZG3L_MPXED_PIN_FUNCS(B) | PIN_CFG_OEN |		/* PM */
 								 PIN_CFG_SOFT_PS),
-	0x0,											/* PN */
-	0x0,											/* PO */
-	0x0,											/* PP */
-	0x0,											/* PQ */
-	0x0,											/* PR */
-	RZG2L_GPIO_PORT_PACK(2, 0x3c, RZG3L_MPXED_PIN_FUNCS(B)),				/* PS */
+	0x0,										/* PN */
+	0x0,										/* PO */
+	0x0,										/* PP */
+	0x0,										/* PQ */
+	0x0,										/* PR */
+	RZG2L_GPIO_PORT_PACK(2, 0x3c, RZG3L_MPXED_PIN_FUNCS(B)),			/* PS */
 };
 
 static const char * const rzv2h_gpio_names[] = {
@@ -3070,6 +3152,15 @@ static int rzg2l_pinctrl_register(struct rzg2l_pinctrl *pctrl)
 	if (!pin_data)
 		return -ENOMEM;
 
+	pctrl->val_clone = devm_kcalloc(pctrl->dev, pctrl->desc.npins,
+					sizeof(*pctrl->val_clone), GFP_KERNEL);
+
+	if (!pctrl->val_clone)
+		return -ENOMEM;
+
+	for (i = 0; i <  pctrl->desc.npins; i++)
+		pctrl->val_clone[i] = -1;
+
 	pctrl->pins = pins;
 	pctrl->desc.pins = pins;
 
@@ -3135,6 +3226,7 @@ static int rzg2l_pinctrl_register(struct rzg2l_pinctrl *pctrl)
 static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 {
 	struct rzg2l_pinctrl *pctrl;
+	struct device_node *np = pdev->dev.of_node;
 	int ret;
 
 	BUILD_BUG_ON(ARRAY_SIZE(r9a07g044_gpio_configs) * RZG2L_PINS_PER_PORT >
@@ -3160,6 +3252,13 @@ static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	pctrl->dev = &pdev->dev;
+
+	/* Load syscon regmap from device tree */
+	pctrl->syscon = syscon_regmap_lookup_by_phandle(np, "syscon");
+	if (IS_ERR(pctrl->syscon)) {
+		dev_info(&pdev->dev, "Failed to find syscon regmap: %ld\n", PTR_ERR(pctrl->syscon));
+		return PTR_ERR(pctrl->syscon);
+	}
 
 	pctrl->data = of_device_get_match_data(&pdev->dev);
 	if (!pctrl->data)
@@ -3624,6 +3723,8 @@ static struct rzg2l_pinctrl_data r9a08g046_data = {
 	.port_pin_configs = r9a08g046_gpio_configs,
 	.n_ports = ARRAY_SIZE(r9a08g046_gpio_configs),
 	.dedicated_pins = rzg3l_dedicated_pins,
+	.variable_pin_cfg = r9a08g046_variable_pin_cfg,
+	.n_variable_pin_cfg = ARRAY_SIZE(r9a08g046_variable_pin_cfg),
 	.n_port_pins = ARRAY_SIZE(r9a08g046_gpio_configs) * RZG2L_PINS_PER_PORT,
 	.n_dedicated_pins = ARRAY_SIZE(rzg3l_dedicated_pins),
 	.hwcfg = &rzg3l_hwcfg,
