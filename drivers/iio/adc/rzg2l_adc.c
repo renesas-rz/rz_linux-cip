@@ -22,6 +22,8 @@
 #include <linux/property.h>
 #include <linux/reset.h>
 
+#include <linux/iio/adc/rzg2l_adc.h>
+
 #define DRIVER_NAME		"rzg2l-adc"
 
 #define RZG2L_ADM(n)			((n) * 0x4)
@@ -165,7 +167,7 @@ static void rzg2l_set_trigger(struct rzg2l_adc *adc)
 	 * Setup ADM1 for SW trigger
 	 * EGA[13:12] - Set 00 to indicate hardware trigger is invalid
 	 * BS[4] - Enable 1-buffer mode
-	 * MS[1] - Enable Select mode
+	 * MS[2] - Enable Select mode
 	 * TRG[0] - Enable software trigger mode
 	 */
 	reg = rzg2l_adc_readl(adc, RZG2L_ADM(1));
@@ -323,6 +325,37 @@ static irqreturn_t rzg2l_adc_isr(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
+
+int rzg2l_adc_read_tsu(struct device *dev, int *val)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct rzg2l_adc *adc = iio_priv(indio_dev);
+	u8 ch;
+	int ret;
+
+	if (!indio_dev || !adc) {
+		pr_err(" TSU found no iio and adc device\n");
+		return -EINVAL;
+	}
+
+	if (adc->info->flags & ADC_TSU_SUPPORT) {
+		dev_err(dev, "TSU usage is not supported");
+		return -ENOTSUPP;
+	}
+
+	mutex_lock(&adc->lock);
+	ch = adc->info->tsu_channel & RZG2L_ADC_CHN_MASK(adc);
+	ret = rzg2l_adc_conversion(indio_dev, adc, ch);
+	if (ret) {
+		mutex_unlock(&adc->lock);
+		return ret;
+	}
+	*val = adc->last_val[ch];
+	mutex_unlock(&adc->lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rzg2l_adc_read_tsu);
 
 static int rzg2l_adc_parse_properties(struct platform_device *pdev, struct rzg2l_adc *adc)
 {
