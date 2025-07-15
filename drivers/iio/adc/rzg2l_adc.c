@@ -57,6 +57,8 @@
 #define RZG2L_ADC_MAX_CHANNELS		9
 #define RZG2L_ADC_TIMEOUT		usecs_to_jiffies(1 * 4)
 
+#define ADC_TSU_SUPPORT			BIT(0)
+
 /**
  * struct rzg2l_adc_hw_params - ADC hardware specific parameters
  * @default_adsmp: default ADC sampling period (see ADM3 register); index 0 is
@@ -74,6 +76,7 @@ struct rzg2l_adc_hw_params {
 	u8 default_adcmp;
 	u8 num_channels;
 	bool adivc;
+	bool is_tsu_support;
 };
 
 struct rzg2l_adc_data {
@@ -338,13 +341,13 @@ int rzg2l_adc_read_tsu(struct device *dev, int *val)
 		return -EINVAL;
 	}
 
-	if (adc->info->flags & ADC_TSU_SUPPORT) {
+	if (!(adc->hw_params->is_tsu_support & ADC_TSU_SUPPORT)) {
 		dev_err(dev, "TSU usage is not supported");
 		return -ENOTSUPP;
 	}
 
 	mutex_lock(&adc->lock);
-	ch = adc->info->tsu_channel & RZG2L_ADC_CHN_MASK(adc);
+	ch = adc->hw_params->num_channels - 1;
 	ret = rzg2l_adc_conversion(indio_dev, adc, ch);
 	if (ret) {
 		mutex_unlock(&adc->lock);
@@ -570,6 +573,7 @@ static const struct rzg2l_adc_hw_params rzg3s_hw_params = {
 	.default_adsmp = { 0x7f, 0xff },
 	.adsmp_mask = GENMASK(7, 0),
 	.adint_inten_mask = GENMASK(11, 0),
+	.is_tsu_support = ADC_TSU_SUPPORT,
 };
 
 static const struct of_device_id rzg2l_adc_match[] = {
