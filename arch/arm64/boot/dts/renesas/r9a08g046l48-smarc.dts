@@ -12,6 +12,14 @@
 #define SW_PDM_EN		0
 #define SW_SDIO_M2E		0
 
+/*
+ * RSCI2 mode select
+ *	0: Disable
+ *	1: UART	(default)
+ *	2: I2C
+ */
+#define RSCI2_MODE_SEL		1
+
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/renesas,r9a08g046-pinctrl.h>
 #include "r9a08g046l48.dtsi"
@@ -22,6 +30,14 @@
 	model = "Renesas SMARC EVK version 2 based on r9a08g046l48";
 	compatible = "renesas,r9a08g046l48-smarc", "renesas,r9a08g046l48",
 		     "renesas,r9a08g046";
+
+	aliases {
+#if (RSCI2_MODE_SEL == 1)
+		serial0 = &rsci2;
+#elif (RSCI2_MODE_SEL == 2)
+		i2c2 = &rsci2;
+#endif
+	};
 
 	reserved-memory {
 		#address-cells = <2>;
@@ -169,6 +185,34 @@
 	pcie_pins: pcie {
 		pinmux = <RZG3L_PORT_PINMUX(G, 7, 1)>; /* PCIE_RST_OUT# */
 	};
+
+#if (RSCI2_MODE_SEL)
+	rsci2_pins: rsci2 {
+		pinmux = <RZG3L_PORT_PINMUX(7, 6, 5)>, /* RSCI2_RXD_MISO_SCL */
+			 <RZG3L_PORT_PINMUX(7, 7, 5)>; /* RSCI2_TXD_MOSI_SDA */
+		bias-pull-up;
+		drive-strength-microamp = <9000>;
+		renesas,sys_sel_clonech = <13>;
+	};
+
+	rsci2_rtscts_pins: rsci2_ctsrts {
+		pinmux = <RZG3L_PORT_PINMUX(7, 6, 5)>, /* RSCI2_RXD_MISO_SCL */
+			 <RZG3L_PORT_PINMUX(7, 7, 5)>, /* RSCI2_TXD_MOSI_SDA */
+			 <RZG3L_PORT_PINMUX(8, 0, 6)>, /* RSCI2_CTS */
+			 <RZG3L_PORT_PINMUX(8, 1, 5)>; /* RSCI2_SS_CTS_RTS */
+		bias-pull-up;
+		drive-strength-microamp = <9000>;
+		renesas,sys_sel_clonech = <13>;
+	};
+
+	rsci2_i2c_pins: rsci2_i2c {
+		pinmux = <RZG3L_PORT_PINMUX(6, 5, 5)>, /* RSCI2_RXD_MISO_SCL */
+			 <RZG3L_PORT_PINMUX(6, 6, 5)>; /* RSCI2_TXD_MOSI_SDA */
+		bias-pull-up;
+		drive-strength-microamp = <9000>;
+		renesas,sys_sel_clonech = <13>;
+	};
+#endif
 };
 
 &canfd {
@@ -279,3 +323,20 @@
 	pinctrl-names = "default";
 	status = "okay";
 };
+
+#if (RSCI2_MODE_SEL == 1)
+&rsci2 {
+	compatible = "renesas,rz-rscif";
+	pinctrl-0 = <&rsci2_rtscts_pins>;
+	pinctrl-names = "default";
+	uart-has-rtscts;
+	status = "okay";
+};
+#elif (RSCI2_MODE_SEL == 2)
+&rsci2 {
+	compatible = "renesas,rz-rsci-i2c";
+	pinctrl-0 = <&rsci2_i2c_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+#endif
