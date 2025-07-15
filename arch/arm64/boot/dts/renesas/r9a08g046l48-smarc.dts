@@ -20,6 +20,13 @@
  */
 #define RSCI2_MODE_SEL		1
 
+/*
+ * Enable RSCI3 as SER1 (UART only)
+ *	0: Disable SER1 RSCI3
+ *	1: Enable (default)
+ */
+#define SER1_RSCI3_EN		1
+
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/renesas,r9a08g046-pinctrl.h>
 #include "r9a08g046l48.dtsi"
@@ -36,6 +43,9 @@
 		serial0 = &rsci2;
 #elif (RSCI2_MODE_SEL == 2)
 		i2c2 = &rsci2;
+#endif
+#if (SER1_RSCI3_EN)
+		serial1 = &rsci3;
 #endif
 	};
 
@@ -213,6 +223,16 @@
 		renesas,sys_sel_clonech = <13>;
 	};
 #endif
+
+#if (SER1_RSCI3_EN)
+	rsci3_pins: rsci3 {
+		pinmux = <RZG3L_PORT_PINMUX(8, 2, 5)>, /* RSCI3_RXD_MISO_SCL */
+			 <RZG3L_PORT_PINMUX(8, 3, 5)>; /* RSCI3_TXD_MOSI_SDA */
+		bias-pull-up;
+		drive-strength-microamp = <9000>;
+		renesas,sys_sel_clonech = <14>;
+	};
+#endif
 };
 
 &canfd {
@@ -336,6 +356,15 @@
 &rsci2 {
 	compatible = "renesas,rz-rsci-i2c";
 	pinctrl-0 = <&rsci2_i2c_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+#endif
+
+#if (SER1_RSCI3_EN)
+&rsci3 {
+	compatible = "renesas,rz-rscif";
+	pinctrl-0 = <&rsci3_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
