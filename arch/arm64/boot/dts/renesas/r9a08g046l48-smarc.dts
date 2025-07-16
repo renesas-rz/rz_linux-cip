@@ -11,6 +11,7 @@
 #define SW_SD0_DEV_SEL		0
 #define SW_PDM_EN		0
 #define SW_SDIO_M2E		0
+#define SW_DPI_EN		0
 
 /*
  * RSCI2 mode select
@@ -37,28 +38,18 @@
  * for:
  * - MIPI DSI: RZG3L_SMARC_MIPI_DSI_ENABLE
  * - LVDS: RZG3L_SMARC_LVDS_ENABLE
+ * - Display Parallel RGB: also SW_DPI_EN switch config
  */
 #define RZG3L_SMARC_MIPI_DSI_ENABLE	1
 #define RZG3L_SMARC_LVDS_ENABLE		0
 
-/* Only one interface can be enabled at a time */
-#if (RZG3L_SMARC_MIPI_DSI_ENABLE & RZG3L_SMARC_LVDS_ENABLE)
-#error "Only one display output IF can be enabled at a time."
-#endif
-
-/*
- * Display support selection:
- * 0 - disable display selection support
- * 1 - enable display selection support
- * for:
- * - MIPI DSI: RZG3L_SMARC_MIPI_DSI_ENABLE
- * - LVDS: RZG3L_SMARC_LVDS_ENABLE
+/* MIPI-DSI, LVDS and Display parallel RGB I/F are all input
+ * from a single LCDC channel.
+ * Only one interface can be enabled at a time.
  */
-#define RZG3L_SMARC_MIPI_DSI_ENABLE	1
-#define RZG3L_SMARC_LVDS_ENABLE		0
-
-/* Only one interface can be enabled at a time */
-#if (RZG3L_SMARC_MIPI_DSI_ENABLE & RZG3L_SMARC_LVDS_ENABLE)
+#if ((RZG3L_SMARC_MIPI_DSI_ENABLE & RZG3L_SMARC_LVDS_ENABLE) || \
+(RZG3L_SMARC_MIPI_DSI_ENABLE & SW_DPI_EN) || \
+(RZG3L_SMARC_LVDS_ENABLE & SW_DPI_EN))
 #error "Only one display output IF can be enabled at a time."
 #endif
 
@@ -70,15 +61,19 @@
 #include "rzg3l-smarc-lvds.dtsi"
 #endif
 
+#if (SW_DPI_EN)
+#include "rzg3l-smarc-rgb.dtsi"
+#endif
+
 / {
 	model = "Renesas SMARC EVK version 2 based on r9a08g046l48";
 	compatible = "renesas,r9a08g046l48-smarc", "renesas,r9a08g046l48",
 		     "renesas,r9a08g046";
 
 	aliases {
-#if (RSCI2_MODE_SEL == 1)
+#if (RSCI2_MODE_SEL == 1 && !SW_DPI_EN)
 		serial0 = &rsci2;
-#elif (RSCI2_MODE_SEL == 2)
+#elif (RSCI2_MODE_SEL == 2 && !SW_DPI_EN)
 		i2c2 = &rsci2;
 #endif
 #if (SER1_RSCI3_EN)
@@ -176,7 +171,7 @@
 				 <RZG3L_PORT_PINMUX(3, 3, 3)>; /* TX */
 		};
 
-#if (!SW_LCD_EN)
+#if (!SW_DPI_EN)
 		can1_pins: can1 {
 			pinmux = <RZG3L_PORT_PINMUX(5, 2, 3)>, /* RX */
 				 <RZG3L_PORT_PINMUX(5, 3, 3)>; /* TX */
@@ -283,7 +278,7 @@
 		pinmux = <RZG3L_PORT_PINMUX(G, 7, 1)>; /* PCIE_RST_OUT# */
 	};
 
-#if (RSCI2_MODE_SEL)
+#if (RSCI2_MODE_SEL && !SW_DPI_EN)
 	rsci2_pins: rsci2 {
 		pinmux = <RZG3L_PORT_PINMUX(7, 6, 5)>, /* RSCI2_RXD_MISO_SCL */
 			 <RZG3L_PORT_PINMUX(7, 7, 5)>; /* RSCI2_TXD_MOSI_SDA */
@@ -311,7 +306,7 @@
 	};
 #endif
 
-#if (SER1_RSCI3_EN)
+#if (SER1_RSCI3_EN && !SW_DPI_EN)
 	rsci3_pins: rsci3 {
 		pinmux = <RZG3L_PORT_PINMUX(8, 2, 5)>, /* RSCI3_RXD_MISO_SCL */
 			 <RZG3L_PORT_PINMUX(8, 3, 5)>; /* RSCI3_TXD_MOSI_SDA */
@@ -335,7 +330,7 @@
 		status = "okay";
 	};
 
-#if (!SW_LCD_EN)
+#if (!SW_DPI_EN)
 	channel1 {
 		status = "okay";
 	};
@@ -540,7 +535,7 @@
 	};
 };
 
-#if (RSCI2_MODE_SEL == 1)
+#if (RSCI2_MODE_SEL == 1 && !SW_DPI_EN)
 &rsci2 {
 	compatible = "renesas,rz-rscif";
 	pinctrl-0 = <&rsci2_rtscts_pins>;
@@ -548,7 +543,7 @@
 	uart-has-rtscts;
 	status = "okay";
 };
-#elif (RSCI2_MODE_SEL == 2)
+#elif (RSCI2_MODE_SEL == 2 && !SW_DPI_EN)
 &rsci2 {
 	compatible = "renesas,rz-rsci-i2c";
 	pinctrl-0 = <&rsci2_i2c_pins>;
@@ -557,7 +552,7 @@
 };
 #endif
 
-#if (SER1_RSCI3_EN)
+#if (SER1_RSCI3_EN && !SW_DPI_EN)
 &rsci3 {
 	compatible = "renesas,rz-rscif";
 	pinctrl-0 = <&rsci3_pins>;

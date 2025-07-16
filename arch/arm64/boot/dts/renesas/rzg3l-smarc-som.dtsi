@@ -106,12 +106,14 @@
 			 power-source = <1800>;
 	};
 
+#if (!SW_DPI_EN)
 	sd0-pwr-en {
 		gpio-hog;
 		gpios = <RZG3L_GPIO(5, 1) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "sd0_pwr_en";
 	};
+#endif
 
 	xspi_pins: xspi0 {
 		pinmux = <RZG3L_PORT_PINMUX(M, 0, 0)>, /* XSPI0_IO0 */
