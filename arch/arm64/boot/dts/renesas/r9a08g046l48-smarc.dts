@@ -46,6 +46,22 @@
 #error "Only one display output IF can be enabled at a time."
 #endif
 
+/*
+ * Display support selection:
+ * 0 - disable display selection support
+ * 1 - enable display selection support
+ * for:
+ * - MIPI DSI: RZG3L_SMARC_MIPI_DSI_ENABLE
+ * - LVDS: RZG3L_SMARC_LVDS_ENABLE
+ */
+#define RZG3L_SMARC_MIPI_DSI_ENABLE	1
+#define RZG3L_SMARC_LVDS_ENABLE		0
+
+/* Only one interface can be enabled at a time */
+#if (RZG3L_SMARC_MIPI_DSI_ENABLE & RZG3L_SMARC_LVDS_ENABLE)
+#error "Only one display output IF can be enabled at a time."
+#endif
+
 #include "r9a08g046l48.dtsi"
 #include "rzg3l-smarc-som.dtsi"
 #include "renesas-smarc2.dtsi"
