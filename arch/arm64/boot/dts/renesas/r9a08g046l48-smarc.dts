@@ -29,9 +29,30 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/renesas,r9a08g046-pinctrl.h>
+
+/*
+ * Display support selection:
+ * 0 - disable display selection support
+ * 1 - enable display selection support
+ * for:
+ * - MIPI DSI: RZG3L_SMARC_MIPI_DSI_ENABLE
+ * - LVDS: RZG3L_SMARC_LVDS_ENABLE
+ */
+#define RZG3L_SMARC_MIPI_DSI_ENABLE	1
+#define RZG3L_SMARC_LVDS_ENABLE		0
+
+/* Only one interface can be enabled at a time */
+#if (RZG3L_SMARC_MIPI_DSI_ENABLE & RZG3L_SMARC_LVDS_ENABLE)
+#error "Only one display output IF can be enabled at a time."
+#endif
+
 #include "r9a08g046l48.dtsi"
 #include "rzg3l-smarc-som.dtsi"
 #include "renesas-smarc2.dtsi"
+
+#if (RZG3L_SMARC_LVDS_ENABLE)
+#include "rzg3l-smarc-lvds.dtsi"
+#endif
 
 / {
 	model = "Renesas SMARC EVK version 2 based on r9a08g046l48";
@@ -112,6 +133,7 @@
 		regulator-always-on;
 	};
 
+#if (RZG3L_SMARC_MIPI_DSI_ENABLE)
 	osc1: cec-clock {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -128,6 +150,7 @@
 			};
 		};
 	};
+#endif
 };
 
 &pinctrl {
@@ -303,6 +326,7 @@
 #endif
 };
 
+#if (RZG3L_SMARC_MIPI_DSI_ENABLE)
 &du {
 	status = "okay";
 };
@@ -358,6 +382,7 @@
 		};
 	};
 };
+#endif
 
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
