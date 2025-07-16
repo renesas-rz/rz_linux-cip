@@ -361,9 +361,6 @@ static int riic_init_hw(struct riic_dev *riic)
 
 	rate = clk_get_rate(riic->clk);
 
-	riic_clear_set_bit(riic, 0, ICFER_SCLE | ICFER_NFE,
-			   riic->info->regs[RIIC_ICFER]);
-
 	/*
 	 * Assume the default register settings:
 	 *  FER.SCLE = 1 (SCL sync circuit enabled, adds 2 or 3 cycles)
@@ -436,6 +433,9 @@ static int riic_init_hw(struct riic_dev *riic)
 	/* Changing the order of accessing IICRST and ICE may break things! */
 	riic_writeb(riic, ICCR1_IICRST | ICCR1_SOWP, RIIC_ICCR1);
 	riic_clear_set_bit(riic, 0, ICCR1_ICE, RIIC_ICCR1);
+
+	riic_clear_set_bit(riic, 0, ICFER_SCLE | ICFER_NFE,
+			   riic->info->regs[RIIC_ICFER]);
 
 	riic_writeb(riic, ICMR1_CKS(cks), RIIC_ICMR1);
 	riic_writeb(riic, brh | ICBR_RESERVED, RIIC_ICBRH);
