@@ -1593,9 +1593,13 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 		break;
 
 	case RENESAS_PIN_CONFIG_SEL_CLONECH:
-		if (!(cfg & PIN_CFG_SEL_CLONECH))
+		if (!(cfg & PIN_CFG_SEL_CLONECH) ||
+		    (pctrl->val_clone[_pin] < 0 || pctrl->val_clone[_pin] > 15))
 			return -EINVAL;
-		arg = rzg3l_sysc_get_clone_channel(pctrl->syscon, pctrl->val_clone[_pin]);
+		ret = rzg3l_sysc_get_clone_channel(pctrl->syscon, pctrl->val_clone[_pin]);
+		if (ret < 0)
+			return ret;
+		arg = ret;
 		break;
 	default:
 		return -ENOTSUPP;
@@ -1758,7 +1762,10 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 			if (!(cfg & PIN_CFG_SEL_CLONECH))
 				return -EINVAL;
 			pctrl->val_clone[_pin] = arg;
-			rzg3l_sysc_set_clone_channel(pctrl->syscon, arg);
+			ret = rzg3l_sysc_set_clone_channel(pctrl->syscon, arg);
+			if (ret)
+				dev_info(pctrl->dev, "Invalid clone channel for P%u%u\n",
+					 RZG2L_PIN_ID_TO_PORT(_pin), RZG2L_PIN_ID_TO_PIN(_pin));
 			break;
 		default:
 			return -EOPNOTSUPP;
