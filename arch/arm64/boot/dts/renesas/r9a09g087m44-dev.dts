@@ -41,12 +41,22 @@
  */
 #define SEL_PCIE_MODE		0
 
+/*
+ * Set SEL_SCI3_PTPOUT2 to below values to select using of:
+ * - 0: SCI3 (default)
+ * - 1: ETHSW_PTPOUT2
+ */
+#define SEL_SCI3_PTPOUT2	0
+
 / {
 	model = "Renesas Development EVK based on r9a09g087m44";
 	compatible = "renesas,r9a09g087m44-dev", "renesas,r9a09g087m44", "renesas,r9a09g087";
 
 	aliases {
 		serial0 = &sci0;
+#if (!SEL_SCI3_PTPOUT2)
+		serial3 = &sci3;
+#endif
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
 		i2c0 = &i2c0;
@@ -165,6 +175,14 @@
 		bias-pull-up;
 	};
 
+#if (!SEL_SCI3_PTPOUT2)
+	sci3_pins: sci3 {
+		pinmux = <RZT2H_PORT_PINMUX(13, 5, 0x14)>, /* SCI : RXD3/P13_4 */
+			 <RZT2H_PORT_PINMUX(13, 4, 0x14)>, /* SCI : TXD3/P13_5 */
+			 <RZT2H_PORT_PINMUX(14, 0, 0x14)>; /* SCI : DE3/P14_0 */
+	};
+#endif
+
 	sd0_pwr_en {
 		gpio-hog;
 		gpios = <RZT2H_GPIO(2, 5) GPIO_ACTIVE_HIGH>; /* SDHI : SD0_PWEN/P02_5 */
@@ -250,7 +268,9 @@
 			 <RZT2H_PORT_PINMUX(30, 7, 0x11)>,	/* ETHSW : ETHSW_PHYLINK2/P30_7 */
 			 <RZT2H_PORT_PINMUX(17, 6, 0x11)>,	/* ETHSW : ETHSW_PTPOUT0/P17_6 */
 			 <RZT2H_PORT_PINMUX(17, 7, 0x11)>,	/* ETHSW : ETHSW_PTPOUT1/P17_7 */
+#if (SEL_SCI3_PTPOUT2)
 			 <RZT2H_PORT_PINMUX(14, 0, 0x11)>,	/* ETHSW : ETHSW_PTPOUT2/P14_0 */
+#endif
 			 <RZT2H_PORT_PINMUX(18, 7, 0x11)>;	/* ETHSW : ETHSW_PTPOUT3/P18_7 */
 	};
 
@@ -413,6 +433,17 @@
 	pinctrl-names = "default";
 	status = "okay";
 };
+
+#if (!SEL_SCI3_PTPOUT2)
+&sci3 {
+	pinctrl-0 = <&sci3_pins>;
+	pinctrl-names = "default";
+	linux,rs485-enabled-at-boot-time;
+	rs485-rx-during-tx;
+	rs485-enabled;
+	status = "okay";
+};
+#endif
 
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_pins>;
