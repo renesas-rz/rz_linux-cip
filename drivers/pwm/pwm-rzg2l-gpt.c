@@ -10,8 +10,6 @@
  * Limitations:
  * - Counter must be stopped before modifying Mode and Prescaler.
  * - When PWM is disabled, the output is driven to inactive.
- * - While the hardware supports both polarities, the driver (for now)
- *   only handles normal polarity.
  * - General PWM Timer (GPT) has 8 HW channels for PWM operations and
  *   each HW channel have 2 IOs.
  * - Each IO is modelled as an independent PWM channel.
@@ -106,14 +104,25 @@
 #define RZG2L_GTIOR_NFCSx_P0_64		0x3
 
 #define RZG2L_INIT_OUT_HI_OUT_HI_END_TOGGLE	0x1b
+#define RZG2L_INIT_OUT_LOW_OUT_LOW_END_TOGGLE	0x07
+
 #define RZG2L_GTIOR_GTIOA_OUT_HI_END_TOGGLE_CMP_MATCH \
 	(RZG2L_INIT_OUT_HI_OUT_HI_END_TOGGLE | RZG2L_GTIOR_OAE)
 #define RZG2L_GTIOR_GTIOB_OUT_HI_END_TOGGLE_CMP_MATCH \
 	(FIELD_PREP(RZG2L_GTIOR_GTIOB, RZG2L_INIT_OUT_HI_OUT_HI_END_TOGGLE) | RZG2L_GTIOR_OBE)
 
+#define RZG2L_GTIOR_GTIOA_OUT_LOW_END_TOGGLE_CMP_MATCH \
+	(RZG2L_INIT_OUT_LOW_OUT_LOW_END_TOGGLE | RZG2L_GTIOR_OAE)
+#define RZG2L_GTIOR_GTIOB_OUT_LOW_END_TOGGLE_CMP_MATCH \
+	(FIELD_PREP(RZG2L_GTIOR_GTIOB, RZG2L_INIT_OUT_LOW_OUT_LOW_END_TOGGLE) | RZG2L_GTIOR_OBE)
+
 #define RZG2L_GTIOR_GTIOx_OUT_HI_END_TOGGLE_CMP_MATCH(sub_ch) \
 	((sub_ch) ? RZG2L_GTIOR_GTIOB_OUT_HI_END_TOGGLE_CMP_MATCH : \
 	 RZG2L_GTIOR_GTIOA_OUT_HI_END_TOGGLE_CMP_MATCH)
+
+#define RZG2L_GTIOR_GTIOx_OUT_LOW_END_TOGGLE_CMP_MATCH(sub_ch) \
+	((sub_ch) ? RZG2L_GTIOR_GTIOB_OUT_LOW_END_TOGGLE_CMP_MATCH : \
+	 RZG2L_GTIOR_GTIOA_OUT_LOW_END_TOGGLE_CMP_MATCH)
 
 #define RZG2L_MAX_HW_CHANNELS	8
 #define RZG2L_CHANNELS_PER_IO	2
@@ -316,17 +325,32 @@ static bool rzg2l_gpt_is_ch_enabled(struct rzg2l_gpt_chip *rzg2l_gpt, u8 hwpwm)
 	return val & RZG2L_GTIOR_OxE(rzg2l_gpt_subchannel(hwpwm));
 }
 
-/* Caller holds the lock while calling rzg2l_gpt_enable() */
-static void rzg2l_gpt_enable(struct rzg2l_gpt_chip *rzg2l_gpt,
-			     struct pwm_device *pwm)
+static void rzg2l_gpt_set_polarity(struct rzg2l_gpt_chip *rzg2l_gpt,
+				   struct pwm_device *pwm,
+				   enum pwm_polarity polarity)
 {
 	u8 sub_ch = rzg2l_gpt_subchannel(pwm->hwpwm);
 	u32 val = RZG2L_GTIOR_GTIOx(sub_ch) | RZG2L_GTIOR_OxE(sub_ch);
 	u8 ch = RZG2L_GET_CH(pwm->hwpwm);
 
+	if (polarity == PWM_POLARITY_INVERSED) {
+		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTIOR(ch), val,
+			RZG2L_GTIOR_GTIOx_OUT_LOW_END_TOGGLE_CMP_MATCH(sub_ch));
+	} else if (polarity == PWM_POLARITY_NORMAL) {
+		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTIOR(ch), val,
+			RZG2L_GTIOR_GTIOx_OUT_HI_END_TOGGLE_CMP_MATCH(sub_ch));
+	}
+}
+
+/* Caller holds the lock while calling rzg2l_gpt_enable() */
+static void rzg2l_gpt_enable(struct rzg2l_gpt_chip *rzg2l_gpt,
+			     struct pwm_device *pwm)
+{
+	u8 sub_ch = rzg2l_gpt_subchannel(pwm->hwpwm);
+	u8 ch = RZG2L_GET_CH(pwm->hwpwm);
+
 	/* Enable pin output */
-	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTIOR(ch), val,
-			 RZG2L_GTIOR_GTIOx_OUT_HI_END_TOGGLE_CMP_MATCH(sub_ch));
+	rzg2l_gpt_set_polarity(rzg2l_gpt, pwm, pwm->state.polarity);
 
 	if (!rzg2l_gpt_is_ch_enabled(rzg2l_gpt, pwm->hwpwm))
 		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), 0, RZG2L_GTCR_CST);
@@ -514,14 +538,16 @@ static int rzg2l_gpt_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	bool enabled = pwm->state.enabled;
 	int ret;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
-		return -EINVAL;
-
 	guard(mutex)(&rzg2l_gpt->mutex);
 	if (!state->enabled) {
 		if (enabled)
 			rzg2l_gpt_disable(rzg2l_gpt, pwm);
 
+		return 0;
+	}
+
+	if (state->polarity != pwm->state.polarity) {
+		rzg2l_gpt_set_polarity(rzg2l_gpt, pwm, state->polarity);
 		return 0;
 	}
 
