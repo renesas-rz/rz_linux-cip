@@ -276,7 +276,6 @@ static void rz_mtu3_clk_clocksource_suspend(struct clocksource *cs)
 	if (ch->cs_enabled)
 		rz_mtu3_clk_stop(ch, FLAG_CLOCKSOURCE);
 	dev_pm_genpd_suspend(&ch->mtu->pdev->dev);
-	clk_disable_unprepare(ch->mtu->clk);
 	reset_control_assert(ch->mtu->rstc);
 }
 
@@ -288,13 +287,6 @@ static void rz_mtu3_clk_clocksource_resume(struct clocksource *cs)
 	ret = reset_control_deassert(ch->mtu->rstc);
 	if (ret) {
 		dev_err(&ch->mtu->pdev->dev, "failed to deassert reset control\n");
-		reset_control_assert(ch->mtu->rstc);
-		return;
-	}
-
-	if (clk_prepare_enable(ch->mtu->clk)) {
-		dev_err(&ch->mtu->pdev->dev, "failed to enable clock\n");
-		clk_disable_unprepare(ch->mtu->clk);
 		reset_control_assert(ch->mtu->rstc);
 		return;
 	}
