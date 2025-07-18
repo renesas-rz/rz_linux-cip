@@ -2612,7 +2612,7 @@ static bool stmmac_xdp_xmit_zc(struct stmmac_priv *priv, u32 queue, u32 budget)
 			tx_set_ic_bit++;
 		}
 
-		stmmac_prepare_tx_desc(priv, tx_desc, 1, xdp_desc.len,
+		stmmac_prepare_xdp_tx_desc(priv, tx_desc, 1, xdp_desc.len,
 				       true, priv->mode, true, true,
 				       xdp_desc.len);
 
@@ -4891,7 +4891,7 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv, u32 queue)
 			use_rx_wd = false;
 
 		dma_wmb();
-		stmmac_set_rx_owner(priv, p, use_rx_wd);
+		stmmac_set_xdp_rx_owner(priv, p, use_rx_wd);
 
 		entry = STMMAC_GET_ENTRY(entry, priv->dma_conf.dma_rx_size);
 	}
@@ -4903,30 +4903,25 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv, u32 queue)
 
 static unsigned int stmmac_rx_buf1_len(struct stmmac_priv *priv,
 				       struct dma_desc *p,
-				       int status, unsigned int len)
+				       int status, unsigned int len,
+				       unsigned int header_len, unsigned int frame_len)
 {
-	unsigned int plen = 0, hlen = 0;
-	int coe = priv->hw->rx_csum;
-
 	/* Not first descriptor, buffer is always zero */
 	if (priv->sph && len)
 		return 0;
 
 	/* First descriptor, get split header length */
-	stmmac_get_rx_header_len(priv, p, &hlen);
-	if (priv->sph && hlen) {
+	if (priv->sph && header_len) {
 		priv->xstats.rx_split_hdr_pkt_n++;
-		return hlen;
+		return header_len;
 	}
 
 	/* First descriptor, not last descriptor and not split header */
 	if (status & rx_not_ls)
 		return priv->dma_conf.dma_buf_sz;
 
-	plen = stmmac_get_rx_frame_len(priv, p, coe);
-
 	/* First descriptor and last descriptor and not split header */
-	return min_t(unsigned int, priv->dma_conf.dma_buf_sz, plen);
+	return min_t(unsigned int, priv->dma_conf.dma_buf_sz, frame_len);
 }
 
 static unsigned int stmmac_rx_buf2_len(struct stmmac_priv *priv,
@@ -5005,10 +5000,6 @@ static int stmmac_xdp_xmit_xdpf(struct stmmac_priv *priv, int queue,
 
 	stmmac_set_desc_addr(priv, tx_desc, dma_addr);
 
-	stmmac_prepare_tx_desc(priv, tx_desc, 1, xdpf->len,
-			       true, priv->mode, true, true,
-			       xdpf->len);
-
 	tx_q->tx_count_frames++;
 
 	if (tx_q->tx_count_frames % priv->tx_coal_frames[queue] == 0)
@@ -5023,6 +5014,10 @@ static int stmmac_xdp_xmit_xdpf(struct stmmac_priv *priv, int queue,
 		u64_stats_inc(&txq_stats->q.tx_set_ic_bit);
 		u64_stats_update_end(&txq_stats->q_syncp);
 	}
+
+	stmmac_prepare_xdp_tx_desc(priv, tx_desc, 1, xdpf->len,
+			       true, priv->mode, true, true,
+			       xdpf->len);
 
 	stmmac_enable_dma_transmission(priv, priv->ioaddr, queue);
 
@@ -5248,7 +5243,7 @@ static bool stmmac_rx_refill_zc(struct stmmac_priv *priv, u32 queue, u32 budget)
 			use_rx_wd = false;
 
 		dma_wmb();
-		stmmac_set_rx_owner(priv, rx_desc, use_rx_wd);
+		stmmac_set_xdp_rx_owner(priv, rx_desc, use_rx_wd);
 
 		entry = STMMAC_GET_ENTRY(entry, priv->dma_conf.dma_rx_size);
 	}
@@ -5305,7 +5300,7 @@ static int stmmac_rx_zc(struct stmmac_priv *priv, int limit, u32 queue)
 	while (count < limit) {
 		struct stmmac_rx_buffer *buf;
 		struct stmmac_xdp_buff *ctx;
-		unsigned int buf1_len = 0;
+		unsigned int buf1_len = 0, header_len = 0, frame_len = 0;
 		struct dma_desc *np, *p;
 		int entry;
 		int res;
@@ -5324,6 +5319,8 @@ static int stmmac_rx_zc(struct stmmac_priv *priv, int limit, u32 queue)
 
 read_again:
 		buf1_len = 0;
+		header_len = 0;
+		frame_len = 0;
 		entry = next_entry;
 		buf = &rx_q->buf_pool[entry];
 
@@ -5339,7 +5336,8 @@ read_again:
 			p = rx_q->dma_rx + entry;
 
 		/* read the status of the incoming frame */
-		status = stmmac_rx_status(priv, &priv->xstats, p);
+		status = stmmac_rx_status_with_len(priv, &priv->xstats, p,
+						   &header_len, &frame_len);
 		/* check if managed by the DMA otherwise go ahead */
 		if (unlikely(status & dma_own))
 			break;
@@ -5394,7 +5392,7 @@ read_again:
 		ctx->ndesc = np;
 
 		/* XDP ZC Frame only support primary buffers for now */
-		buf1_len = stmmac_rx_buf1_len(priv, p, status, len);
+		buf1_len = stmmac_rx_buf1_len(priv, p, status, len, header_len, frame_len);
 		len += buf1_len;
 
 		/* ACS is disabled; strip manually. */
@@ -5501,7 +5499,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 				    rx_q->dma_rx_phy, desc_size);
 	}
 	while (count < limit) {
-		unsigned int buf1_len = 0, buf2_len = 0;
+		unsigned int buf1_len = 0, buf2_len = 0, header_len = 0, frame_len = 0;
 		enum pkt_hash_types hash_type;
 		struct stmmac_rx_buffer *buf;
 		struct dma_desc *np, *p;
@@ -5525,6 +5523,8 @@ read_again:
 
 		buf1_len = 0;
 		buf2_len = 0;
+		header_len = 0;
+		frame_len = 0;
 		entry = next_entry;
 		buf = &rx_q->buf_pool[entry];
 
@@ -5534,7 +5534,8 @@ read_again:
 			p = rx_q->dma_rx + entry;
 
 		/* read the status of the incoming frame */
-		status = stmmac_rx_status(priv, &priv->xstats, p);
+		status = stmmac_rx_status_with_len(priv, &priv->xstats,
+						   p, &header_len, &frame_len);
 		/* check if managed by the DMA otherwise go ahead */
 		if (unlikely(status & dma_own))
 			break;
@@ -5575,7 +5576,7 @@ read_again:
 		if (buf->sec_page)
 			prefetch(page_address(buf->sec_page));
 
-		buf1_len = stmmac_rx_buf1_len(priv, p, status, len);
+		buf1_len = stmmac_rx_buf1_len(priv, p, status, len, header_len, frame_len);
 		len += buf1_len;
 		buf2_len = stmmac_rx_buf2_len(priv, p, status, len);
 		len += buf2_len;

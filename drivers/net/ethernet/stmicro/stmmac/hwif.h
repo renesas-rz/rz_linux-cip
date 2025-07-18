@@ -104,6 +104,15 @@ struct stmmac_desc_ops {
 			     u32 inner_type);
 	void (*set_vlan)(struct dma_desc *p, u32 type);
 	void (*set_tbs)(struct dma_edesc *p, u32 sec, u32 nsec);
+	/* Return the reception status looking at the RDES1
+	 * get frame length and header length */
+	int (*rx_status_with_len)(struct stmmac_extra_stats *x,	struct dma_desc *p,
+				  unsigned int *header_len, unsigned int *frame_len);
+	/* Invoked by the xmit function to prepare the tx descriptor in XDP*/
+	void (*prepare_xdp_tx_desc)(struct dma_desc *p, int is_fs, int len,
+			bool csum_flag, int mode, bool tx_own, bool ls,
+			unsigned int tot_pkt_len);
+	void (*set_xdp_rx_owner)(struct dma_desc *p, int disable_rx_ic);
 };
 
 #define stmmac_init_rx_desc(__priv, __args...) \
@@ -170,6 +179,12 @@ struct stmmac_desc_ops {
 	stmmac_do_void_callback(__priv, desc, set_vlan, __args)
 #define stmmac_set_desc_tbs(__priv, __args...) \
 	stmmac_do_void_callback(__priv, desc, set_tbs, __args)
+#define stmmac_rx_status_with_len(__priv, __args...) \
+	stmmac_do_callback(__priv, desc, rx_status_with_len, __args)
+#define stmmac_prepare_xdp_tx_desc(__priv, __args...) \
+	stmmac_do_void_callback(__priv, desc, prepare_xdp_tx_desc, __args)
+#define stmmac_set_xdp_rx_owner(__priv, __args...) \
+	stmmac_do_void_callback(__priv, desc, set_xdp_rx_owner, __args)
 
 struct stmmac_dma_cfg;
 struct dma_features;

@@ -556,6 +556,155 @@ static void dwmac4_set_tbs(struct dma_edesc *p, u32 sec, u32 nsec)
 	p->des7 = 0;
 }
 
+static int dwmac4_wrback_get_rx_status_with_len(struct stmmac_extra_stats *x,
+				       struct dma_desc *p, unsigned int *header_len,
+				       unsigned int *frame_len)
+{
+	unsigned int rdes3 = le32_to_cpu(p->des3);
+	int message_type;
+	int ret = good_frame;
+
+	if (unlikely(rdes3 & RDES3_OWN))
+		return dma_own;
+
+	if (unlikely(rdes3 & RDES3_CONTEXT_DESCRIPTOR))
+		return discard_frame;
+	if (likely(!(rdes3 & RDES3_LAST_DESCRIPTOR)))
+		return rx_not_ls;
+
+	*frame_len = (le32_to_cpu(rdes3) & RDES3_PACKET_SIZE_MASK);
+
+	if (unlikely(rdes3 & RDES3_ERROR_SUMMARY)) {
+		if (unlikely(rdes3 & RDES3_GIANT_PACKET))
+			x->rx_length++;
+		if (unlikely(rdes3 & RDES3_OVERFLOW_ERROR))
+			x->rx_gmac_overflow++;
+
+		if (unlikely(rdes3 & RDES3_RECEIVE_WATCHDOG))
+			x->rx_watchdog++;
+
+		if (unlikely(rdes3 & RDES3_RECEIVE_ERROR))
+			x->rx_mii++;
+
+		if (unlikely(rdes3 & RDES3_CRC_ERROR))
+			x->rx_crc_errors++;
+
+		if (unlikely(rdes3 & RDES3_DRIBBLE_ERROR))
+			x->dribbling_bit++;
+
+		ret = discard_frame;
+	}
+
+	unsigned int rdes1 = le32_to_cpu(p->des1);
+	message_type = (rdes1 & ERDES4_MSG_TYPE_MASK) >> 8;
+
+	if (rdes1 & RDES1_IP_HDR_ERROR)
+		x->ip_hdr_err++;
+	if (rdes1 & RDES1_IP_CSUM_BYPASSED)
+		x->ip_csum_bypassed++;
+	if (rdes1 & RDES1_IPV4_HEADER)
+		x->ipv4_pkt_rcvd++;
+	if (rdes1 & RDES1_IPV6_HEADER)
+		x->ipv6_pkt_rcvd++;
+
+	if (message_type == RDES_EXT_NO_PTP)
+		x->no_ptp_rx_msg_type_ext++;
+	else if (message_type == RDES_EXT_SYNC)
+		x->ptp_rx_msg_type_sync++;
+	else if (message_type == RDES_EXT_FOLLOW_UP)
+		x->ptp_rx_msg_type_follow_up++;
+	else if (message_type == RDES_EXT_DELAY_REQ)
+		x->ptp_rx_msg_type_delay_req++;
+	else if (message_type == RDES_EXT_DELAY_RESP)
+		x->ptp_rx_msg_type_delay_resp++;
+	else if (message_type == RDES_EXT_PDELAY_REQ)
+		x->ptp_rx_msg_type_pdelay_req++;
+	else if (message_type == RDES_EXT_PDELAY_RESP)
+		x->ptp_rx_msg_type_pdelay_resp++;
+	else if (message_type == RDES_EXT_PDELAY_FOLLOW_UP)
+		x->ptp_rx_msg_type_pdelay_follow_up++;
+	else if (message_type == RDES_PTP_ANNOUNCE)
+		x->ptp_rx_msg_type_announce++;
+	else if (message_type == RDES_PTP_MANAGEMENT)
+		x->ptp_rx_msg_type_management++;
+	else if (message_type == RDES_PTP_PKT_RESERVED_TYPE)
+		x->ptp_rx_msg_pkt_reserved_type++;
+
+	if (rdes1 & RDES1_PTP_PACKET_TYPE)
+		x->ptp_frame_type++;
+	if (rdes1 & RDES1_PTP_VER)
+		x->ptp_ver++;
+	if (rdes1 & RDES1_TIMESTAMP_DROPPED)
+		x->timestamp_dropped++;
+
+	unsigned int rdes2 = le32_to_cpu(p->des2);
+	*header_len = le32_to_cpu(rdes2) & RDES2_HL;
+	if (unlikely(rdes2 & RDES2_SA_FILTER_FAIL)) {
+		x->sa_rx_filter_fail++;
+		ret = discard_frame;
+	}
+	if (unlikely(rdes2 & RDES2_DA_FILTER_FAIL)) {
+		x->da_rx_filter_fail++;
+		ret = discard_frame;
+	}
+
+	if (rdes2 & RDES2_L3_FILTER_MATCH)
+		x->l3_filter_match++;
+	if (rdes2 & RDES2_L4_FILTER_MATCH)
+		x->l4_filter_match++;
+	if ((rdes2 & RDES2_L3_L4_FILT_NB_MATCH_MASK)
+	    >> RDES2_L3_L4_FILT_NB_MATCH_SHIFT)
+		x->l3_l4_filter_no_match++;
+
+	return ret;
+}
+
+static void dwmac4_rd_prepare_xdp_tx_desc(struct dma_desc *p, int is_fs, int len,
+				      bool csum_flag, int mode, bool tx_own,
+				      bool ls, unsigned int tot_pkt_len)
+{
+	unsigned int tdes3 = 0;
+
+	p->des2 |= cpu_to_le32(len & TDES2_BUFFER1_SIZE_MASK);
+
+	tdes3 = tot_pkt_len & TDES3_PACKET_SIZE_MASK;
+	if (is_fs)
+		tdes3 |= TDES3_FIRST_DESCRIPTOR;
+	else
+		tdes3 &= ~TDES3_FIRST_DESCRIPTOR;
+
+	if (likely(csum_flag))
+		tdes3 |= (TX_CIC_FULL << TDES3_CHECKSUM_INSERTION_SHIFT);
+	else
+		tdes3 &= ~(TX_CIC_FULL << TDES3_CHECKSUM_INSERTION_SHIFT);
+
+	if (ls)
+		tdes3 |= TDES3_LAST_DESCRIPTOR;
+	else
+		tdes3 &= ~TDES3_LAST_DESCRIPTOR;
+
+	/* Finally set the OWN bit. Later the DMA will start! */
+	if (tx_own)
+		tdes3 |= TDES3_OWN;
+
+	if (is_fs && tx_own)
+		/* When the own bit, for the first frame, has to be set, all
+		 * descriptors for the same frame has to be set before, to
+		 * avoid race condition.
+		 */
+		dma_wmb();
+
+	p->des3 = cpu_to_le32(tdes3);
+}
+
+static void dwmac4_xdp_set_rx_owner(struct dma_desc *p, int disable_rx_ic)
+{
+	p->des3 = cpu_to_le32(RDES3_OWN | RDES3_BUFFER1_VALID_ADDR);
+
+	if (!disable_rx_ic)
+		p->des3 |= cpu_to_le32(RDES3_INT_ON_COMPLETION_EN);
+}
+
 const struct stmmac_desc_ops dwmac4_desc_ops = {
 	.tx_status = dwmac4_wrback_get_tx_status,
 	.rx_status = dwmac4_wrback_get_rx_status,
@@ -587,6 +736,9 @@ const struct stmmac_desc_ops dwmac4_desc_ops = {
 	.get_rx_header_len = dwmac4_get_rx_header_len,
 	.set_sec_addr = dwmac4_set_sec_addr,
 	.set_tbs = dwmac4_set_tbs,
+	.rx_status_with_len = dwmac4_wrback_get_rx_status_with_len,
+	.prepare_xdp_tx_desc = dwmac4_rd_prepare_xdp_tx_desc,
+	.set_xdp_rx_owner = dwmac4_xdp_set_rx_owner,
 };
 
 const struct stmmac_mode_ops dwmac4_ring_mode_ops = {
