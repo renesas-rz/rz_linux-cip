@@ -51,6 +51,9 @@
 #define RZG2L_GTCCRCE(ch, sub_ch)	(0x54 + RZG2L_GET_CH_OFFS(ch) + 4 * (sub_ch))
 #define RZG2L_GTCCRDF(ch, sub_ch)	(0x5c + RZG2L_GET_CH_OFFS(ch) + 4 * (sub_ch))
 #define RZG2L_GTPR(ch)		(0x64 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTDTCR(ch)	(0x88 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTDVU(ch)		(0x8C + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTDVD(ch)		(0x90 + RZG2L_GET_CH_OFFS(ch))
 
 #define RZG2L_GTCCRA_BUFFER_MASK	GENMASK(17, 16)
 #define RZG2L_GTCCRB_BUFFER_MASK	GENMASK(19, 18)
@@ -74,15 +77,19 @@
 #define RZG2L_GTINTAD_GTINTPR_MASK	GENMASK(7, 6)
 #define RZG2L_GTINTPROV		BIT(6)
 
+#define RZG2L_GTDTCR_DEADTIME_MODE	BIT(0)
 #define RZG2L_GTINTAD_GTINTA	BIT(0)
 #define RZG2L_GTINTAD_GTINTB	BIT(1)
 #define RZG2L_GTINTAD_GTINTx(sub_ch)	((sub_ch) ? RZG2L_GTINTAD_GTINTB : RZG2L_GTINTAD_GTINTA)
+
+#define RZG2L_GTBER_BUFFER_DEADTIME	BIT(22)
 
 #define RZG2L_GTCR_CST		BIT(0)
 #define RZG2L_GTCR_MD		GENMASK(18, 16)
 #define RZG2L_GTCR_TPCS		GENMASK(26, 24)
 
 #define RZG2L_GTCR_MD_SAW_WAVE_PWM_MODE	FIELD_PREP(RZG2L_GTCR_MD, 0)
+#define RZG2L_GTCR_MD_SAW_WAVE_ONE_SHOT	FIELD_PREP(RZG2L_GTCR_MD, 1)
 #define RZG2L_GTCR_TPCS_P0_1024		0x05
 
 #define RZG2L_GTUDDTYC_UP	BIT(0)
@@ -198,6 +205,7 @@ struct rz_gpt_pwm_channel {
 	unsigned int buffer_mode_count;
 	unsigned long buffer[NR_BUFFER];
 	unsigned int operation;
+	unsigned long deadtime_first, deadtime_second;
 };
 
 struct rzg2l_gpt_chip {
@@ -220,12 +228,14 @@ static const char *const gpt_operation_enum[] = {
 	"normal_output",
 	"single_buffer_output",
 	"double_buffer_output",
+	"deadtime_output",
 };
 
 enum {
 	NORMAL_OUTPUT,
 	SINGLE_BUFFER_OUTPUT,
 	DOUBLE_BUFFER_OUTPUT,
+	DEADTIME_OUTPUT,
 	NR_GPT_OPERATION,
 };
 
@@ -311,6 +321,16 @@ static void rzg2l_gpt_free(struct pwm_chip *chip, struct pwm_device *pwm)
 	rzg2l_gpt->channel_request[ch] &= ~BIT(sub_ch);
 }
 
+static bool rzg2l_gpt_is_deadtime_mode(struct rzg2l_gpt_chip *rzg2l_gpt, u8 hwpwm)
+{
+	u8 ch = RZG2L_GET_CH(hwpwm);
+	u32 val;
+
+	val = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTDTCR(ch));
+
+	return val & RZG2L_GTDTCR_DEADTIME_MODE;
+}
+
 static bool rzg2l_gpt_is_ch_enabled(struct rzg2l_gpt_chip *rzg2l_gpt, u8 hwpwm)
 {
 	u8 ch = RZG2L_GET_CH(hwpwm);
@@ -373,13 +393,32 @@ static void rzg2l_gpt_disable(struct rzg2l_gpt_chip *rzg2l_gpt,
 
 	/* Disable pin output */
 	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTIOR(ch), RZG2L_GTIOR_OxE(sub_ch), 0);
+
+	/* Set Negative-Phase Waveform by default */
+	if (rzg2l_gpt_is_deadtime_mode(rzg2l_gpt, pwm->hwpwm))
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTDTCR(ch), 0);
 }
 
 static void rzg2l_reset_period_and_duty(struct rzg2l_gpt_chip *rzg2l_gpt, unsigned int pwm_id)
 {
 	struct pwm_device *pwm = &rzg2l_gpt->chip->pwms[pwm_id];
+	u8 ch = RZG2L_GET_CH(pwm_id);
 
 	rzg2l_gpt_disable(rzg2l_gpt, pwm);
+
+	if (rzg2l_gpt_is_deadtime_mode(rzg2l_gpt, pwm_id)) {
+		u8 sibling_ch = rzg2l_gpt_sibling(pwm_id);
+		struct pwm_device *sibling_pwm = &rzg2l_gpt->chip->pwms[sibling_ch];
+
+		rzg2l_gpt->channel_data[sibling_ch].operation = DEADTIME_OUTPUT;
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTDVU(ch), 0);
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTDVD(ch), 0);
+		rzg2l_gpt->channel_data[pwm_id].deadtime_first = 0;
+		rzg2l_gpt->channel_data[pwm_id].deadtime_second = 0;
+
+		/* Reset the channel B states */
+		sibling_pwm->state = (struct pwm_state){ 0 };
+	}
 
 	rzg2l_gpt->channel_data[pwm_id].buffer_mode_count = 0;
 	for (unsigned int i = 0; i < NR_BUFFER; i++)
@@ -498,8 +537,13 @@ static int rzg2l_gpt_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (!rzg2l_gpt->channel_enable[ch]) {
 		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, 0);
 
-		/* GPT set operating mode (saw-wave up-counting) */
+		/*
+		 * GPT set operating mode (saw-wave up-counting) or
+		 * saw-wave one shot up-counting for only deadtime mode.
+		 */
 		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_MD,
+				 rzg2l_gpt_is_deadtime_mode(rzg2l_gpt, pwm->hwpwm) ?
+				 RZG2L_GTCR_MD_SAW_WAVE_ONE_SHOT :
 				 RZG2L_GTCR_MD_SAW_WAVE_PWM_MODE);
 
 		/* Set count direction */
@@ -726,6 +770,12 @@ static irqreturn_t gpt_gtciv_interrupt(int irq, void *data)
 			if (rzg2l_gpt->channel_data[pwm_id].buffer_mode_count == 0)
 				rzg2l_gpt->channel_data[pwm_id].buffer_mode_count = 3;
 			break;
+		case DEADTIME_OUTPUT:
+			rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRCE(ch, sub_ch),
+					rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_1]);
+			rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRDF(ch, sub_ch),
+					rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_2]);
+			break;
 		}
 	}
 
@@ -847,6 +897,13 @@ static ssize_t buff0_store(struct device *dev, struct device_attribute *attr,
 	u64 val_ticks;
 	u32 tmp;
 
+	if ((rzg2l_gpt->channel_data[pwm_id].operation != DEADTIME_OUTPUT) &&
+	    (rzg2l_gpt->channel_data[pwm_id].operation != SINGLE_BUFFER_OUTPUT) &&
+	    (rzg2l_gpt->channel_data[pwm_id].operation != DOUBLE_BUFFER_OUTPUT)) {
+		dev_err(dev, "This operation not use this config\n");
+		return -EINVAL;
+	}
+
 	ret = kstrtouint(buf, 0, &val);
 	if (ret)
 		return ret;
@@ -866,6 +923,7 @@ static ssize_t buff0_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	/* Set buffer value for single buffer mode: A in GTCCRC and B in GTCCRE */
+	/* In deadtime mode GTCCRC is first compare */
 	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRCE(ch, sub_ch),
 			rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_1]);
 
@@ -899,11 +957,17 @@ static ssize_t buff1_store(struct device *dev, struct device_attribute *attr,
 	struct pwm_device *pwm = &rzg2l_gpt->chip->pwms[pwm_id];
 	u8 ch = RZG2L_GET_CH(pwm_id);
 	u8 sub_ch = rzg2l_gpt_subchannel(pwm_id);
-	unsigned int val;
+	unsigned int val, time_0;
 	int ret;
 	u8 prescale;
 	u64 val_ticks;
 	u32 tmp;
+
+	if ((rzg2l_gpt->channel_data[pwm_id].operation != DEADTIME_OUTPUT) &&
+	    (rzg2l_gpt->channel_data[pwm_id].operation != DOUBLE_BUFFER_OUTPUT)) {
+		dev_err(dev, "This operation not use this config\n");
+		return -EINVAL;
+	}
 
 	ret = kstrtouint(buf, 0, &val);
 	if (ret)
@@ -918,6 +982,16 @@ static ssize_t buff1_store(struct device *dev, struct device_attribute *attr,
 
 	tmp = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTCR(ch));
 	prescale = FIELD_GET(RZG2L_GTCR_TPCS, tmp);
+
+	if (rzg2l_gpt_is_deadtime_mode(rzg2l_gpt, pwm_id)) {
+		time_0 = rzg2l_gpt_calculate_period_or_duty(rzg2l_gpt,
+			 rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_1], prescale);
+		if (time_0 > val) {
+			dev_err(dev, "In deadtime, A1 must greater than A0\n");
+			return -EINVAL;
+		}
+	}
+
 	rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_2] =
 			rzg2l_gpt_calculate_pv_or_dc(val_ticks, prescale);
 	if (rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_2] == 0)
@@ -977,6 +1051,16 @@ static ssize_t gpt_operation_store(struct device *dev,
 	if (ret < 0)
 		return ret;
 
+	if (rzg2l_gpt->channel_request[ch] != RZG2L_BOTH_AB ||
+	    rzg2l_gpt->channel_enable[ch]) {
+		if (ret == DEADTIME_OUTPUT) {
+			dev_err(&rzg2l_gpt->chip->dev,
+				"Please keep pwm%d and pwm%d are requested and not enabled to use deadtime output.\n",
+				pwm_id, rzg2l_gpt_sibling(pwm_id));
+			return -EINVAL;
+		}
+	}
+
 	guard(mutex)(&rzg2l_gpt->mutex);
 
 	rzg2l_gpt->channel_data[pwm_id].operation = ret;
@@ -1002,6 +1086,12 @@ static ssize_t gpt_operation_store(struct device *dev,
 				RZG2L_GTCCRx_BUFFER_MASK(sub_ch),
 				RZG2L_GTCCRx_DOUBLE_BUFFER(sub_ch));
 		break;
+	case DEADTIME_OUTPUT:
+		/* Set buffer deadtime */
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTBER(ch), RZG2L_GTBER_BUFFER_DEADTIME);
+		/* Enable deadtime mode */
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTDTCR(ch), RZG2L_GTDTCR_DEADTIME_MODE);
+		break;
 	}
 
 	return count;
@@ -1017,10 +1107,146 @@ static ssize_t gpt_operation_show(struct device *dev,
 		gpt_operation_enum[rzg2l_gpt->channel_data[pwm_id].operation]);
 }
 
+static ssize_t deadtime_first_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+	unsigned int pwm_id = hwpwm_from_pwmdev(dev);
+	struct pwm_device *pwm = &rzg2l_gpt->chip->pwms[pwm_id];
+	u8 ch = RZG2L_GET_CH(pwm_id);
+	int val, ret;
+	unsigned long prescale;
+	u32 tmp;
+	u64 val_ticks;
+
+	if (rzg2l_gpt->channel_data[pwm_id].operation != DEADTIME_OUTPUT) {
+		dev_err(dev, "Must in deadtime mode to set\n");
+		return -EINVAL;
+	}
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	val_ticks = mul_u64_u64_div_u64(val, rzg2l_gpt->rate_khz, USEC_PER_SEC);
+
+	if (pwm->state.period < val_ticks)
+		return -EINVAL;
+
+	guard(mutex)(&rzg2l_gpt->mutex);
+
+	tmp = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTCR(ch));
+	prescale = FIELD_GET(RZG2L_GTCR_TPCS, tmp);
+
+	if (!val)
+		rzg2l_gpt->channel_data[pwm_id].deadtime_first = 0;
+	else
+		rzg2l_gpt->channel_data[pwm_id].deadtime_first =
+			rzg2l_gpt_calculate_pv_or_dc(val_ticks, prescale);
+
+	/* Set buffer value for deadtime first half in GTDVU */
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTDVU(ch),
+			rzg2l_gpt->channel_data[pwm_id].deadtime_first);
+
+	return ret ? : count;
+}
+
+static ssize_t deadtime_first_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+	unsigned int pwm_id = hwpwm_from_pwmdev(dev);
+	u8 ch = RZG2L_GET_CH(pwm_id);
+	unsigned long prescale;
+	unsigned long long time_ns;
+	u32 tmp;
+
+	tmp = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTCR(ch));
+	prescale = FIELD_GET(RZG2L_GTCR_TPCS, tmp);
+	time_ns = rzg2l_gpt_calculate_period_or_duty(rzg2l_gpt,
+		  rzg2l_gpt->channel_data[pwm_id].deadtime_first, prescale);
+
+	return sprintf(buf, "%llu\n", time_ns);
+}
+
+static ssize_t deadtime_second_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+	unsigned int pwm_id = hwpwm_from_pwmdev(dev);
+	struct pwm_device *pwm = &rzg2l_gpt->chip->pwms[pwm_id];
+	u8 ch = RZG2L_GET_CH(pwm_id);
+	int val, ret;
+	unsigned long prescale;
+	u32 tmp;
+	u64 val_ticks;
+
+	if (rzg2l_gpt->channel_data[pwm_id].operation != DEADTIME_OUTPUT) {
+		dev_err(dev, "Must in deadtime mode to set\n");
+		return -EINVAL;
+	}
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	val_ticks = mul_u64_u64_div_u64(val, rzg2l_gpt->rate_khz, USEC_PER_SEC);
+
+	if (pwm->state.period < val_ticks)
+		return -EINVAL;
+
+	guard(mutex)(&rzg2l_gpt->mutex);
+
+	tmp = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTCR(ch));
+	prescale = FIELD_GET(RZG2L_GTCR_TPCS, tmp);
+
+	if (!val)
+		rzg2l_gpt->channel_data[pwm_id].deadtime_second = 0;
+	else
+		rzg2l_gpt->channel_data[pwm_id].deadtime_second =
+			rzg2l_gpt_calculate_pv_or_dc(val_ticks, prescale);
+
+	/* Set buffer value for deadtime second half in GTDVD */
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTDVD(ch),
+			rzg2l_gpt->channel_data[pwm_id].deadtime_second);
+
+	return ret ? : count;
+}
+
+static ssize_t deadtime_second_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+	unsigned int pwm_id = hwpwm_from_pwmdev(dev);
+	u8 ch = RZG2L_GET_CH(pwm_id);
+	unsigned long prescale;
+	unsigned long long time_ns;
+	u32 tmp;
+
+	tmp = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTCR(ch));
+	prescale = FIELD_GET(RZG2L_GTCR_TPCS, tmp);
+	time_ns = rzg2l_gpt_calculate_period_or_duty(rzg2l_gpt,
+		  rzg2l_gpt->channel_data[pwm_id].deadtime_second, prescale);
+
+	return sprintf(buf, "%llu\n", time_ns);
+}
+
 static DEVICE_ATTR_RW(buff0);
 static DEVICE_ATTR_RW(buff1);
 static DEVICE_ATTR_RO(gpt_operation_available);
 static DEVICE_ATTR_RW(gpt_operation);
+static DEVICE_ATTR_RW(deadtime_first);
+static DEVICE_ATTR_RW(deadtime_second);
+
+static struct attribute *enhanced_feature_attrs_A[] = {
+	&dev_attr_deadtime_first.attr,
+	&dev_attr_deadtime_second.attr,
+	NULL,
+};
+
+static const struct attribute_group enhanced_feature_group_A = {
+	.attrs = enhanced_feature_attrs_A,
+};
 
 static struct attribute *common_attrs[] = {
 	&dev_attr_gpt_operation_available.attr,
@@ -1054,6 +1280,12 @@ static ssize_t enhanced_function_channels_store(struct device *dev,
 		return -ENODEV;
 
 	dev_set_drvdata(pwm_dev, rzg2l_gpt);
+
+	if (!(rzg2l_gpt_subchannel(pwm_id))) {
+		ret = device_add_group(pwm_dev, &enhanced_feature_group_A);
+		if (ret)
+			return ret;
+	}
 
 	ret = device_add_group(pwm_dev, &common_group);
 	if (ret)
