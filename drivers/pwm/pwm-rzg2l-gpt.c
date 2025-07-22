@@ -34,6 +34,9 @@
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <linux/wait.h>
+#include <linux/of_platform.h>
+#include <linux/of_address.h>
+#include <linux/poeg-rzg2l.h>
 
 #define RZG2L_GET_CH(hwpwm)	((hwpwm) / 2)
 #define RZG2L_GET_HWPWM(ch, sub_ch) ((ch) * 2 + (sub_ch))
@@ -81,6 +84,16 @@
 #define RZG2L_GTINTAD_GTINTA	BIT(0)
 #define RZG2L_GTINTAD_GTINTB	BIT(1)
 #define RZG2L_GTINTAD_GTINTx(sub_ch)	((sub_ch) ? RZG2L_GTINTAD_GTINTB : RZG2L_GTINTAD_GTINTA)
+#define RZG2L_GTINTAD_OUTPUT_DISABLE_GRP_MASK	GENMASK(25, 24)
+#define RZG2L_GTINTAD_GRPA	(0U << 24)
+#define RZG2L_GTINTAD_GRPB	(1U << 24)
+#define RZG2L_GTINTAD_GRPC	(2U << 24)
+#define RZG2L_GTINTAD_GRPD	(3U << 24)
+
+#define RZG2L_GTINTAD_OUTPUT_DISABLE_POEG_MASK		GENMASK(30, 28)
+#define RZG2L_GTINTAD_OUTPUT_DISABLE_DEADTIME_ERROR	BIT(28)
+#define RZG2L_GTINTAD_OUTPUT_DISABLE_SAME_LEVEL_HIGH	BIT(29)
+#define RZG2L_GTINTAD_OUTPUT_DISABLE_SAME_LEVEL_LOW	BIT(30)
 
 #define RZG2L_GTBER_BUFFER_DEADTIME	BIT(22)
 
@@ -102,6 +115,16 @@
 #define RZG2L_GTIOR_OAE		BIT(8)
 #define RZG2L_GTIOR_OBE		BIT(24)
 #define RZG2L_GTIOR_OxE(sub_ch)		((sub_ch) ? RZG2L_GTIOR_OBE : RZG2L_GTIOR_OAE)
+
+#define RZG2L_GTIOR_GTIOR_CHANNEL_A_OUTPUT_DISABLE_MASK	GENMASK(10, 9)
+#define RZG2L_GTIOR_GTIOR_CHANNEL_B_OUTPUT_DISABLE_MASK GENMASK(26, 25)
+#define RZG2L_GTIOR_GTIOR_CHANNEL_x_OUTPUT_DISABLE_MASK(sub_ch)	\
+	((sub_ch) ? RZG2L_GTIOR_GTIOR_CHANNEL_B_OUTPUT_DISABLE_MASK : \
+		    RZG2L_GTIOR_GTIOR_CHANNEL_A_OUTPUT_DISABLE_MASK)
+#define RZG2L_GTIOR_GTIOA_OUTPUT_DISABLE BIT(9)
+#define RZG2L_GTIOR_GTIOB_OUTPUT_DISABLE BIT(25)
+#define RZG2L_GTIOR_GTIOx_OUTPUT_DISABLE(sub_ch) \
+	((sub_ch) ? RZG2L_GTIOR_GTIOB_OUTPUT_DISABLE : RZG2L_GTIOR_GTIOA_OUTPUT_DISABLE)
 
 #define RZG2L_GTIOR_NFAEN	BIT(13)
 #define RZG2L_GTIOR_NFBEN	BIT(29)
@@ -194,6 +217,22 @@ struct gpt_irq_desc {
 	int res_num;
 };
 
+static const char *rzg2l_gpt_POEGs[5] = {
+	"NOT_USE",
+};
+
+struct POEG_params {
+	u32 poeg;
+	struct platform_device *poeg_dev;
+};
+
+static struct POEG_params POEG_mode_set[5] = {
+	[NOT_USE] = {
+		.poeg = 0,
+		.poeg_dev = NULL,
+	},
+};
+
 struct rz_gpt_cpt_data {
 	u64 snapshot[3];
 	unsigned int index;
@@ -221,6 +260,7 @@ struct rzg2l_gpt_chip {
 	u8 channel_enable[RZG2L_MAX_HW_CHANNELS];
 	unsigned int irq_map[RZG2L_MAX_HW_CHANNELS][NR_IRQ_TYPE];
 	struct rz_gpt_pwm_channel channel_data[RZG2L_MAX_PWM_CHANNELS];
+	u8 poeg;
 	spinlock_t lock;
 };
 
@@ -779,6 +819,19 @@ static irqreturn_t gpt_gtciv_interrupt(int irq, void *data)
 		}
 	}
 
+#if IS_BUILTIN(CONFIG_POEG_RZG2L)
+	if (rzg2l_gpt->poeg) {
+		/*Clear input edge flag*/
+		rzg2l_poeg_clear_bit_export(
+			POEG_mode_set[rzg2l_gpt->poeg].poeg_dev,
+			RZG2L_POEGG_PIDF, RZG2L_POEGG);
+		/*Clear GPT disable flag*/
+		rzg2l_poeg_clear_bit_export(
+			POEG_mode_set[rzg2l_gpt->poeg].poeg_dev,
+			RZG2L_POEGG_IOCF, RZG2L_POEGG);
+	}
+#endif
+
 	/* Disable overflow interrupt flags */
 	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTST(ch), RZG2L_GTST_TCFPO, 0);
 
@@ -1231,12 +1284,96 @@ static ssize_t deadtime_second_show(struct device *dev,
 	return sprintf(buf, "%llu\n", time_ns);
 }
 
+static ssize_t POEG_available_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	unsigned int i;
+	size_t len = 0;
+
+	for (i = 0; i < 5; ++i) {
+		if (rzg2l_gpt_POEGs[i])
+			len += sysfs_emit_at(buf, len, "%s ", rzg2l_gpt_POEGs[i]);
+	}
+
+	/* replace last space with a newline */
+	buf[len - 1] = '\n';
+
+	return len;
+}
+
+static ssize_t POEG_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+	struct rz_gpt_pwm_channel *channel_data;
+	u8 ch, sub_ch;
+	u32 val;
+	int ret;
+
+	ret = sysfs_match_string(rzg2l_gpt_POEGs, buf);
+	if (ret < 0)
+		return ret;
+
+	guard(mutex)(&rzg2l_gpt->mutex);
+
+	rzg2l_gpt->poeg = ret;
+
+	for (ch = 0; ch < RZG2L_MAX_HW_CHANNELS; ch++) {
+		if (rzg2l_gpt->channel_enable[ch]) {
+			channel_data = &rzg2l_gpt->channel_data[RZG2L_GET_HWPWM(ch, 0)];
+			/* Set output disable group */
+			rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTINTAD(ch),
+					RZG2L_GTINTAD_OUTPUT_DISABLE_GRP_MASK,
+					POEG_mode_set[rzg2l_gpt->poeg].poeg);
+
+			/* Set output disable source */
+			if (channel_data->operation == DEADTIME_OUTPUT)
+				val = RZG2L_GTINTAD_OUTPUT_DISABLE_DEADTIME_ERROR;
+			else
+				val = RZG2L_GTINTAD_OUTPUT_DISABLE_SAME_LEVEL_HIGH |
+				      RZG2L_GTINTAD_OUTPUT_DISABLE_SAME_LEVEL_LOW;
+
+			/* Set output disable source */
+			rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTINTAD(ch),
+					RZG2L_GTINTAD_OUTPUT_DISABLE_POEG_MASK,
+					rzg2l_gpt->poeg ? val : 0);
+
+			/* Enable/Disable pin output disable */
+			for_each_set_bit(sub_ch,
+					(unsigned long *)&rzg2l_gpt->channel_enable[ch],
+					RZG2L_CHANNELS_PER_IO) {
+				rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTIOR(ch),
+						RZG2L_GTIOR_GTIOR_CHANNEL_x_OUTPUT_DISABLE_MASK(sub_ch),
+						rzg2l_gpt->poeg ?
+						RZG2L_GTIOR_GTIOx_OUTPUT_DISABLE(sub_ch) : 0);
+			}
+
+			if (rzg2l_gpt->poeg)
+				/* Enable overflow interrupt*/
+				rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTINTAD(ch),
+						RZG2L_GTINTAD_GTINTPR_MASK, RZG2L_GTINTPROV);
+		}
+	}
+
+	return count;
+}
+
+static ssize_t POEG_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%s\n", rzg2l_gpt_POEGs[rzg2l_gpt->poeg]);
+}
+
 static DEVICE_ATTR_RW(buff0);
 static DEVICE_ATTR_RW(buff1);
 static DEVICE_ATTR_RO(gpt_operation_available);
 static DEVICE_ATTR_RW(gpt_operation);
 static DEVICE_ATTR_RW(deadtime_first);
 static DEVICE_ATTR_RW(deadtime_second);
+static DEVICE_ATTR_RO(POEG_available);
+static DEVICE_ATTR_RW(POEG);
 
 static struct attribute *enhanced_feature_attrs_A[] = {
 	&dev_attr_deadtime_first.attr,
@@ -1258,6 +1395,16 @@ static struct attribute *common_attrs[] = {
 
 static const struct attribute_group common_group = {
 	.attrs = common_attrs,
+};
+
+static struct attribute *poeg_attrs[] = {
+	&dev_attr_POEG_available.attr,
+	&dev_attr_POEG.attr,
+	NULL,
+};
+
+static const struct attribute_group poeg_attr_group = {
+	.attrs = poeg_attrs,
 };
 
 static ssize_t enhanced_function_channels_store(struct device *dev,
@@ -1311,6 +1458,53 @@ static const struct gpt_irq_desc gpt_irqs[] = {
 	{ .name = "gtciv_n", .isr = gpt_gtciv_interrupt, .res_num = GTCIV },
 };
 
+static void rzg2l_gpt_poeg_init(struct device *dev)
+{
+	struct device_node *poeg_np;
+	struct platform_device *poeg_dev_np;
+	unsigned int i;
+	int cells;
+	int ret;
+
+	cells = of_property_count_u32_elems(dev->of_node, "renesas,poegs");
+	if (cells == -EINVAL)
+		return;
+
+	if (cells > 0) {
+		ret = sysfs_create_group(&dev->kobj, &poeg_attr_group);
+		if (ret < 0) {
+			dev_err(dev, "Failed to create sysfs: %d\n", ret);
+			return;
+		}
+	}
+
+	for (i = 0; i < cells; i++) {
+		poeg_np = of_parse_phandle(dev->of_node, "renesas,poegs", i);
+		if (poeg_np != NULL) {
+			poeg_dev_np = of_find_device_by_node(poeg_np);
+			if (poeg_dev_np) {
+				if (!strncasecmp(poeg_np->name, "poega", 5)) {
+					rzg2l_gpt_POEGs[i + 1] = "POEGA";
+					POEG_mode_set[i + 1].poeg_dev = poeg_dev_np;
+					POEG_mode_set[i + 1].poeg = RZG2L_GTINTAD_GRPA;
+				} else if (!strncasecmp(poeg_np->name, "poegb", 5)) {
+					rzg2l_gpt_POEGs[i + 1] = "POEGB";
+					POEG_mode_set[i + 1].poeg_dev = poeg_dev_np;
+					POEG_mode_set[i + 1].poeg = RZG2L_GTINTAD_GRPB;
+				}  else if (!strncasecmp(poeg_np->name, "poegc", 5)) {
+					rzg2l_gpt_POEGs[i + 1] = "POEGC";
+					POEG_mode_set[i + 1].poeg_dev = poeg_dev_np;
+					POEG_mode_set[i + 1].poeg = RZG2L_GTINTAD_GRPC;
+				} else if (!strncasecmp(poeg_np->name, "poegd", 5)) {
+					rzg2l_gpt_POEGs[i + 1] = "POEGD";
+					POEG_mode_set[i + 1].poeg_dev = poeg_dev_np;
+					POEG_mode_set[i + 1].poeg = RZG2L_GTINTAD_GRPD;
+				}
+			}
+		}
+	}
+}
+
 static int rzg2l_gpt_probe(struct platform_device *pdev)
 {
 	struct rzg2l_gpt_chip *rzg2l_gpt;
@@ -1331,6 +1525,8 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	rzg2l_gpt->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rzg2l_gpt->mmio))
 		return PTR_ERR(rzg2l_gpt->mmio);
+
+	rzg2l_gpt_poeg_init(dev);
 
 	rzg2l_gpt->cfg = device_get_match_data(dev);
 	if (rzg2l_gpt->cfg->has_icu_errint_status) {
