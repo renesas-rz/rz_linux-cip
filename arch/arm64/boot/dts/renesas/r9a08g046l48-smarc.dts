@@ -34,6 +34,13 @@
 */
 #define POE3_SUPPORT	0
 
+/*
+ * MTU3_SUPPORT.
+ *	0: GPT and POEG (default)
+ *	1: MTU3
+ */
+#define MTU3_SUPPORT	0
+
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/renesas,r9a08g046-pinctrl.h>
 
@@ -209,7 +216,7 @@
 			 <RZG3L_PORT_PINMUX(L, 3, 4)>; /* I2C_PM_DAT */
 	};
 
-#if (!SW_DPI_EN)
+#if (!SW_DPI_EN && !MTU3_SUPPORT)
 	spi2_pins: spi2 {
 		pinmux = <RZG3L_PORT_PINMUX(6, 0, 2)>, /* MISO */
 			 <RZG3L_PORT_PINMUX(6, 1, 2)>, /* MOSI */
@@ -352,12 +359,23 @@
 	};
 #endif
 
+#if (!SW_DPI_EN && !MTU3_SUPPORT)
+	gpt_pins: gpt {
+		pinmux = <RZG3L_PORT_PINMUX(8, 4, 10)>, /* GTIOC4A - GPIO13 - PMOD1_3A pin 10 */
+			 <RZG3L_PORT_PINMUX(8, 5, 10)>; /* GTIOC4B - GPIO10 - PMOD1_3A pin 7 */
+	};
+
+	poegd_pins: poegd {
+		pinmux = <RZG3L_PORT_PINMUX(6, 4, 12)>; /* GTERGD - GPIO6 - PMOD0-2A pin 9 */
+	};
+#endif
+
 	i2c1_pins: i2c1 {
 		pinmux = <RZG3L_PORT_PINMUX(A, 6, 4)>, /* I2C1_SCL */
 			 <RZG3L_PORT_PINMUX(A, 7, 4)>; /* I2C1_SDA */
 	};
 
-#if (!SW_DPI_EN)
+#if (!SW_DPI_EN && MTU3_SUPPORT)
 	mtu3_pins: mtu3 {
 		mtu3-ext-clk-input-pin {
 			pinmux = <RZG3L_PORT_PINMUX(8, 4, 14)>, /* MTU_CLK_C */
@@ -459,7 +477,7 @@
 	pinctrl-names = "default";
 };
 
-#if (!SW_DPI_EN)
+#if (!SW_DPI_EN && !MTU3_SUPPORT)
 &spi2 {
 	pinctrl-0 = <&spi2_pins>;
 	pinctrl-names = "default";
@@ -583,6 +601,21 @@
 	};
 };
 
+#if (!SW_DPI_EN && !MTU3_SUPPORT)
+&gpt {
+	pinctrl-0 = <&gpt_pins>;
+	pinctrl-names = "default";
+	renesas,poegs = <&poegd>;
+	status = "okay";
+};
+
+&poegd {
+	pinctrl-0 = <&poegd_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+#endif
+
 &i2c1 {
 	pinctrl-0 = <&i2c1_pins>;
 	pinctrl-names = "default";
@@ -637,7 +670,7 @@
 };
 #endif
 
-#if (!SW_DPI_EN)
+#if (!SW_DPI_EN && MTU3_SUPPORT)
 &mtu3 {
 	pinctrl-0 = <&mtu3_pins>;
 	pinctrl-names = "default";
