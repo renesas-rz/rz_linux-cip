@@ -315,6 +315,7 @@
 			clocks = <&cpg CPG_CORE R9A07G076_PCLKL>;
 			clock-names = "pclkl";
 			power-domains = <&cpg>;
+			renesas,syscon-perierr-error = <&icu_ns_int>;
 			status = "disabled";
 		};
 
@@ -326,6 +327,7 @@
 			clocks = <&cpg CPG_CORE R9A07G076_PCLKL>;
 			clock-names = "pclkl";
 			power-domains = <&cpg>;
+			renesas,syscon-perierr-error = <&icu_ns_int>;
 			status = "disabled";
 		};
 
@@ -337,6 +339,7 @@
 			clocks = <&cpg CPG_CORE R9A07G076_PCLKL>;
 			clock-names = "pclkl";
 			power-domains = <&cpg>;
+			renesas,syscon-perierr-error = <&icu_ns_int>;
 			status = "disabled";
 		};
 
@@ -348,6 +351,7 @@
 			clocks = <&cpg CPG_CORE R9A07G076_PCLKL>;
 			clock-names = "pclkl";
 			power-domains = <&cpg>;
+			renesas,syscon-perierr-error = <&icu_ns_int>;
 			status = "disabled";
 		};
 
