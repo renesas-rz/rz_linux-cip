@@ -130,6 +130,7 @@ static const struct sci_port_params sci_port_params[SCIx_NR_REGTYPES] = {
 			[CCR2]		= { 0x10,  32 },
 			[CCR3]		= { 0x14,  32 },
 			[CCR4]		= { 0x18,  32 },
+			[DCR]		= { 0x30,  32 },
 			[CSR]		= { 0x48,  32 },
 			[CFCLR]		= { 0x68,  32 },
 		},
@@ -149,6 +150,7 @@ static const struct sci_port_params sci_port_params[SCIx_NR_REGTYPES] = {
 			[CCR3]		= { 0x14,  32 },
 			[CCR4]		= { 0x18,  32 },
 			[FCR]		= { 0x24,  32 },
+			[DCR]		= { 0x30,  32 },
 			[CSR]		= { 0x48,  32 },
 			[FRSR]		= { 0x50,  32 },
 			[FTSR]		= { 0x54,  32 },
@@ -219,9 +221,70 @@ static void sci_port_disable(struct sci_port *sci_port)
 	pm_runtime_put_sync(sci_port->port.dev);
 }
 
+static int sci_config_rs485(struct uart_port *port, struct ktermios *termios,
+				struct serial_rs485 *rs485conf)
+{
+	u32 ccr3, dcr;
+
+	port->rs485 = *rs485conf;
+
+	rs485conf->flags |= SER_RS485_RX_DURING_TX;
+
+	if (rs485conf->flags & SER_RS485_ENABLED) {
+		ccr3 = serial_port_in(port, CCR3);
+		ccr3 |= CCR3_DEN;
+
+		dcr = serial_port_in(port, DCR);
+
+		if (rs485conf->flags & SER_RS485_RTS_ON_SEND) {
+			dcr &= DCR_DEPOL;
+			rs485conf->flags &= ~SER_RS485_RTS_AFTER_SEND;
+		} else {
+			dcr |= DCR_DEPOL;
+			rs485conf->flags |= SER_RS485_RTS_AFTER_SEND;
+		}
+
+		serial_port_out(port, DCR, dcr);
+		serial_port_out(port, CCR3, ccr3);
+	} else {
+		dcr = serial_port_in(port, DCR);
+		dcr &= ~DCR_DEPOL;
+		serial_port_out(port, DCR, dcr);
+		ccr3 = serial_port_in(port, CCR3);
+		ccr3 &= ~CCR3_DEN;
+		serial_port_out(port, CCR3, ccr3);
+	}
+
+	return 0;
+}
+
+static int sci_init_rs485(struct uart_port *port,
+			struct platform_device *pdev)
+{
+	struct serial_rs485 *rs485conf = &port->rs485;
+
+	rs485conf->flags = 0;
+	rs485conf->delay_rts_before_send = 0;
+	rs485conf->delay_rts_after_send = 0;
+
+	if (!pdev->dev.of_node)
+		return -ENODEV;
+
+	return uart_get_rs485_mode(port);
+}
+
 static void sci_start_tx(struct uart_port *port)
 {
+	struct sci_port *sp = to_sci_port(port);
+	struct serial_rs485 *rs485conf = &port->rs485;
 	unsigned int ctrl;
+
+	if (rs485conf->flags & SER_RS485_ENABLED) {
+		if (rs485conf->flags & SER_RS485_RTS_ON_SEND)
+			mctrl_gpio_set(sp->gpios, sp->port.mctrl | TIOCM_RTS);
+		else
+			mctrl_gpio_set(sp->gpios, sp->port.mctrl & ~TIOCM_RTS);
+	}
 
 	/* TE (Transmit Enable) must be set after setting TIE (Transmit Interrupt Enable)
 	 * or in the same instruction to start the transmit process.
@@ -233,12 +296,21 @@ static void sci_start_tx(struct uart_port *port)
 
 static void sci_stop_tx(struct uart_port *port)
 {
+	struct sci_port *sp = to_sci_port(port);
+	struct serial_rs485 *rs485conf = &port->rs485;
 	unsigned int ctrl;
 
 	ctrl = serial_port_in(port, CCR0);
 	ctrl &= ~CCR0_TIE;
 
 	serial_port_out(port, CCR0, ctrl);
+
+	if (rs485conf->flags & SER_RS485_ENABLED) {
+		if (rs485conf->flags & SER_RS485_RTS_ON_SEND)
+			mctrl_gpio_set(sp->gpios, sp->port.mctrl & ~TIOCM_RTS);
+		else
+			mctrl_gpio_set(sp->gpios, sp->port.mctrl | TIOCM_RTS);
+	}
 }
 
 static void sci_start_rx(struct uart_port *port)
@@ -253,12 +325,16 @@ static void sci_start_rx(struct uart_port *port)
 
 static void sci_stop_rx(struct uart_port *port)
 {
+	struct serial_rs485 *rs485conf = &port->rs485;
 	unsigned int ctrl;
 
 	ctrl = serial_port_in(port, CCR0);
 	ctrl &= ~CCR0_RIE;
 
 	serial_port_out(port, CCR0, ctrl);
+
+	if (rs485conf->flags & SER_RS485_ENABLED)
+		port->hw_stopped = 0;
 }
 
 static void sci_clear_CFC(struct uart_port *port, unsigned int mask)
@@ -408,6 +484,7 @@ static void sci_transmit_chars(struct uart_port *port)
 static void sci_receive_chars(struct uart_port *port)
 {
 	struct tty_port *tport = &port->state->port;
+	struct serial_rs485 *rs485conf = &port->rs485;
 	int i, count, copied = 0;
 	unsigned int status, frsr_status;
 	unsigned char flag;
@@ -476,6 +553,9 @@ static void sci_receive_chars(struct uart_port *port)
 		serial_port_in(port, CSR); /* dummy read */
 		sci_clear_DRxC(port);
 	}
+
+	if (rs485conf->flags & SER_RS485_ENABLED)
+		port->hw_stopped = 1;
 }
 
 static int sci_handle_errors(struct uart_port *port)
@@ -930,6 +1010,7 @@ found:
 static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 				const struct ktermios *old)
 {
+	struct serial_rs485 *rs485conf = &port->rs485;
 	unsigned int baud, i, bits;
 	unsigned int brr = 255, cks = 0, srr = 15;
 	unsigned int brr1 = 255, cks1 = 0, srr1 = 15;
@@ -938,7 +1019,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned long max_freq = 0;
 	int best_clk = -1;
 	unsigned long flags;
-	unsigned int ccr0_val = 0, ccr1_val = 0, ccr4_val = 0;
+	unsigned int ccr0_val = 0, ccr1_val = 0, ccr4_val = 0, dcr_val = 0;
 	unsigned int ccr2_val = CCR2_INIT, ccr3_val = CCR3_INIT;
 
 	if ((termios->c_cflag & CSIZE) == CS7) {
@@ -1053,6 +1134,28 @@ done:
 	ccr0_val |= CCR0_RE;
 	serial_port_out(port, CCR0, ccr0_val);
 
+	if (rs485conf->flags & SER_RS485_ENABLED) {
+		ccr3_val |= CCR3_DEN;
+
+		if (rs485conf->flags & SER_RS485_RTS_ON_SEND) {
+			dcr_val &= DCR_DEPOL;
+			rs485conf->flags &= ~SER_RS485_RTS_AFTER_SEND;
+		} else {
+			dcr_val |= DCR_DEPOL;
+			rs485conf->flags |= SER_RS485_RTS_AFTER_SEND;
+		}
+
+		serial_port_out(port, DCR, dcr_val);
+		serial_port_out(port, CCR3, ccr3_val);
+	} else {
+		dcr_val = sci_serial_in(port, DCR);
+		dcr_val &= ~DCR_DEPOL;
+		serial_port_out(port, DCR, dcr_val);
+		ccr3_val = sci_serial_in(port, CCR3);
+		ccr3_val &= ~CCR3_DEN;
+		serial_port_out(port, CCR3, ccr3_val);
+	}
+
 	if ((termios->c_cflag & CREAD) != 0)
 		sci_start_rx(port);
 
@@ -1161,6 +1264,9 @@ static void sci_config_port(struct uart_port *port, int flags)
 		port->type = sport->cfg->type;
 		sci_request_port(port);
 	}
+
+	if (port->rs485.flags & SER_RS485_ENABLED)
+		port->rs485_config(port, NULL, &port->rs485);
 }
 
 static int sci_verify_port(struct uart_port *port, struct serial_struct *ser)
@@ -1241,6 +1347,11 @@ sci_probe_regmap(const struct plat_sci_port *cfg)
 	return &sci_port_params[regtype];
 }
 
+static const struct serial_rs485 sci_rs485_supported = {
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND | SER_RS485_RTS_AFTER_SEND |
+		 SER_RS485_RX_DURING_TX,
+};
+
 static int sci_init_single(struct platform_device *dev,
 			   struct sci_port *sci_port, unsigned int index,
 			   const struct plat_sci_port *p, bool early)
@@ -1255,7 +1366,18 @@ static int sci_init_single(struct platform_device *dev,
 	port->ops	= &sci_uart_ops;
 	port->iotype	= UPIO_MEM;
 	port->line	= index;
+	port->dev 	= &dev->dev;
 	port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_RZ_SCI_CONSOLE);
+
+	if (device_property_read_bool(port->dev, "rs485-enabled")) {
+		port->rs485_config = sci_config_rs485;
+		port->rs485_supported = sci_rs485_supported;
+		ret = sci_init_rs485(port, dev);
+		if (ret) {
+			dev_err(port->dev, "Failed to initialize RS485 mode: %d\n", ret);
+			return ret;
+		}
+	}
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (res == NULL)
@@ -1301,8 +1423,6 @@ static int sci_init_single(struct platform_device *dev,
 		ret = sci_init_clocks(sci_port, &dev->dev);
 		if (ret < 0)
 			return ret;
-
-		port->dev = &dev->dev;
 
 		pm_runtime_enable(&dev->dev);
 	}

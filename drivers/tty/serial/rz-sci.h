@@ -156,3 +156,6 @@ enum {
 
 /* FFCLR (FIFO Flag CLear Register) */
 #define FFCLR_DRC			BIT(0)				/* DR Clear */
+
+/* DCR (Driver Control Register) */
+#define DCR_DEPOL			BIT(0)				/* Driver effective polarity select */
