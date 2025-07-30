@@ -434,6 +434,14 @@ static void rzg2l_cru_initialize_axi(struct rzg2l_cru_dev *cru)
 	amnaxiattr = rzg2l_cru_read(cru, AMnAXIATTR) & ~AMnAXIATTR_AXILEN_MASK;
 	amnaxiattr |= AMnAXIATTR_AXILEN;
 	rzg2l_cru_write(cru, AMnAXIATTR, amnaxiattr);
+
+	/*
+	 * AXI-Bus congestion maybe occurred.
+	 * Set auto recovery mode to clear all FIFOs
+	 * and resume transmission.
+	 */
+	rzg2l_cru_write(cru, AMnFIFO, 0);
+
 }
 
 static void rzg2l_cru_csi2_setup(struct rzg2l_cru_dev *cru,
