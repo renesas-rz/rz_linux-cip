@@ -59,7 +59,7 @@ struct rzg2l_cru_ip {
  * @datatype: MIPI CSI2 data type
  * @format: 4CC format identifier (V4L2_PIX_FMT_*)
  * @icndmr: ICnDMR register value
- * @yuv: Flag to indicate whether the format is YUV-based.
+ * @fmt_types: specifies the pixel encoding value(YUV, RGB or BAYER).
  */
 struct rzg2l_cru_ip_format {
 	/*
@@ -70,7 +70,7 @@ struct rzg2l_cru_ip_format {
 	u32 datatype;
 	u32 format;
 	u32 icndmr;
-	bool yuv;
+	enum v4l2_pixel_encoding fmt_types;
 };
 
 enum rz_cru_type {
@@ -153,6 +153,8 @@ struct rzg2l_cru_dev {
 	u8 num_buf;
 
 	u8 svc_channel;
+
+	u32 code;
 	struct v4l2_async_notifier notifier;
 
 	struct v4l2_ctrl_handler ctrl_handler;
