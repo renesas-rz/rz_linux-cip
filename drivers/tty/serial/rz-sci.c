@@ -67,6 +67,15 @@ struct plat_sci_reg {
 	u8 offset, size;
 };
 
+struct sci_suspend_regs {
+	u32 ccr0;
+	u32 ccr1;
+	u32 ccr2;
+	u32 ccr3;
+	u32 ccr4;
+	u32 fcr;
+};
+
 struct sci_port_params {
 	const struct plat_sci_reg regs[SCIx_NR_REGS];
 	unsigned int fifosize;
@@ -93,6 +102,7 @@ struct sci_port {
 	char				*irqstr[SCIx_NR_IRQS];
 
 	struct reset_control		*rstc;
+	struct sci_suspend_regs		*suspend_regs;
 
 	int				rx_trigger;
 
@@ -1605,6 +1615,13 @@ static int sci_probe(struct platform_device *pdev)
 	}
 
 	sp = &sci_ports[dev_id];
+	
+	sp->suspend_regs = devm_kzalloc(&pdev->dev,
+					sizeof(struct sci_suspend_regs),
+					GFP_KERNEL);
+	if (!sp->suspend_regs)
+		return -ENOMEM;
+
 	platform_set_drvdata(pdev, sp);
 
 	ret = sci_probe_single(pdev, dev_id, p, sp);
@@ -1621,16 +1638,46 @@ static int sci_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static void sci_console_save(struct sci_port *s)
+{
+	struct sci_suspend_regs *regs = s->suspend_regs;
+	struct uart_port *port = &s->port;
+
+	regs->ccr0 = sci_serial_in(port, CCR0);
+	regs->ccr1 = sci_serial_in(port, CCR1);
+	regs->ccr2 = sci_serial_in(port, CCR2);
+	regs->ccr3 = sci_serial_in(port, CCR3);
+	regs->ccr4 = sci_serial_in(port, CCR4);
+	if (sci_getreg(port, FCR)->size)
+		regs->fcr = sci_serial_in(port, FCR);
+}
+
+static void sci_console_restore(struct sci_port *s)
+{
+	struct sci_suspend_regs *regs = s->suspend_regs;
+	struct uart_port *port = &s->port;
+
+	sci_serial_out(port, CCR1, regs->ccr1);
+	sci_serial_out(port, CCR2, regs->ccr2);
+	sci_serial_out(port, CCR3, regs->ccr3);
+	sci_serial_out(port, CCR4, regs->ccr4);
+	if (sci_getreg(port, FCR)->size)
+		sci_serial_out(port, FCR, regs->fcr);
+	sci_serial_out(port, CCR0, regs->ccr0);
+}
+
 static __maybe_unused int sci_suspend(struct device *dev)
 {
 	struct sci_port *sport = dev_get_drvdata(dev);
 
-	if (sport)
+	if (sport) {
 		uart_suspend_port(&sci_uart_driver, &sport->port);
 
-	/* Also support "no_console_suspend" */
-	if (console_suspend_enabled)
-		reset_control_assert(sport->rstc);
+		if (!console_suspend_enabled && uart_console(&sport->port))
+			sci_console_save(sport);
+		else
+			return reset_control_assert(sport->rstc);
+	}
 
 	return 0;
 }
@@ -1638,18 +1685,19 @@ static __maybe_unused int sci_suspend(struct device *dev)
 static __maybe_unused int sci_resume(struct device *dev)
 {
 	struct sci_port *sport = dev_get_drvdata(dev);
-	int ret;
 
-	if (console_suspend_enabled) {
-		ret = reset_control_deassert(sport->rstc);
-		if (ret) {
-			dev_err(dev, "failed to reset controller (error %d)\n", ret);
-			return ret;
+	if (sport) {
+		if (!console_suspend_enabled && uart_console(&sport->port)) {
+			sci_console_restore(sport);
+		} else {
+			int ret = reset_control_deassert(sport->rstc);
+
+			if (ret)
+				return ret;
 		}
-	}
 
-	if (sport)
 		uart_resume_port(&sci_uart_driver, &sport->port);
+	}
 
 	return 0;
 }
