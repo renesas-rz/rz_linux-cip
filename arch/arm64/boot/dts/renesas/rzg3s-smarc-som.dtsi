@@ -151,6 +151,10 @@
 	clock-frequency = <24000000>;
 };
 
+&i3c {
+	status = "okay";
+};
+
 &i2c1 {
 	status = "okay";
 
