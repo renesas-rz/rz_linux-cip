@@ -123,7 +123,7 @@
 
 enum clk_ids {
 	/* Core Clock Outputs exported to DT */
-	LAST_DT_CORE_CLK = R9A08G046_OSCCLK2,
+	LAST_DT_CORE_CLK = R9A08G046_CLK_P4_DIV2,
 
 	/* External Input Clocks */
 	CLK_EXTAL,
@@ -184,7 +184,6 @@ enum clk_ids {
 	CLK_SD0_DIV2,
 	CLK_SD1_DIV2,
 	CLK_SD2_DIV2,
-	R9A08G046_CLK_P4_DIV2,
 
 	/* Module Clocks */
 	MOD_CLK_BASE,
