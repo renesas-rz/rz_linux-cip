@@ -34,9 +34,13 @@
 #define WDT_DEFAULT_TIMEOUT		60U
 
 #define CPG_WDTOVF_RST 		0xB10
+#define CPG_WDTRST_SEL 		0xB14
 
 #define CPG_WDTOVF_BIT(x)			BIT(x)
 #define CPG_WDTOVF_WEN_BIT(x)			BIT((x) + 16)
+
+#define CPG_WDTRSTSEL_BIT(x)			BIT(x)
+#define CPG_WDTRSTSEL_WEN_BIT(x)			BIT((x) + 16)
 
 /* Setting period time register only 12 bit set in WDTSET[31:20] */
 #define WDTSET_COUNTER_MASK		(0xFFF00000)
@@ -322,6 +326,19 @@ static int rzg2l_wdt_probe(struct platform_device *pdev)
 				return ret;
 		}
 		bootstatus = val & CPG_WDTOVF_BIT(channel) ? WDIOF_CARDRESET : 0;
+
+		/*
+		 * configure CPG_WDTRST_SEL register to issue a reset request
+		 * upon WDT underflow
+		 */
+		ret = regmap_read(syscon, CPG_WDTRST_SEL, &val);
+		if (ret)
+			return ret;
+
+		ret = regmap_write(syscon, CPG_WDTRST_SEL, 
+							val | CPG_WDTRSTSEL_BIT(channel) | CPG_WDTRSTSEL_WEN_BIT(channel));
+		if (ret)
+			return ret;
 	}
 
 	pm_runtime_irq_safe(&pdev->dev);
