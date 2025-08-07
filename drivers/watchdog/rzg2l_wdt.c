@@ -253,6 +253,7 @@ static int rzg2l_wdt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rzg2l_wdt_priv *priv;
 	unsigned long pclk_rate;
+	u32 channel;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -289,6 +290,12 @@ static int rzg2l_wdt_probe(struct platform_device *pdev)
 				     "failed to get cpg reset");
 
 	priv->devtype = (uintptr_t)of_device_get_match_data(dev);
+
+	if (priv->devtype == WDT_RZG2L) {
+		ret = device_property_read_u32(&pdev->dev, "channel,id", &channel);
+		if (ret)
+			return dev_err_probe(dev, ret, "no channel,id found");
+	}
 
 	pm_runtime_irq_safe(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
