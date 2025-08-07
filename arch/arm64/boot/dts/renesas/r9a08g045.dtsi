@@ -674,6 +674,7 @@
 			interrupt-names = "wdt", "perrout";
 			resets = <&cpg R9A08G045_WDT0_PRESETN>;
 			power-domains = <&cpg>;
+			renesas,syscon-cpg-wdtovf-rst = <&cpg>;
 			status = "disabled";
 		};
 	};
