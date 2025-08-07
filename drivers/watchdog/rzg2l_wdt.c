@@ -5,15 +5,18 @@
  * Copyright (C) 2021 Renesas Electronics Corporation
  */
 #include <linux/bitops.h>
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/units.h>
 #include <linux/watchdog.h>
@@ -29,6 +32,11 @@
 #define PEEN_FORCE	BIT(0)
 
 #define WDT_DEFAULT_TIMEOUT		60U
+
+#define CPG_WDTOVF_RST 		0xB10
+
+#define CPG_WDTOVF_BIT(x)			BIT(x)
+#define CPG_WDTOVF_WEN_BIT(x)			BIT((x) + 16)
 
 /* Setting period time register only 12 bit set in WDTSET[31:20] */
 #define WDTSET_COUNTER_MASK		(0xFFF00000)
@@ -251,7 +259,10 @@ static void rzg2l_wdt_pm_disable(void *data)
 static int rzg2l_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct rzg2l_wdt_priv *priv;
+	unsigned int bootstatus = 0;
+	struct regmap *syscon;
 	unsigned long pclk_rate;
 	u32 channel;
 	int ret;
@@ -297,12 +308,29 @@ static int rzg2l_wdt_probe(struct platform_device *pdev)
 			return dev_err_probe(dev, ret, "no channel,id found");
 	}
 
+	syscon = syscon_regmap_lookup_by_phandle(np, "renesas,syscon-cpg-wdtovf-rst");
+	if (!IS_ERR(syscon)) {
+		u32 val;
+
+		ret = regmap_read(syscon, CPG_WDTOVF_RST, &val);
+		if (ret)
+			return ret;
+
+		if (val & CPG_WDTOVF_BIT(channel)) {
+			ret = regmap_write(syscon, CPG_WDTOVF_RST, CPG_WDTOVF_BIT(channel) | CPG_WDTOVF_WEN_BIT(channel));
+			if (ret)
+				return ret;
+		}
+		bootstatus = val & CPG_WDTOVF_BIT(channel) ? WDIOF_CARDRESET : 0;
+	}
+
 	pm_runtime_irq_safe(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
 	priv->wdev.info = &rzg2l_wdt_ident;
 	priv->wdev.ops = &rzg2l_wdt_ops;
 	priv->wdev.parent = dev;
+	priv->wdev.bootstatus = bootstatus;
 	priv->wdev.min_timeout = 1;
 	priv->wdev.max_timeout = rzg2l_wdt_get_cycle_usec(priv->osc_clk_rate, 0xfff) /
 				 USEC_PER_SEC;
