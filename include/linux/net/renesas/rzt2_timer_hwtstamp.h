@@ -25,6 +25,13 @@
 #define ETHSW_ATIME_SEC(time)			(0x698 + ETHSW_ATIME_NUM(time))
 #define ETHSW_ATIME_OFFS_CORR(time)		(0x69C + ETHSW_ATIME(time))
 
+struct ethsw_skb_cb {
+	u32 rxtstamp;
+};
+
+#define ETHSW_SKB_CB(skb) \
+	((struct ethsw_skb_cb *)((skb)->cb))
+
 void ethsw_time_init(void __iomem *ioaddr, u32 timer);
 void ethsw_time_set(void __iomem *ioaddr, u64 systime, u32 timer);
 void ethsw_time_get(void __iomem *ioaddr, u64 *systime, u32 timer);
