@@ -35,6 +35,7 @@ struct ethss_port {
 	struct phylink_pcs pcs;
 	int port;
 	phy_interface_t interface;
+	int speed;
 };
 
 static inline struct ethss_port *phylink_pcs_to_ethss_port(struct phylink_pcs *pcs)

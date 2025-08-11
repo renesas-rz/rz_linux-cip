@@ -10,6 +10,7 @@
 #include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/platform_device.h>
+#include <linux/ptp_clock_kernel.h>
 #include <linux/net/renesas/rzt2h-ethss.h>
 #include <net/dsa.h>
 
@@ -114,6 +115,28 @@
 #define ETHSW_LK_AGETIME		0x41C
 #define ETHSW_LK_AGETIME_MASK		GENMASK(23, 0)
 
+#define ETHSW_TSM_CONFIG		0x504
+#define ETHSW_TSM_CONFIG_IRQ_TX_MASK	GENMASK(19, 16)
+#define ETHSW_TSM_CONFIG_IRQ_TX_POS	16
+#define ETHSW_TSM_CONFIG_IRQ_EN		BIT(0)
+
+#define ETHSW_TSM_IRQ_STAT_ACK		0x508
+#define ETHSW_TSM_IRQ_STAT_ACK_TX_POS	16
+
+#define ETHSW_TS_FIFO_READ_CTRL		0x5C4
+#define ETHSW_TS_FIFO_READ_TIMESTAMP	0x5C8
+#define ETHSW_TS_FIFO_READ_PORTMASK	GENMASK(1, 0)
+#define ETHSW_TS_FIFO_READ_TS_VALID	BIT(4)
+#define ETHSW_TS_FIFO_READ_TS_ID	GENMASK(14, 8)
+#define ETHSW_TS_FIFO_READ_TS_ID_POS	8
+
+#define ETHSW_INT_CONFIG		0x600
+#define ETHSW_INT_CONFIG_IRQ_EN		BIT(0)
+#define ETHSW_INT_CONFIG_TSM_INT	BIT(29)
+
+#define ETHSW_INT_STAT_ACK		0x604
+#define ETHSW_INT_STAT_ACK_TSM_INT	BIT(29)
+
 #define ETHSW_MDIO_CFG_STATUS		0x700
 #define ETHSW_MDIO_CFG_STATUS_CLKDIV	GENMASK(15, 7)
 #define ETHSW_MDIO_CFG_STATUS_READERR	BIT(1)
@@ -129,6 +152,7 @@
 #define ETHSW_MDIO_DATA_MASK		GENMASK(15, 0)
 
 #define ETHSW_CMD_CFG(port)		(0x808 + ETHSW_PORT_OFFSET(port))
+#define ETHSW_CMD_CFG_TIMER_SEL		BIT(30)
 #define ETHSW_CMD_CFG_CNTL_FRM_ENA	BIT(23)
 #define ETHSW_CMD_CFG_SW_RESET		BIT(13)
 #define ETHSW_CMD_CFG_TX_CRC_APPEND	BIT(11)
@@ -237,6 +261,24 @@ union lk_data {
 	struct fdb_entry entry;
 };
 
+/* A structure to hold hardware timestamping information per port */
+struct ethsw_port_hwtstamp {
+	/* Timestamping state */
+	unsigned long state;
+
+	/* Resources for receive timestamping */
+	struct sk_buff_head rx_queue; /* For synchronization messages */
+
+	/* Resources for transmit timestamping */
+	unsigned long tx_tstamp_start;
+	struct sk_buff *tx_skb;
+	u32 txtstamp;
+	bool ts_status;
+
+	/* Current timestamp configuration */
+	struct hwtstamp_config tstamp_config;
+};
+
 /**
  * struct ethsw - switch struct
  * @base: Base address of the switch
@@ -269,4 +311,51 @@ struct ethsw {
 	struct net_device *br_dev;
 	struct gpio_desc *reset;
 	struct reset_control *rst;
+	int intr_irq;
+	struct mutex ptp_lock;
+	u32 ethsw_ptp_timer; /* ETHSW Timer using */
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info ptp_clock_info;
+	u32 clk_ptp_rate;
+	/* Per-port timestamping resources */
+	struct ethsw_port_hwtstamp port_hwtstamp[ETHSW_PORTS_NUM - 1];
 };
+
+/* State flags for ethsw_port_hwtstamp::state */
+enum {
+	ETHSW_HWTSTAMP_ENABLED,
+	ETHSW_HWTSTAMP_TX_IN_PROGRESS,
+};
+
+/* TX_TSTAMP_TIMEOUT: This limits the time spent polling for a TX
+ * timestamp. When working properly, hardware will produce a timestamp
+ * within 1ms. Software may enounter delays, so the timeout is set
+ * accordingly.
+ */
+#define TX_TSTAMP_TIMEOUT	msecs_to_jiffies(40)
+
+// VSC8541 PHY DELAY and MII to timestamp
+#define INGRESS_DELAY_10M		(2968+1212)
+#define INGRESS_DELAY_100M		(396+132)
+#define INGRESS_DELAY_1G		(247+28)
+
+#define EGRESS_DELAY_10M		(3565-12)
+#define EGRESS_DELAY_100M		(374-12)
+#define EGRESS_DELAY_1G			(76-12)
+
+int ethsw_get_ts_info(struct dsa_switch *ds, int port,
+		      struct kernel_ethtool_ts_info *info);
+int ethsw_port_hwtstamp_set(struct dsa_switch *ds, int port,
+			    struct ifreq *ifr);
+int ethsw_port_hwtstamp_get(struct dsa_switch *ds, int port,
+			    struct ifreq *ifr);
+void ethsw_port_txtstamp(struct dsa_switch *ds, int port,
+			 struct sk_buff *skb);
+bool ethsw_port_rxtstamp(struct dsa_switch *ds, int port,
+			 struct sk_buff *skb, unsigned int type);
+int ethsw_hwtstamp_setup(struct ethsw *ethsw);
+void ethsw_hwtstamp_free(struct ethsw *ethsw);
+int ethsw_ptp_register(struct ethsw *ethsw);
+void ethsw_ptp_unregister(struct ethsw *ethsw);
+int ethsw_isr_tsm(struct ethsw *ethsw);
+void ethsw_isr_tsm_thread(struct ethsw *ethsw);
