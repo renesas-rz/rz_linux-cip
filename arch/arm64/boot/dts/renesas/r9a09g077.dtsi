@@ -487,11 +487,14 @@
 			reg = <0 0x80007000 0 0x100>;
 			interrupts = <GIC_SPI 634 IRQ_TYPE_EDGE_RISING>,
 					<GIC_SPI 635 IRQ_TYPE_EDGE_RISING>,
-					<GIC_SPI 637 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "rx", "tx", "error";
+					<GIC_SPI 637 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 638 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "rx", "tx", "error", "cend";
 			clocks = <&cpg CPG_MOD R9A09G077_SPI0_CLK>;
 			power-domains = <&cpg>;
 			num-cs = <1>;
+			dmas = <&dmac0 0x267B>, <&dmac0 0x267A>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -502,8 +505,9 @@
 			reg = <0 0x80007400 0 0x100>;
 			interrupts = <GIC_SPI 639 IRQ_TYPE_EDGE_RISING>,
 					<GIC_SPI 640 IRQ_TYPE_EDGE_RISING>,
-					<GIC_SPI 642 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "rx", "tx", "error";
+					<GIC_SPI 642 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 643 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "rx", "tx", "error", "cend";
 			clocks = <&cpg CPG_MOD R9A09G077_SPI1_CLK>;
 			power-domains = <&cpg>;
 			num-cs = <1>;
@@ -517,8 +521,9 @@
 			reg = <0 0x80007800 0 0x100>;
 			interrupts = <GIC_SPI 644 IRQ_TYPE_EDGE_RISING>,
 					<GIC_SPI 645 IRQ_TYPE_EDGE_RISING>,
-					<GIC_SPI 647 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "rx", "tx", "error";
+					<GIC_SPI 647 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 648 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "rx", "tx", "error", "cend";
 			clocks = <&cpg CPG_MOD R9A09G077_SPI2_CLK>;
 			power-domains = <&cpg>;
 			num-cs = <1>;
