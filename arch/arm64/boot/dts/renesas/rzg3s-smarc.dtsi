@@ -129,6 +129,20 @@
 	clock-frequency = <12288000>;
 };
 
+&ehci0 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&ehci1 {
+	status = "okay";
+};
+
+&hsusb {
+	dr_mode = "otg";
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 
@@ -154,6 +168,15 @@
 		VDDMIC-supply = <&reg_3p3v>;
 		VDDIO-supply = <&reg_1p8v>;
 	};
+};
+
+&ohci0 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&ohci1 {
+	status = "okay";
 };
 
 &pinctrl {
@@ -313,6 +336,23 @@
 	poe3_pins: poe3 {
 		pinmux = <RZG2L_PORT_PINMUX(14, 2, 6)>; /* POE10# - GPIO11 */
 	};
+
+	usb0_pins: usb0 {
+		peri {
+			pinmux = <RZG2L_PORT_PINMUX(5, 0, 1)>, /* VBUS */
+				 <RZG2L_PORT_PINMUX(5, 2, 1)>; /* OVC */
+		};
+
+		otg {
+			pinmux = <RZG2L_PORT_PINMUX(5, 3, 1)>; /* OTG_ID */
+			bias-pull-up;
+		};
+	};
+
+	usb1_pins: usb1 {
+		pinmux = <RZG2L_PORT_PINMUX(5, 4, 5)>, /* OVC */
+			 <RZG2L_PORT_PINMUX(6, 0, 1)>; /* VBUS */
+	};
 };
 
 &canfd {
@@ -327,6 +367,10 @@
 	channel1 {
 		status = "okay";
 	};
+};
+
+&phyrst {
+	status = "okay";
 };
 
 &scif0 {
@@ -458,4 +502,17 @@
 		mtu3_outputs = <2>; /* MTIOC7B-MTIOC7D */
 		addition_poe3_inputs = <10>;
 	};
+};
+
+&usb2_phy0 {
+	pinctrl-0 = <&usb0_pins>;
+	pinctrl-names = "default";
+	vbus-supply = <&usb0_vbus_otg>;
+	status = "okay";
+};
+
+&usb2_phy1 {
+	pinctrl-0 = <&usb1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
 };
