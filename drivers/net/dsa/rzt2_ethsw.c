@@ -294,6 +294,10 @@ static void ethsw_phylink_mac_link_up(struct phylink_config *config,
 		      ETHSW_CMD_CFG_TX_CRC_APPEND;
 	struct dsa_port *dp = dsa_phylink_to_port(config);
 	struct ethsw *ethsw = dp->ds->priv;
+	struct phylink_pcs *pcs = ethsw->pcs[dp->index];
+	struct ethss_port *ethss_port = phylink_pcs_to_ethss_port(pcs);
+
+	ethss_port->speed = speed;
 
 	if (dp->index != ETHSW_CPU_PORT)
 		ethss_switchcore_adjust(ethsw->pcs[dp->index], duplex, speed);
@@ -308,6 +312,9 @@ static void ethsw_phylink_mac_link_up(struct phylink_config *config,
 
 	if (!rx_pause)
 		cmd_cfg &= ~ETHSW_CMD_CFG_PAUSE_IGNORE;
+
+	if (ethsw->ethsw_ptp_timer)
+		cmd_cfg |= ETHSW_CMD_CFG_TIMER_SEL;
 
 	ethsw_reg_writel(ethsw, ETHSW_CMD_CFG(dp->index), cmd_cfg);
 }
@@ -1057,6 +1064,11 @@ static const struct dsa_switch_ops ethsw_switch_ops = {
 	.port_fdb_add = ethsw_port_fdb_add,
 	.port_fdb_del = ethsw_port_fdb_del,
 	.port_fdb_dump = ethsw_port_fdb_dump,
+	.get_ts_info = ethsw_get_ts_info,
+	.port_hwtstamp_set = ethsw_port_hwtstamp_set,
+	.port_hwtstamp_get = ethsw_port_hwtstamp_get,
+	.port_rxtstamp = ethsw_port_rxtstamp,
+	.port_txtstamp = ethsw_port_txtstamp,
 };
 
 static int ethsw_mdio_wait_busy(struct ethsw *ethsw)
@@ -1912,6 +1924,32 @@ static const struct attribute_group attr_group = {
 	.attrs = attrs,
 };
 
+static irqreturn_t ethsw_intr_irq_handler(int irq, void *data)
+{
+	struct ethsw *ethsw = data;
+	int ret = IRQ_HANDLED;
+	u32 stat_ack;
+
+	stat_ack = ethsw_reg_readl(ethsw, ETHSW_INT_STAT_ACK);
+	/* Clear IRQ_LINK Interrupt */
+	ethsw_reg_writel(ethsw, ETHSW_INT_STAT_ACK, stat_ack);
+
+	/* TSM Interrupt */
+	if (stat_ack & ETHSW_INT_STAT_ACK_TSM_INT)
+		ret = ethsw_isr_tsm(ethsw);
+
+	return ret;
+}
+
+static irqreturn_t ethsw_intr_irq_handler_thread(int irq, void *data)
+{
+	struct ethsw *ethsw = data;
+
+	ethsw_isr_tsm_thread(ethsw);
+
+	return IRQ_HANDLED;
+}
+
 static int ethsw_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -2004,10 +2042,52 @@ static int ethsw_probe(struct platform_device *pdev)
 		goto remove_sysfs;
 	}
 
+	ret = of_property_read_u32(dev->of_node, "ethsw_ptp_timer", &ethsw->ethsw_ptp_timer);
+	if (ret) {
+		dev_err(dev, "Failed to get ETHSW PTP timer\n");
+	} else {
+		ethsw->clk_ptp_rate = 125000000;
+		dev_info(dev, "ETHSW use timer %d for PTP\n", ethsw->ethsw_ptp_timer);
+	}
+
+	ethsw->intr_irq = platform_get_irq_byname(pdev, "ethsw_intr");
+	if (ethsw->intr_irq < 0) {
+		dev_err(dev, "Failed to obtain IRQ\n");
+		ret = ethsw->intr_irq;
+		goto unregister_dsa;
+	}
+
+	ret = devm_request_threaded_irq(dev, ethsw->intr_irq,
+					ethsw_intr_irq_handler,
+					ethsw_intr_irq_handler_thread, 0,
+					dev_name(ethsw->dev), ethsw);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to request IRQ\n");
+		goto unregister_dsa;
+	}
+
+	ret = ethsw_ptp_register(ethsw);
+	if (ret) {
+		dev_err(dev, "Failed to setup PTP!\n");
+		goto free_irq;
+	}
+
+	ret = ethsw_hwtstamp_setup(ethsw);
+	if (ret) {
+		dev_err(dev, "Failed to setup hardware timestamping!\n");
+		goto unregister_ptp;
+	}
+
 	dev_info(dev, "ETHSW Switch probed OK\n");
 
 	return 0;
 
+unregister_ptp:
+	ethsw_ptp_unregister(ethsw);
+free_irq:
+	devm_free_irq(dev, ethsw->intr_irq, ethsw);
+unregister_dsa:
+	dsa_unregister_switch(ds);
 remove_sysfs:
 	sysfs_remove_group(&dev->kobj, &attr_group);
 reset:
@@ -2029,6 +2109,8 @@ static void ethsw_remove(struct platform_device *pdev)
 	if (!ethsw)
 		return;
 
+	ethsw_hwtstamp_free(ethsw);
+	ethsw_ptp_unregister(ethsw);
 	dsa_unregister_switch(&ethsw->ds);
 	sysfs_remove_group(&pdev->dev.kobj, &attr_group);
 	ethsw_pcs_free(ethsw);
