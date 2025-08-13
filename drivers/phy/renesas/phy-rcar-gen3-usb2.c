@@ -860,10 +860,44 @@ static void rcar_gen3_phy_usb2_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 };
 
+static int rcar_gen3_phy_usb2_suspend(struct device *dev)
+{
+	struct rcar_gen3_chan *channel = dev_get_drvdata(dev);
+
+	reset_control_assert(channel->rstc);
+	pm_runtime_put(dev);
+
+	return 0;
+}
+
+static int rcar_gen3_phy_usb2_resume(struct device *dev)
+{
+	struct rcar_gen3_chan *channel = dev_get_drvdata(dev);
+	const struct rcar_gen3_phy_drv_data *phy_data =
+			 of_device_get_match_data(dev);
+	u32 val;
+
+	pm_runtime_get_sync(dev);
+	reset_control_deassert(channel->rstc);
+
+	if (phy_data->init_bus) {
+		val = readl(channel->base + USB2_AHB_BUS_CTR);
+		val &= ~USB2_AHB_BUS_CTR_MBL_MASK;
+		val |= USB2_AHB_BUS_CTR_MBL_INCR4;
+		writel(val, channel->base + USB2_AHB_BUS_CTR);
+	}
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(rcar_gen3_phy_usb2_pm_ops,
+		 rcar_gen3_phy_usb2_suspend, rcar_gen3_phy_usb2_resume);
+
 static struct platform_driver rcar_gen3_phy_usb2_driver = {
 	.driver = {
 		.name		= "phy_rcar_gen3_usb2",
 		.of_match_table	= rcar_gen3_phy_usb2_match_table,
+		.pm	= &rcar_gen3_phy_usb2_pm_ops,
 	},
 	.probe	= rcar_gen3_phy_usb2_probe,
 	.remove_new = rcar_gen3_phy_usb2_remove,
