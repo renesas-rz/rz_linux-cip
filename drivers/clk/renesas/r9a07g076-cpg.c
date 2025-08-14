@@ -74,6 +74,20 @@ static const struct clk_div_table dtable_20_40[] = {
 	{0, 0},
 };
 
+static const struct clk_div_table dtable_4_200[] = {
+	{0, 4},
+	{1, 8},
+	{2, 32},
+	{3, 40},
+	{4, 48},
+	{5, 56},
+	{6, 80},
+	{7, 128},
+	{8, 160},
+	{9, 200},
+	{0, 0},
+};
+
 /* Mux clock tables */
 static const char * const sel_clk_pll0[] = { ".sel_loco", ".sel_pll0" };
 static const char * const sel_clk_pll1[] = { ".sel_loco", ".sel_pll1" };
@@ -129,6 +143,8 @@ static const struct cpg_core_clk r9a07g076_core_clks[] __initconst = {
 		dtable_25_32, 0, 0),
 	DEF_DIV("SPI3", R9A07G076_PCLKSPI3, CLK_SEL_CLK_PLL4, DIVSPI3,
 		dtable_25_32, 0, 1),
+	DEF_DIV("NANDC_NFCLK", R9A07G076_NANDC_NFCLK, CLK_SEL_CLK_PLL1, DIVNANDC,
+		dtable_4_200, 0, 0),
 	DEF_FIXED("USB", R9A07G076_USB, CLK_SEL_CLK_PLL4, 1, 50),
 	DEF_FIXED("ETCLKA", R9A07G076_ETCLKA, CLK_SEL_CLK_PLL3, 1, 5),
 	DEF_FIXED("ETCLKB", R9A07G076_ETCLKB, CLK_SEL_CLK_PLL3, 1, 8),
@@ -191,7 +207,7 @@ static const struct rzt2_mod_clk r9a07g076_mod_clks[] __initconst = {
 	DEF_MOD("iic2", R9A07G076_IIC2_CLK, R9A07G076_PCLKL, MSTPCRG, 1, 1),
 	DEF_MOD("spi3", R9A07G076_SPI3_CLK, R9A07G076_PCLKSPI3, MSTPCRG, 2, 1),
 	DEF_MOD("gpt5", R9A07G076_GPT5_CLK, R9A07G076_PCLKH, MSTPCRG, 3, 1),
-	DEF_MOD("nandc", R9A07G076_NANDC_CLK, R9A07G076_PCLKAM, MSTPCRH, 4, 0),
+	DEF_MOD("nandc", R9A07G076_NANDC_CLK, R9A07G076_NANDC_NFCLK, MSTPCRH, 4, 0),
 	DEF_MOD("rtc", R9A07G076_RTC_CLK, R9A07G076_PCLKRTC, MSTPCRG, 5, 1),
 	DEF_MOD("sdhi0", R9A07G076_SDHI0_CLK, R9A07G076_SDHI0_IMCLK, MSTPCRM, 12, 0),
 	DEF_MOD("sdhi1", R9A07G076_SDHI1_CLK, R9A07G076_SDHI1_IMCLK, MSTPCRM, 13, 0),
