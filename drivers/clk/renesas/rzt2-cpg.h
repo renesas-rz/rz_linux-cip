@@ -77,6 +77,7 @@
 #define DIVSPI1			DDIV_PACK(SCKCR3, 2, 2)
 #define DIVSPI2			DDIV_PACK(SCKCR3, 4, 2)
 #define DIVSPI3			DDIV_PACK(SCKCR2, 16, 2)
+#define DIVNANDC		DDIV_PACK(SCKCR5, 0, 4)
 #define DIVSDHI0                DDIV_PACK(SCKCR5, 8, 1)
 #define DIVSDHI1                DDIV_PACK(SCKCR5, 10, 1)
 
