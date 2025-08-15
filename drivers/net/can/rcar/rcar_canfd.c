@@ -1397,10 +1397,9 @@ static void rcar_canfd_set_bittiming(struct net_device *ndev)
 	struct rcar_canfd_channel *priv = netdev_priv(ndev);
 	struct rcar_canfd_global *gpriv = priv->gpriv;
 	const struct can_bittiming *bt = &priv->can.bittiming;
-	const struct can_bittiming *dbt = &priv->can.data_bittiming;
-	const struct can_tdc_const *tdc_const = priv->can.tdc_const;
-	const struct can_tdc *tdc = &priv->can.tdc;
-
+	const struct can_bittiming *dbt = &priv->can.fd.data_bittiming;
+	const struct can_tdc_const *tdc_const = priv->can.fd.tdc_const;
+	const struct can_tdc *tdc = &priv->can.fd.tdc;
 	u32 cfg, tdcmode = 0, tdco = 0;
 	u16 brp, sjw, tseg1, tseg2;
 	u32 ch = priv->channel;
@@ -1766,7 +1765,7 @@ static unsigned int rcar_canfd_get_tdcr(struct rcar_canfd_global *gpriv,
 static int rcar_canfd_get_auto_tdcv(const struct net_device *ndev, u32 *tdcv)
 {
 	struct rcar_canfd_channel *priv = netdev_priv(ndev);
-	u32 tdco = priv->can.tdc.tdco;
+	u32 tdco = priv->can.fd.tdc.tdco;
 	u32 tdcr;
 
 	/* Transceiver Delay Compensation Result */
@@ -1898,8 +1897,8 @@ static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 
 	if (gpriv->fdmode) {
 		priv->can.bittiming_const = gpriv->info->nom_bittiming;
-		priv->can.data_bittiming_const = gpriv->info->data_bittiming;
-		priv->can.tdc_const = gpriv->info->tdc_const;
+		priv->can.fd.data_bittiming_const = gpriv->info->data_bittiming;
+		priv->can.fd.tdc_const = gpriv->info->tdc_const;
 
 		/* Controller starts in CAN FD only mode */
 		err = can_set_static_ctrlmode(ndev, CAN_CTRLMODE_FD);
@@ -1909,7 +1908,7 @@ static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 		priv->can.ctrlmode_supported = CAN_CTRLMODE_BERR_REPORTING |
 					       CAN_CTRLMODE_TDC_AUTO |
 					       CAN_CTRLMODE_TDC_MANUAL;
-		priv->can.do_get_auto_tdcv = rcar_canfd_get_auto_tdcv;
+		priv->can.fd.do_get_auto_tdcv = rcar_canfd_get_auto_tdcv;
 	} else {
 		/* Controller starts in Classical CAN only mode */
 		if (gpriv->info->shared_bittiming)
