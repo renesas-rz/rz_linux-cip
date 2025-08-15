@@ -724,7 +724,8 @@ static int rzg3s_pcie_msi_enable(struct rzg3s_pcie_host *host)
 	if (ret)
 		return ret;
 
-	ret = devm_request_irq(dev, irq, rzg3s_pcie_msi_irq, 0, devname, host);
+	ret = devm_request_irq(dev, irq, rzg3s_pcie_msi_irq,
+			       IRQF_NO_THREAD, devname, host);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to request IRQ: %d\n", ret);
 
