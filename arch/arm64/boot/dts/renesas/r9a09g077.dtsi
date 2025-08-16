@@ -643,6 +643,14 @@
 			dma-channels = <16>;
 		};
 
+		tsu: thermal@80086000 {
+			compatible = "renesas,r9a09g077-tsu";
+			reg = <0 0x80086000 0 0x1000>;
+			clocks = <&cpg CPG_MOD R9A09G077_TSU_CLK>;
+			clock-names = "tsu_clk";
+			#thermal-sensor-cells = <0>;
+		};
+
 		wdt0: watchdog@80082000 {
 			compatible = "renesas,r9a09g077-wdt";
 			reg = <0 0x80082000 0 0x10>,
@@ -854,6 +862,30 @@
 						speed = <1000>;
 						full-duplex;
 					};
+				};
+			};
+		};
+	};
+
+	thermal-zones {
+		emergency {
+			polling-delay = <1000>;
+			on-temperature = <110000>;
+			off-temperature = <95000>;
+			target_cpus =   <&cpu1 &cpu2 &cpu3>;
+			status = "disabled";
+		};
+
+		sensor_thermal: sensor-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&tsu>;
+
+			trips {
+				sensor_crit: sensor-crit {
+					temperature = <123000>;
+					hysteresis = <1000>;
+					type = "critical";
 				};
 			};
 		};
