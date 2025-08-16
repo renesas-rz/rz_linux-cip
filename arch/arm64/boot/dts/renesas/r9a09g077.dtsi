@@ -205,7 +205,7 @@
 
 		sci3: serial@80005c00 {
 			compatible = "renesas,r9a09g077-sci",
-				     "renesas,rz-rsci";
+				     "renesas,rz-rscif";
 			reg = <0 0x80005c00 0 0x400>;
 			interrupts = <GIC_SPI 602 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 603 IRQ_TYPE_EDGE_RISING>,
