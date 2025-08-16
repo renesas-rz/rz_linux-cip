@@ -14,3 +14,6 @@ obj-$(CONFIG_SYS_R9A09G057)	+= r9a09g057-sys.o
 obj-$(CONFIG_PWC_RZV2M)		+= pwc-rzv2m.o
 obj-$(CONFIG_RST_RCAR)		+= rcar-rst.o
 obj-$(CONFIG_SYSC_RZ)		+= rz-sysc.o
+
+# EMS for R-Car Gen3
+obj-$(CONFIG_RCAR_THERMAL_EMS)	+= rcar_ems_ctrl.o
