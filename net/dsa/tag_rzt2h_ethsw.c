@@ -7,6 +7,7 @@
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
 #include <net/dsa.h>
+#include <linux/net/renesas/rzt2h_timer_hwtstamp.h>
 
 #include "tag.h"
 
@@ -27,6 +28,8 @@
 #define ETHSW_CTRL_DATA_FORCE_FORWARD	BIT(0)
 /* This is both used for xmit tag and rcv tagging */
 #define ETHSW_CTRL_DATA_PORT		GENMASK(3, 0)
+#define ETHSW_CTRLBIT_TIMESTAMPING	BIT(3)
+#define ETHSW_CTRL_TIMESTAMP_ID(id)	(((uint32_t)(id) << 9U) & 0x0000FE00U)
 
 struct ethsw_tag {
 	__be16 ctrl_tag;
@@ -40,6 +43,7 @@ static struct sk_buff *ethsw_tag_xmit(struct sk_buff *skb, struct net_device *de
 	struct dsa_port *dp = dsa_user_to_port(dev);
 	struct ethsw_tag *ptag;
 	u32 data2_val;
+	__be16 etype;
 
 	BUILD_BUG_ON(sizeof(*ptag) != ETHSW_TAG_LEN);
 
@@ -58,9 +62,15 @@ static struct sk_buff *ethsw_tag_xmit(struct sk_buff *skb, struct net_device *de
 
 	ptag = dsa_etype_header_pos_tx(skb);
 
+	etype = *(__be16 *)(skb->data + 2 * ETH_ALEN + 8);
+	/* Insert transmit timestamping data if Ethernet type field is PTP type */
+	if (ntohs(etype) == 0x88F7)
+		ptag->ctrl_data = htons(ETHSW_CTRL_DATA_FORCE_FORWARD | ETHSW_CTRLBIT_TIMESTAMPING);
+	else
+		ptag->ctrl_data = htons(ETHSW_CTRL_DATA_FORCE_FORWARD);
+
 	data2_val = FIELD_PREP(ETHSW_CTRL_DATA_PORT, BIT(dp->index));
 	ptag->ctrl_tag = htons(ETH_P_DSA_ETHSW);
-	ptag->ctrl_data = htons(ETHSW_CTRL_DATA_FORCE_FORWARD);
 	ptag->ctrl_data2_lo = htons(data2_val);
 	ptag->ctrl_data2_hi = 0;
 
@@ -72,6 +82,7 @@ static struct sk_buff *ethsw_tag_rcv(struct sk_buff *skb,
 {
 	struct ethsw_tag *tag;
 	int port;
+	__be16 etype;
 
 	if (unlikely(!pskb_may_pull(skb, ETHSW_TAG_LEN))) {
 		dev_warn_ratelimited(&dev->dev,
@@ -87,6 +98,13 @@ static struct sk_buff *ethsw_tag_rcv(struct sk_buff *skb,
 	}
 
 	port = FIELD_GET(ETHSW_CTRL_DATA_PORT, ntohs(tag->ctrl_data));
+
+	etype = *(__be16 *)(skb->data - 2 + 8);
+	/* Get rx time stamp if Ethernet type field is PTP type */
+	if (ntohs(etype) == 0x88F7) { /* PTP Ethernet type field */
+		ETHSW_SKB_CB(skb)->rxtstamp = (ntohs(tag->ctrl_data2_hi) << 16)
+					      | ntohs(tag->ctrl_data2_lo);
+	}
 
 	skb->dev = dsa_conduit_find_user(dev, 0, port);
 	if (!skb->dev)
