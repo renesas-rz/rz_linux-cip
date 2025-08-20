@@ -13,6 +13,20 @@
  */
 #define RSPI0_LOOPBACK_SEL	0
 
+/*
+ * To enable and use SCI0, follow the configuration below
+ * Change switch
+ *    On Carrier Board: SW_PMOD0_PWR_SLP: 2->3
+ *    On SOM board    : SW GIO4_SEL     : 5->6
+ *
+ * SCI0_ENABLE - Set SCI0_ENABLE 1 to enable SCI0 and disable key-2-gpio-hog
+ *               Set SCI0_ENABLE 0 to disable SCI0 and enable key-2-gpio-hog
+ * Pinout:
+ *    SCI0_RXD: PMOD0 2A - Pin 9
+ *    SCI0_TXD: PMOD1 6A - Pin 1 or PMOD1 3A - pin 7
+ */
+#define SCI0_ENABLE 0
+
 #include "r9a08g045s33.dtsi"
 #include "rzg3s-smarc-som.dtsi"
 #include "rzg3s-smarc.dtsi"
