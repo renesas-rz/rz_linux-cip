@@ -2015,6 +2015,15 @@ config RTC_DRV_RENESAS_RTCA3
 	  This driver can also be built as a module, if so, the module
 	  will be called "rtc-rtca3".
 
+config RTC_DRV_RZT2H
+	tristate "Renesas RZ/T2H ON-Chip RTC"
+	depends on ARCH_RENESAS
+	help
+	  Say Y here to enable support for the on-chip RTC found in
+	  RZ/T2H SoCs.
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc-rzt2h.
+
 comment "HID Sensor RTC drivers"
 
 config RTC_DRV_HID_SENSOR_TIME
