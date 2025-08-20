@@ -21,6 +21,9 @@
 #include "rzg3e-smarc-som.dtsi"
 #include "renesas-smarc2.dtsi"
 
+#define OV5645_PARENT_I2C i2c0
+#include "rz-smarc-cru-csi-ov5645.dtsi"
+
 / {
 	model = "Renesas SMARC EVK version 2 based on r9a09g047e57";
 	compatible = "renesas,smarc2-evk", "renesas,rzg3e-smarcm",
@@ -77,6 +80,11 @@
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "default";
+};
+
+&ov5645 {
+	enable-gpios = <&pinctrl RZG3E_GPIO(D, 6) GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&pinctrl RZG3E_GPIO(D, 7) GPIO_ACTIVE_LOW>;
 };
 
 &pinctrl {
