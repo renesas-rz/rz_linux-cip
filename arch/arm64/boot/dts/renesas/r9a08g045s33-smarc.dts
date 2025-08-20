@@ -7,6 +7,14 @@
 
 /dts-v1/;
 
+/*
+ * Select between key 2 GPIO hog and SCI0:
+ * @SCI0_ENABLE:
+ * 0 - Enable key-2-gpio-hog
+ * 1 - Enable SCI0
+ */
+#define SCI0_ENABLE 0
+
 #include "r9a08g045s33.dtsi"
 #include "rzg3s-smarc-som.dtsi"
 #include "rzg3s-smarc.dtsi"
