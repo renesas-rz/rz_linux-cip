@@ -28,6 +28,7 @@
 #include <linux/reset-controller.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/units.h>
 
 #include <dt-bindings/clock/renesas-cpg-mssr.h>
 
@@ -45,6 +46,22 @@
 #define GET_REG_OFFSET(val)		((val >> 20) & 0xfff)
 #define GET_REG_SAMPLL_CLK1(val)	((val >> 22) & 0xfff)
 #define GET_REG_SAMPLL_CLK2(val)	((val >> 12) & 0xfff)
+
+#define PLL3P_MIN		1
+#define PLL3P_MAX		0x3F
+#define PLL3M_MIN		0x40
+#define PLL3M_MAX		0x3FF
+#define PLL3S_MIN		0
+#define PLL3S_MAX		6
+#define PLL3K_MIN		0
+#define PLL3K_MAX		0x7FFF
+#define PLL3_OSC		(48000)
+#define PLL3_FFREF_MIN		(6000)
+#define PLL3_FFREF_MAX		(25000)
+#define PLL3_FFVCO_MIN		(1600000)
+#define PLL3_FFVCO_MAX		(3200000)
+#define PLL3_FFOUT_MIN		(25000)
+#define PLL3_FFOUT_MAX		(430000)
 
 /**
  * struct rzt2_cpg_priv - Clock Pulse Generator Private Data
@@ -212,6 +229,178 @@ rzt2_cpg_pll_clk_register(const struct cpg_core_clk *core,
 	return clk_register(NULL, &pll_clk->hw);
 }
 
+struct rzt2_pll3_param {
+	unsigned int csdiv;
+	unsigned int pll_p;
+	unsigned int pll_m;
+	unsigned int pll_s;
+	short pll_k;
+};
+
+struct pll3_clk {
+	struct clk_hw hw;
+	unsigned long rate;
+	struct rzt2_cpg_priv *priv;
+};
+#define to_pll3(_hw)	container_of(_hw, struct pll3_clk, hw)
+
+static int
+rzt2_cpg_get_pll3_setting(struct rzt2_pll3_param *params,
+			unsigned long rate)
+{
+	long long div, res, mult;
+	unsigned long vclk_rate = rate / 1000;
+	unsigned long freq, fvco, fout;
+	int ret = -EINVAL;
+
+	for (params->csdiv = 2; params->csdiv <= 32; params->csdiv = params->csdiv + 2) {
+		fout = vclk_rate * params->csdiv;
+		if ((fout > PLL3_FFOUT_MAX) || (fout < PLL3_FFOUT_MIN))
+			continue;
+
+		for (params->pll_s = PLL3S_MIN; params->pll_s <= PLL3S_MAX; params->pll_s++) {
+			fvco = fout * (1 << params->pll_s);
+			if ((fvco > PLL3_FFVCO_MAX) || (fvco < PLL3_FFVCO_MIN))
+				continue;
+
+			for (params->pll_p = PLL3P_MIN; params->pll_p <= PLL3P_MAX; params->pll_p++) {
+				freq = PLL3_OSC / params->pll_p;
+				if ((freq > PLL3_FFREF_MAX) || (freq < PLL3_FFREF_MIN))
+					continue;
+
+				mult = fvco * params->pll_p;
+				div = mult / PLL3_OSC;
+				if ((div < PLL3M_MIN) || (div > PLL3M_MAX))
+					continue;
+
+				res = mult % PLL3_OSC;
+				if (res >= (PLL3_OSC / 2))
+					continue;
+
+				params->pll_m = div;
+				params->pll_k = res * 65536 / PLL3_OSC;
+				params->csdiv = (params->csdiv / 2) - 1;
+				ret = 0;
+				goto found;
+			}
+		}
+	}
+
+found:
+	return ret;
+
+}
+
+static unsigned long rzt2_cpg_lcdc_div_recalc_rate(struct clk_hw *hw,
+				unsigned long parent_rate)
+{
+	struct pll3_clk *pll3_clk = to_pll3(hw);
+	unsigned long rate = pll3_clk->rate;
+
+	if (!rate)
+		rate = parent_rate;
+	return rate;
+}
+
+static int rzt2_cpg_lcdc_div_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
+{
+	/* To ensure lcdc clk rate falls within the supported range of 5MHz to 100MHz */
+	req->rate = clamp(req->rate, 5000000UL, 100000000UL);
+	req->best_parent_rate = clamp(req->rate * 2,
+				25000000UL, 430000000UL);
+
+	return 0;
+}
+
+static int rzt2_cpg_lcdc_div_set_rate(struct clk_hw *hw,
+                                     unsigned long rate,
+                                     unsigned long parent_rate)
+{
+	struct pll3_clk *pll3_clk = to_pll3(hw);
+	struct rzt2_cpg_priv *priv = pll3_clk->priv;
+	struct rzt2_pll3_param params;
+	int ret;
+	u32 val;
+
+	ret = rzt2_cpg_get_pll3_setting(&params, rate);
+	if (ret) {
+		dev_err(priv->dev, "failed to set pll3 rate");
+		return ret;
+	}
+
+	/* SCKCR3: LCDCDIVSEL */
+	writel((params.csdiv << 20) | (readl(priv->cpg_base0 + SCKCR3) &
+		~(LCDCDIVSEL)), priv->cpg_base0 + SCKCR3);
+
+	/* PLL3EN: PLL3EN = 0 */
+	writel(0, priv->cpg_base1 + PLL3EN_REG);
+
+	ret = readl_poll_timeout(priv->cpg_base1 + PLL3MON, val,
+		!(val & BIT(0)), 100, 250000);
+	if (ret) {
+		dev_err(priv->dev, "failed to lock pll3");
+		return ret;
+	}
+
+	/* PLL3_VCO_CTR0: PLL3M and PLL3P */
+	writel((params.pll_p << 16) | params.pll_m, priv->cpg_base1 + PLL3_VCO_CTR0);
+
+	/* PLL3_VCO_CTR0: PLL3K and PLL3S */
+	writel((params.pll_k << 16) | params.pll_s, priv->cpg_base1 + PLL3_VCO_CTR1);
+
+	/* PLL3EN: PLL3EN = 1 */
+	writel(PLL3EN, priv->cpg_base1 + PLL3EN_REG);
+
+	ret = readl_poll_timeout(priv->cpg_base1 + PLL3MON, val,
+		(val & BIT(0)), 100, 250000);
+	if (ret) {
+		dev_err(priv->dev, "failed to lock pll3");
+		return ret;
+	}
+
+	return 0;
+}
+
+static const struct clk_ops rzt2_cpg_lcdc_div_ops = {
+	.recalc_rate = rzt2_cpg_lcdc_div_recalc_rate,
+	.determine_rate = rzt2_cpg_lcdc_div_determine_rate,
+	.set_rate = rzt2_cpg_lcdc_div_set_rate,
+};
+
+static struct clk * __init
+		rzt2_cpg_lcdc_div_clk_register(const struct cpg_core_clk *core,
+				struct rzt2_cpg_priv *priv)
+{
+	struct pll3_clk *pll3_clk;
+	const struct clk *parent;
+	const char *parent_name;
+	struct clk_init_data init;
+	struct clk_hw *clk_hw;
+	int ret;
+
+	parent = priv->clks[core->parent];
+	if (IS_ERR(parent))
+		return ERR_CAST(parent);
+
+	pll3_clk = devm_kzalloc(priv->dev, sizeof(*pll3_clk), GFP_KERNEL);
+	pll3_clk->priv = priv;
+	parent_name = __clk_get_name(parent);
+	init.name = core->name;
+	init.ops = &rzt2_cpg_lcdc_div_ops;
+	init.flags = CLK_SET_RATE_PARENT;
+	init.parent_names = &parent_name;
+	init.num_parents = 1;
+
+	clk_hw = &pll3_clk->hw;
+	clk_hw->init = &init;
+
+	ret = devm_clk_hw_register(priv->dev, clk_hw);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return clk_hw->clk;
+}
+
 static struct clk
 *rzt2_cpg_clk_src_twocell_get(struct of_phandle_args *clkspec,
 			       void *data)
@@ -295,6 +484,9 @@ rzt2_cpg_register_core_clk(const struct cpg_core_clk *core,
 	case CLK_TYPE_SAM_PLL:
 		clk = rzt2_cpg_pll_clk_register(core, priv->clks,
 						 priv->cpg_base1, priv);
+		break;
+	case CLK_TYPE_LCDC_DIV:
+		clk = rzt2_cpg_lcdc_div_clk_register(core, priv);
 		break;
 	case CLK_TYPE_DIV:
 		if (core->sel_base)

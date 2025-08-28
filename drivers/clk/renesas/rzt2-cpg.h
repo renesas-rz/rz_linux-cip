@@ -35,6 +35,7 @@
 #define PLL3_VCO_CTR1			0xC8
 #define PLL4MON				0xD0
 #define PHYSEL				BIT(21)
+#define LCDCDIVSEL			GENMASK(23, 20)
 
 
 #define MRCTLA			0x240
@@ -111,6 +112,7 @@ enum clk_types {
 
 	/* Clock with SD clock source selector */
 	CLK_TYPE_SD_MUX,
+	CLK_TYPE_LCDC_DIV,
 };
 
 #define DEF_TYPE(_name, _id, _type...) \
@@ -134,6 +136,8 @@ enum clk_types {
 #define DEF_SD_MUX(_name, _id, _conf, _parent_names, _num_parents) \
 	DEF_TYPE(_name, _id, CLK_TYPE_SD_MUX, .conf = _conf, \
 		 .parent_names = _parent_names, .num_parents = _num_parents)
+#define DEF_LCDC_DIV(_name, _id, _parent, _flag) \
+	DEF_TYPE(_name, _id, CLK_TYPE_LCDC_DIV, .parent = _parent, .flag = _flag)
 
 /**
  * struct rzt2_mod_clk - Module Clocks definitions

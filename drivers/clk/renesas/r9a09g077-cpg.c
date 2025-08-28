@@ -108,7 +108,7 @@ static const struct cpg_core_clk r9a09g077_core_clks[] __initconst = {
 	DEF_MUX(".sel_clk_pll4", CLK_SEL_CLK_PLL4, SEL_PLL,
 		sel_clk_pll4, ARRAY_SIZE(sel_clk_pll4), 0, CLK_MUX_READ_ONLY),
 	DEF_FIXED(".pll3_input", CLK_PLL3_INPUT, CLK_SEL_CLK_PLL4, 1, 50),
-	DEF_SAMPLL(".pll3", CLK_PLL3, CLK_PLL3_INPUT, PLL3_CONF),
+	DEF_FIXED(".pll3", CLK_PLL3, CLK_PLL3_INPUT, 1, 1),
 
 	/* Core output clk */
 	DEF_DIV("CA55", R9A09G077_CA55, CLK_SEL_CLK_PLL0, DIVCA55,
@@ -135,8 +135,7 @@ static const struct cpg_core_clk r9a09g077_core_clks[] __initconst = {
 		  1, 1),
 	DEF_FIXED("LCDC_CLKP", R9A09G077_LCDC_CLKP, R9A09G077_PCLKAL,
 		  1, 1),
-	DEF_DIV("LCDC_CLKD", R9A09G077_LCDC_CLKD, CLK_PLL3, DIVLCDC,
-		dtable_2_32, 0, 0),
+	DEF_LCDC_DIV("LCDC_CLKD", R9A09G077_LCDC_CLKD, CLK_PLL3, CLK_SET_RATE_PARENT),
 };
 
 static const struct rzt2_mod_clk r9a09g077_mod_clks[] __initconst = {
