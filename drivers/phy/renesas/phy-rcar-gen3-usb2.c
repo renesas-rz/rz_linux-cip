@@ -287,7 +287,7 @@ static void rcar_gen3_init_from_a_peri_to_a_host(struct rcar_gen3_chan *ch)
 static bool rcar_gen3_check_id(struct rcar_gen3_chan *ch)
 {
 	if (!ch->uses_otg_pins)
-		return (ch->dr_mode == USB_DR_MODE_HOST) ? false : true;
+		return ch->dr_mode != USB_DR_MODE_HOST;
 
 	if (ch->phy_data->no_adp_ctrl)
 		return !!(readl(ch->base + USB2_LINECTRL1) & USB2_LINECTRL1_USB2_IDMON);
