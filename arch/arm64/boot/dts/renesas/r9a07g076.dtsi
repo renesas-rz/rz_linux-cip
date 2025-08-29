@@ -1086,6 +1086,26 @@
 				reg = <7>;
 			};
 		};
+
+		nandc: nandc@92050000 {
+			compatible = "renesas,r9a07g076-nandc";
+			reg = <0 0x92050000 0 0x4000>,
+			      <0 0x10100000 0 0x100000>,
+			      <0 0x80297000 0 0x50>;
+			interrupts = <GIC_SPI 628 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A07G076_NANDC_CLK>,
+				 <&cpg CPG_CORE R9A07G076_PCLKAM>,
+				 <&cpg CPG_CORE R9A07G076_PCLKAL>;
+			clock-names = "nf_clk", "sysclk", "busclk";
+			resets = <&cpg R9A07G076_NANDC_SYSTEM_RST>,
+				 <&cpg R9A07G076_NANDC_SLAVE_RST>,
+				 <&cpg R9A07G076_NANDC_PROTECT_RST>;
+			reset-names = "rst_sys", "rst_slave", "rst_prot";
+			power-domains = <&cpg>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
 	};
 
 	thermal-zones {
