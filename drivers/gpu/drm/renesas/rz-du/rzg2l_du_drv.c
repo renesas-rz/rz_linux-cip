@@ -52,6 +52,7 @@ static const struct rzg2l_du_device_info rzg2l_du_r9a07g044_info = {
 static const struct of_device_id rzg2l_du_of_table[] = {
 	{ .compatible = "renesas,r9a07g043u-du", .data = &rzg2l_du_r9a07g043u_info },
 	{ .compatible = "renesas,r9a07g044-du", .data = &rzg2l_du_r9a07g044_info },
+	{ .compatible = "renesas,r9a09g077-du", .data = &rzg2l_du_r9a07g043u_info },
 	{ /* sentinel */ }
 };
 
