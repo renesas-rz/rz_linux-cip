@@ -29,6 +29,7 @@
 	keys {
 		compatible = "gpio-keys";
 
+#if !POEGA_SEL
 		key-1 {
 			interrupts = <RZG2L_GPIO(18, 0) IRQ_TYPE_EDGE_FALLING>;
 			interrupt-parent = <&pinctrl>;
@@ -37,6 +38,7 @@
 			wakeup-source;
 			debounce-interval = <20>;
 		};
+#endif
 
 #if (!SCI0_ENABLE)
 		key-2 {
@@ -160,12 +162,14 @@
 		input-enable;
 	};
 
+#if !POEGA_SEL
 	key-1-gpio-hog {
 		gpio-hog;
 		gpios = <RZG2L_GPIO(18, 0) GPIO_ACTIVE_LOW>;
 		input;
 		line-name = "key-1-gpio-irq";
 	};
+#endif
 
 #if SCI0_ENABLE
 	sci0_pins: sci0 {
@@ -287,6 +291,18 @@
 			 <RZG2L_PORT_PINMUX(15, 2, 1)>, /* MISO */
 			 <RZG2L_PORT_PINMUX(15, 3, 1)>; /* SSL */
 	};	
+
+	gpt0_pins: gpt {
+		pinmux = <RZG2L_PORT_PINMUX(13, 0, 2)>, /* GTIOC0A - GPIO8 */
+			 <RZG2L_PORT_PINMUX(13, 1, 2)>; /* GTIOC0B - GPIO9 */
+	};
+
+#if POEGA_SEL
+	poega_pins: poega {
+		pinmux = <RZG2L_PORT_PINMUX(18, 0, 6)>; /* GTERGA - GPIO4 */
+	};
+#endif
+
 };
 
 &canfd {
@@ -397,3 +413,19 @@
 	};
 #endif
 };
+
+&gpt0 {
+	pinctrl-0 = <&gpt0_pins>;
+	pinctrl-names = "default";
+	channel = "both_AB";
+	poeg = <&poega>;
+	status = "okay";
+};
+
+#if POEGA_SEL
+&poega {
+	pinctrl-0 = <&poega_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+#endif

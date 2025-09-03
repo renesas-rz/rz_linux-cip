@@ -27,6 +27,14 @@
  */
 #define SCI0_ENABLE 0
 
+/*
+ * POEGA selection states:
+ * @POEGA_SEL:
+ *	0 - Select USER_SW1 (default)
+ *	1 - Select POEGA for gpt0 function
+ */
+#define POEGA_SEL	0
+
 #include "r9a08g045s33.dtsi"
 #include "rzg3s-smarc-som.dtsi"
 #include "rzg3s-smarc.dtsi"
