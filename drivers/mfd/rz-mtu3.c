@@ -68,7 +68,7 @@ static const char rz_mtu3_irq_names[][7][6] = {
 	[RZ_MTU3_CHAN_5] = {"tgiu5", "tgiv5", "tgiw5"},
 	[RZ_MTU3_CHAN_6] = {"tgia6", "tgib6", "tgic6", "tgid6", "tciv6"},
 	[RZ_MTU3_CHAN_7] = {"tgia7", "tgib7", "tgic7", "tgid7", "tciv7"},
-	[RZ_MTU3_CHAN_8] = {"tgia8", "tgib8", "tgic8", "tgid8", "tciv8", "tciu8"},
+	[RZ_MTU3_CHAN_8] = {"tgia8", "tgib8", "tgic8", "tgid8", "tciv8"},
 };
 
 static bool rz_mtu3_is_16bit_shared_reg(u16 offset)
@@ -452,13 +452,11 @@ static int rz_mtu3_probe(struct platform_device *pdev)
 		case RZ_MTU3_CHAN_4:
 		case RZ_MTU3_CHAN_6:
 		case RZ_MTU3_CHAN_7:
+		case RZ_MTU3_CHAN_8:
 			ddata->channels[i].num_irq = 5;
 			break;
 		case RZ_MTU3_CHAN_5:
 			ddata->channels[i].num_irq = 3;
-			break;
-		case RZ_MTU3_CHAN_8:
-			ddata->channels[i].num_irq = 6;
 			break;
 		}
 	}
