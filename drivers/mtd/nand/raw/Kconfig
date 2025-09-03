@@ -448,6 +448,14 @@ config MTD_NAND_RENESAS
 	  Enables support for the NAND controller found on Renesas R-Car
 	  Gen3 and RZ/N1 SoC families.
 
+config MTD_NAND_RENESAS_RZT2N
+	tristate "Renesas RZ/T2N NAND controller"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	help
+	  Enables support for the NAND controller found on Renesas RZ/T2N
+	  SoC families.
+
 config MTD_NAND_TS72XX
 	tristate "ts72xx NAND controller"
 	depends on ARCH_EP93XX && HAS_IOMEM
