@@ -197,6 +197,11 @@
 			 <RZG2L_PORT_PINMUX(18, 4, 8)>, /* TXD */
 			 <RZG2L_PORT_PINMUX(18, 5, 8)>; /* RXD */
 	};
+
+	pcie_pins: pcie {
+		pinmux = <RZG2L_PORT_PINMUX(13, 2, 2)>, /* PCIE_RST_OUT_B */
+			 <RZG2L_PORT_PINMUX(13, 3, 2)>; /* PCIE_CLKREQ_B */
+	};
 };
 
 &scif0 {
@@ -230,5 +235,11 @@
 		 <&versa3 2>, <&audio_clk2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&ssi3_pins>, <&audio_clock_pins>;
+	status = "okay";
+};
+
+&pcie {
+	pinctrl-0 = <&pcie_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 };
