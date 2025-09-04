@@ -1524,13 +1524,12 @@ static void rzv2h_soc_pcie_pre_init(struct rzg3s_pcie_host *host)
 					   RZV2H_SYS_PCIE_LANE_MODE_MASK,
 					   FIELD_PREP(RZV2H_SYS_PCIE_LANE_MODE_MASK,
 					   RZV2H_LINK_MASTER_2_LANE_MODE));
+		/* SYS setting mode port */
+		regmap_update_bits(sysc, RZV2H_SYS_PCIE_MODE_CH(host->channel),
+				   RZV2H_MODE_PORT_SYS_MASK,
+				   FIELD_PREP(RZV2H_MODE_PORT_SYS_MASK,
+				   RZV2H_MODE_PORT_SYS_RC));
 	}
-	/* SYS setting mode port */
-	regmap_update_bits(sysc, RZV2H_SYS_PCIE_MODE_CH(host->channel),
-			   RZV2H_MODE_PORT_SYS_MASK,
-			   FIELD_PREP(RZV2H_MODE_PORT_SYS_MASK,
-			   RZV2H_MODE_PORT_SYS_RC));
-
 	/* Set to the PCIe reset state : step7 */
 	rzg3s_pcie_update_bits(host->axi, RZV2H_PCI_RESET_REG,
 			       RZV2H_RESET_ALL_ASSERT, 0);
@@ -1950,6 +1949,17 @@ static const struct rzg3s_pcie_soc_data rzv2h_soc_data = {
 	.max_speed = PCI_EXP_LNKSTA_CLS_8_0GB,
 };
 
+static const struct rzg3s_pcie_soc_data rzg3l_soc_data = {
+	.devtype = RZV2H_PCIE,
+	.power_resets = rzv2h_soc_power_resets,
+	.num_power_resets = ARRAY_SIZE(rzv2h_soc_power_resets),
+	.pre_init = rzv2h_soc_pcie_pre_init,
+	.late_init = rzv2h_soc_pcie_late_init,
+	.reset_assert = rzv2h_soc_pcie_reset_assert,
+	.reset_deassert = rzv2h_soc_pcie_reset_deassert,
+	.max_speed = PCI_EXP_LNKSTA_CLS_5_0GB,
+};
+
 static const struct of_device_id rzg3s_pcie_of_match[] = {
 	{
 		.compatible = "renesas,r9a08g045s33-pcie",
@@ -1958,6 +1968,10 @@ static const struct of_device_id rzg3s_pcie_of_match[] = {
 	{
 		.compatible = "renesas,r9a09g057-pcie",
 		.data = &rzv2h_soc_data,
+	},
+	{
+		.compatible = "renesas,r9a08g046-pcie",
+		.data = &rzg3l_soc_data,
 	},
 	{},
 };
