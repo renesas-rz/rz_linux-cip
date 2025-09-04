@@ -315,6 +315,11 @@
 			 <RZG2L_PORT_PINMUX(15, 3, 1)>; /* SSL */
 	};	
 
+	pcie_pins: pcie {
+		pinmux = <RZG2L_PORT_PINMUX(13, 2, 2)>, /* PCIE_RST_OUT_B */
+			 <RZG2L_PORT_PINMUX(13, 3, 2)>; /* PCIE_CLKREQ_B */
+	};
+
 	gpt0_pins: gpt {
 		pinmux = <RZG2L_PORT_PINMUX(13, 0, 2)>, /* GTIOC0A - GPIO8 */
 			 <RZG2L_PORT_PINMUX(13, 1, 2)>; /* GTIOC0B - GPIO9 */
@@ -513,6 +518,12 @@
 
 &usb2_phy1 {
 	pinctrl-0 = <&usb1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&pcie {
+	pinctrl-0 = <&pcie_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
