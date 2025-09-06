@@ -197,7 +197,11 @@
 			<RZT2H_PORT_PINMUX(21, 5, 0x11)>, /* ETHSW_MDIO */
 			<RZT2H_PORT_PINMUX(21, 6, 0x11)>, /* ETHSW_PHYLINK0 */
 			<RZT2H_PORT_PINMUX(26, 3, 0x11)>, /* ETHSW_PHYLINK1 */
-			<RZT2H_PORT_PINMUX(30, 7, 0x11)>; /* ETHSW_PHYLINK2 */
+			<RZT2H_PORT_PINMUX(30, 7, 0x11)>, /* ETHSW_PHYLINK2 */
+			<RZT2H_PORT_PINMUX(17, 6, 0x11)>, /* ETHSW_PTPOUT0 */
+			<RZT2H_PORT_PINMUX(17, 7, 0x11)>, /* ETHSW_PTPOUT1 */
+			<RZT2H_PORT_PINMUX(14, 0, 0x11)>, /* ETHSW_PTPOUT2 */
+			<RZT2H_PORT_PINMUX(18, 7, 0x11)>; /* ETHSW_PTPOUT3 */
 	};
 
 	pins_refclk: pins_refclk {
@@ -449,6 +453,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_refclk>, <&eth3_pins>, <&eth2_pins>, <&eth1_pins>, <&eth0_pins>;
 	renesas,ethss-switch-portmanagement = <ETHSS_GMAC0_PORT>;
+	ethsw_pulse_gen_timer = <0>; /* Pulse generator use ETHSW timer 0 */
 };
 
 &ethsw {
