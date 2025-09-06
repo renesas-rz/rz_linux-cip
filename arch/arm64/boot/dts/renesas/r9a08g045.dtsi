@@ -113,7 +113,7 @@
 			interrupt-names = "error", "rx", "tx";
 			clocks = <&cpg CPG_MOD R9A08G045_RSPI0_CLKB>;
 			resets = <&cpg R9A08G045_RSPI0_RST>;
-			power-domains = <&cpg R9A08G045_PD_RSPI0>;
+			power-domains = <&cpg>;
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -129,7 +129,7 @@
 			interrupt-names = "error", "rx", "tx";
 			clocks = <&cpg CPG_MOD R9A08G045_RSPI1_CLKB>;
 			resets = <&cpg R9A08G045_RSPI1_RST>;
-			power-domains = <&cpg R9A08G045_PD_RSPI1>;
+			power-domains = <&cpg>;
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -145,7 +145,7 @@
 			interrupt-names = "error", "rx", "tx";
 			clocks = <&cpg CPG_MOD R9A08G045_RSPI2_CLKB>;
 			resets = <&cpg R9A08G045_RSPI2_RST>;
-			power-domains = <&cpg R9A08G045_PD_RSPI2>;
+			power-domains = <&cpg>;
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -161,7 +161,7 @@
 			interrupt-names = "error", "rx", "tx";
 			clocks = <&cpg CPG_MOD R9A08G045_RSPI3_CLKB>;
 			resets = <&cpg R9A08G045_RSPI3_RST>;
-			power-domains = <&cpg R9A08G045_PD_RSPI3>;
+			power-domains = <&cpg>;
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -177,7 +177,7 @@
 			interrupt-names = "error", "rx", "tx";
 			clocks = <&cpg CPG_MOD R9A08G045_RSPI4_CLKB>;
 			resets = <&cpg R9A08G045_RSPI4_RST>;
-			power-domains = <&cpg R9A08G045_PD_RSPI4>;
+			power-domains = <&cpg>;
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -194,7 +194,7 @@
 			interrupt-names = "eri", "rxi", "txi", "tei";
 			clocks = <&cpg CPG_MOD R9A08G045_SCI0_CLKP>;
 			clock-names = "fck";
-			power-domains = <&cpg R9A08G045_PD_SCI0>;
+			power-domains = <&cpg>;
 			resets = <&cpg R9A08G045_SCI0_RST>;
 			status = "disabled";
 		};
@@ -209,7 +209,7 @@
 			interrupt-names = "eri", "rxi", "txi", "tei";
 			clocks = <&cpg CPG_MOD R9A08G045_SCI1_CLKP>;
 			clock-names = "fck";
-			power-domains = <&cpg R9A08G045_PD_SCI1>;
+			power-domains = <&cpg>;
 			resets = <&cpg R9A08G045_SCI1_RST>;
 			status = "disabled";
 		};
@@ -262,7 +262,7 @@
 					  "bri", "dri", "tei";
 			clocks = <&cpg CPG_MOD R9A08G045_SCIF0_CLK_PCK>;
 			clock-names = "fck";
-			power-domains = <&cpg R9A08G045_PD_SCIF0>;
+			power-domains = <&cpg>;
 			resets = <&cpg R9A08G045_SCIF0_RST_SYSTEM_N>;
 			status = "disabled";
 		};
@@ -280,7 +280,7 @@
 					  "bri", "dri", "tei";
 			clocks = <&cpg CPG_MOD R9A08G045_SCIF1_CLK_PCK>;
 			clock-names = "fck";
-			power-domains = <&cpg R9A08G045_PD_SCIF1>;
+			power-domains = <&cpg>;
 			resets = <&cpg R9A08G045_SCIF1_RST_SYSTEM_N>;
 			status = "disabled";
 		};
@@ -298,7 +298,7 @@
 					  "bri", "dri", "tei";
 			clocks = <&cpg CPG_MOD R9A08G045_SCIF2_CLK_PCK>;
 			clock-names = "fck";
-			power-domains = <&cpg R9A08G045_PD_SCIF2>;
+			power-domains = <&cpg>;
 			resets = <&cpg R9A08G045_SCIF2_RST_SYSTEM_N>;
 			status = "disabled";
 		};
@@ -316,7 +316,7 @@
 					  "bri", "dri", "tei";
 			clocks = <&cpg CPG_MOD R9A08G045_SCIF3_CLK_PCK>;
 			clock-names = "fck";
-			power-domains = <&cpg R9A08G045_PD_SCIF3>;
+			power-domains = <&cpg>;
 			resets = <&cpg R9A08G045_SCIF3_RST_SYSTEM_N>;
 			status = "disabled";
 		};
@@ -334,7 +334,7 @@
 					  "bri", "dri", "tei";
 			clocks = <&cpg CPG_MOD R9A08G045_SCIF4_CLK_PCK>;
 			clock-names = "fck";
-			power-domains = <&cpg R9A08G045_PD_SCIF4>;
+			power-domains = <&cpg>;
 			resets = <&cpg R9A08G045_SCIF4_RST_SYSTEM_N>;
 			status = "disabled";
 		};
@@ -352,7 +352,7 @@
 					  "bri", "dri", "tei";
 			clocks = <&cpg CPG_MOD R9A08G045_SCIF5_CLK_PCK>;
 			clock-names = "fck";
-			power-domains = <&cpg R9A08G045_PD_SCIF5>;
+			power-domains = <&cpg>;
 			resets = <&cpg R9A08G045_SCIF5_RST_SYSTEM_N>;
 			status = "disabled";
 		};
@@ -381,7 +381,7 @@
 			resets = <&cpg R9A08G045_ADC_PRESETN>,
 				 <&cpg R9A08G045_ADC_ADRST_N>;
 			reset-names = "presetn", "adrst-n";
-			power-domains = <&cpg R9A08G045_PD_ADC>;
+			power-domains = <&cpg>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			#io-channel-cells = <1>;
@@ -431,7 +431,7 @@
 			clocks = <&cpg CPG_MOD R9A08G045_VBAT_BCLK>, <&vbattb_xtal>;
 			clock-names = "bclk", "rtx";
 			#clock-cells = <1>;
-			power-domains = <&cpg R9A08G045_PD_VBAT>;
+			power-domains = <&cpg>;
 			resets = <&cpg R9A08G045_VBAT_BRESETN>;
 			status = "disabled";
 		};
@@ -452,7 +452,7 @@
 			clocks = <&cpg CPG_MOD R9A08G045_I2C0_PCLK>;
 			clock-frequency = <100000>;
 			resets = <&cpg R9A08G045_I2C0_MRST>;
-			power-domains = <&cpg R9A08G045_PD_I2C0>;
+			power-domains = <&cpg>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -474,7 +474,7 @@
 			clocks = <&cpg CPG_MOD R9A08G045_I2C1_PCLK>;
 			clock-frequency = <100000>;
 			resets = <&cpg R9A08G045_I2C1_MRST>;
-			power-domains = <&cpg R9A08G045_PD_I2C1>;
+			power-domains = <&cpg>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -496,7 +496,7 @@
 			clocks = <&cpg CPG_MOD R9A08G045_I2C2_PCLK>;
 			clock-frequency = <100000>;
 			resets = <&cpg R9A08G045_I2C2_MRST>;
-			power-domains = <&cpg R9A08G045_PD_I2C2>;
+			power-domains = <&cpg>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -518,7 +518,7 @@
 			clocks = <&cpg CPG_MOD R9A08G045_I2C3_PCLK>;
 			clock-frequency = <100000>;
 			resets = <&cpg R9A08G045_I2C3_MRST>;
-			power-domains = <&cpg R9A08G045_PD_I2C3>;
+			power-domains = <&cpg>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -583,7 +583,7 @@
 			resets = <&cpg R9A08G045_SSI0_RST_M2_REG>;
 			dmas = <&dmac 0x2665>, <&dmac 0x2666>;
 			dma-names = "tx", "rx";
-			power-domains = <&cpg R9A08G045_PD_SSI0>;
+			power-domains = <&cpg>;
 			#sound-dai-cells = <0>;
 			status = "disabled";
 		};
@@ -603,7 +603,7 @@
 			resets = <&cpg R9A08G045_SSI1_RST_M2_REG>;
 			dmas = <&dmac 0x2669>, <&dmac 0x266a>;
 			dma-names = "tx", "rx";
-			power-domains = <&cpg R9A08G045_PD_SSI1>;
+			power-domains = <&cpg>;
 			#sound-dai-cells = <0>;
 			status = "disabled";
 		};
@@ -623,7 +623,7 @@
 			resets = <&cpg R9A08G045_SSI2_RST_M2_REG>;
 			dmas = <&dmac 0x266d>, <&dmac 0x266e>;
 			dma-names = "tx", "rx";
-			power-domains = <&cpg R9A08G045_PD_SSI2>;
+			power-domains = <&cpg>;
 			#sound-dai-cells = <0>;
 			status = "disabled";
 		};
@@ -643,7 +643,7 @@
 			resets = <&cpg R9A08G045_SSI3_RST_M2_REG>;
 			dmas = <&dmac 0x2671>, <&dmac 0x2672>;
 			dma-names = "tx", "rx";
-			power-domains = <&cpg R9A08G045_PD_SSI3>;
+			power-domains = <&cpg>;
 			#sound-dai-cells = <0>;
 			status = "disabled";
 		};
@@ -660,7 +660,7 @@
 			resets = <&cpg R9A08G045_SPDIF_RST>;
 			dmas = <&dmac 0x1e79>, <&dmac 0x1e7a>;
 			dma-names = "tx", "rx";
-			power-domains = <&cpg R9A08G045_PD_SPDIF>;
+			power-domains = <&cpg>;
 			#sound-dai-cells = <0>;
 			status = "disabled";
 		};
@@ -672,7 +672,7 @@
 			clock-names = "extal";
 			#clock-cells = <2>;
 			#reset-cells = <1>;
-			#power-domain-cells = <1>;
+			#power-domain-cells = <0>;
 		};
 
 		sysc: system-controller@11020000 {
@@ -697,7 +697,7 @@
 			interrupt-parent = <&irqc>;
 			gpio-ranges = <&pinctrl 0 0 152>;
 			clocks = <&cpg CPG_MOD R9A08G045_GPIO_HCLK>;
-			power-domains = <&cpg R9A08G045_PD_ALWAYS_ON>;
+			power-domains = <&cpg>;
 			resets = <&cpg R9A08G045_GPIO_RSTN>,
 				 <&cpg R9A08G045_GPIO_PORT_RESETN>,
 				 <&cpg R9A08G045_GPIO_SPARE_RESETN>;
@@ -770,7 +770,7 @@
 			clocks = <&cpg CPG_MOD R9A08G045_IA55_CLK>,
 				 <&cpg CPG_MOD R9A08G045_IA55_PCLK>;
 			clock-names = "clk", "pclk";
-			power-domains = <&cpg R9A08G045_PD_IA55>;
+			power-domains = <&cpg>;
 			resets = <&cpg R9A08G045_IA55_RESETN>;
 		};
 
@@ -804,7 +804,7 @@
 			clocks = <&cpg CPG_MOD R9A08G045_DMAC_ACLK>,
 				 <&cpg CPG_MOD R9A08G045_DMAC_PCLK>;
 			clock-names = "main", "register";
-			power-domains = <&cpg R9A08G045_PD_DMAC>;
+			power-domains = <&cpg>;
 			resets = <&cpg R9A08G045_DMAC_ARESETN>,
 				 <&cpg R9A08G045_DMAC_RST_ASYNC>;
 			reset-names = "arst", "rst_async";
@@ -823,7 +823,7 @@
 				 <&cpg CPG_MOD R9A08G045_SDHI0_ACLK>;
 			clock-names = "core", "clkh", "cd", "aclk";
 			resets = <&cpg R9A08G045_SDHI0_IXRST>;
-			power-domains = <&cpg R9A08G045_PD_SDHI0>;
+			power-domains = <&cpg>;
 			status = "disabled";
 		};
 
@@ -838,7 +838,7 @@
 				 <&cpg CPG_MOD R9A08G045_SDHI1_ACLK>;
 			clock-names = "core", "clkh", "cd", "aclk";
 			resets = <&cpg R9A08G045_SDHI1_IXRST>;
-			power-domains = <&cpg R9A08G045_PD_SDHI1>;
+			power-domains = <&cpg>;
 			status = "disabled";
 		};
 
@@ -853,7 +853,7 @@
 				 <&cpg CPG_MOD R9A08G045_SDHI2_ACLK>;
 			clock-names = "core", "clkh", "cd", "aclk";
 			resets = <&cpg R9A08G045_SDHI2_IXRST>;
-			power-domains = <&cpg R9A08G045_PD_SDHI2>;
+			power-domains = <&cpg>;
 			status = "disabled";
 		};
 
@@ -924,7 +924,7 @@
 			interrupt-select = <&irqc>;
 			clocks = <&cpg CPG_MOD R9A08G045_MTU_X_MCK_MTU3>;
 			clock-names = "fck";
-			power-domains = <&cpg R9A08G045_PD_MTU>;
+			power-domains = <&cpg>;
 			#pwm-cells = <2>;
 			resets = <&cpg R9A08G045_MTU_X_PRESET_MTU3>;
 			status = "disabled";
@@ -942,7 +942,7 @@
 			clocks = <&cpg CPG_MOD R9A08G045_POE3_CLKM_POE>;
 			clock-names = "fck";
 			resets = <&cpg R9A08G045_POE3_RST_M_REG>;
-			power-domains = <&cpg R9A08G045_PD_POE3>;
+			power-domains = <&cpg>;
 			status = "disabled";
 		};
 
@@ -959,7 +959,7 @@
 				 <&cpg CPG_MOD R9A08G045_ETH0_REFCLK>;
 			clock-names = "axi", "chi", "refclk";
 			resets = <&cpg R9A08G045_ETH0_RST_HW_N>;
-			power-domains = <&cpg R9A08G045_PD_ETHER0>;
+			power-domains = <&cpg>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -978,7 +978,7 @@
 				 <&cpg CPG_MOD R9A08G045_ETH1_REFCLK>;
 			clock-names = "axi", "chi", "refclk";
 			resets = <&cpg R9A08G045_ETH1_RST_HW_N>;
-			power-domains = <&cpg R9A08G045_PD_ETHER1>;
+			power-domains = <&cpg>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -1378,7 +1378,7 @@
 				     <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "wdt", "perrout";
 			resets = <&cpg R9A08G045_WDT0_PRESETN>;
-			power-domains = <&cpg R9A08G045_PD_WDT0>;
+			power-domains = <&cpg>;
 			channel,id = <0>;
 			renesas,syscon-cpg-wdtovf-rst = <&cpg>;
 			status = "disabled";
@@ -1493,7 +1493,7 @@
 			resets = <&cpg R9A08G045_SPI_HRESETN>,
 				 <&cpg R9A08G045_SPI_ARESETN>;
 			clock-names = "spi", "hclk", "aclk", "spix2";
-			power-domains = <&cpg R9A08G045_PD_XSPI>;
+			power-domains = <&cpg>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
