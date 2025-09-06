@@ -19,6 +19,13 @@
  */
 #define SEL_SD0		1
 
+/*
+ * Set SEL_RSPI_ETH2 to below values to select using of:
+ * - 0: RSPI0
+ * - 1: ETH2 (default)
+ */
+#define SEL_RSPI_ETH2		1
+
 / {
 	model = "Renesas Development EVK based on r9a09g077m44";
 	compatible = "renesas,r9a09g077m44-dev", "renesas,r9a09g077m44", "renesas,r9a09g077";
@@ -200,12 +207,14 @@
 			<RZT2H_PORT_PINMUX(4, 7, 0x17)>; /* SCL */
 	};
 
+#if (!SEL_RSPI_ETH2)
 	spi0_pins: spi0 {
-		pinmux = <RZT2H_PORT_PINMUX(31, 4, 0x1A)>, /* SSL */
-			<RZT2H_PORT_PINMUX(31, 5, 0x1A)>, /* SCK */
-			<RZT2H_PORT_PINMUX(31, 6, 0x1A)>, /* MOSI */
-			<RZT2H_PORT_PINMUX(31, 7, 0x1A)>; /* MISO */
+		pinmux = <RZT2H_PORT_PINMUX(31, 4, 0x1A)>, /* SCK */
+			<RZT2H_PORT_PINMUX(31, 5, 0x1A)>, /* MOSI */
+			<RZT2H_PORT_PINMUX(31, 6, 0x1A)>, /* MISO */
+			<RZT2H_PORT_PINMUX(31, 7, 0x1A)>; /* SSL */
 	};
+#endif
 
 	mdio1_pins: gmac_mdio1 {
 		pinmux = <RZT2H_PORT_PINMUX(26, 1, 0x10)>, /* MDIO1_MDC */
@@ -258,6 +267,7 @@
 			drive-strength  = <3>;
 	};
 
+#if (SEL_RSPI_ETH2)
 	eth2_pins: ethss_2 {
 		pinmux = <RZT2H_PORT_PINMUX(29, 1, 0x0F)>, /* ETH2_TXCLK */
 			<RZT2H_PORT_PINMUX(29, 2, 0x0F)>, /* ETH2_TXD[0] */
@@ -279,6 +289,7 @@
 			slew-rate       = <1>;
 			drive-strength  = <3>;
 	};
+#endif
 
 	eth1_pins: ethss_1 {
 		pinmux = <RZT2H_PORT_PINMUX(24, 5, 0x0F)>, /* ETH1_TXCLK */
@@ -375,12 +386,14 @@
 	status = "okay";
 };
 
+#if (!SEL_RSPI_ETH2)
 &spi0 {
 	pinctrl-0 = <&spi0_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";
 };
+#endif
 
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
@@ -455,6 +468,7 @@
 	};
 };
 
+#if (SEL_RSPI_ETH2)
 &gmac2 {
 	phy-handle = <&phy2>;
 	phy-mode = "rgmii-id";
@@ -482,11 +496,18 @@
 		};
 	};
 };
+#endif
 
 &ethss {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&pins_refclk>, <&eth3_pins>, <&eth2_pins>, <&eth1_pins>, <&eth0_pins>;
+	pinctrl-0 = <&pins_refclk>,
+		    <&eth3_pins>,
+#if (SEL_RSPI_ETH2)
+		    <&eth2_pins>,
+#endif
+		    <&eth1_pins>,
+		    <&eth0_pins>;
 	renesas,ethss-switch-portmanagement = <ETHSS_GMAC0_PORT>;
 	ethsw_pulse_gen_timer = <0>; /* Pulse generator use ETHSW timer 0 */
 };
