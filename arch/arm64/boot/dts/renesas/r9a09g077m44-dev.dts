@@ -26,6 +26,13 @@
  */
 #define SEL_RSPI_ETH2		1
 
+/*
+ * Set SEL_SCI3_PTPOUT2 to below values to select using of:
+ * - 0: SCI3 (default)
+ * - 1: ETHSW_PTPOUT2
+ */
+#define SEL_SCI3_PTPOUT2	0
+
 / {
 	model = "Renesas Development EVK based on r9a09g077m44";
 	compatible = "renesas,r9a09g077m44-dev", "renesas,r9a09g077m44", "renesas,r9a09g077";
@@ -33,6 +40,9 @@
 
 	aliases {
 		serial0 = &sci0;
+#if (!SEL_SCI3_PTPOUT2)
+		serial3	= &sci3;
+#endif
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
 		i2c0 = &i2c0;
@@ -234,6 +244,13 @@
 	};
 #endif
 
+#if (!SEL_SCI3_PTPOUT2)
+	sci3_pins: sci3 {
+		pinmux = <RZT2H_PORT_PINMUX(13, 5, 0x14)>, /* SCI3_TXD */
+			 <RZT2H_PORT_PINMUX(13, 4, 0x14)>, /* SCI3_RXD */
+			 <RZT2H_PORT_PINMUX(14, 0, 0x14)>; /* SCI3_DE */
+	};
+#endif
 	mdio1_pins: gmac_mdio1 {
 		pinmux = <RZT2H_PORT_PINMUX(26, 1, 0x10)>, /* MDIO1_MDC */
 			<RZT2H_PORT_PINMUX(26, 2, 0x10)>; /* MDIO1_MDIO */
@@ -252,7 +269,9 @@
 			<RZT2H_PORT_PINMUX(30, 7, 0x11)>, /* ETHSW_PHYLINK2 */
 			<RZT2H_PORT_PINMUX(17, 6, 0x11)>, /* ETHSW_PTPOUT0 */
 			<RZT2H_PORT_PINMUX(17, 7, 0x11)>, /* ETHSW_PTPOUT1 */
+#if (SEL_SCI3_PTPOUT2)
 			<RZT2H_PORT_PINMUX(14, 0, 0x11)>, /* ETHSW_PTPOUT2 */
+#endif
 			<RZT2H_PORT_PINMUX(18, 7, 0x11)>; /* ETHSW_PTPOUT3 */
 	};
 
@@ -631,3 +650,15 @@
 &cmtw1 {
 	status = "okay";
 };
+
+#if (!SEL_SCI3_PTPOUT2)
+&sci3 {
+	pinctrl-0 = <&sci3_pins>;
+	pinctrl-names = "default";
+	linux,rs485-enabled-at-boot-time;
+	rs485-rx-during-tx;
+	rs485-enabled;
+
+	status = "okay";
+};
+#endif
