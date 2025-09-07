@@ -589,3 +589,7 @@
 	renesas,ethss-port = <ETHSS_GMAC1_PORT>;
 	status = "okay";
 };
+
+&dmac0 {
+	memory-region = <&global_cma>;
+};
