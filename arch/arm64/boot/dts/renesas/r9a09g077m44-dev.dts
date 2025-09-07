@@ -33,6 +33,13 @@
  */
 #define SEL_SCI3_PTPOUT2	0
 
+/*
+ * Set SEL_ETHSW_LCDC to below values to select using of:
+ * - 0: ETHSW (default)
+ * - 1: LCDC
+ */
+#define SEL_ETHSW_LCDC		0
+
 / {
 	model = "Renesas Development EVK based on r9a09g077m44";
 	compatible = "renesas,r9a09g077m44-dev", "renesas,r9a09g077m44", "renesas,r9a09g077";
@@ -127,6 +134,19 @@
 		states = <3300000 0 1800000 1>;
 	};
 
+#if (SEL_ETHSW_LCDC)
+        hdmi-out {
+                compatible = "hdmi-connector";
+                type = "d";
+
+                port {
+                        hdmi_con_out: endpoint {
+                                remote-endpoint = <&adv7513_out>;
+                        };
+                };
+        };
+#endif
+
 	mtl_rx_setup: rx-queues-config {
 		snps,rx-queues-to-use = <1>;
 		queue0 {
@@ -172,6 +192,54 @@
 		output-high;
 		line-name = "sd1_pwr_en";
 	};
+
+#if (SEL_ETHSW_LCDC)
+	du_pins: du {
+		du_data {
+			pinmux = <RZT2H_PORT_PINMUX(10, 0, 0x28)>, /* LCDC_DATR0 */
+				<RZT2H_PORT_PINMUX(10, 1, 0x28)>, /* LCDC_DATR1 */
+				<RZT2H_PORT_PINMUX(10, 2, 0x28)>, /* LCDC_DATR2 */
+				<RZT2H_PORT_PINMUX(10, 3, 0x28)>, /* LCDC_DATR3 */
+				<RZT2H_PORT_PINMUX(10, 4, 0x28)>, /* LCDC_DATR4 */
+				<RZT2H_PORT_PINMUX(10, 5, 0x28)>, /* LCDC_DATR5 */
+				<RZT2H_PORT_PINMUX(10, 6, 0x28)>, /* LCDC_DATR6 */
+				<RZT2H_PORT_PINMUX(10, 7, 0x28)>, /* LCDC_DATR7 */
+				<RZT2H_PORT_PINMUX(11, 0, 0x28)>, /* LCDC_DATG0 */
+				<RZT2H_PORT_PINMUX(14, 1, 0x28)>, /* LCDC_DATG1 */
+				<RZT2H_PORT_PINMUX(14, 2, 0x28)>, /* LCDC_DATG2 */
+				<RZT2H_PORT_PINMUX(14, 3, 0x28)>, /* LCDC_DATG3 */
+				<RZT2H_PORT_PINMUX(14, 4, 0x28)>, /* LCDC_DATG4 */
+				<RZT2H_PORT_PINMUX(14, 5, 0x28)>, /* LCDC_DATG5 */
+				<RZT2H_PORT_PINMUX(14, 6, 0x28)>, /* LCDC_DATG6 */
+				<RZT2H_PORT_PINMUX(17, 6, 0x28)>, /* LCDC_DATG7 */
+				<RZT2H_PORT_PINMUX(17, 7, 0x28)>, /* LCDC_DATB0 */
+				<RZT2H_PORT_PINMUX(18, 0, 0x28)>, /* LCDC_DATB1 */
+				<RZT2H_PORT_PINMUX(18, 1, 0x28)>, /* LCDC_DATB2 */
+				<RZT2H_PORT_PINMUX(18, 2, 0x28)>, /* LCDC_DATB3 */
+				<RZT2H_PORT_PINMUX(18, 3, 0x28)>, /* LCDC_DATB4 */
+				<RZT2H_PORT_PINMUX(18, 4, 0x28)>, /* LCDC_DATB5 */
+				<RZT2H_PORT_PINMUX(18, 5, 0x28)>, /* LCDC_DATB6 */
+				<RZT2H_PORT_PINMUX(18, 6, 0x28)>; /* LCDC_DATB7 */
+			drive-strength = <3>;
+		};
+
+		du_clk {
+			pinmux = <RZT2H_PORT_PINMUX( 9, 4, 0x28)>; /* LCDC_CLK */
+			drive-strength = <3>;
+		};
+
+		du_sync {
+			pinmux = <RZT2H_PORT_PINMUX( 9, 5, 0x28)>, /* LCDC_HSYNC */
+				<RZT2H_PORT_PINMUX( 9, 6, 0x28)>; /* LCDC_VSYNC */
+			drive-strength = <3>;
+		};
+
+		du_de {
+			pinmux = <RZT2H_PORT_PINMUX( 9, 7, 0x28)>; /* LCDC_DE */
+			drive-strength = <3>;
+		};
+	};
+#endif
 
 	sdhi0_pins: sd0 {
 		sd0_data {
@@ -444,6 +512,44 @@
 	pinctrl-names = "default";
 
 	status = "okay";
+
+#if (SEL_ETHSW_LCDC)
+	adv7513: adv7513@39 {
+		compatible = "adi,adv7513";
+		reg = <0x39>;
+
+		adi,input-depth = <8>;
+		adi,input-colorspace = "rgb";
+		adi,input-clock = "1x";
+
+		avdd-supply = <&reg_1p8v>;
+		dvdd-supply = <&reg_1p8v>;
+		pvdd-supply = <&reg_1p8v>;
+		dvdd-3v-supply = <&reg_3p3v>;
+		bgvdd-supply = <&reg_1p8v>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				adv7513_in: endpoint {
+					remote-endpoint = <&du_out_rgb>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				adv7513_out: endpoint {
+					remote-endpoint = <&hdmi_con_out>;
+				};
+			};
+		};
+	};
+#endif
 };
 
 &wdt2 {
@@ -549,6 +655,7 @@
 	ethsw_pulse_gen_timer = <0>; /* Pulse generator use ETHSW timer 0 */
 };
 
+#if (!SEL_ETHSW_LCDC)
 &ethsw {
 	status = "okay";
 	#address-cells = <1>;
@@ -604,6 +711,7 @@
 &switch_port3 {
 	status = "okay";
 };
+#endif
 
 &mii_conv0 {
 	renesas,ethss-port = <ETHSS_SWITCH_PORT0>;
@@ -660,5 +768,22 @@
 	rs485-enabled;
 
 	status = "okay";
+};
+#endif
+
+#if (SEL_ETHSW_LCDC)
+&du {
+	pinctrl-0 = <&du_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	ports {
+		port@0 {
+			du_out_rgb: endpoint {
+				remote-endpoint = <&adv7513_in>;
+			};
+		};
+	};
 };
 #endif
