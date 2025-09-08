@@ -80,7 +80,7 @@
 struct rzt2_cpg_priv {
 	struct reset_controller_dev rcdev;
 	struct device *dev;
-	void __iomem *cpg_base0, *cpg_base1;
+	void __iomem *cpg_base0, *cpg_base1, *slave_stop;
 	spinlock_t rmw_lock;
 
 	struct clk **clks;
@@ -906,8 +906,14 @@ static int __init rzt2_cpg_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->cpg_base0);
 
 	priv->cpg_base1 = devm_platform_ioremap_resource(pdev, 1);
-		if (IS_ERR(priv->cpg_base1))
-			return PTR_ERR(priv->cpg_base1);
+	if (IS_ERR(priv->cpg_base1))
+		return PTR_ERR(priv->cpg_base1);
+
+	priv->slave_stop = devm_platform_ioremap_resource(pdev, 2);
+	if (IS_ERR(priv->slave_stop))
+		return PTR_ERR(priv->slave_stop);
+
+	writel(0x0, priv->slave_stop + 0x4);
 
 	nclks = info->num_total_core_clks + info->num_hw_mod_clks;
 	clks = devm_kmalloc_array(dev, nclks, sizeof(*clks), GFP_KERNEL);
