@@ -259,6 +259,7 @@ static const struct dev_pm_ops rzg3s_thermal_pm_ops = {
 
 static const struct of_device_id rzg3s_thermal_dt_ids[] = {
 	{ .compatible = "renesas,r9a08g045-tsu" },
+	{ .compatible = "renesas,r9a08g046-tsu" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rzg3s_thermal_dt_ids);
