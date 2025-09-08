@@ -102,7 +102,8 @@
 		cpg: clock-controller@80280000 {
 			compatible = "renesas,r9a09g077-cpg";
 			reg = <0 0x80280000 0 0x1000>,
-				<0 0x81280000 0 0x9000>;
+				<0 0x81280000 0 0x9000>,
+				<0 0x81291200 0 0x4>;
 			clocks = <&extal>, <&loco>;
 			clock-names = "extal", "loco";
 			#clock-cells = <2>;
