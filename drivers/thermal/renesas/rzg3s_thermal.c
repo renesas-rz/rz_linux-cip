@@ -15,6 +15,7 @@
 #include <linux/reset.h>
 #include <linux/thermal.h>
 #include <linux/units.h>
+#include <linux/of_device.h>
 
 #include "../thermal_hwmon.h"
 
@@ -26,10 +27,6 @@
 #define OTPTSUTRIM_MASK		GENMASK(11, 0)
 
 #define TSU_READ_STEPS		8
-
-/* Default calibration values, if FUSE values are missing. */
-#define SW_CALIB0_VAL		1297
-#define SW_CALIB1_VAL		751
 
 #define MCELSIUS(temp)		((temp) * MILLIDEGREE_PER_DEGREE)
 
@@ -53,6 +50,22 @@ struct rzg3s_thermal_priv {
 	enum thermal_device_mode mode;
 	u16 calib0;
 	u16 calib1;
+};
+
+/* Default calibration values, if FUSE values are missing. */
+struct rzg3s_thermal_info {
+	u16 calib0;
+	u16 calib1;
+};
+
+static const struct rzg3s_thermal_info rzg3s_info = {
+	.calib0 = 1297,
+	.calib1 = 751,
+};
+
+static const struct rzg3s_thermal_info rzg3l_info = {
+	.calib0 = 1322,
+	.calib1 = 772,
 };
 
 static int rzg3s_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
@@ -150,7 +163,8 @@ static const struct thermal_zone_device_ops rzg3s_tz_of_ops = {
 	.change_mode = rzg3s_thermal_change_mode,
 };
 
-static int rzg3s_thermal_read_calib(struct rzg3s_thermal_priv *priv)
+static int rzg3s_thermal_read_calib(struct rzg3s_thermal_priv *priv,
+				    const struct rzg3s_thermal_info *info)
 {
 	struct device *dev = priv->dev;
 	u32 val;
@@ -164,13 +178,13 @@ static int rzg3s_thermal_read_calib(struct rzg3s_thermal_priv *priv)
 	if (val & OTPTSUTRIM_EN_MASK)
 		priv->calib0 = FIELD_GET(OTPTSUTRIM_MASK, val);
 	else
-		priv->calib0 = SW_CALIB0_VAL;
+		priv->calib0 = info->calib0;
 
 	val = readl(priv->base + OTPTSUTRIM_REG(1));
 	if (val & OTPTSUTRIM_EN_MASK)
 		priv->calib1 = FIELD_GET(OTPTSUTRIM_MASK, val);
 	else
-		priv->calib1 = SW_CALIB1_VAL;
+		priv->calib1 = info->calib1;
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
@@ -182,6 +196,7 @@ static int rzg3s_thermal_probe(struct platform_device *pdev)
 {
 	struct rzg3s_thermal_priv *priv;
 	struct device *dev = &pdev->dev;
+	const struct rzg3s_thermal_info *info = of_device_get_match_data(dev);
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -214,7 +229,7 @@ static int rzg3s_thermal_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to enable runtime PM!\n");
 
-	ret = rzg3s_thermal_read_calib(priv);
+	ret = rzg3s_thermal_read_calib(priv, info);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to read calibration data!\n");
 
@@ -258,8 +273,8 @@ static const struct dev_pm_ops rzg3s_thermal_pm_ops = {
 };
 
 static const struct of_device_id rzg3s_thermal_dt_ids[] = {
-	{ .compatible = "renesas,r9a08g045-tsu" },
-	{ .compatible = "renesas,r9a08g046-tsu" },
+	{ .compatible = "renesas,r9a08g045-tsu", .data = &rzg3s_info },
+	{ .compatible = "renesas,r9a08g046-tsu", .data = &rzg3l_info },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rzg3s_thermal_dt_ids);
