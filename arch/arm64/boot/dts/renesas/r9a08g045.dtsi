@@ -1447,6 +1447,7 @@
 			clocks = <&cpg CPG_MOD R9A08G045_OSTM5_PCLK>;
 			resets = <&cpg R9A08G045_OSTM5_PRESETZ>;
 			power-domains = <&cpg>;
+			status = "disabled";
 		};
 
 		ostm6: timer@12802800 {
