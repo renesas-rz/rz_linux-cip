@@ -20,6 +20,7 @@
 #include <linux/reset.h>
 #include <linux/arm-smccc.h>
 #include <uapi/linux/psci.h>
+#include <linux/iopoll.h>
 
 #include "pcie-rzt2.h"
 
@@ -40,6 +41,7 @@ struct rzt2_pcie_endpoint {
 };
 
 static void __iomem	*supplemental;
+static void __iomem *sstpcr1_base;
 
 static void rzt2_pcie_setting_phy(struct rzt2_pcie *pcie)
 {
@@ -354,6 +356,12 @@ static int rzt2_pcie_ep_get_pdata(struct rzt2_pcie_endpoint *ep,
 
 	if (IS_ERR(supplemental))
 		return PTR_ERR(supplemental);
+
+	sstpcr1_base = ioremap(0x81291204, 0x4);
+	if (!sstpcr1_base) {
+		dev_err(dev, "Failed to ioremap SSTPCR1\n");
+		return -ENOMEM;
+	}
 
 	ep->ob_window = devm_kcalloc(dev, RZT2_PCI_MAX_RESOURCES,
 				     sizeof(*window), GFP_KERNEL);
@@ -687,6 +695,7 @@ static int rzt2_pcie_ep_probe(struct platform_device *pdev)
 	struct rzt2_pcie *pcie;
 	struct pci_epc *epc;
 	int err;
+	u32 value;
 
 	ep = devm_kzalloc(dev, sizeof(*ep), GFP_KERNEL);
 	if (!ep)
@@ -720,6 +729,18 @@ static int rzt2_pcie_ep_probe(struct platform_device *pdev)
 	if (err < 0) {
 		dev_err(dev, "failed to request resources: %d\n", err);
 		goto err_pm_put;
+	}
+
+	/* Clear bit to release PCIe0 from Bus Stop Request State */
+	value = readl(sstpcr1_base);
+	writel(value & ~BIT(0), sstpcr1_base);
+
+	/* Polling ACK bit until it changes to 0*/
+	err = readl_poll_timeout(sstpcr1_base, value,
+						!(value & BIT(1)), 100, 250000);
+	if (err) {
+		dev_err(pcie->dev, "Timeout waiting for PCIe0 ACK\n");
+		return err;
 	}
 
 	writel(0xfa00f0, pcie->base + PCI_EP_PCMSET1);

@@ -26,6 +26,7 @@
 #include <linux/reset.h>
 #include <linux/arm-smccc.h>
 #include <uapi/linux/psci.h>
+#include <linux/iopoll.h>
 
 #include "pcie-rzt2.h"
 
@@ -111,7 +112,7 @@ static struct rzt2_pcie_host *msi_to_host(struct rzt2_msi *msi)
 }
 
 static void __iomem	*supplemental;
-
+static void __iomem *sstpcr1_base;
 static int rzt2_pcie_hw_init(struct rzt2_pcie *pcie, int lane);
 
 static int rzt2_pcie_request_issue(struct rzt2_pcie *pcie, struct pci_bus *bus)
@@ -1200,6 +1201,12 @@ static int rzt2_pcie_get_resources(struct rzt2_pcie_host *host)
 	if (IS_ERR(supplemental))
 		return PTR_ERR(supplemental);
 
+	sstpcr1_base = ioremap(0x81291204, 0x4);
+	if (!sstpcr1_base) {
+		dev_err(dev, "Failed to ioremap SSTPCR1\n");
+		return -ENOMEM;
+	}
+
 	i = irq_of_parse_and_map(dev->of_node, 0);
 	if (!i) {
 		dev_err(dev, "cannot get platform resources for msi interrupt\n");
@@ -1287,7 +1294,7 @@ static int rzt2_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rzt2_pcie_host *host;
 	struct rzt2_pcie *pcie;
-	u32 data;
+	u32 data, value;
 	int err, lane;
 	struct pci_host_bridge *bridge;
 
@@ -1324,6 +1331,18 @@ static int rzt2_pcie_probe(struct platform_device *pdev)
 	err = reset_control_deassert(host->rst);
 	if (err) {
 		dev_err(dev, "PCIE failed to deassert reset %d\n", err);
+		return err;
+	}
+
+	/* Clear bit to release PCIe0 from Bus Stop Request State */
+	value = readl(sstpcr1_base);
+	writel(value & ~BIT(0), sstpcr1_base);
+
+	/* Polling ACK bit until it changes to 0*/
+	err = readl_poll_timeout(sstpcr1_base, value,
+						!(value & BIT(1)), 100, 250000);
+	if (err) {
+		dev_err(pcie->dev, "Timeout waiting for PCIe0 ACK\n");
 		return err;
 	}
 
