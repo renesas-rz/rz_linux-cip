@@ -302,6 +302,78 @@
 			dma-channels = <16>;
 		};
 
+		wdt0: watchdog@80082000 {
+			compatible = "renesas,r9a09g087-wdt";
+			reg = <0 0x80082000 0 0x10>,
+			      <0 0x81295100 0 0x04>;
+			reg-names = "wdt", "dbg";
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKL>;
+			clock-names = "pclkl";
+			power-domains = <&cpg>;
+			renesas,syscon-perierr-error = <&icu_ns_int>;
+			status = "disabled";
+		};
+
+		wdt1: watchdog@80082400 {
+			compatible = "renesas,r9a09g087-wdt";
+			reg = <0 0x80082400 0 0x10>,
+			      <0 0x81295104 0 0x04>;
+			reg-names = "wdt", "dbg";
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKL>;
+			clock-names = "pclkl";
+			power-domains = <&cpg>;
+			renesas,syscon-perierr-error = <&icu_ns_int>;
+			status = "disabled";
+		};
+
+		wdt2: watchdog@80082800 {
+			compatible = "renesas,r9a09g087-wdt";
+			reg = <0 0x80082800 0 0x10>,
+			      <0 0x81295108 0 0x04>;
+			reg-names = "wdt", "dbg";
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKL>;
+			clock-names = "pclkl";
+			power-domains = <&cpg>;
+			renesas,syscon-perierr-error = <&icu_ns_int>;
+			status = "disabled";
+		};
+
+		wdt3: watchdog@80082C00 {
+			compatible = "renesas,r9a09g087-wdt";
+			reg = <0 0x80082C00 0 0x10>,
+			      <0 0x8129510C 0 0x04>;
+			reg-names = "wdt", "dbg";
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKL>;
+			clock-names = "pclkl";
+			power-domains = <&cpg>;
+			renesas,syscon-perierr-error = <&icu_ns_int>;
+			status = "disabled";
+		};
+
+		wdt4: watchdog@80083000 {
+			compatible = "renesas,r9a09g087-wdt";
+			reg = <0 0x80083000 0 0x10>,
+			      <0 0x81295110 0 0x04>;
+			reg-names = "wdt", "dbg";
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKL>;
+			clock-names = "pclkl";
+			power-domains = <&cpg>;
+			renesas,syscon-perierr-error = <&icu_ns_int>;
+			status = "disabled";
+		};
+
+		wdt5: watchdog@80083400 {
+			compatible = "renesas,r9a09g087-wdt";
+			reg = <0 0x80083400 0 0x10>,
+			      <0 0x81295114 0 0x04>;
+			reg-names = "wdt", "dbg";
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKL>;
+			clock-names = "pclkl";
+			power-domains = <&cpg>;
+			renesas,syscon-perierr-error = <&icu_ns_int>;
+			status = "disabled";
+		};
+
 		gmac0: ethernet@80100000 {
 			compatible = "renesas,rzn2h-eqos",
 				     "snps,dwc-qos-ethernet-4.10";
