@@ -261,6 +261,26 @@
 	status = "okay";
 };
 
+&wdt2 {
+	status = "okay";
+	timeout-sec = <60>;
+};
+
+&wdt3 {
+	status = "okay";
+	timeout-sec = <60>;
+};
+
+&wdt4 {
+	status = "okay";
+	timeout-sec = <60>;
+};
+
+&wdt5 {
+	status = "okay";
+	timeout-sec = <60>;
+};
+
 &gmac1 {
 	phy-handle = <&phy3>;
 	phy-mode = "rgmii-id";
