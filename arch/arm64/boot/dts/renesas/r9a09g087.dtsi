@@ -680,6 +680,9 @@
 			clocks = <&cpg CPG_MOD R9A09G077_ETHSW_CLK>;
 			resets = <&cpg R9A09G077_ETHSW_RST>;
 			power-domains = <&cpg>;
+			interrupts = <GIC_SPI 555 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "ethsw_intr";
+			ethsw_ptp_timer = <0>; /* ETHSW PTP use ETHSW timer 0 */
 			status = "disabled";
 
 			ethernet-ports {
