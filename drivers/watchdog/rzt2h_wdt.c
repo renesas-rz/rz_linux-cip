@@ -260,6 +260,7 @@ static int rzt2h_wdt_probe(struct platform_device *pdev)
 
 static const struct of_device_id rzt2h_wdt_ids[] = {
 	{ .compatible = "renesas,r9a09g077-wdt", },
+	{ .compatible = "renesas,r9a09g087-wdt", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rzt2h_wdt_ids);
