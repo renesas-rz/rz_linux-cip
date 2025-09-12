@@ -28,6 +28,7 @@ properties:
               - renesas,r9a08g045-pinctrl # RZ/G3S
               - renesas,r9a09g047-pinctrl # RZ/G3E
               - renesas,r9a09g057-pinctrl # RZ/V2H(P)
+              - renesas,r9a09g087-pinctrl # RZ/N2H
 
       - items:
           - enum:
