@@ -29,6 +29,7 @@ properties:
       - renesas,r9a07g054-cpg # RZ/V2L
       - renesas,r9a08g045-cpg # RZ/G3S
       - renesas,r9a09g011-cpg # RZ/V2M
+      - renesas,r9a09g087-cpg # RZ/N2H
 
   reg:
     maxItems: 1
