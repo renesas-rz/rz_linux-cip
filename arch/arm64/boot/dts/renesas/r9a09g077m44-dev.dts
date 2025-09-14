@@ -40,6 +40,13 @@
  */
 #define SEL_ETHSW_LCDC		0
 
+/*
+ * Set SEL_GMAC1_PCIE to below values to select using of:
+ * - 0: PCIE
+ * - 1: GMAC1 (default)
+ */
+#define SEL_GMAC1_PCIE		1
+
 / {
 	model = "Renesas Development EVK based on r9a09g077m44";
 	compatible = "renesas,r9a09g077m44-dev", "renesas,r9a09g077m44", "renesas,r9a09g077";
@@ -350,6 +357,7 @@
 			<RZT2H_PORT_PINMUX(34, 6, 0x02)>; /* ETH3_REFCLK */
 	};
 
+#if (SEL_GMAC1_PCIE)
 	eth3_pins: ethss_3 {
 		pinmux = <RZT2H_PORT_PINMUX(33, 2, 0x0F)>, /* ETH3_TXCLK */
 			<RZT2H_PORT_PINMUX(33, 3, 0x0F)>, /* ETH3_TXD[0] */
@@ -371,6 +379,21 @@
 			slew-rate       = <1>;
 			drive-strength  = <3>;
 	};
+#else
+	pcie_rstout0 {
+		gpio-hog;
+		gpios = <RZT2H_GPIO(33, 3) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "pcie_rstout0";
+	};
+
+	pcie_rstout1 {
+		gpio-hog;
+		gpios = <RZT2H_GPIO(33, 4) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "pcie_rstout1";
+	};
+#endif
 
 #if (SEL_RSPI_ETH2)
 	eth2_pins: ethss_2 {
@@ -600,6 +623,7 @@
 	};
 };
 
+#if (SEL_GMAC1_PCIE)
 &gmac1 {
 	phy-handle = <&phy3>;
 	phy-mode = "rgmii-id";
@@ -627,6 +651,7 @@
 		};
 	};
 };
+#endif
 
 #if (SEL_RSPI_ETH2)
 &gmac2 {
@@ -662,7 +687,9 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_refclk>,
+#if (SEL_GMAC1_PCIE)
 		    <&eth3_pins>,
+#endif
 #if (SEL_RSPI_ETH2)
 		    <&eth2_pins>,
 #endif
@@ -826,3 +853,10 @@
 &rtc {
 	status = "okay";
 };
+
+#if (!SEL_GMAC1_PCIE)
+&pcie0 {
+	pcie-lane = <1>;
+	status = "okay";
+};
+#endif
