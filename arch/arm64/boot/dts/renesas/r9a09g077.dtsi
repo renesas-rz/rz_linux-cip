@@ -1094,6 +1094,28 @@
 			clock-names = "rtc0";
 			status = "disabled";
 		};
+
+		pcie0: pcie@92100000 {
+			compatible = "renesas,rzt2h-pcie";
+			device_type = "pci";
+			reg = <0 0x92100000 0 0x8000>,
+				<0 0x80292000 0 0x30>;
+			clocks = <&cpg CPG_MOD R9A09G077_PCIE_CLK>;
+			power-domains = <&cpg>;
+			resets = <&cpg R9A09G077_PCIE_RST>;
+			ranges = <0x02000000 0x0 0xA0000000 0x4 0x00000000 0x0 0x10000000>;
+			dma-ranges = <0x02000000 0x0 0xC4000000 0x0 0xC4000000 0x0 0x3C000000>,
+				     <0x42000000 0x2 0x40000000 0x2 0x40000000 0x1 0xC0000000>;
+			interrupts = <GIC_SPI 790 IRQ_TYPE_LEVEL_HIGH>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0 0 0 0 &gic GIC_SPI 790 IRQ_TYPE_LEVEL_HIGH>;
+			bus-range = <0x0 0xff>;
+			linux,pci-domain = <0x0>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			status = "disabled";
+		};
 	};
 
 	thermal-zones {
