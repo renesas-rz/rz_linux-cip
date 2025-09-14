@@ -822,3 +822,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 };
+
+&rtc {
+	status = "okay";
+};
