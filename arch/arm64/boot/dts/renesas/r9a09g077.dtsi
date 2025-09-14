@@ -1082,6 +1082,18 @@
 				reg = <15>;
 			};
 		};
+
+		rtc: rtc@81009000 {
+			compatible = "renesas,rzt2h-rtc";
+			reg = <0 0x81009000 0 0x1000>;
+			interrupts = <GIC_SPI 495 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 496 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 497 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "alarm", "carry", "periodic";
+			clocks = <&cpg CPG_MOD R9A09G077_RTC_CLK>;
+			clock-names = "rtc0";
+			status = "disabled";
+		};
 	};
 
 	thermal-zones {
