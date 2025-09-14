@@ -47,6 +47,13 @@
  */
 #define SEL_GMAC1_PCIE		1
 
+/*
+ * Set SEL_PCIE_RC_EP to below values to select using of:
+ * - 0: Endpoint
+ * - 1: Root complex (default)
+ */
+#define SEL_PCIE_RC_EP		1
+
 / {
 	model = "Renesas Development EVK based on r9a09g077m44";
 	compatible = "renesas,r9a09g077m44-dev", "renesas,r9a09g077m44", "renesas,r9a09g077";
@@ -380,6 +387,7 @@
 			drive-strength  = <3>;
 	};
 #else
+#if (SEL_PCIE_RC_EP)
 	pcie_rstout0 {
 		gpio-hog;
 		gpios = <RZT2H_GPIO(33, 3) GPIO_ACTIVE_HIGH>;
@@ -393,6 +401,7 @@
 		output-high;
 		line-name = "pcie_rstout1";
 	};
+#endif
 #endif
 
 #if (SEL_RSPI_ETH2)
@@ -855,8 +864,14 @@
 };
 
 #if (!SEL_GMAC1_PCIE)
+#if (SEL_PCIE_RC_EP)
 &pcie0 {
 	pcie-lane = <1>;
 	status = "okay";
 };
+#else
+&pcie0_ep {
+	status = "okay";
+};
+#endif
 #endif
