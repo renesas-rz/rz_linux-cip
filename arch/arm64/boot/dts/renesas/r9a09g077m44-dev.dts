@@ -439,6 +439,18 @@
 			slew-rate       = <1>;
 			drive-strength  = <3>;
 	};
+
+	adc0_pins: adc0 {
+		pinmux = <RZT2H_PORT_PINMUX(4, 4, 0x1f)>; /* ADCTRG0# */
+	};
+
+	adc1_pins: adc1 {
+		pinmux = <RZT2H_PORT_PINMUX(4, 5, 0x1f)>; /* ADCTRG1# */
+	};
+
+	adc2_pins: adc2 {
+		pinmux = <RZT2H_PORT_PINMUX(4, 6, 0x1f)>; /* ADCTRG2# */
+	};
 };
 
 &extal {
@@ -792,3 +804,21 @@
 	};
 };
 #endif
+
+&adc0 {
+	pinctrl-0 = <&adc0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&adc1 {
+	pinctrl-0 = <&adc1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&adc2 {
+	pinctrl-0 = <&adc2_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
