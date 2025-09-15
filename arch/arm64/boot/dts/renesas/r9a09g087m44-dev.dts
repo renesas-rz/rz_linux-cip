@@ -19,6 +19,8 @@
 		serial0 = &sci0;
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
 		ethernet0 = &gmac1;
 		ethernet1 = &gmac2;
 	};
@@ -153,6 +155,16 @@
 		};
 	};
 
+	i2c0_pins: i2c0 {
+		pinmux = <RZT2H_PORT_PINMUX(14, 7, 0x17)>, /* IIC : IIC_SDA0/P14_7 */
+				 <RZT2H_PORT_PINMUX(14, 6, 0x17)>; /* IIC : IIC_SCL0/P14_6 */
+	};
+
+	i2c1_pins: i2c1 {
+		pinmux = <RZT2H_PORT_PINMUX(3, 3, 0x17)>, /* IIC : IIC_SCL1/P03_3 */
+			     <RZT2H_PORT_PINMUX(3, 4, 0x17)>; /* IIC : IIC_SDA1/P03_4 */
+	};
+
 	mdio1_pins: gmac_mdio1 {
 		pinmux = <RZT2H_PORT_PINMUX(26, 1, 0x10)>, /* GMAC : GMAC1_MDC/P26_1 */
 			 <RZT2H_PORT_PINMUX(26, 2, 0x10)>; /* GMAC : GMAC1_MDIO/P26_2 */
@@ -258,6 +270,25 @@
 	vqmmc-supply = <&vccq_sdhi1>;
 	bus-width = <4>;
 	non-removable;
+	status = "okay";
+};
+
+&i2c0 {
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+	eeprom: eeprom@50 {
+		compatible = "renesas,r1ex24016", "atmel,24c16";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+};
+
+&i2c1 {
+	pinctrl-0 = <&i2c1_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 };
 
