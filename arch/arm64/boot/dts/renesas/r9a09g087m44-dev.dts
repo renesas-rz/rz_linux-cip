@@ -10,6 +10,7 @@
 #include <dt-bindings/pinctrl/rzt2h-pinctrl.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/net/rzt2h-ethss.h>
+#include <dt-bindings/net/mscc-phy-vsc8531.h>
 
 / {
 	model = "Renesas Development EVK based on r9a09g087m44";
@@ -395,6 +396,9 @@
 		#size-cells = <0>;
 		phy3: ethernet-phy@3 {
 			compatible = "ethernet-phy-id0007.0772";
+			vsc8531,led-0-mode = <VSC8531_LINK_ACTIVITY>;
+			vsc8531,led-1-mode = <VSC8531_LINK_ACTIVITY>;
+			vsc8531,led-1-combine-disable;
 			phy-mode = "rgmii-id";
 			reg = <3>;
 		};
@@ -416,6 +420,9 @@
 		phy2: ethernet-phy@2 {
 			compatible = "ethernet-phy-id0007.0772";
 			phy-mode = "rgmii-id";
+			vsc8531,led-0-mode = <VSC8531_LINK_ACTIVITY>;
+			vsc8531,led-1-mode = <VSC8531_LINK_ACTIVITY>;
+			vsc8531,led-1-combine-disable;
 			reg = <2>;
 		};
 	};
@@ -448,6 +455,9 @@
 			compatible = "ethernet-phy-id0007.0772";
 			phy-mode = "mii";
 			max-speed = <100>;
+			vsc8531,led-0-mode = <VSC8531_LINK_ACTIVITY>;
+			vsc8531,led-1-mode = <VSC8531_LINK_ACTIVITY>;
+			vsc8531,led-1-combine-disable;
 			reg = <0>;
 		};
 
@@ -455,6 +465,9 @@
 			compatible = "ethernet-phy-id0007.0772";
 			phy-mode = "mii";
 			max-speed = <100>;
+			vsc8531,led-0-mode = <VSC8531_LINK_ACTIVITY>;
+			vsc8531,led-1-mode = <VSC8531_LINK_ACTIVITY>;
+			vsc8531,led-1-combine-disable;
 			reg = <1>;
 		};
 	};
@@ -492,7 +505,6 @@
 
 &mii_conv2 {
 	renesas,ethss-port = <ETHSS_GMAC2_PORT>;
-	renesas,ethsw-phylink = <0>;
 	status = "okay";
 };
 
