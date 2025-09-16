@@ -21,6 +21,8 @@
 #include <linux/uaccess.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
+#include <linux/dmaengine.h>
+#include <linux/random.h>
 
 #include <linux/pci_regs.h>
 
@@ -118,6 +120,12 @@ struct pci_endpoint_test {
 	int		last_irq;
 	int		num_irqs;
 	int		irq_type;
+	/* Test host DMA function */
+	struct dma_chan	*dma_chan;
+	dma_cookie_t 	transfer_cookie;
+	enum dma_status transfer_status;
+	struct completion transfer_complete;
+	bool		dma_available;
 	/* mutex to protect the ioctls */
 	struct mutex	mutex;
 	struct miscdevice miscdev;
@@ -327,6 +335,132 @@ static bool pci_endpoint_test_bar(struct pci_endpoint_test *test,
 	return true;
 }
 
+static void pci_endpoint_test_dma_callback(void *param)
+{
+	struct pci_endpoint_test *test = param;
+	struct dma_tx_state state;
+
+	test->transfer_status =
+		dmaengine_tx_status(test->dma_chan,
+				    test->transfer_cookie, &state);
+	if (test->transfer_status == DMA_COMPLETE ||
+	    test->transfer_status == DMA_ERROR)
+		complete(&test->transfer_complete);
+}
+
+static int pci_endpoint_test_dma_host_transfer(struct pci_endpoint_test *test,
+				      dma_addr_t dma_local, dma_addr_t dma_remote,
+				      size_t len, enum dma_transfer_direction dir)
+{
+	struct dma_chan *chan = test->dma_chan;
+	struct dma_async_tx_descriptor *tx;
+	struct dma_slave_config sconf = {};
+	enum dma_ctrl_flags flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT;
+	struct device *dev = &test->pdev->dev;
+	int ret;
+
+	if (!test->dma_available)
+		return -EINVAL;
+
+	sconf.direction = dir;
+	if (dir == DMA_MEM_TO_DEV)
+		sconf.dst_addr = dma_remote;
+	else
+		sconf.src_addr = dma_remote;
+
+	if (dmaengine_slave_config(chan, &sconf)) {
+		dev_err(dev, "DMA slave config fail\n");
+		return -EIO;
+	}
+	tx = dmaengine_prep_slave_single(chan, dma_local, len, dir,
+					 flags);
+	if (!tx) {
+		dev_err(dev, "Failed to prepare DMA memcpy\n");
+		return -EIO;
+	}
+
+	reinit_completion(&test->transfer_complete);
+	tx->callback = pci_endpoint_test_dma_callback;
+	tx->callback_param = test;
+	test->transfer_cookie = dmaengine_submit(tx);
+	ret = dma_submit_error(test->transfer_cookie);
+	if (ret) {
+		dev_err(dev, "Failed to do DMA tx_submit %d\n", ret);
+		goto terminate;
+	}
+
+	dma_async_issue_pending(chan);
+	ret = wait_for_completion_timeout(&test->transfer_complete, msecs_to_jiffies(1000));
+	if (ret < 0) {
+		dev_err(dev, "DMA wait_for_completion interrupted\n");
+		goto terminate;
+	}
+
+	if (test->transfer_status == DMA_ERROR) {
+		dev_err(dev, "DMA transfer failed\n");
+		ret = -EIO;
+	}
+
+terminate:
+	dmaengine_terminate_sync(chan);
+
+	return 0;
+}
+
+struct pci_dma_filter {
+	struct device *dev;
+	u32 dma_mask;
+};
+
+static bool pci_dma_filter_fn(struct dma_chan *chan, void *node)
+{
+	struct pci_dma_filter *filter = node;
+	struct dma_slave_caps caps;
+
+	memset(&caps, 0, sizeof(caps));
+	dma_get_slave_caps(chan, &caps);
+
+	return chan->device->dev == filter->dev
+		&& (filter->dma_mask & caps.directions);
+}
+
+static int pci_endpoint_test_request_dma_chan(struct pci_endpoint_test *test)
+{
+	struct pci_dev *pdev = test->pdev;
+	struct device *dev = &pdev->dev;
+	struct pci_dma_filter filter;
+	struct pci_host_bridge *host;
+	struct dma_chan *dma_chan;
+	dma_cap_mask_t mask;
+
+	host = pci_find_host_bridge(pdev->bus);
+	filter.dev = host->dev.parent;
+	filter.dma_mask = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+
+	dma_chan = dma_request_channel(mask, pci_dma_filter_fn, &filter);
+	if (!dma_chan) {
+		dev_info(dev, "Failed to get private DMA for PCIe RC\n");
+		return PTR_ERR(dma_chan);
+	}
+
+	test->dma_chan = dma_chan;
+	init_completion(&test->transfer_complete);
+	test->dma_available = true;
+
+	return 0;
+}
+
+static void pci_endpoint_test_clean_dma_chan(struct pci_endpoint_test *test)
+{
+	if (test->dma_available)
+		return;
+
+	dma_release_channel(test->dma_chan);
+	test->dma_chan = NULL;
+}
+
 static bool pci_endpoint_test_intx_irq(struct pci_endpoint_test *test)
 {
 	u32 val;
@@ -378,6 +512,125 @@ static int pci_endpoint_test_validate_xfer_params(struct device *dev,
 	}
 
 	return 0;
+}
+
+static void pci_endpoint_test_print_rate(struct pci_endpoint_test *test,
+					const char *op, u64 size,
+					struct timespec64 *start,
+					struct timespec64 *end, bool dma)
+{
+	struct timespec64 ts = timespec64_sub(*end, *start);
+	u64 rate = 0, ns;
+
+	/* calculate the rate */
+	ns = timespec64_to_ns(&ts);
+	if (ns)
+		rate = div64_u64(size * NSEC_PER_SEC, ns * 1000);
+
+	dev_info(&test->pdev->dev,
+		"%s => Size: %llu B, DMA: %s, Time: %llu.%09u s, Rate: %llu KB/s\n",
+		op, size, dma ? "YES" : "NO",
+		(u64)ts.tv_sec, (u32)ts.tv_nsec, rate);
+}
+
+static bool pci_endpoint_test_dma_host(struct pci_endpoint_test *test,
+				   unsigned long arg)
+{
+	u64 test_addr = pci_resource_start(test->pdev, BAR_0) + SZ_1K;
+	struct pci_dev *pdev = test->pdev;
+	struct device *dev = &pdev->dev;
+	void *write_buf = NULL;
+	void *read_buf = NULL;
+	void __iomem *buf_addr;
+	phys_addr_t src_phys_addr, dst_phys_addr;
+	size_t buf_size;
+	size_t alignment = test->alignment;
+	bool ret = false;
+	struct timespec64 start, end;
+	struct pci_endpoint_test_xfer_param param;
+	int err;
+
+	err = copy_from_user(&param, (void __user *)arg, sizeof(param));
+	if (err) {
+		dev_err(dev, "Failed to get transfer param\n");
+		return false;
+	}
+
+	err = pci_endpoint_test_validate_xfer_params(dev, &param, alignment);
+	if (err)
+		return false;
+
+	buf_size = param.size;
+
+	write_buf = kmalloc(buf_size, GFP_KERNEL);
+	if (!write_buf) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	read_buf = kmalloc(buf_size, GFP_KERNEL);
+	if (!read_buf) {
+		ret = -ENOMEM;
+		goto err_free_write_buf;
+	}
+
+	get_random_bytes(write_buf, buf_size);
+
+	ktime_get_ts64(&start);
+	if (param.flags & PCITEST_FLAGS_USE_DMA) {
+		src_phys_addr = dma_map_single(dev, write_buf, buf_size, DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, src_phys_addr)) {
+			dev_err(dev, "Failed to map write buffer addr\n");
+			goto err_free_buf;
+		}
+
+		dst_phys_addr = dma_map_single(dev, read_buf, buf_size, DMA_FROM_DEVICE);
+		if (dma_mapping_error(dev, dst_phys_addr)) {
+			dev_err(dev, "Failed to map read buffer addr\n");
+			goto err_free_buf;
+		}
+
+		err = pci_endpoint_test_dma_host_transfer(test, src_phys_addr,
+						 test_addr, buf_size, DMA_MEM_TO_DEV);
+		if (err) {
+			dev_err(dev, "Failed to write to EP using DMA\n");
+			goto err_free_buf;
+		}
+
+		dma_unmap_single(dev, src_phys_addr, buf_size, DMA_TO_DEVICE);
+
+		err = pci_endpoint_test_dma_host_transfer(test, dst_phys_addr,
+						 test_addr, buf_size, DMA_DEV_TO_MEM);
+		if (err) {
+			dev_err(dev, "Failed to read from EP using DMA\n");
+			goto err_free_buf;
+		}
+
+		dma_unmap_single(dev, dst_phys_addr, buf_size, DMA_FROM_DEVICE);
+	} else {
+		buf_addr = ioremap(test_addr, buf_size);
+		memcpy_toio(buf_addr, write_buf, buf_size);
+		memcpy_fromio(read_buf, buf_addr, buf_size);
+	}
+
+	ktime_get_ts64(&end);
+
+	if (memcmp(write_buf, read_buf, buf_size) == 0) {
+		pci_endpoint_test_print_rate(test, "WRITE-READ", buf_size, &start, &end,
+					param.flags & PCITEST_FLAGS_USE_DMA);
+		ret = true;
+	}
+
+	usleep_range(5000, 6250);
+
+err_free_buf:
+	kfree(read_buf);
+
+err_free_write_buf:
+	kfree(write_buf);
+
+err:
+	return ret;
 }
 
 static bool pci_endpoint_test_copy(struct pci_endpoint_test *test,
@@ -799,6 +1052,9 @@ static long pci_endpoint_test_ioctl(struct file *file, unsigned int cmd,
 	case PCITEST_CLEAR_IRQ:
 		ret = pci_endpoint_test_clear_irq(test);
 		break;
+	case PCITEST_HOST_DMA:
+		ret = pci_endpoint_test_dma_host(test, arg);
+		break;
 	}
 
 ret:
@@ -928,6 +1184,11 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 		goto err_kfree_name;
 	}
 
+	err = pci_endpoint_test_request_dma_chan(test);
+	if (err) {
+		goto err_kfree_name;
+	}
+
 	return 0;
 
 err_kfree_name:
@@ -970,6 +1231,7 @@ static void pci_endpoint_test_remove(struct pci_dev *pdev)
 	if (id < 0)
 		return;
 
+	pci_endpoint_test_clean_dma_chan(test);
 	pci_endpoint_test_release_irq(test);
 	pci_endpoint_test_free_irq_vectors(test);
 

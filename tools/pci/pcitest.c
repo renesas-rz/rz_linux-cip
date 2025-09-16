@@ -32,6 +32,7 @@ struct pci_test {
 	bool		read;
 	bool		write;
 	bool		copy;
+	bool		dma_host;
 	unsigned long	size;
 	bool		use_dma;
 };
@@ -147,6 +148,15 @@ static int run_test(struct pci_test *test)
 			fprintf(stdout, "%s\n", result[ret]);
 	}
 
+	if (test->dma_host) {
+		ret = ioctl(fd, PCITEST_HOST_DMA);
+		fprintf(stdout, "DMA RC \t\t");
+		if (ret < 0)
+			fprintf(stdout, "TEST FAILED\n");
+		else
+			fprintf(stdout, "%s\n", result[ret]);
+	}
+
 	fflush(stdout);
 	close(fd);
 	return (ret < 0) ? ret : 1 - ret; /* return 0 if test succeeded */
@@ -172,7 +182,7 @@ int main(int argc, char **argv)
 	/* set default endpoint device */
 	test->device = "/dev/pci-endpoint-test.0";
 
-	while ((c = getopt(argc, argv, "D:b:m:x:i:deIlhrwcs:")) != EOF)
+	while ((c = getopt(argc, argv, "D:b:m:x:i:deIlhrwcps:")) != EOF)
 	switch (c) {
 	case 'D':
 		test->device = optarg;
@@ -216,6 +226,9 @@ int main(int argc, char **argv)
 	case 'e':
 		test->clear_irq = true;
 		continue;
+	case 'p':
+		test->dma_host = true;
+		continue;
 	case 's':
 		test->size = strtoul(optarg, NULL, 0);
 		continue;
@@ -240,6 +253,7 @@ usage:
 			"\t-r			Read buffer test\n"
 			"\t-w			Write buffer test\n"
 			"\t-c			Copy buffer test\n"
+			"\t-p			PCI RC DMA test\n"
 			"\t-s <size>		Size of buffer {default: 100KB}\n"
 			"\t-h			Print this help message\n",
 			argv[0]);
