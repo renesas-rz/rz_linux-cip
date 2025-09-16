@@ -74,6 +74,16 @@ static int xhci_priv_resume_quirk(struct usb_hcd *hcd)
 	return priv->resume_quirk(hcd);
 }
 
+static int xhci_priv_post_resume_quirk(struct usb_hcd *hcd)
+{
+	struct xhci_plat_priv *priv = hcd_to_xhci_priv(hcd);
+
+	if (!priv->post_resume_quirk)
+		return 0;
+
+	return priv->post_resume_quirk(hcd);
+}
+
 static void xhci_plat_quirks(struct device *dev, struct xhci_hcd *xhci)
 {
 	struct xhci_plat_priv *priv = xhci_to_priv(xhci);
@@ -502,6 +512,10 @@ static int xhci_plat_resume_common(struct device *dev, struct pm_message pmsg)
 		goto disable_clks;
 
 	ret = xhci_resume(xhci, pmsg);
+	if (ret)
+		goto disable_clks;
+
+	ret = xhci_priv_post_resume_quirk(hcd);
 	if (ret)
 		goto disable_clks;
 
