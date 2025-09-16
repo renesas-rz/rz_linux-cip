@@ -2128,6 +2128,7 @@ static void ethsw_shutdown(struct platform_device *pdev)
 
 static const struct of_device_id ethsw_of_mtable[] = {
 	{ .compatible = "renesas,rzt2h-ethsw", },
+	{ .compatible = "renesas,rzn2h-ethsw", },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, ethsw_of_mtable);
