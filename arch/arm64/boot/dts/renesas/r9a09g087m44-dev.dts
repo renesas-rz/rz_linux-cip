@@ -13,6 +13,13 @@
 #include <dt-bindings/net/mscc-phy-vsc8531.h>
 
 
+/*
+ * Set SEL_PCIE to below values to select using of:
+ * - 0: ETH3 (default)
+ * - 1: PCIE
+ */
+ #define SEL_PCIE		0
+
 / {
 	model = "Renesas Development EVK based on r9a09g087m44";
 	compatible = "renesas,r9a09g087m44-dev", "renesas,r9a09g087m44", "renesas,r9a09g087";
@@ -290,6 +297,7 @@
 			drive-strength	= <3>;
 	};
 
+#if (!SEL_PCIE)
 	eth3_pins: ethss_3 {
 		pinmux = <RZT2H_PORT_PINMUX(33, 2, 0x0F)>, /* ETHSS : ETH3_TXCLK/P33_2 */
 			 <RZT2H_PORT_PINMUX(33, 3, 0x0F)>, /* ETHSS : ETH3_TXD0/P33_3 */
@@ -311,6 +319,23 @@
 			slew-rate	= <1>;
 			drive-strength	= <3>;
 	};
+#endif
+
+#if (SEL_PCIE)
+	pcie_rstout0 {
+		gpio-hog;
+		gpios = <RZT2H_GPIO(33, 3) GPIO_ACTIVE_HIGH>; /* PCIE : PCIE_RSTOUT0B/P33_3 */
+		output-high;
+		line-name = "pcie_rstout0";
+	};
+
+	pcie_rstout1 {
+		gpio-hog;
+		gpios = <RZT2H_GPIO(33, 4) GPIO_ACTIVE_HIGH>; /* PCIE : PCIE_RSTOUT1B/P33_4 */
+		output-high;
+		line-name = "pcie_rstout1";
+	};
+#endif
 
 	icu_pins: icu_pins {
 		pinmux = <RZT2H_PORT_PINMUX(0, 4, 0x00)>, /* Interrupt : IRQ3/P00_4 */
@@ -415,6 +440,7 @@
 	};
 };
 
+#if (!SEL_PCIE)
 &gmac1 {
 	phy-handle = <&phy3>;
 	phy-mode = "rgmii-id";
@@ -442,6 +468,7 @@
 		};
 	};
 };
+#endif
 
 &gmac2 {
 	phy-handle = <&phy2>;
@@ -474,7 +501,11 @@
 &ethss {
 	status = "okay";
 	pinctrl-names = "default";
+#if (SEL_PCIE)
+	pinctrl-0 = <&pins_refclk>, <&eth0_pins>, <&eth1_pins>, <&eth2_pins>;
+#else
 	pinctrl-0 = <&pins_refclk>, <&eth0_pins>, <&eth1_pins>, <&eth2_pins>, <&eth3_pins>;
+#endif
 	renesas,ethss-switch-portmanagement = <ETHSS_GMAC0_PORT>;
 	ethsw_pulse_gen_timer = <0>; /* Pulse generator use ETHSW timer 0 */
 };
@@ -557,3 +588,9 @@
 	status = "okay";
 };
 
+#if (SEL_PCIE)
+&pcie0 {
+	pcie-lane = <1>;
+	status = "okay";
+};
+#endif
