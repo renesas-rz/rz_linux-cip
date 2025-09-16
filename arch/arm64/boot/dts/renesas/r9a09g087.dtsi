@@ -233,7 +233,6 @@
 			clocks = <&cpg CPG_MOD R9A09G077_SDHI0_CLK>;
 			clock-names = "clk";
 			power-domains = <&cpg>;
-			mmc-no-pin-volt-switch;
 			status = "disabled";
 		};
 
@@ -246,7 +245,6 @@
 			clocks = <&cpg CPG_MOD R9A09G077_SDHI1_CLK>;
 			clock-names = "clk";
 			power-domains = <&cpg>;
-			mmc-no-pin-volt-switch;
 			status = "disabled";
 		};
 
