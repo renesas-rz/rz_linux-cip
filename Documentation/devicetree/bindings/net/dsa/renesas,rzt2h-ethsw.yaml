@@ -15,7 +15,9 @@ allOf:
 properties:
   compatible:
     items:
-      - const: renesas,rzt2h-ethsw
+      - enum:
+          - renesas,rzt2h-ethsw
+          - renesas,rzn2h-ethsw
 
   reg:
     maxItems: 1
