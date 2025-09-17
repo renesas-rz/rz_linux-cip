@@ -548,6 +548,7 @@ static SIMPLE_DEV_PM_OPS(rzt2h_rtc_pm_ops, rzt2h_rtc_suspend, rzt2h_rtc_resume);
 
 static const struct of_device_id rzt2h_rtc_of_match[] = {
 	{ .compatible = "renesas,rzt2h-rtc", },
+	{ .compatible = "renesas,rzn2h-rtc", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rzt2h_rtc_of_match);
