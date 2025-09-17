@@ -795,6 +795,30 @@
 			status = "disabled";
 		};
 
+		xspi0: spi@801c0000 {
+			compatible = "renesas,t2h-xspi-if";
+			reg = <0 0x801c0000 0 0x1000>,
+				<0 0x40000000 0 0x10000000>;
+			reg-names = "regs", "dirmap";
+			resets = <&cpg R9A09G077_xSPI0_RST>;
+			power-domains = <&cpg>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		xspi1: spi@801c1000 {
+			compatible = "renesas,t2h-xspi-if";
+			reg = <0 0x801c1000 0 0x1000>,
+				<0 0x50000000 0 0x10000000>;
+			reg-names = "regs", "dirmap";
+			resets = <&cpg R9A09G077_xSPI1_RST>;
+			power-domains = <&cpg>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		gmac0: ethernet@80100000 {
 			compatible = "renesas,rzt2h-eqos",
 				     "snps,dwc-qos-ethernet-4.10";
