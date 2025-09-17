@@ -397,6 +397,11 @@
 				status = "disabled";
 			};
 		};
+
+		icu_ns_int: icu@802a0000 {
+			compatible = "syscon";
+			reg = <0 0x802a0000 0 0x1000>;
+		};
 	};
 
 	timer {
