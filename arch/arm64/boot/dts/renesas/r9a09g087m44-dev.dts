@@ -22,8 +22,9 @@
 		mmc1 = &sdhi1;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
-		ethernet0 = &gmac1;
-		ethernet1 = &gmac2;
+		eth0 = &gmac1;
+		eth1 = &gmac2;
+		eth2 = &gmac0;
 	};
 
 	chosen {
