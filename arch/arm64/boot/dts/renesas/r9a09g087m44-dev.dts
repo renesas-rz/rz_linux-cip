@@ -12,6 +12,7 @@
 #include <dt-bindings/net/rzt2h-ethss.h>
 #include <dt-bindings/net/mscc-phy-vsc8531.h>
 
+
 / {
 	model = "Renesas Development EVK based on r9a09g087m44";
 	compatible = "renesas,r9a09g087m44-dev", "renesas,r9a09g087m44", "renesas,r9a09g087";
@@ -182,7 +183,11 @@
 			 <RZT2H_PORT_PINMUX(21, 5, 0x11)>,	/* ETHSW : ETHSW_MDIO/P21_5 */
 			 <RZT2H_PORT_PINMUX(21, 6, 0x11)>,	/* ETHSW : ETHSW_PHYLINK0/P21_6 */
 			 <RZT2H_PORT_PINMUX(26, 3, 0x11)>,	/* ETHSW : ETHSW_PHYLINK1/P26_3 */
-			 <RZT2H_PORT_PINMUX(30, 7, 0x11)>;	/* ETHSW : ETHSW_PHYLINK2/P30_7 */
+			 <RZT2H_PORT_PINMUX(30, 7, 0x11)>,	/* ETHSW : ETHSW_PHYLINK2/P30_7 */
+			 <RZT2H_PORT_PINMUX(17, 6, 0x11)>,	/* ETHSW : ETHSW_PTPOUT0/P17_6 */
+			 <RZT2H_PORT_PINMUX(17, 7, 0x11)>,	/* ETHSW : ETHSW_PTPOUT1/P17_7 */
+			 <RZT2H_PORT_PINMUX(14, 0, 0x11)>,	/* ETHSW : ETHSW_PTPOUT2/P14_0 */
+			 <RZT2H_PORT_PINMUX(18, 7, 0x11)>;	/* ETHSW : ETHSW_PTPOUT3/P18_7 */
 	};
 
 	pins_refclk: pins_refclk {
@@ -434,6 +439,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_refclk>, <&eth0_pins>, <&eth1_pins>, <&eth2_pins>, <&eth3_pins>;
 	renesas,ethss-switch-portmanagement = <ETHSS_GMAC0_PORT>;
+	ethsw_pulse_gen_timer = <0>; /* Pulse generator use ETHSW timer 0 */
 };
 
 &ethsw {
