@@ -656,6 +656,10 @@
 #endif
 #endif
 
+&rtc {
+	status = "okay";
+};
+
 #if (SEL_ADC)
 &adc0 {
 	pinctrl-0 = <&adc0_pins>;
