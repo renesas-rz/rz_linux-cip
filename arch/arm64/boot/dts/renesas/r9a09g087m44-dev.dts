@@ -13,6 +13,14 @@
 #include <dt-bindings/net/mscc-phy-vsc8531.h>
 
 /*
+ * Set macro SEL_SPI2 to 1 to enable SPI2 pins
+ * SEL_SPI2 value
+ *  SEL_SPI2 = 0: disable SPI2 (default)
+ *  SEL_SPI2 = 1: enable SPI2
+ */
+ #define SEL_SPI2		0
+
+/*
  * Set SEL_ADC to 1 to enable ADC pins due to pins conflict between ADC and ETH3:
  * - 0: ETH3 (default)
  * - 1: ADC
@@ -215,6 +223,15 @@
 			     <RZT2H_PORT_PINMUX(3, 4, 0x17)>; /* IIC : IIC_SDA1/P03_4 */
 	};
 
+#if (SEL_SPI2)
+	spi2_pins: spi2 {
+		pinmux = <RZT2H_PORT_PINMUX(33, 7, 0x1A)>, /* SPI : SPI_RSPCK2/P33_7 */
+			 <RZT2H_PORT_PINMUX(34, 0, 0x1A)>, /* SPI : SPI_MOSI2/P34_0 */
+			 <RZT2H_PORT_PINMUX(34, 1, 0x1A)>, /* SPI : SPI_MISO2/P34_1 */
+			 <RZT2H_PORT_PINMUX(34, 2, 0x1A)>; /* SPI : SPI_SSL20/P34_2 */
+	};
+#endif
+
 	mdio1_pins: gmac_mdio1 {
 		pinmux = <RZT2H_PORT_PINMUX(26, 1, 0x10)>, /* GMAC : GMAC1_MDC/P26_1 */
 			 <RZT2H_PORT_PINMUX(26, 2, 0x10)>; /* GMAC : GMAC1_MDIO/P26_2 */
@@ -326,7 +343,7 @@
 			drive-strength	= <3>;
 	};
 
-#if (!SEL_PCIE && !SEL_ADC)
+#if (!SEL_PCIE && !SEL_ADC && !SEL_SPI2)
 	eth3_pins: ethss_3 {
 		pinmux = <RZT2H_PORT_PINMUX(33, 2, 0x0F)>, /* ETHSS : ETH3_TXCLK/P33_2 */
 			 <RZT2H_PORT_PINMUX(33, 3, 0x0F)>, /* ETHSS : ETH3_TXD0/P33_3 */
@@ -419,6 +436,15 @@
 	status = "okay";
 };
 
+#if (SEL_SPI2)
+&spi2 {
+	pinctrl-0 = <&spi2_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+#endif
+
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "default";
@@ -469,7 +495,7 @@
 	};
 };
 
-#if (!SEL_PCIE && !SEL_ADC)
+#if (!SEL_PCIE && !SEL_ADC && !SEL_SPI2)
 &gmac1 {
 	phy-handle = <&phy3>;
 	phy-mode = "rgmii-id";
@@ -530,7 +556,7 @@
 &ethss {
 	status = "okay";
 	pinctrl-names = "default";
-#if (SEL_PCIE || SEL_ADC)
+#if (SEL_PCIE || SEL_ADC || SEL_SPI2)
 	pinctrl-0 = <&pins_refclk>, <&eth0_pins>, <&eth1_pins>, <&eth2_pins>;
 #else
 	pinctrl-0 = <&pins_refclk>, <&eth0_pins>, <&eth1_pins>, <&eth2_pins>, <&eth3_pins>;
