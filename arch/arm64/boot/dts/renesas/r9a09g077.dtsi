@@ -1018,7 +1018,7 @@
 				     <GIC_SPI 852 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "adi", "gbadi", "gcadi", "cmpai",
 						"cmpbi", "wcmpm", "wcmpum";
-			clocks = <&cpg CPG_MOD R9A09G077_ACD0_CLK>;
+			clocks = <&cpg CPG_MOD R9A09G077_ADC0_CLK>;
 			power-domains = <&cpg>;
 			status = "disabled";
 
@@ -1049,7 +1049,7 @@
 				     <GIC_SPI 707 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 853 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 854 IRQ_TYPE_EDGE_RISING>;
-			clocks = <&cpg CPG_MOD R9A09G077_ACD1_CLK>;
+			clocks = <&cpg CPG_MOD R9A09G077_ADC1_CLK>;
 			power-domains = <&cpg>;
 			status = "disabled";
 
@@ -1080,7 +1080,7 @@
 				     <GIC_SPI 712 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 855 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 856 IRQ_TYPE_EDGE_RISING>;
-			clocks = <&cpg CPG_MOD R9A09G077_ACD2_CLK>;
+			clocks = <&cpg CPG_MOD R9A09G077_ADC2_CLK>;
 			power-domains = <&cpg>;
 			status = "disabled";
 
