@@ -565,6 +565,137 @@
 			};
 		};
 
+		adc0: adc0@90014000 {
+			compatible = "renesas,rzn2h-adc";
+			reg = <0 0x90014000 0 0x400>;
+			interrupts = <GIC_SPI 698 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 699 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 700 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 701 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 702 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 851 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 852 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "adi", "gbadi", "gcadi", "cmpai",
+						"cmpbi", "wcmpm", "wcmpum";
+			clocks = <&cpg CPG_MOD R9A09G077_ADC0_CLK>;
+			power-domains = <&cpg>;
+			status = "disabled";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			chanel@0 {
+				reg = <0>;
+			};
+			chanel@1 {
+				reg = <1>;
+			};
+			chanel@2 {
+				reg = <2>;
+			};
+			chanel@3 {
+				reg = <3>;
+			};
+		};
+
+		adc1: adc1@90014400 {
+			compatible = "renesas,rzn2h-adc";
+			reg = <0 0x90014400 0 0x400>;
+			interrupts = <GIC_SPI 703 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 704 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 705 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 706 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 707 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 853 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 854 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD R9A09G077_ADC1_CLK>;
+			power-domains = <&cpg>;
+			status = "disabled";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			chanel@0 {
+				reg = <0>;
+			};
+			chanel@1 {
+				reg = <1>;
+			};
+			chanel@2 {
+				reg = <2>;
+			};
+			chanel@3 {
+				reg = <3>;
+			};
+		};
+
+		adc2: adc2@80008000 {
+			compatible = "renesas,rzn2h-adc";
+			reg = <0 0x80008000 0 0x400>;
+			interrupts = <GIC_SPI 708 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 709 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 710 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 711 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 712 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 855 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 856 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD R9A09G077_ADC2_CLK>;
+			power-domains = <&cpg>;
+			status = "disabled";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			chanel@0 {
+				reg = <0>;
+			};
+			chanel@1 {
+				reg = <1>;
+			};
+			chanel@2 {
+				reg = <2>;
+			};
+			chanel@3 {
+				reg = <3>;
+			};
+			chanel@4 {
+				reg = <4>;
+			};
+			chanel@5 {
+				reg = <5>;
+			};
+			chanel@6 {
+				reg = <6>;
+			};
+			chanel@7 {
+				reg = <7>;
+			};
+			chanel@8 {
+				reg = <8>;
+			};
+			chanel@9 {
+				reg = <9>;
+			};
+			chanel@10 {
+				reg = <10>;
+			};
+			chanel@11 {
+				reg = <11>;
+			};
+			chanel@12 {
+				reg = <12>;
+			};
+			chanel@13 {
+				reg = <13>;
+			};
+			chanel@14 {
+				reg = <14>;
+			};
+			chanel@15 {
+				reg = <15>;
+			};
+		};
+
 		icu_ns_int: icu@802a0000 {
 			compatible = "syscon";
 			reg = <0 0x802a0000 0 0x1000>;
