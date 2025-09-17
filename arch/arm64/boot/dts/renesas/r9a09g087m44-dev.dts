@@ -12,6 +12,12 @@
 #include <dt-bindings/net/rzt2h-ethss.h>
 #include <dt-bindings/net/mscc-phy-vsc8531.h>
 
+/*
+ * Set SEL_ADC to 1 to enable ADC pins due to pins conflict between ADC and ETH3:
+ * - 0: ETH3 (default)
+ * - 1: ADC
+ */
+#define SEL_ADC			0
 
 /*
  * Set SEL_PCIE to below values to select using of:
@@ -231,11 +237,27 @@
 			 <RZT2H_PORT_PINMUX(18, 7, 0x11)>;	/* ETHSW : ETHSW_PTPOUT3/P18_7 */
 	};
 
+#if (SEL_ADC)
+	adc0_pins: adc0 {
+		pinmux = <RZT2H_PORT_PINMUX(34, 4, 0x1f)>; /* ADC : ADTRG0#/P34_4 */
+	};
+
+	adc1_pins: adc1 {
+		pinmux = <RZT2H_PORT_PINMUX(34, 5, 0x1f)>; /* ADC : ADTRG1#/P34_5 */
+	};
+
+	adc2_pins: adc2 {
+		pinmux = <RZT2H_PORT_PINMUX(34, 6, 0x1f)>; /* ADC : ADTRG2#/P34_6 */
+	};
+#endif
+
 	pins_refclk: pins_refclk {
 		pinmux = <RZT2H_PORT_PINMUX(21, 7, 0x02)>, /* Clock : ETH0_REFCLK/P21_7 */
 			 <RZT2H_PORT_PINMUX(26, 4, 0x02)>, /* Clock : ETH1_REFCLK/P26_4 */
-			 <RZT2H_PORT_PINMUX(31, 0, 0x02)>, /* Clock : ETH2_REFCLK/P31_0 */
-			 <RZT2H_PORT_PINMUX(34, 6, 0x02)>; /* Clock : ETH3_REFCLK/P34_6 */
+#if (!SEL_ADC)
+			 <RZT2H_PORT_PINMUX(34, 6, 0x02)>, /* Clock : ETH3_REFCLK/P34_6 */
+#endif
+			 <RZT2H_PORT_PINMUX(31, 0, 0x02)>; /* Clock : ETH2_REFCLK/P31_0 */
 	};
 
 	eth0_pins: ethss_0 {
@@ -304,7 +326,7 @@
 			drive-strength	= <3>;
 	};
 
-#if (!SEL_PCIE)
+#if (!SEL_PCIE && !SEL_ADC)
 	eth3_pins: ethss_3 {
 		pinmux = <RZT2H_PORT_PINMUX(33, 2, 0x0F)>, /* ETHSS : ETH3_TXCLK/P33_2 */
 			 <RZT2H_PORT_PINMUX(33, 3, 0x0F)>, /* ETHSS : ETH3_TXD0/P33_3 */
@@ -447,7 +469,7 @@
 	};
 };
 
-#if (!SEL_PCIE)
+#if (!SEL_PCIE && !SEL_ADC)
 &gmac1 {
 	phy-handle = <&phy3>;
 	phy-mode = "rgmii-id";
@@ -508,7 +530,7 @@
 &ethss {
 	status = "okay";
 	pinctrl-names = "default";
-#if (SEL_PCIE)
+#if (SEL_PCIE || SEL_ADC)
 	pinctrl-0 = <&pins_refclk>, <&eth0_pins>, <&eth1_pins>, <&eth2_pins>;
 #else
 	pinctrl-0 = <&pins_refclk>, <&eth0_pins>, <&eth1_pins>, <&eth2_pins>, <&eth3_pins>;
@@ -606,4 +628,24 @@
 	status = "okay";
 };
 #endif
+#endif
+
+#if (SEL_ADC)
+&adc0 {
+	pinctrl-0 = <&adc0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&adc1 {
+	pinctrl-0 = <&adc1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&adc2 {
+	pinctrl-0 = <&adc2_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
 #endif
