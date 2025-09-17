@@ -701,6 +701,14 @@
 			reg = <0 0x802a0000 0 0x1000>;
 		};
 
+		tsu: thermal@80086000 {
+			compatible = "renesas,r9a09g087-tsu";
+			reg = <0 0x80086000 0 0x1000>;
+			clocks = <&cpg CPG_MOD R9A09G077_TSU_CLK>;
+			clock-names = "tsu_clk";
+			#thermal-sensor-cells = <1>;
+		};
+
 		pcie0: pcie@92100000 {
 			compatible = "renesas,rzn2h-pcie";
 			device_type = "pci";
@@ -737,6 +745,30 @@
 			resets = <&cpg R9A09G077_PCIE_RST>;
 			pcie,channel = <0>;
 			status = "disabled";
+		};
+	};
+
+	thermal-zones {
+		emergency {
+			polling-delay = <1000>;
+			on-temperature = <110000>;
+			off-temperature = <95000>;
+			target_cpus =   <&cpu1 &cpu2 &cpu3>;
+			status = "disabled";
+		};
+
+		sensor_thermal: sensor-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&tsu 0>;
+
+			trips {
+				sensor_crit: sensor-crit {
+					temperature = <123000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 	};
 
