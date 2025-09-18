@@ -41,6 +41,13 @@
 #define SEL_ETHSW_LCDC		0
 
 /*
+ *  Select SCI1 or LCDC support
+ *  - 0: SCI1
+ *  - 1: LCDC (default)
+ */
+#define SEL_SCI1_LCDC		1
+
+/*
  * Set SEL_GMAC1_PCIE to below values to select using of:
  * - 0: PCIE
  * - 1: GMAC1 (default)
@@ -61,6 +68,7 @@
 
 	aliases {
 		serial0 = &sci0;
+		serial1 = &sci1;
 #if (!SEL_SCI3_PTPOUT2)
 		serial3	= &sci3;
 #endif
@@ -212,7 +220,15 @@
 		line-name = "sd1_pwr_en";
 	};
 
-#if (SEL_ETHSW_LCDC)
+#if !(SEL_SCI1_LCDC)
+	sci1_pins: sci1 {
+		pinmux = <RZT2H_PORT_PINMUX(18, 4, 0x14)>, /* SCI1_TXD */
+			 <RZT2H_PORT_PINMUX(18, 3, 0x14)>; /* SCI1_RXD */
+		bias-pull-up;
+	};
+#endif
+
+#if (SEL_ETHSW_LCDC && SEL_SCI1_LCDC)
 	du_pins: du {
 		du_data {
 			pinmux = <RZT2H_PORT_PINMUX(10, 0, 0x28)>, /* LCDC_DATR0 */
@@ -846,7 +862,7 @@
 };
 #endif
 
-#if (SEL_ETHSW_LCDC)
+#if (SEL_ETHSW_LCDC && SEL_SCI1_LCDC)
 &du {
 	pinctrl-0 = <&du_pins>;
 	pinctrl-names = "default";
@@ -930,3 +946,11 @@
 
 	status = "okay";
 };
+
+#if !(SEL_SCI1_LCDC)
+&sci1 {
+	pinctrl-0 = <&sci1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+#endif
