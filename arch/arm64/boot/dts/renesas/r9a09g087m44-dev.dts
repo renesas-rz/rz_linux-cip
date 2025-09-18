@@ -13,6 +13,13 @@
 #include <dt-bindings/net/mscc-phy-vsc8531.h>
 
 /*
+ * Select SDHI0 or eMMC support
+ * SEL_SD0 = 0: SDHI
+ * SEL_SD0 = 1: eMMC (default)
+ */
+#define SEL_SD0			1
+
+/*
  * Set macro SEL_SPI2 to 1 to enable SPI2 pins
  * SEL_SPI2 value
  *  SEL_SPI2 = 0: disable SPI2 (default)
@@ -475,6 +482,16 @@
 };
 #endif
 
+#if (SEL_SD0)
+&sdhi0 {
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_1p8v>;
+	bus-width = <1>;
+	non-removable;
+	fixed-emmc-driver-type = <1>;
+	status = "okay";
+};
+#else
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_pins>;
 	pinctrl-names = "default";
@@ -482,9 +499,9 @@
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&vccq_sdhi0>;
 	bus-width = <4>;
-	non-removable;
 	status = "okay";
 };
+#endif
 
 &sdhi1 {
 	pinctrl-0 = <&sdhi1_pins>;
@@ -493,7 +510,6 @@
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&vccq_sdhi1>;
 	bus-width = <4>;
-	non-removable;
 	status = "okay";
 };
 
