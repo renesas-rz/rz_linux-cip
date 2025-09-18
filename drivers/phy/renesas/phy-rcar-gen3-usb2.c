@@ -24,13 +24,16 @@
 #include <linux/string.h>
 #include <linux/usb/of.h>
 #include <linux/workqueue.h>
+#include <linux/sys_soc.h>
 
 /******* USB2.0 Host registers (original offset is +0x200) *******/
 #define USB2_INT_ENABLE		0x000
 #define USB2_AHB_BUS_CTR	0x008
 #define USB2_USBCTR		0x00c
+#define USB2_REGEN_CG_CTRL	0x104
 #define USB2_SPD_RSM_TIMSET	0x10c
 #define USB2_OC_TIMSET		0x110
+#define USB2_UTMI_CTRL		0x118
 #define USB2_COMMCTRL		0x600
 #define USB2_OBINTSTA		0x604
 #define USB2_OBINTEN		0x608
@@ -63,12 +66,19 @@
 /* OBINTSTA and OBINTEN */
 #define USB2_OBINT_SESSVLDCHG		BIT(12)
 #define USB2_OBINT_IDDIGCHG		BIT(11)
+#define USB2_OBINT_VBSTAINT		BIT(3)
+#define USB2_OBINT_IDCHG		BIT(0)
 #define USB2_OBINT_BITS			(USB2_OBINT_SESSVLDCHG | \
 					 USB2_OBINT_IDDIGCHG)
+#define USB2_OBINT_BITS_T2H		(USB2_OBINT_IDCHG | \
+					 USB2_OBINT_VBSTAINT)
 
 /* VBCTRL */
+#define USB2_VBCTRL_VBSTA		BIT(29)
+#define USB2_VBCTRL_VBLVL		BIT(21)
 #define USB2_VBCTRL_OCCLREN		BIT(16)
 #define USB2_VBCTRL_DRVVBUSSEL		BIT(8)
+#define USB2_VBCTRL_SIDDQREL		BIT(2)
 #define USB2_VBCTRL_VBOUT		BIT(0)
 
 /* LINECTRL1 */
@@ -81,6 +91,7 @@
 /* ADPCTRL */
 #define USB2_ADPCTRL_OTGSESSVLD		BIT(20)
 #define USB2_ADPCTRL_IDDIG		BIT(19)
+#define USB2_ADPCTRL_VBUSVALID		BIT(18)
 #define USB2_ADPCTRL_IDPULLUP		BIT(5)	/* 1 = ID sampling is enabled */
 #define USB2_ADPCTRL_DRVVBUS		BIT(4)
 
@@ -88,7 +99,16 @@
 #define USB2_OBINT_IDCHG_EN		BIT(0)
 #define USB2_LINECTRL1_USB2_IDMON	BIT(0)
 
+/* RZ/T2H specific */
+#define USB2_UPHY_WEN			BIT(0)
+
 #define NUM_OF_PHYS			4
+
+static const struct soc_device_attribute rzt2h_match[] = {
+	{ .family = "RZ/T2H" },
+	{ /* sentinel*/ }
+};
+
 enum rcar_gen3_phy_index {
 	PHY_INDEX_BOTH_HC,
 	PHY_INDEX_OHCI,
@@ -126,12 +146,15 @@ struct rcar_gen3_chan {
 	bool is_otg_channel;
 	bool uses_otg_pins;
 	bool soc_no_adp_ctrl;
+	bool soc_no_utmi_ctrl;
+	bool usb_otg_enabled;
 };
 
 struct rcar_gen3_phy_drv_data {
 	const struct phy_ops *phy_usb2_ops;
 	bool no_adp_ctrl;
 	bool init_bus;
+	bool no_utmi_ctrl;
 };
 
 /*
@@ -198,6 +221,11 @@ static void rcar_gen3_enable_vbus_ctrl(struct rcar_gen3_chan *ch, int vbus)
 		if (ch->vbus)
 			regulator_hardware_enable(ch->vbus, vbus);
 
+		vbus_ctrl_reg = USB2_VBCTRL;
+		vbus_ctrl_val = USB2_VBCTRL_VBOUT;
+	}
+
+	if (soc_device_match(rzt2h_match)) {
 		vbus_ctrl_reg = USB2_VBCTRL;
 		vbus_ctrl_val = USB2_VBCTRL_VBOUT;
 	}
@@ -282,6 +310,17 @@ static bool rcar_gen3_check_id(struct rcar_gen3_chan *ch)
 
 	if (ch->soc_no_adp_ctrl)
 		return !!(readl(ch->base + USB2_LINECTRL1) & USB2_LINECTRL1_USB2_IDMON);
+
+	if (!ch->usb_otg_enabled) {
+		if (soc_device_match(rzt2h_match)) {
+			u32 status = readl(ch->base + USB2_ADPCTRL) & USB2_ADPCTRL_VBUSVALID;
+
+			if (status)
+				return true;
+			else
+				return false;
+		}
+	}
 
 	return !!(readl(ch->base + USB2_ADPCTRL) & USB2_ADPCTRL_IDDIG);
 }
@@ -412,11 +451,22 @@ static void rcar_gen3_init_otg(struct rcar_gen3_chan *ch)
 	writel(val, usb2_base + USB2_LINECTRL1);
 
 	if (!ch->soc_no_adp_ctrl) {
-		val = readl(usb2_base + USB2_VBCTRL);
-		val &= ~USB2_VBCTRL_OCCLREN;
-		writel(val | USB2_VBCTRL_DRVVBUSSEL, usb2_base + USB2_VBCTRL);
-		val = readl(usb2_base + USB2_ADPCTRL);
-		writel(val | USB2_ADPCTRL_IDPULLUP, usb2_base + USB2_ADPCTRL);
+		if (soc_device_match(rzt2h_match)) {
+			val = readl(usb2_base + USB2_VBCTRL);
+			writel(val | USB2_VBCTRL_VBLVL, usb2_base + USB2_VBCTRL);
+			val = readl(usb2_base + USB2_ADPCTRL);
+			if (ch->usb_otg_enabled)
+				writel(val | USB2_ADPCTRL_IDPULLUP | USB2_ADPCTRL_DRVVBUS,
+								usb2_base + USB2_ADPCTRL);
+			else
+				writel(val | USB2_ADPCTRL_DRVVBUS, usb2_base + USB2_ADPCTRL);
+		} else {
+			val = readl(usb2_base + USB2_VBCTRL);
+			val &= ~USB2_VBCTRL_OCCLREN;
+			writel(val | USB2_VBCTRL_DRVVBUSSEL, usb2_base + USB2_VBCTRL);
+			val = readl(usb2_base + USB2_ADPCTRL);
+			writel(val | USB2_ADPCTRL_IDPULLUP, usb2_base + USB2_ADPCTRL);
+		}
 	}
 	mdelay(20);
 
@@ -443,8 +493,19 @@ static irqreturn_t rcar_gen3_phy_usb2_irq(int irq, void *_ch)
 		status = readl(usb2_base + USB2_OBINTSTA);
 		if (status & ch->obint_enable_bits) {
 			dev_vdbg(dev, "%s: %08x\n", __func__, status);
-			writel(ch->obint_enable_bits, usb2_base + USB2_OBINTSTA);
+			if (!soc_device_match(rzt2h_match))
+				writel(ch->obint_enable_bits, usb2_base + USB2_OBINTSTA);
 			rcar_gen3_device_recognition(ch);
+			if (soc_device_match(rzt2h_match)) {
+				writel(0xffffffff, usb2_base + USB2_OBINTSTA);
+				if (readl(ch->base + USB2_VBCTRL) & USB2_VBCTRL_VBSTA)
+					writel(readl(ch->base + USB2_VBCTRL) & ~USB2_VBCTRL_VBLVL,
+										ch->base + USB2_VBCTRL);
+				else
+					writel(readl(ch->base + USB2_VBCTRL) | USB2_VBCTRL_VBLVL,
+										ch->base + USB2_VBCTRL);
+			}
+
 			ret = IRQ_HANDLED;
 		}
 	}
@@ -476,6 +537,34 @@ static int rcar_gen3_phy_usb2_init(struct phy *p)
 	/* Initialize otg part (only if we initialize a PHY with IRQs). */
 	if (rphy->int_enable_bits)
 		rcar_gen3_init_otg(channel);
+
+	if (soc_device_match(rzt2h_match)) {
+		/* FIXME: Hard code to access to Low Power Status Register until can find
+		 * another way.
+		 */
+		u16 reg;
+		void __iomem *lpsts_base = ioremap(0x92041000, 0x1000);
+
+		/* Suspension OFF: LPSTS.SUSPM = 1 */
+		reg = ioread16(lpsts_base + 0x102);
+		reg |= 0x4000;
+		iowrite16(reg, lpsts_base + 0x102);
+
+		iounmap(lpsts_base);
+
+		/* SIDDQ mode release: VBCTRL.SIDDQREL = 1 */
+		val = readl(usb2_base + USB2_VBCTRL);
+		val |= USB2_VBCTRL_SIDDQREL;
+		writel(val, usb2_base + USB2_VBCTRL);
+		udelay(10);
+	}
+
+	if (!channel->soc_no_utmi_ctrl) {
+		val = readl(usb2_base + USB2_REGEN_CG_CTRL);
+		writel(val | USB2_UPHY_WEN, usb2_base + USB2_REGEN_CG_CTRL);
+		writel(0x8000018F, usb2_base + USB2_UTMI_CTRL);
+		writel(val, usb2_base + USB2_REGEN_CG_CTRL);
+	};
 
 	rphy->initialized = true;
 
@@ -574,22 +663,32 @@ static const struct phy_ops rz_g1c_phy_usb2_ops = {
 static const struct rcar_gen3_phy_drv_data rcar_gen3_phy_usb2_data = {
 	.phy_usb2_ops = &rcar_gen3_phy_usb2_ops,
 	.no_adp_ctrl = false,
+	.no_utmi_ctrl = true,
 };
 
 static const struct rcar_gen3_phy_drv_data rz_g1c_phy_usb2_data = {
 	.phy_usb2_ops = &rz_g1c_phy_usb2_ops,
 	.no_adp_ctrl = false,
+	.no_utmi_ctrl = true,
 };
 
 static const struct rcar_gen3_phy_drv_data rz_g2l_phy_usb2_data = {
 	.phy_usb2_ops = &rcar_gen3_phy_usb2_ops,
 	.no_adp_ctrl = true,
+	.no_utmi_ctrl = true,
 };
 
 static const struct rcar_gen3_phy_drv_data rz_g3s_phy_usb2_data = {
 	.phy_usb2_ops = &rcar_gen3_phy_usb2_ops,
 	.no_adp_ctrl = true,
 	.init_bus = true,
+	.no_utmi_ctrl = true,
+};
+
+static const struct rcar_gen3_phy_drv_data rz_t2h_phy_usb2_data = {
+	.phy_usb2_ops = &rcar_gen3_phy_usb2_ops,
+	.no_adp_ctrl = false,
+	.no_utmi_ctrl = false,
 };
 
 static const struct of_device_id rcar_gen3_phy_usb2_match_table[] = {
@@ -620,6 +719,10 @@ static const struct of_device_id rcar_gen3_phy_usb2_match_table[] = {
 	{
 		.compatible = "renesas,rcar-gen3-usb2-phy",
 		.data = &rcar_gen3_phy_usb2_data,
+	},
+	{
+		.compatible = "renesas,rzt2h-usb2-phy",
+		.data = &rz_t2h_phy_usb2_data,
 	},
 	{ /* sentinel */ },
 };
@@ -721,7 +824,11 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 	if (IS_ERR(channel->base))
 		return PTR_ERR(channel->base);
 
-	channel->obint_enable_bits = USB2_OBINT_BITS;
+	if (soc_device_match(rzt2h_match))
+		channel->obint_enable_bits = USB2_OBINT_BITS_T2H;
+	else
+		channel->obint_enable_bits = USB2_OBINT_BITS;
+
 	channel->dr_mode = rcar_gen3_get_dr_mode(dev->of_node);
 	if (channel->dr_mode != USB_DR_MODE_UNKNOWN) {
 		channel->is_otg_channel = true;
@@ -738,6 +845,10 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
+
+	if (soc_device_match(rzt2h_match))
+		if (device_property_read_bool(dev, "usb-otg-enabled"))
+			channel->usb_otg_enabled = true;
 
 	/*
 	 * devm_phy_create() will call pm_runtime_enable(&phy->dev);
@@ -760,6 +871,7 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 			goto error;
 	}
 
+	channel->soc_no_utmi_ctrl = phy_data->no_utmi_ctrl;
 	channel->soc_no_adp_ctrl = phy_data->no_adp_ctrl;
 	if (phy_data->no_adp_ctrl)
 		channel->obint_enable_bits = USB2_OBINT_IDCHG_EN;
