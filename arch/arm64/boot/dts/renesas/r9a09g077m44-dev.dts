@@ -193,6 +193,11 @@
 			 <RZT2H_PORT_PINMUX(27, 4, 0x14)>; /* SCI0_RXD */
 	};
 
+	icu_pins: icu_pins {
+		pinmux = <RZT2H_PORT_PINMUX(8, 7, 0x0)>, /* IRQ0 */
+			<RZT2H_PORT_PINMUX(0, 3, 0x0)>; /* IRQ2 */
+	};
+
 	sd0_pwr_en {
 		gpio-hog;
 		gpios = <RZT2H_GPIO(2, 5) GPIO_ACTIVE_HIGH>;
@@ -917,4 +922,11 @@
 			};
 		};
 	};
+};
+
+&intc_ex {
+	pinctrl-0 = <&icu_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
 };
