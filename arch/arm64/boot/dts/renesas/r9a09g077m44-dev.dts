@@ -61,6 +61,13 @@
  */
 #define SEL_PCIE_RC_EP		1
 
+/*
+ * Set marco to 1 to use OTG with CN33
+ * SEL_OTG = 0 use USB host with CN80 and USB function with CN79 (default)
+ * SEL_OTG = 1 use OTG with CN33
+ */
+#define SEL_OTG		0
+
 / {
 	model = "Renesas Development EVK based on r9a09g077m44";
 	compatible = "renesas,r9a09g077m44-dev", "renesas,r9a09g077m44", "renesas,r9a09g077";
@@ -218,6 +225,18 @@
 		gpios = <RZT2H_GPIO(8, 5) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "sd1_pwr_en";
+	};
+
+#if (SEL_OTG)
+	usb_exicen_a {
+		gpio-hog;
+		gpios = <RZT2H_GPIO(0, 2) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "usb_exicen_a";
+	};
+#endif
+	usb_pins: usb_pins {
+		pinmux = <RZT2H_PORT_PINMUX(0, 0, 0x13)>; /* VBUS */
 	};
 
 #if !(SEL_SCI1_LCDC)
@@ -954,3 +973,30 @@
 	status = "okay";
 };
 #endif
+
+&ohci {
+	memory-region = <&global_cma>;
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&ehci {
+	memory-region = <&global_cma>;
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&hsusb {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&usb2_phy {
+	pinctrl-0 = <&usb_pins>;
+	pinctrl-names = "default";
+#if (SEL_OTG)
+	usb-otg-enabled;
+#endif
+
+	status = "okay";
+};
