@@ -54,6 +54,7 @@
 
 	aliases {
 		serial0 = &sci0;
+		serial1 = &sci1;
 #if (!SEL_SCI3_PTPOUT2)
 		serial3 = &sci3;
 #endif
@@ -172,6 +173,12 @@
 	sci0_pins: sci0 {
 		pinmux = <RZT2H_PORT_PINMUX(27, 5, 0x14)>, /* SCI : TXD0/P27_5 */
 			 <RZT2H_PORT_PINMUX(27, 4, 0x14)>; /* SCI : RXD0/P27_4 */
+		bias-pull-up;
+	};
+
+	sci1_pins: sci1 {
+		pinmux = <RZT2H_PORT_PINMUX(18, 4, 0x14)>, /* SCI : TXD1/P18_4 */
+			 <RZT2H_PORT_PINMUX(18, 3, 0x14)>; /* SCI : RXD1/P18_3 */
 		bias-pull-up;
 	};
 
@@ -447,6 +454,12 @@
 
 &sci0 {
 	pinctrl-0 = <&sci0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&sci1 {
+	pinctrl-0 = <&sci1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
