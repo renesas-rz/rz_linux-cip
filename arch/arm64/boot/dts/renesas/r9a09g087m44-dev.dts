@@ -438,6 +438,18 @@
 	};
 #endif
 
+	usb_exicen_a: usb_exicen_a {
+		gpio-hog;
+		gpios =	<RZT2H_GPIO(2, 4) GPIO_ACTIVE_HIGH>; /* USB : USB_EXICEN/P02_4 */
+		output-high;
+		line-name = "usb_exicen_a";
+	};
+
+	usb_pins: usb_pins {
+		pinmux = <RZT2H_PORT_PINMUX(2, 2, 0x13)>, /* USB : USB_VBUSEN/P02_2 */
+			 <RZT2H_PORT_PINMUX(2, 3, 0x13)>; /* USB : USB_OVRCUR/P02_3 */
+	};
+
 	icu_pins: icu_pins {
 		pinmux = <RZT2H_PORT_PINMUX(0, 4, 0x00)>, /* Interrupt : IRQ3/P00_4 */
 			 <RZT2H_PORT_PINMUX(5, 2, 0x00)>; /* Interrupt : IRQ4/P05_2 */
@@ -763,6 +775,30 @@
 };
 #endif
 #endif
+
+&ohci {
+	memory-region = <&global_cma>;
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&ehci {
+	memory-region = <&global_cma>;
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&hsusb {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&usb2_phy {
+	pinctrl-0 = <&usb_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
 
 &rtc {
 	status = "okay";
