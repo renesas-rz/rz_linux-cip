@@ -20,6 +20,13 @@
 #define SEL_SD0			1
 
 /*
+ * Set marco to 1 to use OTG with CN9
+ * SEL_OTG = 1 use OTG with CN9
+ * SEL_OTG = 0 use USB host with CN7 and USB function with CN8 (default)
+ */
+#define SEL_OTG			0
+
+/*
  * Set macro SEL_SPI2 to 1 to enable SPI2 pins
  * SEL_SPI2 value
  *  SEL_SPI2 = 0: disable SPI2 (default)
@@ -438,12 +445,14 @@
 	};
 #endif
 
+#if (SEL_OTG)
 	usb_exicen_a: usb_exicen_a {
 		gpio-hog;
 		gpios =	<RZT2H_GPIO(2, 4) GPIO_ACTIVE_HIGH>; /* USB : USB_EXICEN/P02_4 */
 		output-high;
 		line-name = "usb_exicen_a";
 	};
+#endif
 
 	usb_pins: usb_pins {
 		pinmux = <RZT2H_PORT_PINMUX(2, 2, 0x13)>, /* USB : USB_VBUSEN/P02_2 */
