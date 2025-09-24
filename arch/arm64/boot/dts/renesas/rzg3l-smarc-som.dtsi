@@ -23,6 +23,8 @@
 
 	aliases {
 		mmc0 = &sdhi0;
+		ethernet0 = &eth0;
+		ethernet1 = &eth1;
 	};
 
 	memory@48000000 {
@@ -63,6 +65,44 @@
 };
 
 &pinctrl {
+	eth0_pins: eth0 {
+		pinmux = <RZG3L_PORT_PINMUX(A, 1, 1)>, /* MDC */
+			 <RZG3L_PORT_PINMUX(A, 0, 1)>, /* MDIO */
+			 <RZG3L_PORT_PINMUX(C, 2, 15)>, /* PHY_INTR */
+			 <RZG3L_PORT_PINMUX(C, 1, 1)>, /* RXD3 */
+			 <RZG3L_PORT_PINMUX(C, 0, 1)>, /* RXD2 */
+			 <RZG3L_PORT_PINMUX(B, 7, 1)>, /* RXD1 */
+			 <RZG3L_PORT_PINMUX(B, 6, 1)>, /* RXD0 */
+			 <RZG3L_PORT_PINMUX(B, 0, 1)>, /* RXC */
+			 <RZG3L_PORT_PINMUX(A, 2, 1)>, /* RX_CTL */
+			 <RZG3L_PORT_PINMUX(B, 5, 1)>, /* TXD3 */
+			 <RZG3L_PORT_PINMUX(B, 4, 1)>, /* TXD2 */
+			 <RZG3L_PORT_PINMUX(B, 3, 1)>, /* TXD1 */
+			 <RZG3L_PORT_PINMUX(B, 2, 1)>, /* TXD0 */
+			 <RZG3L_PORT_PINMUX(B, 1, 1)>, /* TXC */
+			 <RZG3L_PORT_PINMUX(A, 3, 1)>; /* TX_CTL */
+			 power-source = <1800>;
+	};
+
+	eth1_pins: eth1 {
+		pinmux = <RZG3L_PORT_PINMUX(D, 1, 1)>, /* MDC */
+			 <RZG3L_PORT_PINMUX(D, 0, 1)>, /* MDIO */
+			 <RZG3L_PORT_PINMUX(F, 2, 15)>, /* PHY_INTR */
+			 <RZG3L_PORT_PINMUX(F, 1, 1)>, /* RXD3 */
+			 <RZG3L_PORT_PINMUX(F, 0, 1)>, /* RXD2 */
+			 <RZG3L_PORT_PINMUX(E, 7, 1)>, /* RXD1 */
+			 <RZG3L_PORT_PINMUX(E, 6, 1)>, /* RXD0 */
+			 <RZG3L_PORT_PINMUX(E, 0, 1)>, /* RXC */
+			 <RZG3L_PORT_PINMUX(D, 2, 1)>, /* RX_CTL */
+			 <RZG3L_PORT_PINMUX(E, 5, 1)>, /* TXD3 */
+			 <RZG3L_PORT_PINMUX(E, 4, 1)>, /* TXD2 */
+			 <RZG3L_PORT_PINMUX(E, 3, 1)>, /* TXD1 */
+			 <RZG3L_PORT_PINMUX(E, 2, 1)>, /* TXD0 */
+			 <RZG3L_PORT_PINMUX(E, 1, 1)>, /* TXC */
+			 <RZG3L_PORT_PINMUX(D, 3, 1)>; /* TX_CTL */
+			 power-source = <1800>;
+	};
+
 	sd0-pwr-en {
 		gpio-hog;
 		gpios = <RZG3L_GPIO(5, 1) GPIO_ACTIVE_HIGH>;
@@ -123,6 +163,64 @@
 		sd0-cd {
 			pinmux = <RZG2L_PORT_PINMUX(5, 0, 8)>; /* SD0_CD */
 		};
+	};
+};
+
+&eth0 {
+	phy-handle = <&phy0>;
+	phy-mode = "rgmii-id";
+
+	pinctrl-0 = <&eth0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&eth1 {
+	phy-handle = <&phy1>;
+	phy-mode = "rgmii-id";
+
+	pinctrl-0 = <&eth1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&mdio0 {
+	phy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-id0022.1640", "ethernet-phy-ieee802.3-c22";
+		reg = <7>;
+		interrupts-extended = <&icu 3 IRQ_TYPE_LEVEL_LOW>;
+		rxc-skew-psec = <0>;
+		txc-skew-psec = <0>;
+		rxdv-skew-psec = <0>;
+		txdv-skew-psec = <0>;
+		rxd0-skew-psec = <0>;
+		rxd1-skew-psec = <0>;
+		rxd2-skew-psec = <0>;
+		rxd3-skew-psec = <0>;
+		txd0-skew-psec = <0>;
+		txd1-skew-psec = <0>;
+		txd2-skew-psec = <0>;
+		txd3-skew-psec = <0>;
+	};
+};
+
+&mdio1 {
+	phy1: ethernet-phy@1 {
+		compatible = "ethernet-phy-id0022.1640", "ethernet-phy-ieee802.3-c22";
+		reg = <7>;
+		interrupts-extended = <&icu 16 IRQ_TYPE_LEVEL_LOW>;
+		rxc-skew-psec = <0>;
+		txc-skew-psec = <0>;
+		rxdv-skew-psec = <0>;
+		txdv-skew-psec = <0>;
+		rxd0-skew-psec = <0>;
+		rxd1-skew-psec = <0>;
+		rxd2-skew-psec = <0>;
+		rxd3-skew-psec = <0>;
+		txd0-skew-psec = <0>;
+		txd1-skew-psec = <0>;
+		txd2-skew-psec = <0>;
+		txd3-skew-psec = <0>;
 	};
 };
 
