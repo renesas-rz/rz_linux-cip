@@ -540,6 +540,11 @@
 			pinmux = <RZT2H_PORT_PINMUX(1, 1, 0x1C)>; /* XSPI1_CS0 */
 		};
 	};
+
+	can0_pins: can0 {
+		pinmux = <RZT2H_PORT_PINMUX(24, 3, 0x19)>, /* RX */
+			 <RZT2H_PORT_PINMUX(24, 4, 0x19)>; /* TX */
+	};
 };
 
 &extal {
@@ -999,4 +1004,14 @@
 #endif
 
 	status = "okay";
+};
+
+&canfd {
+	pinctrl-0 = <&can0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	channel0 {
+		status = "okay";
+	};
 };
