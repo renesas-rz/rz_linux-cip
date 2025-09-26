@@ -545,6 +545,24 @@
 		pinmux = <RZT2H_PORT_PINMUX(24, 3, 0x19)>, /* RX */
 			 <RZT2H_PORT_PINMUX(24, 4, 0x19)>; /* TX */
 	};
+
+	mtu3_pins: mtu3 {
+		mtu3-ext-clk-input-pin {
+			pinmux = <RZT2H_PORT_PINMUX(0, 6, 0x06)>, /* MTCLKA */
+				 <RZT2H_PORT_PINMUX(0, 7, 0x06)>; /* MTCLKB */
+		};
+
+		mtu3-pwm {
+			pinmux = <RZT2H_PORT_PINMUX(3, 5, 0x06)>, /* MTIOC3A */
+				 <RZT2H_PORT_PINMUX(3, 6, 0x06)>, /* MTIOC3C */
+				 <RZT2H_PORT_PINMUX(2, 7, 0x06)>, /* MTIOC4A */
+				 <RZT2H_PORT_PINMUX(3, 0, 0x06)>; /* MTIOC4C */
+		};
+
+		mtu3-zphase-clk {
+			pinmux = <RZT2H_PORT_PINMUX(3, 2, 0x07)>; /* MTIOC1A */
+		};
+	};
 };
 
 &extal {
@@ -1014,4 +1032,11 @@
 	channel0 {
 		status = "okay";
 	};
+};
+
+&mtu3 {
+	pinctrl-0 = <&mtu3_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
 };
