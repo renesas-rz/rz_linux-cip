@@ -68,6 +68,8 @@
  */
 #define SEL_OTG		0
 
+#define POE3_SUPPORT		0
+
 / {
 	model = "Renesas Development EVK based on r9a09g077m44";
 	compatible = "renesas,r9a09g077m44-dev", "renesas,r9a09g077m44", "renesas,r9a09g077";
@@ -212,6 +214,13 @@
 		pinmux = <RZT2H_PORT_PINMUX(8, 7, 0x0)>, /* IRQ0 */
 			<RZT2H_PORT_PINMUX(0, 3, 0x0)>; /* IRQ2 */
 	};
+
+#if POE3_SUPPORT
+	poe3_pins: poe3 {
+		pinmux = <RZT2H_PORT_PINMUX(2, 4, 0x08)>; /* POE0# */
+		bias-pull-up;
+	};
+#endif
 
 	sd0_pwr_en {
 		gpio-hog;
@@ -1040,3 +1049,19 @@
 
 	status = "okay";
 };
+
+#if POE3_SUPPORT
+&poe3 {
+	pinctrl-0 = <&poe3_pins>;
+	pinctrl-names = "default";
+	poe3_pins_mode = <0 0>, <4 0>, <8 0>, <10 0>, <11 0>;
+	oscillation_detection = <1>;
+	status = "okay";
+	mtu3_ch34 {
+		mtu3_outputs = <1>;
+		addition_poe3_inputs = <0>;
+		mtioc4a_pin_select = <1>;
+		mtioc4c_pin_select = <1>;
+	};
+};
+#endif
