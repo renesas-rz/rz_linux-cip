@@ -70,6 +70,13 @@
 
 #define POE3_SUPPORT		0
 
+/*
+ * Set SEL_GPT_SD0 to below values to select using of:
+ * - 0 : GPT
+ * - 1 : SD0 (default)
+ */
+#define SEL_GPT_SD0		1
+
 / {
 	model = "Renesas Development EVK based on r9a09g077m44";
 	compatible = "renesas,r9a09g077m44-dev", "renesas,r9a09g077m44", "renesas,r9a09g077";
@@ -139,6 +146,7 @@
 		regulator-always-on;
 	};
 
+#if (SEL_GPT_SD0)
 	vccq_sdhi0: regulator-vccq-sdhi0 {
 		compatible = "regulator-gpio";
 
@@ -151,6 +159,7 @@
 		gpios-states = <1>;
 		states = <3300000 0 1800000 1>;
 	};
+#endif
 
 	vccq_sdhi1: regulator-vccq-sdhi1 {
 		compatible = "regulator-gpio";
@@ -222,12 +231,14 @@
 	};
 #endif
 
+#if (SEL_GPT_SD0)
 	sd0_pwr_en {
 		gpio-hog;
 		gpios = <RZT2H_GPIO(2, 5) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "sd0_pwr_en";
 	};
+#endif
 
 	sd1_pwr_en {
 		gpio-hog;
@@ -235,6 +246,13 @@
 		output-high;
 		line-name = "sd1_pwr_en";
 	};
+
+#if !(SEL_GPT_SD0)
+	gpt02_0_pins: gpt02_0 {
+		pinmux = <RZT2H_PORT_PINMUX(2, 5, 0x09)>, /* Channel A GTIOC02_0A */
+			 <RZT2H_PORT_PINMUX(2, 6, 0x09)>; /* Channel B GTIOC02_0B */
+	};
+#endif
 
 #if (SEL_OTG)
 	usb_exicen_a {
@@ -588,6 +606,7 @@
 	status = "okay";
 };
 
+#if (SEL_GPT_SD0)
 #if (SEL_SD0)
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_pins>;
@@ -614,6 +633,7 @@
 	sd-uhs-sdr104;
 	status = "okay";
 };
+#endif
 #endif
 
 &sdhi1 {
@@ -1063,5 +1083,14 @@
 		mtioc4a_pin_select = <1>;
 		mtioc4c_pin_select = <1>;
 	};
+};
+#endif
+
+#if !(SEL_GPT_SD0)
+&gpt02_0 {
+	pinctrl-0 = <&gpt02_0_pins>;
+	pinctrl-names = "default";
+	channel = "both_AB";
+	status = "okay";
 };
 #endif
