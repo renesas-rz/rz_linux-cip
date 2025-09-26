@@ -1316,6 +1316,118 @@
 						       <&icu_s_int>;
 			status = "disabled";
 		};
+
+		poeg0_a: poega@90019000 {
+			compatible = "renesas,poeg-r9a09g077";
+			reg = <0 0x90019000 0 0x400>;
+			interrupts = <GIC_SPI 467 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKH>;
+			power-domains = <&cpg>;
+			llpp,disable-by-DSMIF-error;
+			status = "disabled";
+		};
+
+		poeg0_b: poegb@90019400 {
+			compatible = "renesas,poeg-r9a09g077";
+			reg = <0 0x90019400 0 0x400>;
+			interrupts = <GIC_SPI 468 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKH>;
+			power-domains = <&cpg>;
+			llpp,disable-by-DSMIF-error;
+			status = "disabled";
+		};
+
+		poeg0_c: poegc@90019800 {
+			compatible = "renesas,poeg-r9a09g077";
+			reg = <0 0x90019800 0 0x400>;
+			interrupts = <GIC_SPI 469 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKH>;
+			power-domains = <&cpg>;
+			llpp,disable-by-DSMIF-error;
+			status = "disabled";
+		};
+
+		poeg0_d: poegd@90019c00 {
+			compatible = "renesas,poeg-r9a09g077";
+			reg = <0 0x90019c00 0 0x400>;
+			interrupts = <GIC_SPI 470 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKH>;
+			power-domains = <&cpg>;
+			llpp,disable-by-DSMIF-error;
+			status = "disabled";
+		};
+
+		poeg1_a: poega@80087000 {
+			compatible = "renesas,poeg-r9a09g077";
+			reg = <0 0x80087000 0 0x400>;
+			interrupts = <GIC_SPI 471 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKL>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		poeg1_b: poegb@80087400 {
+			compatible = "renesas,poeg-r9a09g077";
+			reg = <0 0x80087400 0 0x400>;
+			interrupts = <GIC_SPI 472 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKL>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		poeg1_c: poegc@80087800 {
+			compatible = "renesas,poeg-r9a09g077";
+			reg = <0 0x080087800 0 0x400>;
+			interrupts = <GIC_SPI 473 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKL>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		poeg1_d: poegd@080087c00 {
+			compatible = "renesas,poeg-r9a09g077";
+			reg = <0 0x080087c00 0 0x400>;
+			interrupts = <GIC_SPI 474 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKL>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		poeg2_a: poega@8100a000 {
+			compatible = "renesas,poeg-r9a09g077";
+			reg = <0 0x8100a000 0 0x400>;
+			interrupts = <GIC_SPI 475 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKL>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		poeg2_b: poegb@8100a400 {
+			compatible = "renesas,poeg-r9a09g077";
+			reg = <0 0x8100a400 0 0x400>;
+			interrupts = <GIC_SPI 476 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKL>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		poeg2_c: poegc@8100a800 {
+			compatible = "renesas,poeg-r9a09g077";
+			reg = <0 0x8100a800 0 0x400>;
+			interrupts = <GIC_SPI 477 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKL>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		poeg2_d: poegd@08100ac00 {
+			compatible = "renesas,poeg-r9a09g077";
+			reg = <0 0x8100ac00 0 0x400>;
+			interrupts = <GIC_SPI 478 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKL>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
 	};
 
 	thermal-zones {

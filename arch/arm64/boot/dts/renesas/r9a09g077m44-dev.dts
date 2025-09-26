@@ -77,6 +77,9 @@
  */
 #define SEL_GPT_SD0		1
 
+/* Select function support POEG (1: enabled, 0 : disabled) */
+#define POEG_SUPPORT		1
+
 / {
 	model = "Renesas Development EVK based on r9a09g077m44";
 	compatible = "renesas,r9a09g077m44-dev", "renesas,r9a09g077m44", "renesas,r9a09g077";
@@ -1091,6 +1094,27 @@
 	pinctrl-0 = <&gpt02_0_pins>;
 	pinctrl-names = "default";
 	channel = "both_AB";
+#if (POEG_SUPPORT)
+	poeg = <&poeg0_a &poeg0_b &poeg0_c &poeg0_d>;
+#endif
+	status = "okay";
+};
+#endif
+
+#if (POEG_SUPPORT)
+&poeg0_a {
+	status = "okay";
+};
+
+&poeg0_b {
+	status = "okay";
+};
+
+&poeg0_c {
+	status = "okay";
+};
+
+&poeg0_d {
 	status = "okay";
 };
 #endif
