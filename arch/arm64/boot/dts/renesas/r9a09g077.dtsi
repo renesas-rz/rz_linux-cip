@@ -1294,6 +1294,28 @@
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
+
+		gpt02_0: gpt02_0@90004000 {
+			compatible = "renesas,gpt-r9a09g077";
+			reg = <0 0x90004000 0 0x100>,
+				<0 0x80290000 0 0x0c>;
+			reg-names = "base1", "base2";
+			#pwm-cells = <2>;
+			interrupts = <GIC_SPI 887 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 888 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 147 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 148 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 149 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 150 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 151 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "adtrga", "adtrgb", "int0", "int1",
+					  "int2", "int3", "int4";
+			clocks = <&cpg CPG_MOD R9A09G077_GPT2_CLK>;
+			power-domains = <&cpg>;
+			renesas,syscon-perierr-error = <&icu_ns_int>,
+						       <&icu_s_int>;
+			status = "disabled";
+		};
 	};
 
 	thermal-zones {
