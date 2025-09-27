@@ -318,6 +318,7 @@ static int rz_cmtw_setup(struct rz_cmtw_device *cmtw,
 	/* Get clock and resets for each channels */
 	for (i = 0; i < cmtw->num_channels; i++) {
 		char clk_name[5];
+		char rst_name[10];
 
 		sprintf(clk_name, "fck%u", i);
 		cmtw->channels[i].clk = devm_clk_get(dev, clk_name);
@@ -330,8 +331,9 @@ static int rz_cmtw_setup(struct rz_cmtw_device *cmtw,
 		/* Determine clock rate. */
 		cmtw->channels[i].rate = clk_get_rate(cmtw->channels[i].clk) / 8;
 
+		sprintf(rst_name, "cmtw-rst%u", i);
 		cmtw->channels[i].rst =
-			devm_reset_control_get_exclusive_by_index(dev, i);
+			devm_reset_control_get_optional_exclusive(dev, rst_name);
 		if (IS_ERR(cmtw->channels[i].rst)) {
 			dev_err(dev, "cannot get reset\n");
 			ret = PTR_ERR(cmtw->channels[i].rst);
@@ -380,26 +382,26 @@ static int rz_cmtw_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rz_cmtw_remove(struct platform_device *pdev)
-{
-	return -EBUSY; /* cannot unregister clockevent and clocksource */
-}
-
 static const struct rz_cmtw_info rzv2h_cmtw_info = {
 	.num_channels = 4,
 	.channel_offset = 0x400,
 };
 
+static const struct rz_cmtw_info rzt2h_cmtw_info = {
+	.num_channels = 1,
+	.channel_offset = 0x0,
+};
+
 static const struct of_device_id rz_cmtw_of_table[] __maybe_unused = {
 	{ .compatible = "renesas,rzv2h-cmtw", .data = &rzv2h_cmtw_info },
 	{ .compatible = "renesas,rzg3e-cmtw", .data = &rzv2h_cmtw_info },
+	{ .compatible = "renesas,rzt2h-cmtw", .data = &rzt2h_cmtw_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rz_cmtw_of_table);
 
 static struct platform_driver rz_cmtw_device_driver = {
 	.probe		= rz_cmtw_probe,
-	.remove		= rz_cmtw_remove,
 	.driver		= {
 		.name	= "rz_cmtw",
 		.of_match_table = of_match_ptr(rz_cmtw_of_table),
