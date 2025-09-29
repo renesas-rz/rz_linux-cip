@@ -651,6 +651,7 @@ static const struct of_device_id renesas_poe3_of_table[] = {
 	{ .compatible = "renesas,poe3", .data = &poe3_info_rzg2l},
 	{ .compatible = "renesas,rz-poe3", .data = &poe3_info_rzg2l},
 	{ .compatible = "renesas,r9a09g077-poe3", .data = &poe3_info_rzt2h},
+	{ .compatible = "renesas,r9a09g087-poe3", .data = &poe3_info_rzt2h},
 	{ },
 };
 
