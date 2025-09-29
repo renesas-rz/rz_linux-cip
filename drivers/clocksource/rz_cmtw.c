@@ -29,6 +29,11 @@
 #define CMWSTR			0x00
 #define CMWSTR_STR_START	1
 #define CMWSTR_STR_STOP		0
+#define CMSTR			0x00
+#define CMSTR_STR0_START	1
+#define CMSTR_STR0_STOP		(0 << 0)
+#define CMSTR_STR1_START	2
+#define CMSTR_STR1_STOP		(0 << 2)
 
 /* Timer Control Register */
 #define CMWCR			0x04
@@ -40,21 +45,31 @@
 #define CMWCR_CMS32		(0 << 9)
 #define CMWCR_CMS16		(1 << 9)
 #define CMWCR_CCLR_COR		(0 << 13)
+#define CMCR			0x02
+#define CMCR_CKS8		(0 << 0)
+#define CMCR_CKS32		(1 << 0)
+#define CMCR_CKS128		(2 << 0)
+#define CMCR_CKS512		(3 << 0)
+#define CMCR_CMIE		(1 << 6)
 
 /* Timer I/O Control Register */
 #define CMWIOR			0x08
 
 /* Timer Counter */
 #define CMWCNT			0x10
+#define CMCNT			0x04
 
 /* Compare Match Constant Register */
 #define CMWCOR			0x14
+#define CMCOR			0x06
 
 struct rz_cmtw_device;
 
 struct rz_cmtw_info {
 	unsigned int num_channels;
 	unsigned int channel_offset;
+	unsigned long width; /* 16 or 32 bit version of hardware block */
+	bool is_cmtw;
 };
 
 struct rz_cmtw_channel {
@@ -107,11 +122,21 @@ static void rz_cmtw_start_stop_ch(struct rz_cmtw_channel *ch, bool start)
 	/* start stop register shared by multiple timer channels */
 	raw_spin_lock_irqsave(&ch->cmtw->lock, flags);
 	if (start)
-		value = CMWSTR_STR_START;
+		if (ch->cmtw->info->is_cmtw) {
+			value = CMWSTR_STR_START;
+			writew(value, ch->base + CMWSTR);
+		} else {
+			value = CMSTR_STR0_START | CMSTR_STR1_START;
+			writew(value, ch->base + CMSTR);
+		}
 	else
-		value = CMWSTR_STR_STOP;
-
-	writew(value, ch->base + CMWSTR);
+		if (ch->cmtw->info->is_cmtw) {
+			value = CMWSTR_STR_STOP;
+			writew(value, ch->base + CMWSTR);
+		} else {
+			value = CMSTR_STR0_STOP | CMSTR_STR1_STOP;
+			writew(value, ch->base + CMSTR);
+		}
 	raw_spin_unlock_irqrestore(&ch->cmtw->lock, flags);
 }
 
@@ -139,17 +164,29 @@ static int __rz_cmtw_enable(struct rz_cmtw_channel *ch)
 	rz_cmtw_start_stop_ch(ch, 0);
 
 	/* maximum timeout */
-	writel(0xFFFFFFFF, ch->base + CMWCOR);
-	writel(0, ch->base + CMWCNT);
+	if (ch->cmtw->info->is_cmtw) {
+		writel(0xFFFFFFFF, ch->base + CMWCOR);
+		writel(0, ch->base + CMWCNT);
 
-	/*
-	 * Configure channel:
-	 * - Parent clock / 8
-	 * - 32 bits counter
-	 * - Counter cleared by CMWCOR
-	 * - IRQ off
-	 */
-	writew(CMWCR_CKS8 | CMWCR_CMS32 | CMWCR_CCLR_COR, ch->base + CMWCR);
+		/*
+		 * Configure channel:
+		 * - Parent clock / 8
+		 * - 32 bits counter
+		 * - Counter cleared by CMWCOR
+		 * - IRQ off
+		 */
+		writew(CMWCR_CKS8 | CMWCR_CMS32 | CMWCR_CCLR_COR, ch->base + CMWCR);
+	} else {
+		writew(0xFFFF, ch->base + CMCOR);
+		writew(0, ch->base + CMCNT);
+
+		/*
+		 * Configure channel:
+		 * - Parent clock / 512
+		 * - IRQ off
+		 */
+		writew(CMCR_CKS512, ch->base + CMCR);
+	}
 
 	/* enable channel */
 	rz_cmtw_start_stop_ch(ch, 1);
@@ -170,14 +207,22 @@ static void __rz_cmtw_disable(struct rz_cmtw_channel *ch)
 	/* disable channel */
 	rz_cmtw_start_stop_ch(ch, 0);
 
-	/*
-	 * Configure channel:
-	 * - Parent clock / 8
-	 * - 32 bits counter
-	 * - Counter cleared by CMWCOR
-	 * - IRQ off
-	 */
-	writew(CMWCR_CKS8 | CMWCR_CMS32 | CMWCR_CCLR_COR, ch->base + CMWCR);
+	if (ch->cmtw->info->is_cmtw)
+		/*
+		 * Configure channel:
+		 * - Parent clock / 8
+		 * - 32 bits counter
+		 * - Counter cleared by CMWCOR
+		 * - IRQ off
+		 */
+		writew(CMWCR_CKS8 | CMWCR_CMS32 | CMWCR_CCLR_COR, ch->base + CMWCR);
+	else
+		/*
+		 * Configure channel:
+		 * - Parent clock / 512
+		 * - IRQ off
+		 */
+		writew(CMCR_CKS512, ch->base + CMCR);
 
 	/* stop clock */
 	clk_disable_unprepare(ch->clk);
@@ -201,7 +246,10 @@ static u64 rz_cmtw_clocksource_read(struct clocksource *cs)
 {
 	struct rz_cmtw_channel *ch = cs_to_rz_cmtw(cs);
 
-	return (u64) readl(ch->base + CMWCNT);
+	if (ch->cmtw->info->is_cmtw)
+		return (u64) readl(ch->base + CMWCNT);
+	else
+		return (u64) readw(ch->base + CMCNT);
 }
 
 static int rz_cmtw_clocksource_enable(struct clocksource *cs)
@@ -236,24 +284,43 @@ static void rz_cmtw_set_next(struct rz_cmtw_channel *ch, unsigned long delta,
 	/* stop timer */
 	rz_cmtw_start_stop_ch(ch, 0);
 
-	/*
-	 * Configure channel:
-	 * - Parent clock / 8
-	 * - 32 bits counter
-	 * - Counter cleared by CMWCOR
-	 * - Enable IRQ
-	 */
-	writew(CMWCR_CKS8 | CMWCR_CMS32 | CMWCR_CCLR_COR | CMWCR_CMWIE,
-						ch->base + CMWCR);
+	if (ch->cmtw->info->is_cmtw) {
+		/*
+		 * Configure channel:
+		 * - Parent clock / 8
+		 * - 32 bits counter
+		 * - Counter cleared by CMWCOR
+		 * - Enable IRQ
+		 */
+		writew(CMWCR_CKS8 | CMWCR_CMS32 | CMWCR_CCLR_COR | CMWCR_CMWIE,
+							ch->base + CMWCR);
 
-	if (periodic) {
-		writel(delta, ch->base + CMWCOR);
-		delta = 0;
-		writel(0, ch->base + CMWCNT);
+		if (periodic) {
+			writel(delta, ch->base + CMWCOR);
+			delta = 0;
+			writel(0, ch->base + CMWCNT);
+		} else {
+			writel(0xFFFFFFFF, ch->base + CMWCOR);
+			delta = delta ^ 0xFFFFFFFF;
+			writel(delta, ch->base + CMWCNT);
+		}
 	} else {
-		writel(0xFFFFFFFF, ch->base + CMWCOR);
-		delta = delta ^ 0xFFFFFFFF;
-		writel(delta, ch->base + CMWCNT);
+		/*
+		 * Configure channel:
+		 * - Parent clock / 512
+		 * - Enable IRQ
+		 */
+		writew(CMCR_CKS512 | CMCR_CMIE, ch->base + CMCR);
+
+		if (periodic) {
+			writew(delta, ch->base + CMCOR);
+			delta = 0;
+			writew(0, ch->base + CMCNT);
+		} else {
+			writew(0xFFFF, ch->base + CMCOR);
+			delta = delta ^ 0xFFFF;
+			writew(delta, ch->base + CMCNT);
+		}
 	}
 
 	/* start timer */
@@ -376,7 +443,7 @@ static int rz_cmtw_register_clocksource(struct rz_cmtw_channel *ch,
 	cs->read = rz_cmtw_clocksource_read;
 	cs->enable = rz_cmtw_clocksource_enable;
 	cs->disable = rz_cmtw_clocksource_disable;
-	cs->mask = CLOCKSOURCE_MASK(32);
+	cs->mask = CLOCKSOURCE_MASK(ch->cmtw->info->width);
 	cs->flags = CLOCK_SOURCE_IS_CONTINUOUS;
 
 	dev_info(&ch->cmtw->pdev->dev, "ch%u: used as clock source\n",
@@ -463,7 +530,7 @@ static int rz_cmtw_setup(struct rz_cmtw_device *cmtw,
 		char rst_name[10];
 
 		sprintf(clk_name, "fck%u", i);
-		cmtw->channels[i].clk = devm_clk_get(dev, clk_name);
+		cmtw->channels[i].clk = devm_clk_get_optional(dev, clk_name);
 		if (IS_ERR(cmtw->channels[i].clk)) {
 			dev_err(dev, "cannot get clock %s\n", clk_name);
 			ret = PTR_ERR(cmtw->channels[i].clk);
@@ -471,7 +538,8 @@ static int rz_cmtw_setup(struct rz_cmtw_device *cmtw,
 		};
 
 		/* Determine clock rate. */
-		cmtw->channels[i].rate = clk_get_rate(cmtw->channels[i].clk) / 8;
+		cmtw->channels[i].rate = clk_get_rate(cmtw->channels[i].clk) /
+						(cmtw->info->width == 16 ? 512 : 8);
 
 		sprintf(rst_name, "cmtw-rst%u", i);
 		cmtw->channels[i].rst =
@@ -527,17 +595,29 @@ static int rz_cmtw_probe(struct platform_device *pdev)
 static const struct rz_cmtw_info rzv2h_cmtw_info = {
 	.num_channels = 4,
 	.channel_offset = 0x400,
+	.is_cmtw = true,
+	.width = 32,
 };
 
 static const struct rz_cmtw_info rzt2h_cmtw_info = {
 	.num_channels = 1,
 	.channel_offset = 0x0,
+	.is_cmtw = true,
+	.width = 32,
+};
+
+static const struct rz_cmtw_info rzt2h_cmt_info = {
+	.num_channels = 2,
+	.channel_offset = 0x6,
+	.is_cmtw = false,
+	.width = 16,
 };
 
 static const struct of_device_id rz_cmtw_of_table[] __maybe_unused = {
 	{ .compatible = "renesas,rzv2h-cmtw", .data = &rzv2h_cmtw_info },
 	{ .compatible = "renesas,rzg3e-cmtw", .data = &rzv2h_cmtw_info },
 	{ .compatible = "renesas,rzt2h-cmtw", .data = &rzt2h_cmtw_info },
+	{ .compatible = "renesas,rzt2h-cmt", .data = &rzt2h_cmt_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rz_cmtw_of_table);
