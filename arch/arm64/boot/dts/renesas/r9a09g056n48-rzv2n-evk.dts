@@ -692,6 +692,13 @@
 		output-enable;
 	};
 
+	rspi2_pins: rspi2 {
+		pinmux = <RZV2N_PORT_PINMUX(B, 3, 5)>, /* MISO */
+			 <RZV2N_PORT_PINMUX(B, 4, 5)>, /* MOSI */
+			 <RZV2N_PORT_PINMUX(A, 7, 5)>, /* SSL */
+			 <RZV2N_PORT_PINMUX(B, 5, 5)>; /* RSPCK */
+	};
+
 	i2c0_pins: i2c0 {
 		pinmux = <RZV2N_PORT_PINMUX(3, 0, 1)>, /* I2C0_SDA */
 			 <RZV2N_PORT_PINMUX(3, 1, 1)>; /* I2C0_SCL */
@@ -1051,4 +1058,11 @@
 
 &ssi4 {
 	shared-pin;
+};
+
+&rspi2 {
+	pinctrl-0 = <&rspi2_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
 };
