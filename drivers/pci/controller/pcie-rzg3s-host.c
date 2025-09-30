@@ -1994,6 +1994,10 @@ static const struct of_device_id rzg3s_pcie_of_match[] = {
 		.compatible = "renesas,r9a09g047-pcie",
 		.data = &rzv2h_soc_data,
 	},
+	{
+		.compatible = "renesas,r9a09g056-pcie",
+		.data = &rzv2h_soc_data,
+	},
 	{},
 };
 
