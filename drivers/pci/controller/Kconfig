@@ -130,6 +130,12 @@ config RZT2_PCIE_EP
 	help
 	  Say Y here if you want PCIe endpoint controller support on RZ/T2N Series SoCs.
 
+config RZT2_PCIE_DMA
+	bool "Renesas RZ/T2N Series PCIe DMA"
+	depends on RZT2_PCIE || RZT2_PCIE_EP
+	help
+	  Say Y here if you want PCIe DMA support on RZ/T2N Series SoCs.
+
 config PCI_HOST_COMMON
 	tristate
 	select PCI_ECAM
