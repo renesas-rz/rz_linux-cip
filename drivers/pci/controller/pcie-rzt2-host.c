@@ -1400,6 +1400,10 @@ static int rzt2_pcie_probe(struct platform_device *pdev)
 		}
 	}
 
+#ifdef CONFIG_RZT2_PCIE_DMA
+	err = rzt2_pcie_dma_init(pcie);
+#endif
+
 	return rzt2_pcie_enable(host);
 }
 
