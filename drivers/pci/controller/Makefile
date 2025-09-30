@@ -41,6 +41,7 @@ obj-$(CONFIG_PCIE_APPLE) += pcie-apple.o
 obj-$(CONFIG_PCIE_MT7621) += pcie-mt7621.o
 obj-$(CONFIG_RZT2H_PCIE) += pcie-rzt2h-window.o pcie-rzt2h-host.o
 obj-$(CONFIG_RZT2H_PCIE_EP) += pcie-rzt2h-window.o pcie-rzt2h-ep.o
+obj-$(CONFIG_RZT2H_PCIE_DMA) += pcie-rzt2h-dma.o
 # pcie-hisi.o quirks are needed even without CONFIG_PCIE_DW
 obj-y				+= dwc/
 obj-y				+= mobiveil/

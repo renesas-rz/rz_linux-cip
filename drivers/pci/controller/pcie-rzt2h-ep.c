@@ -745,6 +745,10 @@ static int rzt2h_pcie_ep_probe(struct platform_device *pdev)
 
 	pci_epc_init_notify(epc);
 
+#ifdef CONFIG_RZT2H_PCIE_DMA
+	err = rzt2h_pcie_dma_init(pcie);
+#endif
+
 	return 0;
 
 err_pm_put:

@@ -8,6 +8,12 @@
 #ifndef _PCIE_RZT2H_H
 #define _PCIE_RZT2H_H
 
+#include <linux/dmaengine.h>
+#include <linux/dmapool.h>
+#include <linux/io.h>
+#include "../../../drivers/dma/virt-dma.h"
+#include "../../../drivers/dma/dmaengine.h"
+
 #define PCIE_MAX_CHANNEL	2
 
 /* PCI Express to AXI Access */
@@ -92,6 +98,7 @@
 
 /* Interrupt Table */
 #define INTERRUPT_TABLE_REG						0x0140
+	#define	INTERRUPT_TABLE_DMA_INT				0xFF000000
 
 /* Error Event */
 #define PCIE_EVENT_INTERRUPT_EANBLE_0_REG		0x0200
@@ -221,30 +228,58 @@
 
 /* DMAC Common Control */
 #define DMA_CONTROL_REG							0x0800
-#define DMA_INTERRUPT_EANBLE_REG				0x0808
+#define DMA_INTERRUPT_ENABLE_REG				0x0808
+	#define DMA_D_PMRS_256B						0x00000001
+	#define	DMA_INTERRUPT_ENABLE_INT			0xF
+	#define DMA_END_EN							BIT(0)
+	#define DMA_STOP_EN							BIT(1)
+	#define DMA_QUE_EM_EN						BIT(2)
+	#define DMA_ERR_EN							BIT(3)
 #define DMA_INTERRUPT_STATUS_REG				0x080C
+	#define RZT2H_PCIE_DMA_END					BIT(0)
+	#define RZT2H_PCIE_DMA_STOP					BIT(1)
+	#define RZT2H_PCIE_DMA_QUE_EMP				BIT(2)
+	#define RZT2H_PCIE_DMA_ERR					BIT(3)
+	#define RZT2H_PCIE_DMA_STATUS_ALL			(RZT2H_PCIE_DMA_END | \
+								RZT2H_PCIE_DMA_STOP | \
+								RZT2H_PCIE_DMA_QUE_EMP | \
+								RZT2H_PCIE_DMA_ERR)
 
 /* DMAC Channel Control */
-#define DMA_CHANNEL_CONTROL_REG					0x0900
-#define QUE_ENTRY_LOWER_REG						0x0908
-#define QUE_ENTRY_UPPER_REG						0x090C
+#define DMA_CHANNEL_CONTROL_REG(x)				(0x0900 + 0x80 * (x))
+	#define DMA_RDMA_EN							BIT(0)
+	#define DMA_QUE_EN							BIT(1)
+	#define DMA_QUE_CLR							BIT(8)
+#define DMA_DESCRIPTORL_ADDR_LOWER_REG(x)		(0x0908 + 0x80 * (x))
+#define DMA_DESCRIPTORL_ADDR_UPPER_REG(x)		(0x090C + 0x80 * (x))
+#define QUE_ENTRY_REG(x)						(0x0910 + 0x80 * (x))
+	#define QUE_ENTRY_LS						BIT(24)
+	#define QUE_ENTRY_EI						BIT(25)
+	#define QUE_REGISTRACTION					(BIT(31) | BIT(30) | \
+							BIT(29) | BIT(28) | BIT(27) | BIT(26))
+	#define QUE_INTERRUPT_OFF					QUE_REGISTRACTION
+	#define QUE_INTERRUPT_ON					(QUE_REGISTRACTION | \
+							QUE_ENTRY_EI | QUE_ENTRY_LS)
 
 /* DMAC DMA Setting */
-#define DMA_DESCRIPTOR_CONTROL_REG				0x0920
-#define DMA_SOURCE_ADDR_REG						0x0924
-#define DMA_DESTINATION_ADDR_REG				0x0928
-#define DMA_SIZE_REG							0x092C
-#define DMA_PCIE_UPPER_ADDR_REG					0x0930
-#define DMA_TRANSACTION_CONTROL_REG				0x0934
-#define DMA_DESCRIPTOR_LINK_POINTER_REG			0x093C
+#define DMA_DESCRIPTOR_CONTROL_REG(x)			(0x0920 + 0x80 * (x))
+#define DMA_TRANSACTION_CONTROL_REG(x)			(0x0924 + 0x80 * (x))
+#define DMA_SIZE_REG(x)							(0x0928 + 0x80 * (x))
+#define DMA_SOURCE_ADDR_LOWER_REG(x)			(0x0930 + 0x80 * (x))
+#define DMA_SOURCE_ADDR_UPPER_REG(x)			(0x0934 + 0x80 * (x))
+#define DMA_DESTINATION_ADDR_LOWER_REG(x)		(0x0938 + 0x80 * (x))
+#define DMA_DESTINATION_ADDR_UPPER_REG(x)		(0x093C + 0x80 * (x))
+#define DMA_DESCRIPTOR_LINK_POINTER_LOWER_REG(x)	(0x0940 + 0x80 * (x))
+#define DMA_DESCRIPTOR_LINK_POINTER_UPPER_REG(x)	(0x0944 + 0x80 * (x))
 
 /* DMAC DMA Status */
-#define DMA_REST_SIZE_REG						0x0950
-#define AXI_REQUEST_ADDR_REG					0x0954
-#define PCIE_REQUEST_ADDR_LOWER_REG				0x0958
-#define PCIE_REQUEST_ADDR_UPPER_REG				0x095C
-#define QUE_STATUS_REG							0x0960
-#define DMAC_ERROR_STATUS_REG					0x0968
+#define DMA_REST_SIZE_REG(x)					(0x0950 + 0x80 * (x))
+#define AXI_REQUEST_ADDR_LOWER_REG(x)			(0x0960 + 0x80 * (x))
+#define AXI_REQUEST_ADDR_UPPER_REG(x)			(0x0964 + 0x80 * (x))
+#define PCIE_REQUEST_ADDR_LOWER_REG(x)			(0x0968 + 0x80 * (x))
+#define PCIE_REQUEST_ADDR_UPPER_REG(x)			(0x096C + 0x80 * (x))
+#define QUE_STATUS_REG(x)						(0x0970 + 0x80 * (x))
+#define DMAC_ERROR_STATUS_REG(x)				(0x0978 + 0x80 * (x))
 
 /* PCIe Configuration Register */
 #define PCIE_CONFIGURATION_REG					0x6000
@@ -346,6 +381,34 @@
 #define  PAR_ENABLE		BIT(31)
 #define  IO_SPACE		BIT(8)
 
+#ifdef CONFIG_RZT2H_PCIE_DMA
+#define PCIE_DMA_MAX_CHANNEL			8
+#define PCIE_DMA_MAX_DESCRIPTOR_LIST	8
+#define PCIE_DMA_MIN_PACKET_SIZE		0x1000
+#define PCIE_DMA_MAX_PACKET_SIZE		0xFFFFFFFF
+
+#define PCIE_DMA_DSCFM						(1 << 28)
+#define PCIE_DMA_WBD						(1 << 26)
+#define PCIE_DMA_LE						(1 << 25)
+#define PCIE_DMA_LV						(1 << 24)
+#define PCIE_DMA_D						(1 << 23)
+
+#define PCIE_DMA_CCH_L(x)					((x & 0xf) << 20)
+	#define PCIE_DMA_CCH_L_DEFAULT					0
+#define PCIE_DMA_CCH_D(x)					((x & 0xf) << 16)
+	#define PCIE_DMA_CCH_D_PCIE_TO_AXI				1
+	#define PCIE_DMA_CCH_D_AXI_TO_PCIE				0
+#define PCIE_DMA_TC(x)						((x & 0x7) << 12)
+	#define PCIE_DMA_TC_DEFAULT					0
+#define PCIE_DMA_ATB(x)						((x & 0x3) << 8)
+	#define PCIE_DMA_ATB_DEFAULT					0
+#define PCIE_DMA_FUNC(x)					((x & 0x4) << 4)
+	#define PCIE_DMA_FUNC_0						0
+#define PCIE_DMA_DIR(x)						(x & BIT(0))
+	#define PCIE_DMA_DIR_AXI_TO_PCIE				1
+	#define PCIE_DMA_DIR_PCIE_TO_AXI				0
+#endif
+
 struct rzt2h_axi_window_set {
 	u32	base[RZT2H_PCI_MAX_RESOURCES];
 	u32	base_u[RZT2H_PCI_MAX_RESOURCES];
@@ -375,10 +438,64 @@ struct rzt2h_save_reg {
 	struct rzt2h_interrupt_set		interrupt;
 };
 
+#ifdef CONFIG_RZT2H_PCIE_DMA
+struct rzt2h_pcie_dma_hw_node {
+	u32 param0;
+	u32 param1;
+	u32 size;
+	u32 padding;
+	u32 saddr_L;
+	u32 saddr_U;
+	u32 daddr_L;
+	u32 daddr_U;
+	u32 next_L;
+	u32 next_U;
+} __aligned(64);
+
+struct rzt2h_pcie_dma_sw_node {
+	dma_addr_t pdesc;
+	struct rzt2h_pcie_dma_hw_node *desc;
+};
+
+struct rzt2h_pcie_dma_desc {
+	struct virt_dma_desc vd;
+	struct rzt2h_pcie_dma_chan *chan;
+	dma_addr_t dev_addr;
+	enum dma_transfer_direction direction;
+	unsigned int n_nodes;
+	struct rzt2h_pcie_dma_sw_node node[];
+};
+
+struct rzt2h_pcie_dma_chan {
+	struct virt_dma_chan vc;
+	struct rzt2h_pcie_dmac *dmac;
+	struct dma_pool *pool;
+	struct dma_slave_config scfg;
+	int index;
+	struct rzt2h_pcie_dma_desc *desc;
+	enum dma_status	status;
+};
+
+struct rzt2h_pcie_dmac {
+	struct dma_device engine;
+	struct rzt2h_pcie *pcie;
+	struct device *dev;
+	int dma_irq;
+	unsigned int n_channels;
+	struct rzt2h_pcie_dma_chan *channels;
+	/* Reserved for support DMA transfer requested from userspace */
+	int dma_mode[PCIE_DMA_MAX_CHANNEL];
+	int dma_status[PCIE_DMA_MAX_CHANNEL];
+};
+#endif
+
 struct rzt2h_pcie {
 	struct device			*dev;
 	void __iomem			*base;
 	struct rzt2h_save_reg	save_reg;
+#ifdef CONFIG_RZT2H_PCIE_DMA
+	struct rzt2h_pcie_dmac	dmac;
+#endif
 };
 
 void rzt2h_pci_write_reg(struct rzt2h_pcie *pcie, u32 val, unsigned long reg);
@@ -398,5 +515,10 @@ void rzt2h_pcie_ep_set_outbound(struct rzt2h_pcie *pcie, int win, struct resourc
 			       phys_addr_t cpu_addr, u64 pci_addr, size_t size);
 void rzt2h_pcie_ep_set_inbound(struct rzt2h_pcie *pcie, u64 cpu_addr, u64 pci_addr,
 			      u64 flags, int idx, bool host);
+
+#ifdef CONFIG_RZT2H_PCIE_DMA
+int rzt2h_pcie_dma_init(struct rzt2h_pcie *pcie);
+void rzt2h_pcie_dma_remove(struct rzt2h_pcie *pcie);
+#endif
 
 #endif
