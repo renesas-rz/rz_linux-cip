@@ -58,6 +58,12 @@ static const struct clk_div_table dtable_24_32[] = {
 	{0, 0},
 };
 
+static const struct clk_div_table dtable_10_20[] = {
+	{0, 10},
+	{1, 20},
+	{0, 0},
+};
+
 static const struct clk_div_table dtable_2_32[] = {
 	{0, 2},
 	{1, 4},
@@ -113,6 +119,7 @@ static const struct cpg_core_clk r9a09g077_core_clks[] __initconst = {
 	/* Core output clk */
 	DEF_DIV("CA55", R9A09G077_CA55, CLK_SEL_CLK_PLL0, DIVCA55,
 				dtable_1_2, 0, 1),
+	DEF_FIXED("PCLKCAN)", R9A09G077_PCLKCAN, CLK_SEL_CLK_PLL4, 1, 3),
 	DEF_FIXED("PCLKAH", R9A09G077_PCLKAH, CLK_SEL_CLK_PLL4, 1, 6),
 	DEF_FIXED("PCLKAM", R9A09G077_PCLKAM, CLK_SEL_CLK_PLL4, 1, 12),
 	DEF_FIXED("PCLKAL", R9A09G077_PCLKAL, CLK_SEL_CLK_PLL4, 1, 24),
@@ -130,6 +137,8 @@ static const struct cpg_core_clk r9a09g077_core_clks[] __initconst = {
 			dtable_24_32, 0, 0),
 	DEF_DIV("SPI3", R9A09G077_SPI3, CLK_SEL_CLK_PLL4, DIVSPI3,
 			dtable_24_32, 0, 1),
+	DEF_DIV("CAN", R9A09G077_CAN, R9A09G077_PCLKCAN, DIVCANFD,
+			dtable_10_20, 0, 0),
 	DEF_FIXED("ETCLKC", R9A09G077_ETCLKC, CLK_SEL_CLK_PLL1, 1, 10),
 	DEF_FIXED("LCDC_CLKA", R9A09G077_LCDC_CLKA, R9A09G077_PCLKAH,
 		  1, 1),
@@ -259,7 +268,7 @@ static const struct rzt2_mod_clk r9a09g077_mod_clks[] __initconst = {
 				0x300, 27, 0),
 	DEF_MOD("rtc",		R9A09G077_RTC_CLK, R9A09G077_PCLKRTC,
 				0x318, 5, 1),
-	DEF_MOD("canfd",	R9A09G077_CANFD_CLK, R9A09G077_PCLKM,
+	DEF_MOD("canfd",	R9A09G077_CANFD_CLK, R9A09G077_CAN,
 				0x30C, 10, 0),
 };
 
