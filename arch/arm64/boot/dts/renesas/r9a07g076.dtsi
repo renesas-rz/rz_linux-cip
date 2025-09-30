@@ -350,6 +350,16 @@
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
+
+		icu_s_int: icu@812A0000 {
+			compatible = "syscon";
+			reg = <0 0x812A0000 0 0x1000>;
+		};
+
+		icu_ns_int: icu@802A0000 {
+			compatible = "syscon";
+			reg = <0 0x802A0000 0 0x1000>;
+		};
 	};
 
 	timer {
