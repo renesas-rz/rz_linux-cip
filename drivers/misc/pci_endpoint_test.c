@@ -536,7 +536,7 @@ static void pci_endpoint_test_print_rate(struct pci_endpoint_test *test,
 static bool pci_endpoint_test_dma_host(struct pci_endpoint_test *test,
 				   unsigned long arg)
 {
-	u64 test_addr = pci_resource_start(test->pdev, BAR_0) + SZ_1K;
+	u64 test_addr = 0xA0000000 + SZ_1K;
 	struct pci_dev *pdev = test->pdev;
 	struct device *dev = &pdev->dev;
 	void *write_buf = NULL;
