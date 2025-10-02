@@ -862,6 +862,26 @@
 	};
 };
 
+&cmt0 {
+	status = "okay";
+};
+
+&cmt1 {
+	status = "okay";
+};
+
+&cmt2 {
+	status = "okay";
+};
+
+&cmtw0 {
+	status = "okay";
+};
+
+&cmtw1 {
+	status = "okay";
+};
+
 #if (SEL_ADC)
 &adc0 {
 	pinctrl-0 = <&adc0_pins>;
