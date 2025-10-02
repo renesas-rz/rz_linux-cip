@@ -618,6 +618,8 @@ static const struct of_device_id rz_cmtw_of_table[] __maybe_unused = {
 	{ .compatible = "renesas,rzg3e-cmtw", .data = &rzv2h_cmtw_info },
 	{ .compatible = "renesas,rzt2h-cmtw", .data = &rzt2h_cmtw_info },
 	{ .compatible = "renesas,rzt2h-cmt", .data = &rzt2h_cmt_info },
+	{ .compatible = "renesas,rzn2h-cmtw", .data = &rzt2h_cmtw_info },
+	{ .compatible = "renesas,rzn2h-cmt", .data = &rzt2h_cmt_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rz_cmtw_of_table);
