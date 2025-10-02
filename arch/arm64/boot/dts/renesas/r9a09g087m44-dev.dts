@@ -42,6 +42,13 @@
 #define SEL_ADC			0
 
 /*
+ * Set SEL_GPT_SD0 to below values to select using of:
+ * - 0 : GPT
+ * - 1 : SD0 (default)
+ */
+#define SEL_GPT_SD0		1
+
+/*
  * Set SEL_PCIE to below values to select using of:
  * - 0: ETH3 (default)
  * - 1: PCIE
@@ -129,6 +136,7 @@
 		regulator-always-on;
 	};
 
+#if (SEL_GPT_SD0)
 	vccq_sdhi0: regulator-vccq-sdhi0 {
 		compatible = "regulator-gpio";
 
@@ -141,6 +149,7 @@
 		gpios-states = <1>;
 		states = <3300000 0 1800000 1>;
 	};
+#endif
 
 	vmmc_sdhi1: regulator-vcc-sdhi1 {
 		compatible = "regulator-fixed";
@@ -214,12 +223,14 @@
 	};
 #endif
 
+#if (SEL_GPT_SD0)
 	sd0_pwr_en {
 		gpio-hog;
 		gpios = <RZT2H_GPIO(2, 5) GPIO_ACTIVE_HIGH>; /* SDHI : SD0_PWEN/P02_5 */
 		output-high;
 		line-name = "sd0_pwr_en";
 	};
+#endif
 
 	sdhi0_pins: sd0 {
 		sd0_data {
@@ -480,6 +491,13 @@
 			pinmux = <RZT2H_PORT_PINMUX(1, 1, 0x1C)>; /* SPI : XSPI1_CS0#/P01_1 */
 		};
 	};
+
+#if !(SEL_GPT_SD0)
+	gpt02_0_pins: gpt02_0 {
+		pinmux = <RZT2H_PORT_PINMUX(2, 5, 0x09)>, /* GPT : GTIOC02_0A/P02_5 */
+			 <RZT2H_PORT_PINMUX(2, 6, 0x09)>; /* GPT : GTIOC02_0B/P02_6 */
+	};
+#endif
 };
 
 &extal {
@@ -538,6 +556,7 @@
 	status = "okay";
 };
 #else
+#if (SEL_GPT_SD0)
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_pins>;
 	pinctrl-1 = <&sdhi0_pins>;
@@ -550,6 +569,7 @@
 	sd-uhs-sdr104;
 	status = "okay";
 };
+#endif
 #endif
 
 &sdhi1 {
@@ -855,6 +875,15 @@
 &adc2 {
 	pinctrl-0 = <&adc2_pins>;
 	pinctrl-names = "default";
+	status = "okay";
+};
+#endif
+
+#if !(SEL_GPT_SD0)
+&gpt02_0 {
+	pinctrl-0 = <&gpt02_0_pins>;
+	pinctrl-names = "default";
+	channel = "both_AB";
 	status = "okay";
 };
 #endif
