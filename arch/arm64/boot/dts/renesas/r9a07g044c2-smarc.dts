@@ -32,8 +32,14 @@
 #error "Can not set 1 to both SW_SCIF_CAN and SW_RSPI_CAN due to HW routing"
 #endif
 
-/* comment the #define statement to disable SCIF1 (SER0) on PMOD1 (CN7) */
+/* comment the #define statement to disable SCIF1 (SER0) and SCI0 on PMOD1 (CN7) */
 #define PMOD1_SER0	1
+
+/* Please set the SCIF1_SCI0_SEL to enable SCIF1 or SCI0
+ * #define SCIF1_SCI0_SEL 0 is enabled SCIF1
+ * #define SCIF1_SCI0_SEL 1 is enabled SCI0
+ */
+#define SCIF1_SCI0_SEL 0
 
 /*
  * To enable MTU3a PWM on PMOD0,

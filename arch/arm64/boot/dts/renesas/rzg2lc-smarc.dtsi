@@ -13,7 +13,11 @@
 
 / {
 	aliases {
+#if (PMOD1_SER0 && !SCIF1_SCI0_SEL)
 		serial1 = &scif1;
+#elif (PMOD1_SER0 && SCIF1_SCI0_SEL)
+		serial1 = &sci0;
+#endif
 		i2c2 = &i2c2;
 	};
 
@@ -184,6 +188,7 @@
  * SW4 should be at position 2->3 so that SER0_RTS# line is activated
  */
 #if (!SW_SCIF_CAN && PMOD1_SER0)
+#if (!SCIF1_SCI0_SEL)
 &scif1 {
 	pinctrl-0 = <&scif1_pins>;
 	pinctrl-names = "default";
@@ -191,6 +196,13 @@
 	uart-has-rtscts;
 	status = "okay";
 };
+#else
+&sci0 {
+	pinctrl-0 = <&sci0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+#endif
 #endif
 
 &ssi0 {
