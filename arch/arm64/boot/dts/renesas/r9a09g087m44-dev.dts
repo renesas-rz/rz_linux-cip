@@ -42,6 +42,13 @@
 #define SEL_ADC			0
 
 /*
+ * Set SEL_ETHSW_LCDC to below values to select using of:
+ * - 0: ETHSW (default)
+ * - 1: LCDC
+ */
+#define SEL_ETHSW_LCDC		0
+
+/*
  * Set SEL_GPT_SD0 to below values to select using of:
  * - 0 : GPT
  * - 1 : SD0 (default)
@@ -57,6 +64,20 @@
  * - 1: CANFD
  */
 #define SEL_SDHI_CANFD		0
+
+/*
+ * Set SEL_SCI1_POE3_LCDC to below values to select using of:
+ * - 0: SCI1, POE3
+ * - 1: LCDC (default)
+ */
+#define SEL_SCI1_POE3_LCDC	1
+
+/*
+ * Set SEL_I2C0_LCDC to below values to select using of:
+ * - 0: I2C0
+ * - 1: LCDC (default)
+ */
+ #define SEL_I2C0_LCDC		1
 
 /*
  * Set SEL_PCIE to below values to select using of:
@@ -187,6 +208,20 @@
 		states = <3300000 0 1800000 1>;
 	};
 
+#if (SEL_I2C0_LCDC && SEL_SCI1_POE3_LCDC && SEL_ETHSW_LCDC)
+	hdmi-out {
+		compatible = "hdmi-connector";
+		type = "d";
+
+		port {
+			hdmi_con_out: endpoint {
+				remote-endpoint = <&adv7513_out>;
+			};
+		};
+	};
+
+#endif
+
 	mtl_rx_setup: rx-queues-config {
 		snps,rx-queues-to-use = <1>;
 		queue0 {
@@ -213,8 +248,6 @@
 	};
 };
 
-
-
 &pinctrl {
 	sci0_pins: sci0 {
 		pinmux = <RZT2H_PORT_PINMUX(27, 5, 0x14)>, /* SCI : TXD0/P27_5 */
@@ -222,11 +255,13 @@
 		bias-pull-up;
 	};
 
+#if (!SEL_SCI1_POE3_LCDC)
 	sci1_pins: sci1 {
 		pinmux = <RZT2H_PORT_PINMUX(18, 4, 0x14)>, /* SCI : TXD1/P18_4 */
 			 <RZT2H_PORT_PINMUX(18, 3, 0x14)>; /* SCI : RXD1/P18_3 */
 		bias-pull-up;
 	};
+#endif
 
 #if (!SEL_SCI3_PTPOUT2)
 	sci3_pins: sci3 {
@@ -305,10 +340,12 @@
 	};
 #endif
 
+#if (!SEL_I2C0_LCDC)
 	i2c0_pins: i2c0 {
 		pinmux = <RZT2H_PORT_PINMUX(14, 7, 0x17)>, /* IIC : IIC_SDA0/P14_7 */
 				 <RZT2H_PORT_PINMUX(14, 6, 0x17)>; /* IIC : IIC_SCL0/P14_6 */
 	};
+#endif
 
 	i2c1_pins: i2c1 {
 #if !MTU3_PHASE_COUNTING_SUPPORT
@@ -515,6 +552,54 @@
 		};
 	};
 
+#if (SEL_I2C0_LCDC && SEL_SCI1_POE3_LCDC && SEL_ETHSW_LCDC)
+	du_pins: du {
+		du_data {
+			pinmux = <RZT2H_PORT_PINMUX(10, 0, 0x28)>, /* LCDC : DISP_DATAR0/P10_0 */
+				 <RZT2H_PORT_PINMUX(10, 1, 0x28)>, /* LCDC : DISP_DATAR1/P10_1 */
+				 <RZT2H_PORT_PINMUX(10, 2, 0x28)>, /* LCDC : DISP_DATAR2/P10_2 */
+				 <RZT2H_PORT_PINMUX(10, 3, 0x28)>, /* LCDC : DISP_DATAR3/P10_3 */
+				 <RZT2H_PORT_PINMUX(10, 4, 0x28)>, /* LCDC : DISP_DATAR4/P10_4 */
+				 <RZT2H_PORT_PINMUX(10, 5, 0x28)>, /* LCDC : DISP_DATAR5/P10_5 */
+				 <RZT2H_PORT_PINMUX(10, 6, 0x28)>, /* LCDC : DISP_DATAR6/P10_6 */
+				 <RZT2H_PORT_PINMUX(10, 7, 0x28)>, /* LCDC : DISP_DATAR7/P10_7 */
+				 <RZT2H_PORT_PINMUX(11, 0, 0x28)>, /* LCDC : DISP_DATAG0/P11_0 */
+				 <RZT2H_PORT_PINMUX(14, 1, 0x28)>, /* LCDC : DISP_DATAG1/P14_1 */
+				 <RZT2H_PORT_PINMUX(14, 2, 0x28)>, /* LCDC : DISP_DATAG2/P14_2 */
+				 <RZT2H_PORT_PINMUX(14, 3, 0x28)>, /* LCDC : DISP_DATAG3/P14_3 */
+				 <RZT2H_PORT_PINMUX(14, 4, 0x28)>, /* LCDC : DISP_DATAG4/P14_4 */
+				 <RZT2H_PORT_PINMUX(14, 5, 0x28)>, /* LCDC : DISP_DATAG5/P14_5 */
+				 <RZT2H_PORT_PINMUX(14, 6, 0x28)>, /* LCDC : DISP_DATAG6/P14_6 */
+				 <RZT2H_PORT_PINMUX(17, 6, 0x28)>, /* LCDC : DISP_DATAG7/P17_6 */
+				 <RZT2H_PORT_PINMUX(17, 7, 0x28)>, /* LCDC : DISP_DATAB0/P17_7 */
+				 <RZT2H_PORT_PINMUX(18, 0, 0x28)>, /* LCDC : DISP_DATAB1/P18_0 */
+				 <RZT2H_PORT_PINMUX(18, 1, 0x28)>, /* LCDC : DISP_DATAB2/P18_1 */
+				 <RZT2H_PORT_PINMUX(18, 2, 0x28)>, /* LCDC : DISP_DATAB3/P18_2 */
+				 <RZT2H_PORT_PINMUX(18, 3, 0x28)>, /* LCDC : DISP_DATAB4/P18_3 */
+				 <RZT2H_PORT_PINMUX(18, 4, 0x28)>, /* LCDC : DISP_DATAB5/P18_4 */
+				 <RZT2H_PORT_PINMUX(18, 5, 0x28)>, /* LCDC : DISP_DATAB6/P18_5 */
+				 <RZT2H_PORT_PINMUX(18, 6, 0x28)>; /* LCDC : DISP_DATAB7/P18_6 */
+			drive-strength = <3>;
+		};
+
+		du_clk {
+			pinmux = <RZT2H_PORT_PINMUX(9, 4, 0x28)>; /* LCDC : DISP_CLK/P09_4 */
+			drive-strength = <3>;
+		};
+
+		du_sync {
+			pinmux = <RZT2H_PORT_PINMUX(9, 5, 0x28)>, /* LCDC : DISP_HSYNC/P09_5 */
+				 <RZT2H_PORT_PINMUX(9, 6, 0x28)>; /* LCDC : DISP_VSYNC/P09_6 */
+			drive-strength = <3>;
+		};
+
+		du_de {
+			pinmux = <RZT2H_PORT_PINMUX(9, 7, 0x28)>; /* LCDC : DISP_DE/P09_7 */
+			drive-strength = <3>;
+		};
+	};
+#endif
+
 #if !(SEL_GPT_SD0)
 	gpt02_0_pins: gpt02_0 {
 		pinmux = <RZT2H_PORT_PINMUX(2, 5, 0x09)>, /* GPT : GTIOC02_0A/P02_5 */
@@ -522,6 +607,7 @@
 	};
 #endif
 
+#if (!SEL_SCI1_POE3_LCDC)
 	mtu3_pins: mtu3 {
 #if MTU3_PHASE_COUNTING_SUPPORT
 		mtu3-ext-clk-input-pin {
@@ -540,10 +626,13 @@
 			pinmux = <RZT2H_PORT_PINMUX(10, 4, 0x06)>; /* MTU3 : MTIOC1A/P10_4 */
 		};
 	};
+#endif
 
+#if (!SEL_SCI1_POE3_LCDC)
 	poe3_pins: poe3 {
 		pinmux = <RZT2H_PORT_PINMUX(14, 3, 0x08)>; /* POE3 : POE0#/P14_3 */
 	};
+#endif
 };
 
 &extal {
@@ -571,11 +660,13 @@
 	status = "okay";
 };
 
+#if (!SEL_SCI1_POE3_LCDC)
 &sci1 {
 	pinctrl-0 = <&sci1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
+#endif
 
 #if (!SEL_SCI3_PTPOUT2)
 &sci3 {
@@ -656,6 +747,7 @@
 };
 #endif
 
+#if (!SEL_I2C0_LCDC)
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "default";
@@ -667,12 +759,52 @@
 		pagesize = <16>;
 	};
 };
+#endif
 
 &i2c1 {
 	pinctrl-0 = <&i2c1_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";
+
+#if (SEL_I2C0_LCDC && SEL_SCI1_POE3_LCDC && SEL_ETHSW_LCDC)
+	adv7513: adv7513@39 {
+		compatible = "adi,adv7513";
+		reg = <0x39>;
+
+		adi,input-depth = <8>;
+		adi,input-colorspace = "rgb";
+		adi,input-clock = "1x";
+
+		avdd-supply = <&reg_1p8v>;
+		dvdd-supply = <&reg_1p8v>;
+		pvdd-supply = <&reg_1p8v>;
+		dvdd-3v-supply = <&reg_3p3v>;
+		bgvdd-supply = <&reg_1p8v>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				adv7513_in: endpoint {
+					remote-endpoint = <&du_out_rgb>;
+				};
+
+			};
+
+			port@1 {
+				reg = <1>;
+
+				adv7513_out: endpoint {
+					remote-endpoint = <&hdmi_con_out>;
+				};
+			};
+		};
+	};
+#endif
 };
 
 &wdt2 {
@@ -776,6 +908,7 @@
 	ethsw_pulse_gen_timer = <0>; /* Pulse generator use ETHSW timer 0 */
 };
 
+#if (!SEL_ETHSW_LCDC)
 &ethsw {
 	status = "okay";
 	#address-cells = <1>;
@@ -831,6 +964,7 @@
 &switch_port3 {
 	status = "okay";
 };
+#endif
 
 &mii_conv0 {
 	renesas,ethss-port = <ETHSS_SWITCH_PORT0>;
@@ -961,6 +1095,23 @@
 };
 #endif
 
+#if (SEL_I2C0_LCDC && SEL_SCI1_POE3_LCDC && SEL_ETHSW_LCDC)
+&du {
+	pinctrl-0 = <&du_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	ports {
+		port@0 {
+			du_out_rgb: endpoint {
+				remote-endpoint = <&adv7513_in>;
+			};
+		};
+	};
+};
+#endif
+
 #if !(SEL_GPT_SD0)
 &gpt02_0 {
 	pinctrl-0 = <&gpt02_0_pins>;
@@ -991,12 +1142,15 @@
 };
 #endif
 
+#if (!SEL_SCI1_POE3_LCDC)
 &mtu3 {
 	pinctrl-0 = <&mtu3_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
+#endif
 
+#if (!SEL_SCI1_POE3_LCDC)
 &poe3 {
 	pinctrl-0 = <&poe3_pins>;
 	pinctrl-names = "default";
@@ -1011,3 +1165,4 @@
 		dsmif_error_detection = <0 0>, <0 5>, <1 0>, <1 9>;
 	};
 };
+#endif
