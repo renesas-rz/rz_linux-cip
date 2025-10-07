@@ -65,6 +65,9 @@
  */
 #define SEL_PCIE_MODE		0
 
+/* Enable to support phase counting functions (1: enabled, 0: disabled) */
+#define MTU3_PHASE_COUNTING_SUPPORT		0
+
 /*
  * Set SEL_SCI3_PTPOUT2 to below values to select using of:
  * - 0: SCI3 (default)
@@ -293,8 +296,10 @@
 	};
 
 	i2c1_pins: i2c1 {
+#if !MTU3_PHASE_COUNTING_SUPPORT
 		pinmux = <RZT2H_PORT_PINMUX(3, 3, 0x17)>, /* IIC : IIC_SCL1/P03_3 */
 			     <RZT2H_PORT_PINMUX(3, 4, 0x17)>; /* IIC : IIC_SDA1/P03_4 */
+#endif
 	};
 
 #if (SEL_SPI2)
@@ -501,6 +506,25 @@
 			 <RZT2H_PORT_PINMUX(2, 6, 0x09)>; /* GPT : GTIOC02_0B/P02_6 */
 	};
 #endif
+
+	mtu3_pins: mtu3 {
+#if MTU3_PHASE_COUNTING_SUPPORT
+		mtu3-ext-clk-input-pin {
+			pinmux = <RZT2H_PORT_PINMUX(3, 3, 0x06)>, /* MTU3 : MTCLKA/P03_3 */
+				 <RZT2H_PORT_PINMUX(3, 4, 0x06)>; /* MTU3 : MTCLKB/P03_4 */
+		};
+#endif
+
+		mtu3-pwm {
+			pinmux = <RZT2H_PORT_PINMUX(27, 3, 0x06)>, /* MTU3 : MTIOC2A/P27_3 */
+				<RZT2H_PORT_PINMUX(9, 4, 0x06)>, /* MTU3 : MTIOC6B/P09_4 */
+				<RZT2H_PORT_PINMUX(9, 5, 0x06)>; /* MTU3 : MTIOC6D/P09_5 */
+		};
+
+		mtu3-zphase-clk {
+			pinmux = <RZT2H_PORT_PINMUX(10, 4, 0x06)>; /* MTU3 : MTIOC1A/P10_4 */
+		};
+	};
 };
 
 &extal {
@@ -931,3 +955,9 @@
 	status = "okay";
 };
 #endif
+
+&mtu3 {
+	pinctrl-0 = <&mtu3_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
