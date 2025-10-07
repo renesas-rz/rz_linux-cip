@@ -525,6 +525,10 @@
 			pinmux = <RZT2H_PORT_PINMUX(10, 4, 0x06)>; /* MTU3 : MTIOC1A/P10_4 */
 		};
 	};
+
+	poe3_pins: poe3 {
+		pinmux = <RZT2H_PORT_PINMUX(14, 3, 0x08)>; /* POE3 : POE0#/P14_3 */
+	};
 };
 
 &extal {
@@ -960,4 +964,19 @@
 	pinctrl-0 = <&mtu3_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+};
+
+&poe3 {
+	pinctrl-0 = <&poe3_pins>;
+	pinctrl-names = "default";
+	poe3_pins_mode = <0 0>, <4 0>, <8 0>, <10 0>;
+	oscillation_detection = <1>;
+	status = "okay";
+	mtu3_ch67 {
+		mtu3_outputs = <0>;
+		addition_poe3_inputs = <0>;
+		mtioc6b_pin_select = <2>;
+		mtioc6d_pin_select = <2>;
+		dsmif_error_detection = <0 0>, <0 5>, <1 0>, <1 9>;
+	};
 };
