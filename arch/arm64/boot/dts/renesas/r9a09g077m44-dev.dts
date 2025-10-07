@@ -75,7 +75,7 @@
  * - 0 : GPT
  * - 1 : SD0 (default)
  */
-#define SEL_GPT_SD0		1
+#define SEL_GPT_SD0		0
 
 /* Select function support POEG (1: enabled, 0 : disabled) */
 #define POEG_SUPPORT		1
@@ -613,7 +613,6 @@
 	status = "okay";
 };
 
-#if (SEL_GPT_SD0)
 #if (SEL_SD0)
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_pins>;
@@ -628,6 +627,7 @@
 	status = "okay";
 };
 #else
+#if (SEL_GPT_SD0)
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_pins>;
 	pinctrl-1 = <&sdhi0_pins>;
