@@ -305,22 +305,26 @@
 				<RZT2H_PORT_PINMUX(18, 5, 0x28)>, /* LCDC_DATB6 */
 				<RZT2H_PORT_PINMUX(18, 6, 0x28)>; /* LCDC_DATB7 */
 			drive-strength = <3>;
+			slew-rate	= <1>;
 		};
 
 		du_clk {
 			pinmux = <RZT2H_PORT_PINMUX( 9, 4, 0x28)>; /* LCDC_CLK */
 			drive-strength = <3>;
+			slew-rate	= <1>;
 		};
 
 		du_sync {
 			pinmux = <RZT2H_PORT_PINMUX( 9, 5, 0x28)>, /* LCDC_HSYNC */
 				<RZT2H_PORT_PINMUX( 9, 6, 0x28)>; /* LCDC_VSYNC */
 			drive-strength = <3>;
+			slew-rate	= <1>;
 		};
 
 		du_de {
 			pinmux = <RZT2H_PORT_PINMUX( 9, 7, 0x28)>; /* LCDC_DE */
 			drive-strength = <3>;
+			slew-rate	= <1>;
 		};
 	};
 #endif
