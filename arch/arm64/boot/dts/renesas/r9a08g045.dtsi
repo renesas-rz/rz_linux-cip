@@ -926,7 +926,7 @@
 			resets = <&cpg R9A08G045_SPI_HRESETN>,
 				 <&cpg R9A08G045_SPI_ARESETN>;
 			clock-names = "spi", "hclk", "aclk", "spix2";
-			power-domains = <&cpg R9A08G045_PD_XSPI>;
+			power-domains = <&cpg>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
