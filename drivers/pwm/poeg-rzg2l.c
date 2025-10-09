@@ -167,8 +167,9 @@ static int rzg2l_poeg_probe(struct platform_device *pdev)
 	if (poeg_chip == NULL)
 		return -ENOMEM;
 
+	poeg_chip->cfg = of_device_get_match_data(&pdev->dev);
+
 	if (poeg_chip->cfg == &rzt2h_cfg) {
-		poeg_chip->cfg = of_device_get_match_data(&pdev->dev);
 		if (!of_find_property(pdev->dev.of_node,
 					"llpp,disable-by-DSMIF-error", NULL))
 			poeg_chip->disable_by_dsmif_err = false;
