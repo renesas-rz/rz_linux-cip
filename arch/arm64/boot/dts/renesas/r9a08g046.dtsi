@@ -7,6 +7,7 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/r9a08g046-cpg.h>
+#include <dt-bindings/clock/renesas,r9a08g046-vbattb.h>
 
 / {
 	compatible = "renesas,r9a08g046";
@@ -727,6 +728,20 @@
 			clocks = <&cpg CPG_MOD R9A08G046_VBAT_BCLK>, <&vbattb_xtal>;
 			clock-names = "bclk", "rtx";
 			#clock-cells = <1>;
+			power-domains = <&cpg>;
+			resets = <&cpg R9A08G046_VBAT_BRESETN>;
+			status = "disabled";
+		};
+
+		rtc: rtc@100af000 {
+			compatible = "renesas,r9a08g046-rtca3", "renesas,rz-rtca3";
+			reg = <0 0x100af000 0 0x400>;
+			interrupts = <GIC_SPI 381 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 382 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 383 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "alarm", "carry", "period";
+			clocks = <&cpg CPG_MOD R9A08G046_VBAT_BCLK>, <&vbattb VBATTB_VBATTCLK>;
+			clock-names = "bus", "counter";
 			power-domains = <&cpg>;
 			resets = <&cpg R9A08G046_VBAT_BRESETN>;
 			status = "disabled";
