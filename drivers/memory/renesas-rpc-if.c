@@ -1027,12 +1027,12 @@ static int rpcif_probe(struct platform_device *pdev)
 	if (rpc->info->type == XSPI_RZ_G3E) {
 		struct clk *spi_clk;
 
-		spi_clk = devm_clk_get_enabled(dev, "spix2");
+		spi_clk = devm_clk_get_optional_enabled(dev, "spix2");
 		if (IS_ERR(spi_clk))
 			return dev_err_probe(dev, PTR_ERR(spi_clk),
 					     "cannot get enabled spix2 clk\n");
 
-		spi_clk = devm_clk_get_enabled(dev, "spi");
+		spi_clk = devm_clk_get_optional_enabled(dev, "spi");
 		if (IS_ERR(spi_clk))
 			return dev_err_probe(dev, PTR_ERR(spi_clk),
 					     "cannot get enabled spi clk\n");
@@ -1121,6 +1121,8 @@ static const struct of_device_id rpcif_of_match[] = {
 	{ .compatible = "renesas,rcar-gen3-rpc-if", .data = &rpcif_info_gen3 },
 	{ .compatible = "renesas,rcar-gen4-rpc-if", .data = &rpcif_info_gen4 },
 	{ .compatible = "renesas,rzg2l-rpc-if", .data = &rpcif_info_rz_g2l },
+	{ .compatible = "renesas,t2h-xspi-if", .data = &xspi_info_r9a09g047 },
+	{ .compatible = "renesas,n2h-xspi-if", .data = &xspi_info_r9a09g047 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rpcif_of_match);
