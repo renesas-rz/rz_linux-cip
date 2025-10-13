@@ -289,3 +289,7 @@
 	quartz-load-femtofarads = <12500>;
 	status = "okay";
 };
+
+&rtc {
+	status = "okay";
+};
