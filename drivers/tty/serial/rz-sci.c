@@ -413,7 +413,7 @@ static void sci_receive_chars(struct uart_port *port)
 {
 	struct tty_port *tport = &port->state->port;
 	int i, count, copied = 0;
-	unsigned int status, frsr_status;
+	unsigned int rdat, status, frsr_status;
 	unsigned char flag;
 
 	status = serial_port_in(port, CSR);
@@ -430,46 +430,37 @@ static void sci_receive_chars(struct uart_port *port)
 		if (count == 0)
 			break;
 
-		if (port->type == PORT_SCI) {
-			char c = serial_port_in(port, RDR) & RDR_RDAT_MSK;
+		for (i = 0; i < count; i++) {
+			char c;
+
+			rdat = sci_serial_in(port, RDR);
+			c = rdat & RDR_RDAT_MSK;
+			port->icount.rx++;
+
+			/* Store data and status */
+			if (port->type == PORT_SCIF &&
+					 rdat & RDR_FFER) {
+				flag = TTY_FRAME;
+				port->icount.frame++;
+				dev_notice(port->dev, "frame error\n");
+			} else if (port->type == PORT_SCIF &&
+					 rdat & RDR_FPER) {
+				flag = TTY_PARITY;
+				port->icount.parity++;
+				dev_notice(port->dev, "parity error\n");
+			} else
+				flag = TTY_NORMAL;
 
 			if (uart_handle_sysrq_char(port, c))
-				count = 0;
-			else
-				tty_insert_flip_char(tport, c, TTY_NORMAL);
-		} else {
-			for (i = 0; i < count; i++) {
-				char c;
+				continue;
 
-				status = serial_port_in(port, CSR);
-				c = serial_port_in(port, RDR) & RDR_RDAT_MSK;
+			tty_insert_flip_char(tport, c, flag);
 
-				if (uart_handle_sysrq_char(port, c)) {
-					count--; i--;
-					continue;
-				}
-
-				/* Store data and status */
-				if (status & CSR_FER) {
-					flag = TTY_FRAME;
-					port->icount.frame++;
-					dev_notice(port->dev, "frame error\n");
-				} else if (status & CSR_PER) {
-					flag = TTY_PARITY;
-					port->icount.parity++;
-					dev_notice(port->dev, "parity error\n");
-				} else
-					flag = TTY_NORMAL;
-
-				tty_insert_flip_char(tport, c, flag);
-			}
+			copied++;
 		}
 
 		serial_port_in(port, CSR); /* dummy read */
 		sci_clear_DRxC(port);
-
-		copied += count;
-		port->icount.rx += count;
 	}
 
 	if (copied) {
