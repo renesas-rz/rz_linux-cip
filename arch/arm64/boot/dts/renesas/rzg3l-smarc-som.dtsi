@@ -18,6 +18,8 @@
  *      1 - Select LCD
  */
 
+#include <dt-bindings/clock/renesas,r9a08g046-vbattb.h>
+
 / {
 	compatible = "renesas,rzg3l-smarcm", "renesas,r9a08g046l48", "renesas,r9a08g046";
 
@@ -276,3 +278,14 @@
 	status = "okay";
 };
 #endif
+
+&vbattb_xtal {
+	clock-frequency = <32768>;
+};
+
+&vbattb {
+	assigned-clocks = <&vbattb VBATTB_MUX>;
+	assigned-clock-parents = <&vbattb VBATTB_XC>;
+	quartz-load-femtofarads = <12500>;
+	status = "okay";
+};
