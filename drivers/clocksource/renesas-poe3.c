@@ -681,13 +681,16 @@ static int renesas_poe3_probe(struct platform_device *pdev)
 		poe3->board_id = POE3_BOARD_UNKNOWN;
 	}
 
-	if (poe3->board_id == POE3_BOARD_RZG2L) {
-		poe3->rstc = devm_reset_control_get(&pdev->dev, NULL);
-		if (IS_ERR(poe3->rstc)) {
-			dev_err(&pdev->dev, "failed to get reset control\n");
-			return PTR_ERR(poe3->rstc);
-		}
-		reset_control_deassert(poe3->rstc);
+	poe3->rstc = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
+	if (IS_ERR(poe3->rstc)) {
+		dev_err(&pdev->dev, "failed to get reset control\n");
+		return PTR_ERR(poe3->rstc);
+	}
+	ret = reset_control_deassert(poe3->rstc);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to deassert reset control\n");
+		reset_control_assert(poe3->rstc);
+		return ret;
 	}
 
 	poe3->clk = devm_clk_get(&pdev->dev, NULL);
