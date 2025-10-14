@@ -220,6 +220,7 @@ struct renesas_poe3 {
 	struct mutex mutex;
 	int dev_base;
 	enum renesas_poe3_board_id board_id;
+	u8 spoer;
 };
 
 static inline bool is_8bit_register(unsigned int reg_nr)
@@ -567,7 +568,7 @@ static void renesas_poe3_dsmif_error_detection(struct device_node *child,
 	}
 }
 
-static void renesas_poe3_setup(struct renesas_poe3 *poe3)
+static void renesas_poe3_setup(struct renesas_poe3 *poe3, bool device_file_created)
 {
 	struct device *dev = &poe3->pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -619,23 +620,29 @@ poe3_assign:
 
 		if ((poe3->board_id == POE3_BOARD_RZT2H))
 			renesas_poe3_dsmif_error_detection(child, poe3);
-		if (!strcmp(child->name, "mtu3_ch0"))
-			ret = device_create_file(&poe3->pdev->dev,
-					&dev_attr_mtu0_output_enable);
-		else if (!strcmp(child->name, "mtu3_ch34")) {
-			renesas_poe3_write(poe3, OCSR1, OCSR_OCE | OCSR_OIE);
-			ret = device_create_file(&poe3->pdev->dev,
-					&dev_attr_mtu34_output_enable);
-		} else if (!strcmp(child->name, "mtu3_ch67")) {
-			renesas_poe3_write(poe3, OCSR2, OCSR_OCE | OCSR_OIE);
-			ret = device_create_file(&poe3->pdev->dev,
-					&dev_attr_mtu67_output_enable);
-		} else
-			ret = 0;
 
-		if (ret < 0)
-			dev_err(&poe3->pdev->dev, "Failed to create poe3 sysfs for %s\n",
-				child->name);
+		if (!strcmp(child->name, "mtu3_ch34"))
+			renesas_poe3_write(poe3, OCSR1, OCSR_OCE | OCSR_OIE);
+		else if (!strcmp(child->name, "mtu3_ch67"))
+			renesas_poe3_write(poe3, OCSR2, OCSR_OCE | OCSR_OIE);
+
+		if (!device_file_created) {
+			if (!strcmp(child->name, "mtu3_ch0"))
+				ret = device_create_file(&poe3->pdev->dev,
+						&dev_attr_mtu0_output_enable);
+			else if (!strcmp(child->name, "mtu3_ch34")) {
+				ret = device_create_file(&poe3->pdev->dev,
+						&dev_attr_mtu34_output_enable);
+			} else if (!strcmp(child->name, "mtu3_ch67")) {
+				ret = device_create_file(&poe3->pdev->dev,
+						&dev_attr_mtu67_output_enable);
+			} else
+				ret = 0;
+
+			if (ret < 0)
+				dev_err(&poe3->pdev->dev, "Failed to create poe3 sysfs for %s\n",
+					child->name);
+		}
 	}
 }
 
@@ -705,7 +712,7 @@ static int renesas_poe3_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	renesas_poe3_setup(poe3);
+	renesas_poe3_setup(poe3, false);
 
 	platform_set_drvdata(pdev, poe3);
 	dev_info(&pdev->dev, "Renesas POE3 driver probed\n");
@@ -719,6 +726,49 @@ static void renesas_poe3_remove(struct platform_device *pdev)
 	clk_disable_unprepare(poe->clk);
 }
 
+static int renesas_poe3_pm_suspend(struct device *dev)
+{
+	struct renesas_poe3 *poe3 = dev_get_drvdata(dev);
+	/* Save SPOER value */
+	poe3->spoer = renesas_poe3_read(poe3, SPOER);
+	clk_disable_unprepare(poe3->clk);
+	reset_control_assert(poe3->rstc);
+
+	return 0;
+}
+
+static int renesas_poe3_pm_resume(struct device *dev)
+{
+	struct renesas_poe3 *poe3 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = reset_control_deassert(poe3->rstc);
+	if (ret) {
+		dev_err(dev, "failed to deassert reset control\n");
+		reset_control_assert(poe3->rstc);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(poe3->clk);
+	if (ret) {
+		dev_err(dev, "failed to enable clock\n");
+		clk_disable_unprepare(poe3->clk);
+		reset_control_assert(poe3->rstc);
+		return ret;
+	}
+
+	renesas_poe3_setup(poe3, true);
+	/* Restore SPOER value */
+	renesas_poe3_write(poe3, SPOER, poe3->spoer);
+
+	return 0;
+}
+
+static const struct dev_pm_ops renesas_poe3_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(renesas_poe3_pm_suspend,
+				renesas_poe3_pm_resume)
+};
+
 MODULE_DEVICE_TABLE(of, poe3_of_table);
 
 static struct platform_driver renesas_poe3_device_driver = {
@@ -727,6 +777,7 @@ static struct platform_driver renesas_poe3_device_driver = {
 	.driver		= {
 		.name	= "renesas_poe3",
 		.of_match_table = of_match_ptr(renesas_poe3_of_table),
+		.pm = &renesas_poe3_pm_ops,
 	}
 };
 
