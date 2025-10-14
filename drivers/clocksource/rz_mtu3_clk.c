@@ -417,12 +417,7 @@ static int rz_mtu3_clk_setup(struct rz_mtu3_clk_device *mtu,
 	if (ret < 0)
 		goto err_clk_put;
 
-	ret = clk_enable(mtu->clk);
-	if (ret < 0)
-		goto err_clk_unprepare;
-
 	mtu->rate = clk_get_rate(mtu->clk) / 64;
-	clk_disable(mtu->clk);
 	/* Allocate and setup the channels. */
 	mtu->has_clockevent = true;
 	mtu->has_clocksource = false;
@@ -464,7 +459,6 @@ static int rz_mtu3_clk_setup(struct rz_mtu3_clk_device *mtu,
 err_unmap:
 	kfree(mtu->channels);
 	iounmap(mtu->mapbase);
-err_clk_unprepare:
 	clk_unprepare(mtu->clk);
 err_clk_put:
 	clk_put(mtu->clk);
