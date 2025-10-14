@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/sys_soc.h>
+#include <linux/reset.h>
 
 #include <linux/gpio/consumer.h>
 #include "rzt2n_eswm.h"
@@ -2137,6 +2138,19 @@ static int renesas_eth_sw_probe(struct platform_device *pdev)
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk))
 		return PTR_ERR(priv->clk);
+
+	priv->rst = devm_reset_control_get(&pdev->dev, NULL);
+	if (IS_ERR(priv->rst)) {
+		ret = PTR_ERR(priv->rst);
+		dev_err(&pdev->dev, "failed to get reset ctrl %d\n", ret);
+		return ret;
+	}
+
+	ret = reset_control_deassert(priv->rst);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to deassert reset %d\n", ret);
+		return ret;
+	}
 
 	priv->reset = devm_gpiod_get(&pdev->dev, "phy-reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(priv->reset)) {
