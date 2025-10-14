@@ -1058,6 +1058,7 @@ struct eswm_private {
 	spinlock_t lock;	/* lock interrupt registers' control */
 	struct clk *clk;
 	struct gpio_desc *reset;
+	struct reset_control *rst;
 	struct ethss *ethss;
 
 	int eswm_ptp_timer;
