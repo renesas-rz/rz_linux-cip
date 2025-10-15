@@ -88,4 +88,11 @@ config RENESAS_ETHER_ESWM_T2N
 	  This driver supports the following SoCs:
 		- R9A07G076.
 
+config RENESAS_ETHER_HPSW_RZT2N
+	tristate "Renesas RZ/T2N Ethernet HSR/PRP support"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select MII
+	help
+	  Renesas RZ/T2N Ethernet HSR/PRP device driver.
+
 endif # NET_VENDOR_RENESAS

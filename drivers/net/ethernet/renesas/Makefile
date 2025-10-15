@@ -17,3 +17,5 @@ obj-$(CONFIG_RTSN) += rtsn.o
 obj-$(CONFIG_RZT2_ETHSS) += rzt2_ethss.o rzt2_timer_hwtstamp.o
 
 obj-$(CONFIG_RENESAS_ETHER_ESWM_T2N) += rzt2n_eswm_ptp.o rzt2n_eswm.o
+
+obj-$(CONFIG_RENESAS_ETHER_HPSW_RZT2N) += rzt2n_hpsw.o
