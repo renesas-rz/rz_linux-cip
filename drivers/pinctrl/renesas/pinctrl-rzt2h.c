@@ -506,7 +506,7 @@ static int rzt2h_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 	return -EINVAL;
 }
 
-static int rzt2h_gpio_set(struct gpio_chip *chip, unsigned int offset,
+static void rzt2h_gpio_set(struct gpio_chip *chip, unsigned int offset,
 			  int value)
 {
 	struct rzt2h_pinctrl *pctrl = gpiochip_get_data(chip);
@@ -521,8 +521,6 @@ static int rzt2h_gpio_set(struct gpio_chip *chip, unsigned int offset,
 		rzt2h_pinctrl_writeb(pctrl, port, reg | BIT(bit), P(port));
 	else
 		rzt2h_pinctrl_writeb(pctrl, port, reg & ~BIT(bit), P(port));
-
-	return 0;
 }
 
 static int rzt2h_gpio_get(struct gpio_chip *chip, unsigned int offset)
