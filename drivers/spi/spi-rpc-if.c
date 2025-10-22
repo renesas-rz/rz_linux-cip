@@ -199,15 +199,25 @@ static void rpcif_spi_remove(struct platform_device *pdev)
 static int rpcif_spi_suspend(struct device *dev)
 {
 	struct spi_controller *ctlr = dev_get_drvdata(dev);
+	struct rpcif *rpc = spi_controller_get_devdata(ctlr);
+	int err;
 
-	return spi_controller_suspend(ctlr);
+	err = spi_controller_suspend(ctlr);
+	if (err)
+		return err;
+
+	if (rpc->xspi)
+		err = xspi_hw_deinit(rpc->dev, false);
+
+	return err;
 }
 
 static int rpcif_spi_resume(struct device *dev)
 {
 	struct spi_controller *ctlr = dev_get_drvdata(dev);
+	struct rpcif *rpc = spi_controller_get_devdata(ctlr);
 
-	rpcif_hw_init(dev, false);
+	rpcif_hw_init(rpc->dev, false);
 
 	return spi_controller_resume(ctlr);
 }

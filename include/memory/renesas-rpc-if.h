@@ -73,6 +73,7 @@ struct rpcif {
 
 int rpcif_sw_init(struct rpcif *rpc, struct device *dev);
 int rpcif_hw_init(struct device *dev, bool hyperflash);
+int xspi_hw_deinit(struct device *dev, bool hyperflash);
 void rpcif_prepare(struct device *dev, const struct rpcif_op *op, u64 *offs,
 		   size_t *len);
 int rpcif_manual_xfer(struct device *dev);

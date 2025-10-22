@@ -45,6 +45,7 @@ struct rpcif_priv;
 
 struct rpcif_impl {
 	int (*hw_init)(struct rpcif_priv *rpc, bool hyperflash);
+	int (*hw_deinit)(struct rpcif_priv *rpc, bool hyperflash);
 	void (*prepare)(struct rpcif_priv *rpc, const struct rpcif_op *op,
 			u64 *offs, size_t *len);
 	int (*manual_xfer)(struct rpcif_priv *rpc);
@@ -314,6 +315,24 @@ static int xspi_hw_init_impl(struct rpcif_priv *xspi, bool hyperflash)
 	return 0;
 }
 
+static int xspi_hw_deinit_impl(struct rpcif_priv *xspi, bool hyperflash)
+{
+	struct device *dev = xspi->dev;
+	int ret;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret)
+		return ret;
+
+	regmap_update_bits(xspi->regmap, XSPI_INTE, XSPI_INTE_CMDCMPE, 0);
+
+	pm_runtime_put(dev);
+
+	reset_control_assert(xspi->rstc);
+
+	return 0;
+}
+
 int rpcif_hw_init(struct device *dev, bool hyperflash)
 {
 	struct rpcif_priv *rpc = dev_get_drvdata(dev);
@@ -330,6 +349,17 @@ int rpcif_hw_init(struct device *dev, bool hyperflash)
 	return ret;
 }
 EXPORT_SYMBOL(rpcif_hw_init);
+
+int xspi_hw_deinit(struct device *dev, bool hyperflash)
+{
+	struct rpcif_priv *rpc = dev_get_drvdata(dev);
+
+	if (rpc->info->impl->hw_deinit)
+		return rpc->info->impl->hw_deinit(rpc, hyperflash);
+
+	return 0;
+}
+EXPORT_SYMBOL(xspi_hw_deinit);
 
 static int wait_msg_xfer_end(struct rpcif_priv *rpc)
 {
@@ -1103,6 +1133,7 @@ static const struct rpcif_impl rpcif_impl = {
 
 static const struct rpcif_impl xspi_impl = {
 	.hw_init = xspi_hw_init_impl,
+	.hw_deinit = xspi_hw_deinit_impl,
 	.prepare = xspi_prepare_impl,
 	.manual_xfer = xspi_manual_xfer_impl,
 	.dirmap_read = xspi_dirmap_read_impl,
