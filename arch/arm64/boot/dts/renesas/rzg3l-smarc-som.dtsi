@@ -74,6 +74,12 @@
 		states = <3300000 0>, <1800000 1>;
 	};
 #endif
+
+	x2_clk: x2-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+	};
 };
 
 &pinctrl {
