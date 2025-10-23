@@ -146,6 +146,8 @@ enum clk_ids {
 	CLK_EXTAL,
 	CLK_ET0_TXC_TX_CLK_IN,
 	CLK_ET0_RXC_RX_CLK_IN,
+	AUDIO_CLK1,
+	AUDIO_CLK2,
 
 	/* Internal Core Clocks */
 	CLK_OSC_DIV1000,
@@ -312,6 +314,8 @@ static const struct cpg_core_clk r9a08g046_core_clks[] = {
 	DEF_INPUT("extal", CLK_EXTAL),
 	DEF_INPUT("et0_txc_tx_clk_in", CLK_ET0_TXC_TX_CLK_IN),
 	DEF_INPUT("et0_rxc_rx_clk_in", CLK_ET0_RXC_RX_CLK_IN),
+	DEF_INPUT("audio_clk1", AUDIO_CLK1),
+	DEF_INPUT("audio_clk2", AUDIO_CLK2),
 
 	/* Internal Core Clocks */
 	DEF_FIXED(".osc_div1000", CLK_OSC_DIV1000, CLK_EXTAL, 1, 1000),
