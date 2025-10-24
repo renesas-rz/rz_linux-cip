@@ -444,7 +444,10 @@
 				 <&cpg CPG_MOD R9A08G046_SDHI0_IACLKS>,
 				 <&cpg CPG_MOD R9A08G046_SDHI0_IACLKM>;
 			clock-names = "core", "clkh", "cd", "aclk", "aclkm";
-			resets = <&cpg R9A08G046_SDHI0_IXRST>;
+			resets = <&cpg R9A08G046_SDHI0_IXRST>,
+				 <&cpg R9A08G046_SDHI0_IXRSTAXIM>,
+				 <&cpg R9A08G046_SDHI0_IXRSTAXIS>;
+			reset-names = "rst", "axim", "axis";
 			power-domains = <&cpg>;
 			status = "disabled";
 
@@ -467,7 +470,10 @@
 				 <&cpg CPG_MOD R9A08G046_SDHI1_IACLKS>,
 				 <&cpg CPG_MOD R9A08G046_SDHI1_IACLKM>;
 			clock-names = "core", "clkh", "cd", "aclk", "iclkm";
-			resets = <&cpg R9A08G046_SDHI1_IXRST>;
+			resets = <&cpg R9A08G046_SDHI1_IXRST>,
+				 <&cpg R9A08G046_SDHI1_IXRSTAXIM>,
+				 <&cpg R9A08G046_SDHI1_IXRSTAXIS>;
+			reset-names = "rst", "axim", "axis";
 			power-domains = <&cpg>;
 			status = "disabled";
 
@@ -490,7 +496,10 @@
 				 <&cpg CPG_MOD R9A08G046_SDHI2_IACLKS>,
 				 <&cpg CPG_MOD R9A08G046_SDHI2_IACLKM>;
 			clock-names = "core", "clkh", "cd", "aclk", "iclkm";
-			resets = <&cpg R9A08G046_SDHI2_IXRST>;
+			resets = <&cpg R9A08G046_SDHI2_IXRST>,
+				 <&cpg R9A08G046_SDHI2_IXRSTAXIM>,
+				 <&cpg R9A08G046_SDHI2_IXRSTAXIS>;
+			reset-names = "rst", "axim", "axis";
 			power-domains = <&cpg>;
 			status = "disabled";
 
