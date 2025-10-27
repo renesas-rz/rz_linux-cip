@@ -46,6 +46,13 @@
 		gpios-states = <0>;
 		states = <3300000 0>, <1800000 1>;
 	};
+#else
+	vqmmc-wifi-pvdd {
+		gpio-hog;
+		gpios = <RZG3L_GPIO(J, 1) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "wifi1.8";
+	};
 #endif
 };
 
@@ -169,6 +176,7 @@
 	status = "okay";
 };
 
+#if (!SW_SDIO_M2E)
 &sdhi1 {
 	pinctrl-0 = <&sdhi1_pins>;
 	pinctrl-1 = <&sdhi1_uhs_pins>;
@@ -179,3 +187,24 @@
 
 	max-frequency = <300000000>;
 };
+#else
+&sdhi1 {
+	pinctrl-0 = <&sdhi1_uhs_pins>;
+	pinctrl-names = "default";
+
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_1p8v>;
+
+	max-frequency = <300000000>;
+
+	non-removable;
+	cap-power-off-card;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	brcmf: bcrmf@1 {
+		reg = <1>;
+		compatible = "brcm,bcm4329-fmac";
+	};
+};
+#endif
