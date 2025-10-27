@@ -461,7 +461,8 @@ static int renesas_rzv2h_eqos_init(struct platform_device *pdev, void *priv)
 
 	if (eqos->suspend) {
 		eqos->suspend = false;
-		phy_init_hw(ndev->phydev);
+		if (ndev->phydev)
+			phy_init_hw(ndev->phydev);
 	}
 
 	return 0;
