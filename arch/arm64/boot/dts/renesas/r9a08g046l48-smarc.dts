@@ -10,6 +10,7 @@
 /* Switch selection settings */
 #define SW_SD0_DEV_SEL		0
 #define SW_PDM_EN		0
+#define SW_SDIO_M2E		0
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/renesas,r9a08g046-pinctrl.h>
@@ -35,6 +36,7 @@
 		};
 	};
 
+#if (!SW_SDIO_M2E)
 	vqmmc_sd1_pvdd: regulator-vqmmc-sd1-pvdd {
 		compatible = "regulator-gpio";
 		regulator-name = "SD1_PVDD";
@@ -44,6 +46,7 @@
 		gpios-states = <0>;
 		states = <3300000 0>, <1800000 1>;
 	};
+#endif
 };
 
 &pinctrl {
@@ -71,21 +74,32 @@
 		power-source = <1800>;
 	};
 
+#if (!SW_SDIO_M2E)
 	sd1-pwr-en-hog {
 		gpio-hog;
 		gpios = <RZG3L_GPIO(J, 2) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "sd1_pwr_en";
 	};
+#endif
 
 	sdhi1_pins: sd1 {
 		sd1-cd {
 			pinmux = <RZG3L_PORT_PINMUX(J, 0, 8)>; /* SD1_CD */
 		};
 
-		sd1-ctrl {
-			pinmux = <RZG3L_PORT_PINMUX(G, 0, 1)>, /* SD1_CLK */
-				 <RZG3L_PORT_PINMUX(G, 1, 1)>; /* SD1_CMD */
+		sd1-clk {
+			pinmux = <RZG3L_PORT_PINMUX(G, 0, 1)>; /* SD1_CLK */
+			power-source = <3300>;
+			renesas,sd_ch1_poc;
+		};
+
+		sd1-cmd {
+			pinmux = <RZG3L_PORT_PINMUX(G, 1, 1)>; /* SD1_CMD */
+			input-enable;
+			power-source = <3300>;
+			renesas,sd_ch1_poc;
+			bias-pull-up;
 		};
 
 		sd1-data {
@@ -93,6 +107,38 @@
 				 <RZG3L_PORT_PINMUX(G, 3, 1)>, /* SD1_DAT1 */
 				 <RZG3L_PORT_PINMUX(G, 4, 1)>, /* SD1_DAT2 */
 				 <RZG3L_PORT_PINMUX(G, 5, 1)>; /* SD1_DAT3 */
+			input-enable;
+			power-source = <3300>;
+			renesas,sd_ch1_poc;
+		};
+	};
+
+	sdhi1_uhs_pins: sd1-uhs {
+		sd1-cd {
+			pinmux = <RZG3L_PORT_PINMUX(J, 0, 8)>; /* SD1_CD */
+		};
+
+		sd1-clk {
+			pinmux = <RZG3L_PORT_PINMUX(G, 0, 1)>; /* SD1_CLK */
+			power-source = <1800>;
+			renesas,sd_ch1_poc;
+		};
+
+		sd1-cmd {
+			pinmux = <RZG3L_PORT_PINMUX(G, 1, 1)>; /* SD1_CMD */
+			input-enable;
+			power-source = <1800>;
+			renesas,sd_ch1_poc;
+		};
+
+		sd1-data {
+			pinmux = <RZG3L_PORT_PINMUX(G, 2, 1)>, /* SD1_DAT0 */
+				 <RZG3L_PORT_PINMUX(G, 3, 1)>, /* SD1_DAT1 */
+				 <RZG3L_PORT_PINMUX(G, 4, 1)>, /* SD1_DAT2 */
+				 <RZG3L_PORT_PINMUX(G, 5, 1)>; /* SD1_DAT3 */
+			input-enable;
+			power-source = <1800>;
+			renesas,sd_ch1_poc;
 		};
 	};
 };
@@ -125,11 +171,11 @@
 
 &sdhi1 {
 	pinctrl-0 = <&sdhi1_pins>;
-	pinctrl-1 = <&sdhi1_pins>;
+	pinctrl-1 = <&sdhi1_uhs_pins>;
 	pinctrl-names = "default", "state_uhs";
-	/delete-property/ sd-uhs-sdr50;
-	/delete-property/ sd-uhs-sdr104;
 
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&vqmmc_sd1_pvdd>;
+
+	max-frequency = <300000000>;
 };
