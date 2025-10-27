@@ -223,6 +223,11 @@
 	};
 #endif
 
+	dummy_codec: codec_test {
+		compatible = "linux,snd-soc-dummy";
+		#sound-dai-cells = <0>;
+	};
+
 	snd_rzg3l: sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "snd_rzg3l";
@@ -244,6 +249,20 @@
 			};
 		};
 #endif
+
+		pdm_link_rec: simple-audio-card,dai-link@1 {
+			format = "pdm";
+			bitclock-master = <&cpu_dai1>;
+			frame-master = <&cpu_dai1>;
+
+			cpu_dai1: cpu {
+				sound-dai = <&pdm>;
+			};
+
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
 	};
 };
 

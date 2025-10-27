@@ -198,6 +198,11 @@
 		pinmux = <RZG3L_PORT_PINMUX(A, 4, 4)>, /* SCL */
 			 <RZG3L_PORT_PINMUX(A, 5, 4)>; /* SDA */
 	};
+
+	pdm_pins: pdm {
+		pinmux = <RZG3L_PORT_PINMUX(M, 4, 7)>, /* CLK1 */
+			 <RZG3L_PORT_PINMUX(M, 5, 7)>; /* DAT1 */
+	};
 };
 
 &eth0 {
@@ -394,4 +399,14 @@
 &gpu {
 	status = "okay";
 	mali-supply = <&reg_1p0v>;
+};
+
+&pdm {
+	pinctrl-0 = <&pdm_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	channel1 {
+		status = "okay";
+	};
 };
