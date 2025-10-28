@@ -10,7 +10,6 @@
 /* Switch selection settings */
 #define SW_SD0_DEV_SEL		0
 #define SW_SD2_DEV_SEL		0
-#define SW_PDM_EN		0
 #define SW_SDIO_M2E		0
 #define SW_DPI_EN		0
 
