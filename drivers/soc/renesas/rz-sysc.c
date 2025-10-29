@@ -18,16 +18,6 @@
 
 #define field_get(_mask, _reg) (((_reg) & (_mask)) >> (ffs(_mask) - 1))
 
-/**
- * struct rz_sysc - RZ SYSC private data structure
- * @base: SYSC base address
- * @dev: SYSC device pointer
- */
-struct rz_sysc {
-	void __iomem *base;
-	struct device *dev;
-};
-
 static int rz_sysc_soc_init(struct rz_sysc *sysc, const struct of_device_id *match)
 {
 	const struct rz_sysc_init_data *sysc_data = match->data;
