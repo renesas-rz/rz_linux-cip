@@ -356,14 +356,6 @@ static int sh_cmt_enable(struct sh_cmt_channel *ch)
 
 	dev_pm_syscore_device(&ch->cmt->pdev->dev, true);
 
-	/* enable clock */
-	ret = clk_enable(ch->cmt->clk);
-	if (ret) {
-		dev_err(&ch->cmt->pdev->dev, "ch%u: cannot enable clock\n",
-			ch->index);
-		goto err0;
-	}
-
 	/* make sure channel is disabled */
 	sh_cmt_start_stop_ch(ch, 0);
 
@@ -385,19 +377,12 @@ static int sh_cmt_enable(struct sh_cmt_channel *ch)
 	if (ret || sh_cmt_read_cmcnt(ch)) {
 		dev_err(&ch->cmt->pdev->dev, "ch%u: cannot clear CMCNT\n",
 			ch->index);
-		ret = -ETIMEDOUT;
-		goto err1;
+		return -ETIMEDOUT;
 	}
 
 	/* enable channel */
 	sh_cmt_start_stop_ch(ch, 1);
 	return 0;
- err1:
-	/* stop clock */
-	clk_disable(ch->cmt->clk);
-
- err0:
-	return ret;
 }
 
 static void sh_cmt_disable(struct sh_cmt_channel *ch)
@@ -407,9 +392,6 @@ static void sh_cmt_disable(struct sh_cmt_channel *ch)
 
 	/* disable interrupts in CMT block */
 	sh_cmt_write_cmcsr(ch, 0);
-
-	/* stop clock */
-	clk_disable(ch->cmt->clk);
 
 	dev_pm_syscore_device(&ch->cmt->pdev->dev, false);
 }
@@ -584,8 +566,6 @@ static int sh_cmt_start_clocksource(struct sh_cmt_channel *ch)
 	int ret = 0;
 	unsigned long flags;
 
-	pm_runtime_get_sync(&ch->cmt->pdev->dev);
-
 	raw_spin_lock_irqsave(&ch->lock, flags);
 
 	if (!(ch->flags & (FLAG_CLOCKEVENT | FLAG_CLOCKSOURCE)))
@@ -620,8 +600,6 @@ static void sh_cmt_stop_clocksource(struct sh_cmt_channel *ch)
 		sh_cmt_disable(ch);
 
 	raw_spin_unlock_irqrestore(&ch->lock, flags);
-
-	pm_runtime_put(&ch->cmt->pdev->dev);
 }
 
 static int sh_cmt_start_clockevent(struct sh_cmt_channel *ch)
@@ -631,10 +609,8 @@ static int sh_cmt_start_clockevent(struct sh_cmt_channel *ch)
 
 	raw_spin_lock_irqsave(&ch->lock, flags);
 
-	if (!(ch->flags & (FLAG_CLOCKEVENT | FLAG_CLOCKSOURCE))) {
-		pm_runtime_get_sync(&ch->cmt->pdev->dev);
+	if (!(ch->flags & (FLAG_CLOCKEVENT | FLAG_CLOCKSOURCE)))
 		ret = sh_cmt_enable(ch);
-	}
 
 	if (ret)
 		goto out;
@@ -657,10 +633,8 @@ static void sh_cmt_stop_clockevent(struct sh_cmt_channel *ch)
 
 	ch->flags &= ~FLAG_CLOCKEVENT;
 
-	if (f && !(ch->flags & (FLAG_CLOCKEVENT | FLAG_CLOCKSOURCE))) {
+	if (f && !(ch->flags & (FLAG_CLOCKEVENT | FLAG_CLOCKSOURCE)))
 		sh_cmt_disable(ch);
-		pm_runtime_put(&ch->cmt->pdev->dev);
-	}
 
 	/* adjust the timeout to maximum if only clocksource left */
 	if (ch->flags & FLAG_CLOCKSOURCE)
@@ -1127,8 +1101,6 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 		mask &= ~(1 << hwidx);
 	}
 
-	clk_disable(cmt->clk);
-
 	platform_set_drvdata(pdev, cmt);
 
 	return 0;
@@ -1176,8 +1148,6 @@ static int sh_cmt_probe(struct platform_device *pdev)
  out:
 	if (cmt->has_clockevent || cmt->has_clocksource)
 		pm_runtime_irq_safe(&pdev->dev);
-	else
-		pm_runtime_idle(&pdev->dev);
 
 	return 0;
 }
