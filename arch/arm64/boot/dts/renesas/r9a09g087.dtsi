@@ -130,7 +130,7 @@
 			compatible = "renesas,r9a09g087-cpg";
 			reg = <0 0x80280000 0 0x1000>,
 			      <0 0x81280000 0 0x9000>,
-				  <0 0x81291200 0 0x4>;
+			      <0 0x81291200 0 0x4>;
 			clocks = <&extal>, <&loco>;
 			clock-names = "extal", "loco";
 			#clock-cells = <2>;
@@ -433,74 +433,74 @@
 		};
 
 		spi0: spi@80007000 {
-				compatible = "renesas,rspi-n2h";
-				reg = <0 0x80007000 0 0x100>;
-				interrupts = <GIC_SPI 634 IRQ_TYPE_EDGE_RISING>,
-							<GIC_SPI 635 IRQ_TYPE_EDGE_RISING>,
-							<GIC_SPI 637 IRQ_TYPE_LEVEL_HIGH>,
-							<GIC_SPI 638 IRQ_TYPE_EDGE_RISING>;
-				interrupt-names = "rx", "tx", "error", "cend";
-				clocks = <&cpg CPG_MOD R9A09G077_SPI0_CLK>;
-				power-domains = <&cpg>;
-				num-cs = <1>;
-				dmas = <&dmac0 0x267B>, <&dmac0 0x267A>;
-				dma-names = "tx", "rx";
-				#address-cells = <1>;
-				#size-cells = <0>;
-				status = "disabled";
+			compatible = "renesas,rspi-n2h";
+			reg = <0 0x80007000 0 0x100>;
+			interrupts = <GIC_SPI 634 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 635 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 637 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 638 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "rx", "tx", "error", "cend";
+			clocks = <&cpg CPG_MOD R9A09G077_SPI0_CLK>;
+			power-domains = <&cpg>;
+			num-cs = <1>;
+			dmas = <&dmac0 0x267B>, <&dmac0 0x267A>;
+			dma-names = "tx", "rx";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
 		};
 
 		spi1: spi@80007400 {
-				compatible = "renesas,rspi-n2h";
-				reg = <0 0x80007400 0 0x100>;
-				interrupts = <GIC_SPI 639 IRQ_TYPE_EDGE_RISING>,
-							<GIC_SPI 640 IRQ_TYPE_EDGE_RISING>,
-							<GIC_SPI 642 IRQ_TYPE_LEVEL_HIGH>,
-							<GIC_SPI 643 IRQ_TYPE_EDGE_RISING>;
-				interrupt-names = "rx", "tx", "error", "cend";
-				clocks = <&cpg CPG_MOD R9A09G077_SPI1_CLK>;
-				power-domains = <&cpg>;
-				num-cs = <1>;
-				dmas = <&dmac0 0x2680>, <&dmac0 0x267F>;
-				dma-names = "tx", "rx";
-				#address-cells = <1>;
-				#size-cells = <0>;
-				status = "disabled";
+			compatible = "renesas,rspi-n2h";
+			reg = <0 0x80007400 0 0x100>;
+			interrupts = <GIC_SPI 639 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 640 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 642 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 643 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "rx", "tx", "error", "cend";
+			clocks = <&cpg CPG_MOD R9A09G077_SPI1_CLK>;
+			power-domains = <&cpg>;
+			num-cs = <1>;
+			dmas = <&dmac0 0x2680>, <&dmac0 0x267F>;
+			dma-names = "tx", "rx";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
 		};
 
 		spi2: spi@80007800 {
-				compatible = "renesas,rspi-n2h";
-				reg = <0 0x80007800 0 0x100>;
-				interrupts = <GIC_SPI 644 IRQ_TYPE_EDGE_RISING>,
-							<GIC_SPI 645 IRQ_TYPE_EDGE_RISING>,
-							<GIC_SPI 647 IRQ_TYPE_LEVEL_HIGH>,
-							<GIC_SPI 648 IRQ_TYPE_EDGE_RISING>;
-				interrupt-names = "rx", "tx", "error", "cend";
-				clocks = <&cpg CPG_MOD R9A09G077_SPI2_CLK>;
-				power-domains = <&cpg>;
-				num-cs = <1>;
-				dmas = <&dmac0 0x2685>, <&dmac0 0x2684>;
-				dma-names = "tx", "rx";
-				#address-cells = <1>;
-				#size-cells = <0>;
-				status = "disabled";
+			compatible = "renesas,rspi-n2h";
+			reg = <0 0x80007800 0 0x100>;
+			interrupts = <GIC_SPI 644 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 645 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 647 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 648 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "rx", "tx", "error", "cend";
+			clocks = <&cpg CPG_MOD R9A09G077_SPI2_CLK>;
+			power-domains = <&cpg>;
+			num-cs = <1>;
+			dmas = <&dmac0 0x2685>, <&dmac0 0x2684>;
+			dma-names = "tx", "rx";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
 		};
 
 		spi3: spi@81007000 {
-				compatible = "renesas,rspi-n2h",
-							"renesas,rspi-t2h";
-				reg = <0 0x81007000 0 0x100>;
-				interrupts = <GIC_SPI 649 IRQ_TYPE_EDGE_RISING>,
-							<GIC_SPI 650 IRQ_TYPE_EDGE_RISING>,
-							<GIC_SPI 652 IRQ_TYPE_LEVEL_HIGH>,
-							<GIC_SPI 653 IRQ_TYPE_EDGE_RISING>;
-				interrupt-names = "rx", "tx", "error", "cend";
-				clocks = <&cpg CPG_MOD R9A09G077_SPI3_CLK>;
-				power-domains = <&cpg>;
-				num-cs = <1>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				status = "disabled";
+			compatible = "renesas,rspi-n2h",
+				     "renesas,rspi-t2h";
+			reg = <0 0x81007000 0 0x100>;
+			interrupts = <GIC_SPI 649 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 650 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 652 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 653 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "rx", "tx", "error", "cend";
+			clocks = <&cpg CPG_MOD R9A09G077_SPI3_CLK>;
+			power-domains = <&cpg>;
+			num-cs = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
 		};
 
 		wdt0: watchdog@80082000 {
@@ -680,7 +680,7 @@
 			compatible = "renesas,rzn2h-ethss";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg =  <0 0x80110000 0 0x10000>;
+			reg = <0 0x80110000 0 0x10000>;
 			clocks = <&cpg CPG_MOD R9A09G077_ETHSS_CLK>;
 			resets = <&cpg R9A09G077_ETH_SUBSYSTEM_RST>,
 				 <&cpg R9A09G077_MII_CONVERT_RST>;
@@ -711,7 +711,7 @@
 
 		ethsw: ethsw@80120000 {
 			compatible = "renesas,rzn2h-ethsw";
-			reg =  <0 0x80120000 0 0x10000>;
+			reg = <0 0x80120000 0 0x10000>;
 			clocks = <&cpg CPG_MOD R9A09G077_ETHSW_CLK>;
 			resets = <&cpg R9A09G077_ETHSW_RST>;
 			power-domains = <&cpg>;
@@ -771,7 +771,7 @@
 		xspi0: spi@801c0000 {
 			compatible = "renesas,n2h-xspi-if";
 			reg = <0 0x801c0000 0 0x1000>,
-				<0 0x40000000 0 0x10000000>;
+			      <0 0x40000000 0 0x10000000>;
 			reg-names = "regs", "dirmap";
 			resets = <&cpg R9A09G077_xSPI0_RST>;
 			power-domains = <&cpg>;
@@ -783,7 +783,7 @@
 		xspi1: spi@801c1000 {
 			compatible = "renesas,n2h-xspi-if";
 			reg = <0 0x801c1000 0 0x1000>,
-				<0 0x50000000 0 0x10000000>;
+			      <0 0x50000000 0 0x10000000>;
 			reg-names = "regs", "dirmap";
 			resets = <&cpg R9A09G077_xSPI1_RST>;
 			power-domains = <&cpg>;
@@ -856,7 +856,7 @@
 				     <GIC_SPI 851 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 852 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "adi", "gbadi", "gcadi", "cmpai",
-						"cmpbi", "wcmpm", "wcmpum";
+					  "cmpbi", "wcmpm", "wcmpum";
 			clocks = <&cpg CPG_MOD R9A09G077_ADC0_CLK>;
 			power-domains = <&cpg>;
 			status = "disabled";
@@ -989,7 +989,7 @@
 		gpt02_0: gpt02_0@90004000 {
 			compatible = "renesas,gpt-r9a09g087";
 			reg = <0 0x90004000 0 0x100>,
-			<0 0x80290000 0 0x0c>;
+			      <0 0x80290000 0 0x0c>;
 			reg-names = "base1", "base2";
 			#pwm-cells = <2>;
 			interrupts = <GIC_SPI 887 IRQ_TYPE_EDGE_RISING>,
@@ -1121,34 +1121,34 @@
 		};
 
 		canfd: can@80040000 {
-				compatible = "renesas,r9a09g087-canfd";
-				reg = <0 0x80040000 0 0x20000>;
-				interrupts =    <GIC_SPI 626 IRQ_TYPE_LEVEL_HIGH>,
-								<GIC_SPI 627 IRQ_TYPE_LEVEL_HIGH>,
-								<GIC_SPI 628 IRQ_TYPE_LEVEL_HIGH>,
-								<GIC_SPI 629 IRQ_TYPE_LEVEL_HIGH>,
-								<GIC_SPI 630 IRQ_TYPE_LEVEL_HIGH>,
-								<GIC_SPI 631 IRQ_TYPE_LEVEL_HIGH>,
-								<GIC_SPI 632 IRQ_TYPE_LEVEL_HIGH>,
-								<GIC_SPI 633 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names = "ch0_trx", "ch0_err", "ch0_rec",
-								"ch1_trx", "ch1_err", "ch1_rec",
-								"g_recc", "g_err";
-				clocks = <&cpg CPG_CORE R9A09G077_PCLKM>,
-						<&cpg CPG_MOD R9A09G077_CANFD_CLK>,
-						<&can_clk>;
-				clock-names = "fck", "canfd", "can_clk";
-				assigned-clocks = <&cpg CPG_MOD R9A09G077_CANFD_CLK>;
-				assigned-clock-rates = <80000000>;
-				power-domains = <&cpg>;
-				status = "disabled";
+			compatible = "renesas,r9a09g087-canfd";
+			reg = <0 0x80040000 0 0x20000>;
+			interrupts = <GIC_SPI 626 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 627 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 628 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 629 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 630 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 631 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 632 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 633 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "ch0_trx", "ch0_err", "ch0_rec",
+					  "ch1_trx", "ch1_err", "ch1_rec",
+					  "g_recc", "g_err";
+			clocks = <&cpg CPG_CORE R9A09G077_PCLKM>,
+				 <&cpg CPG_MOD R9A09G077_CANFD_CLK>,
+				 <&can_clk>;
+			clock-names = "fck", "canfd", "can_clk";
+			assigned-clocks = <&cpg CPG_MOD R9A09G077_CANFD_CLK>;
+			assigned-clock-rates = <80000000>;
+			power-domains = <&cpg>;
+			status = "disabled";
 
-				channel0 {
-						status = "disabled";
-				};
-				channel1 {
-						status = "disabled";
-				};
+			channel0 {
+				status = "disabled";
+			};
+			channel1 {
+				status = "disabled";
+			};
 		};
 
 		mtu3: timer@90001200 {
@@ -1222,9 +1222,9 @@
 			compatible = "renesas,r9a09g087-poe3", "renesas,rz-poe3";
 			reg = <0 0x90018000 0 0x42>;
 			interrupts = <GIC_SPI 463 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 464 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 465 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 466 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 464 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 465 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 466 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "oei1", "oei2", "oei3", "oei4";
 			clocks = <&cpg CPG_CORE R9A09G077_PCLKL>;
 			clock-names = "pclkl";
@@ -1252,7 +1252,7 @@
 			dma-ranges = <0x02000000 0x0 0xC4000000 0x0 0xC4000000 0x0 0x3C000000>,
 				     <0x42000000 0x2 0x40000000 0x2 0x40000000 0x1 0xC0000000>;
 			interrupts = <GIC_SPI 790 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 794 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 794 IRQ_TYPE_LEVEL_HIGH>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0>;
 			interrupt-map = <0 0 0 0 &gic GIC_SPI 790 IRQ_TYPE_LEVEL_HIGH>;
@@ -1272,7 +1272,7 @@
 			      <0x5 0x00000000 0x1 0x00000000>;
 			reg-names = "apb-base0", "apb-base1", "memory0", "memory1";
 			interrupts = <GIC_SPI 797 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 794 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 794 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD R9A09G077_PCIE_CLK>;
 			power-domains = <&cpg>;
 			resets = <&cpg R9A09G077_PCIE_RST>;
