@@ -329,6 +329,7 @@ enum rzg2l_iolh_index {
  * @func_base: base number for port function (see register PFC)
  * @oen_max_pin: the maximum pin number supporting output enable
  * @oen_max_port: the maximum port number supporting output enable
+ * @has_clone_ch: clone channel control support
  */
 struct rzg2l_hwcfg {
 	const struct rzg2l_register_offsets regs;
@@ -341,6 +342,7 @@ struct rzg2l_hwcfg {
 	u8 func_base;
 	u8 oen_max_pin;
 	u8 oen_max_port;
+	bool has_clone_ch;
 };
 
 struct rzg2l_dedicated_configs {
@@ -3234,6 +3236,7 @@ static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 {
 	struct rzg2l_pinctrl *pctrl;
 	struct device_node *np = pdev->dev.of_node;
+	const struct rzg2l_hwcfg *hwcfg;
 	int ret;
 
 	BUILD_BUG_ON(ARRAY_SIZE(r9a07g044_gpio_configs) * RZG2L_PINS_PER_PORT >
@@ -3260,16 +3263,20 @@ static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 
 	pctrl->dev = &pdev->dev;
 
-	/* Load syscon regmap from device tree */
-	pctrl->syscon = syscon_regmap_lookup_by_phandle(np, "syscon");
-	if (IS_ERR(pctrl->syscon)) {
-		dev_info(&pdev->dev, "Failed to find syscon regmap: %ld\n", PTR_ERR(pctrl->syscon));
-		return PTR_ERR(pctrl->syscon);
-	}
-
 	pctrl->data = of_device_get_match_data(&pdev->dev);
 	if (!pctrl->data)
 		return -EINVAL;
+
+	hwcfg = pctrl->data->hwcfg;
+
+	if (hwcfg->has_clone_ch) {
+		/* Load syscon regmap from device tree */
+		pctrl->syscon = syscon_regmap_lookup_by_phandle(np, "syscon");
+		if (IS_ERR(pctrl->syscon)) {
+			dev_info(&pdev->dev, "Failed to find syscon regmap: %ld\n", PTR_ERR(pctrl->syscon));
+			return PTR_ERR(pctrl->syscon);
+		}
+	}
 
 	pctrl->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pctrl->base))
@@ -3640,6 +3647,7 @@ static const struct rzg2l_hwcfg rzg3l_hwcfg = {
 	.oen_max_pin = 1, /* Pin 1 of PB1_ISO and PE1_ISO is the maximum OEN pin. */
 	.oen_max_port = 4, /* PE1_ISO is the maximum OEN port. */
 	.tint_start_index = 17,
+	.has_clone_ch = true,
 };
 
 static const struct rzg2l_hwcfg rzv2h_hwcfg = {
