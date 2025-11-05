@@ -444,6 +444,14 @@ config PCI_ENDPOINT_TEST
 	   Enable this configuration option to enable the host side test driver
 	   for PCI Endpoint.
 
+config PCIE_RZ_DMA_TEST
+	tristate "Renesas RZ PCIe DMA Test driver"
+	depends on (PCIE_RENESAS_RZG3S_DMA && PCIE_RENESAS_RZG3S_HOST)
+	help
+	  Say Y here if you want a PCIe driver which provides debugfs entries to test
+	  local PCIe DMA (DMA exists in this RC SoC) and remote PCIe DMA
+	  (DMA exists in opposing EP SoC) of RZ Series SoCs.
+
 config XILINX_SDFEC
 	tristate "Xilinx SDFEC 16"
 	depends on HAS_IOMEM
