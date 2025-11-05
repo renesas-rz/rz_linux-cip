@@ -127,12 +127,6 @@ int tmio_mmc_pre_dma_transfer(struct tmio_mmc_host *host,
 			"%s: dma_map_sg failed\n", __func__);
 		return 0;
 	}
-	/* This DMAC cannot handle if buffer is not 8-bytes alignment */
-	if (!IS_ALIGNED(sg_dma_address(data->sg), 8)) {
-		dma_unmap_sg(&host->pdev->dev, data->sg, data->sg_len,
-				mmc_get_dma_dir(data));
-		return 0;
-	}
 
 	data->host_cookie = cookie;
 
