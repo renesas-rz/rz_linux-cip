@@ -325,11 +325,13 @@
 		pinmux = <RZG2L_PORT_PINMUX(5, 4, 5)>, /* OVC */
 			 <RZG2L_PORT_PINMUX(6, 0, 1)>; /* VBUS */
 	};
-	
+
+#if SW_GPIO_CAN_PMOD1 == SW_OFF && SW_GPIO_CAN_PMOD2 == SW_OFF
 	gpt0_pins: gpt {
 		pinmux = <RZG2L_PORT_PINMUX(13, 0, 2)>, /* GTIOC0A - GPIO8 */
 			 <RZG2L_PORT_PINMUX(13, 1, 2)>; /* GTIOC0B - GPIO9 */
 	};
+#endif
 
 #if POEGA_SEL
 	poega_pins: poega {
@@ -459,6 +461,7 @@
 #endif
 };
 
+#if SW_GPIO_CAN_PMOD1 == SW_OFF && SW_GPIO_CAN_PMOD2 == SW_OFF
 &gpt0 {
 	pinctrl-0 = <&gpt0_pins>;
 	pinctrl-names = "default";
@@ -466,6 +469,7 @@
 	poeg = <&poega>;
 	status = "okay";
 };
+#endif
 
 #if POEGA_SEL
 &poega {
