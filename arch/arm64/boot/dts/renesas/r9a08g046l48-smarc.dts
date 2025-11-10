@@ -184,6 +184,17 @@
 			 <RZG3L_PORT_PINMUX(L, 3, 4)>; /* I2C_PM_DAT */
 	};
 
+#if (!SW_DPI_EN)
+	spi2_pins: spi2 {
+		pinmux = <RZG3L_PORT_PINMUX(6, 0, 2)>, /* MISO */
+			 <RZG3L_PORT_PINMUX(6, 1, 2)>, /* MOSI */
+			 <RZG3L_PORT_PINMUX(6, 2, 2)>, /* SCK */
+			 <RZG3L_PORT_PINMUX(6, 3, 2)>; /* SSLA */
+			 power-source = <1800>;
+			 renesas,sys_sel_clonech = <9>;
+	};
+#endif
+
 	scif0_pins: scif0 {
 		pins = "SCIF_TXD", "SCIF_RXD";
 		power-source = <1800>;
@@ -399,6 +410,15 @@
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "default";
 };
+
+#if (!SW_DPI_EN)
+&spi2 {
+	pinctrl-0 = <&spi2_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+#endif
 
 &scif0 {
 	pinctrl-0 = <&scif0_pins>;
