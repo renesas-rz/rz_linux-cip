@@ -133,9 +133,15 @@ struct rzg2l_csi2 {
 	bool dphy_enabled;
 };
 
+struct csi2_timing {
+	const struct rzg2l_csi2_timings *timing_table;
+	size_t count;
+};
+
 struct rzg2l_csi2_info {
 	int (*dphy_enable)(struct rzg2l_csi2 *csi2);
 	int (*dphy_disable)(struct rzg2l_csi2 *csi2);
+	struct csi2_timing timings;
 	bool has_system_clk;
 	unsigned long vclk_rec_rate;
 };
@@ -219,6 +225,81 @@ static const struct rzg2l_csi2_timings rzg2l_csi2_global_timings[] = {
 		.ths_settle = 18,
 		.tclk_prepare = 10,
 		.ths_prepare = 10,
+	},
+};
+
+static const struct rzg2l_csi2_timings rzg3l_csi2_global_timings[] = {
+	{
+		.max_hsfreq = 100,
+		.t_init = 79801,
+		.tclk_miss = 4,
+		.tclk_settle = 13,
+		.ths_settle = 19,
+		.tclk_prepare = 11,
+		.ths_prepare = 11,
+	},
+	{
+		.max_hsfreq = 130,
+		.t_init = 79801,
+		.tclk_miss = 4,
+		.tclk_settle = 13,
+		.ths_settle = 18,
+		.tclk_prepare = 11,
+		.ths_prepare = 10,
+	},
+	{
+		.max_hsfreq = 200,
+		.t_init = 79801,
+		.tclk_miss = 4,
+		.tclk_settle = 13,
+		.ths_settle = 15,
+		.tclk_prepare = 11,
+		.ths_prepare = 8,
+	},
+	{
+		.max_hsfreq = 300,
+		.t_init = 79801,
+		.tclk_miss = 4,
+		.tclk_settle = 14,
+		.ths_settle = 14,
+		.tclk_prepare = 11,
+		.ths_prepare = 7,
+	},
+	{
+		.max_hsfreq = 400,
+		.t_init = 79801,
+		.tclk_miss = 4,
+		.tclk_settle = 13,
+		.ths_settle = 13,
+		.tclk_prepare = 11,
+		.ths_prepare = 7,
+	},
+	{
+		.max_hsfreq = 700,
+		.t_init = 79801,
+		.tclk_miss = 4,
+		.tclk_settle = 12,
+		.ths_settle = 12,
+		.tclk_prepare = 11,
+		.ths_prepare = 6,
+	},
+	{
+		.max_hsfreq = 1000,
+		.t_init = 79801,
+		.tclk_miss = 4,
+		.tclk_settle = 12,
+		.ths_settle = 12,
+		.tclk_prepare = 11,
+		.ths_prepare = 6,
+	},
+	{
+		.max_hsfreq = 1500,
+		.t_init = 79801,
+		.tclk_miss = 4,
+		.tclk_settle = 12,
+		.ths_settle = 12,
+		.tclk_prepare = 11,
+		.ths_prepare = 6,
 	},
 };
 
@@ -397,6 +478,7 @@ static int rzg2l_csi2_dphy_disable(struct rzg2l_csi2 *csi2)
 static int rzg2l_csi2_dphy_enable(struct rzg2l_csi2 *csi2)
 {
 	const struct rzg2l_csi2_timings *dphy_timing;
+	const struct rzg2l_csi2_info *csi2_info = csi2->info;
 	u32 dphytim0, dphytim1;
 	unsigned int i;
 	int mbps;
@@ -409,14 +491,14 @@ static int rzg2l_csi2_dphy_enable(struct rzg2l_csi2 *csi2)
 	csi2->hsfreq = mbps;
 
 	/* Set DPHY timing parameters */
-	for (i = 0; i < ARRAY_SIZE(rzg2l_csi2_global_timings); ++i) {
-		dphy_timing = &rzg2l_csi2_global_timings[i];
+	for (i = 0; i < csi2_info->timings.count; ++i) {
+		dphy_timing = &csi2_info->timings.timing_table[i];
 
 		if (csi2->hsfreq <= dphy_timing->max_hsfreq)
 			break;
 	}
 
-	if (i >= ARRAY_SIZE(rzg2l_csi2_global_timings))
+	if (i >= csi2_info->timings.count)
 		return -EINVAL;
 
 	/* Set D-PHY timing parameters */
@@ -458,6 +540,20 @@ static const struct rzg2l_csi2_info rzg2l_csi2_info = {
 	.dphy_enable = rzg2l_csi2_dphy_enable,
 	.dphy_disable = rzg2l_csi2_dphy_disable,
 	.has_system_clk = true,
+	.timings = {
+		.timing_table = rzg2l_csi2_global_timings,
+		.count = ARRAY_SIZE(rzg2l_csi2_global_timings),
+	},
+};
+
+static const struct rzg2l_csi2_info rzg3l_csi2_info = {
+	.dphy_enable = rzg2l_csi2_dphy_enable,
+	.dphy_disable = rzg2l_csi2_dphy_disable,
+	.has_system_clk = true,
+	.timings = {
+		.timing_table = rzg3l_csi2_global_timings,
+		.count = ARRAY_SIZE(rzg3l_csi2_global_timings),
+	},
 };
 
 static int rzg2l_csi2_dphy_setting(struct v4l2_subdev *sd, bool on)
@@ -1072,6 +1168,10 @@ static const struct of_device_id rzg2l_csi2_of_table[] = {
 	{
 		.compatible = "renesas,rzg2l-csi2",
 		.data = &rzg2l_csi2_info,
+	},
+	{
+		.compatible = "renesas,rzg3l-csi2",
+		.data = &rzg3l_csi2_info,
 	},
 	{ /* sentinel */ }
 };
