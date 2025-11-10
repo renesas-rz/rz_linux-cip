@@ -954,7 +954,7 @@ static int rspi_parse_dt(struct device *dev, struct spi_controller *ctlr)
 
 	ctlr->num_chipselect = num_cs;
 
-	rstc = devm_reset_control_array_get(dev, false, false);
+	rstc = devm_reset_control_array_get(dev, RESET_CONTROL_EXCLUSIVE);
 	if (IS_ERR(rstc))
 		return dev_err_probe(dev, PTR_ERR(rstc),
 						"failed to get reset ctrl\n");
