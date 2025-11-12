@@ -45,7 +45,6 @@ static int rzt2h_pcie_dma_xfer_desc(struct rzt2h_pcie_dma_chan *chan)
 	rzt2h_pci_write_reg(pcie, DMA_D_PMRS_256B, DMA_CONTROL_REG);
 	/* Enable DMA INT */
 	mask = (DMA_END_EN | DMA_STOP_EN | DMA_ERR_EN) << (chan->index * 4);
-	//mask = DMA_INTERRUPT_ENABLE_INT;
 	rzt2h_rmw(pcie, DMA_INTERRUPT_ENABLE_REG, mask, mask);
 	/* Set start address of Descriptor List */
 	dsa = chan->desc->node[0].pdesc;
@@ -377,7 +376,7 @@ static irqreturn_t rzt2h_pcie_dma_irq_handler(int irq, void *dev_id)
 	struct rzt2h_pcie_dmac *dmac = &pcie->dmac;
 	struct rzt2h_pcie_dma_chan *chan;
 	unsigned long dma_status;
-	u32 reg;
+	u32 reg, mask;
 	int i;
 
 	reg = rzt2h_pci_read_reg(pcie, DMA_INTERRUPT_STATUS_REG);
@@ -401,9 +400,8 @@ static irqreturn_t rzt2h_pcie_dma_irq_handler(int irq, void *dev_id)
 				(RZT2H_PCIE_DMA_STATUS_ALL << (i * 4)));
 
 
-		rzt2h_rmw(pcie, DMA_INTERRUPT_ENABLE_REG,
-				(RZT2H_PCIE_DMA_STATUS_ALL << (i * 4)),
-				(RZT2H_PCIE_DMA_STATUS_ALL << (i * 4)));
+		mask = (DMA_END_EN | DMA_STOP_EN | DMA_ERR_EN) << (i * 4);
+		rzt2h_rmw(pcie, DMA_INTERRUPT_ENABLE_REG, mask, mask);
 	}
 
 	return IRQ_WAKE_THREAD;
