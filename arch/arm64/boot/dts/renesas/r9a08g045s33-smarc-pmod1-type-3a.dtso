@@ -45,4 +45,10 @@
 	uart-has-rtscts;
 	status = "okay";
 };
+
+&spdif {
+	/delete-property/ pinctrl-0;
+	/delete-property/ pinctrl-names;
+	status = "disabled";
+};
 #endif
