@@ -158,6 +158,17 @@
 		pinmux = <RZG3L_PORT_PINMUX(3, 5, 12)>, /* VBUS */
 			 <RZG3L_PORT_PINMUX(3, 4, 12)>; /* OVC */
 	};
+
+	pcie-clkreq-n {
+		gpio-hog;
+		gpios = <RZG3L_GPIO(G, 6) GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "pcie_clkreq_n";
+	};
+
+	pcie_pins: pcie {
+		pinmux = <RZG3L_PORT_PINMUX(G, 7, 1)>; /* PCIE_RST_OUT# */
+	};
 };
 
 &canfd {
@@ -260,5 +271,11 @@
 
 &ohci1 {
 	dr_mode = "host";
+	status = "okay";
+};
+
+&pcie {
+	pinctrl-0 = <&pcie_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 };
