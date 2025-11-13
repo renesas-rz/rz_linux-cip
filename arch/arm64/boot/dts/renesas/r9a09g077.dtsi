@@ -27,12 +27,6 @@
 		clock-frequency = <0>;
 	};
 
-	can_clk: can {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <0>;
-	};
-
 	cluster0_opp: opp-table-0 {
 		compatible = "operating-points-v2";
 		opp-shared;
@@ -1202,11 +1196,9 @@
 					  "ch1_trx", "ch1_err", "ch1_rec",
 					  "g_recc", "g_err";
 			clocks = <&cpg CPG_CORE R9A09G077_PCLKM>,
-				 <&cpg CPG_MOD R9A09G077_CANFD_CLK>,
-				 <&can_clk>;
-			clock-names = "fck", "canfd", "can_clk";
-			assigned-clocks = <&cpg CPG_MOD R9A09G077_CANFD_CLK>;
-			assigned-clock-rates = <80000000>;
+				 <&cpg CPG_CORE R9A09G077_PCLKH>,
+				 <&cpg CPG_MOD R9A09G077_CANFD_CLK>;
+			clock-names = "fck", "ram_clk", "can_clk";
 			power-domains = <&cpg>;
 			status = "disabled";
 
