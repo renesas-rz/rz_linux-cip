@@ -75,7 +75,7 @@
  * - 0 : GPT
  * - 1 : SD0 (default)
  */
-#define SEL_GPT_SD0		0
+#define SEL_GPT_SD0		1
 
 /* Select function support POEG (1: enabled, 0 : disabled) */
 #define POEG_SUPPORT		1
