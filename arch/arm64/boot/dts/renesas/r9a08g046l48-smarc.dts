@@ -28,6 +28,12 @@
  */
 #define SER1_RSCI3_EN		1
 
+/*
+* Use to enable POE3 to control Hi-Z state of MTU3
+* PWM complementary signals at MTU6_IOC_B-MTU6_IOC_D.
+*/
+#define POE3_SUPPORT	0
+
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/renesas,r9a08g046-pinctrl.h>
 
@@ -350,6 +356,29 @@
 		pinmux = <RZG3L_PORT_PINMUX(A, 6, 4)>, /* I2C1_SCL */
 			 <RZG3L_PORT_PINMUX(A, 7, 4)>; /* I2C1_SDA */
 	};
+
+#if (!SW_DPI_EN)
+	mtu3_pins: mtu3 {
+		mtu3-ext-clk-input-pin {
+			pinmux = <RZG3L_PORT_PINMUX(8, 4, 14)>, /* MTU_CLK_C */
+				 <RZG3L_PORT_PINMUX(8, 5, 14)>; /* MTU_CLK_D */
+		};
+
+		mtu3-pwm {
+			pinmux = <RZG3L_PORT_PINMUX(6, 2, 14)>, /* MTU6_IOC_B */
+				 <RZG3L_PORT_PINMUX(6, 3, 14)>, /* MTU6_IOC_C */
+				 <RZG3L_PORT_PINMUX(6, 4, 14)>; /* MTU6_IOC_D */
+		};
+	};
+#endif
+
+#if (POE3_SUPPORT && !SW_DPI_EN && !RSCI2_MODE_SEL)
+	poe3_pins: poe3 {
+		pinmux = <RZG3L_PORT_PINMUX(7, 6, 14)>, /* MTU_POE0# */
+			 <RZG3L_PORT_PINMUX(7, 7, 14)>; /* MTU_POE4# */
+		bias-pull-up;
+	};
+#endif
 };
 
 &canfd {
@@ -605,5 +634,26 @@
 	pinctrl-0 = <&rsci3_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+};
+#endif
+
+#if (!SW_DPI_EN)
+&mtu3 {
+	pinctrl-0 = <&mtu3_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+#endif
+
+#if (POE3_SUPPORT && !SW_DPI_EN && !RSCI2_MODE_SEL)
+&poe3 {
+	pinctrl-0 = <&poe3_pins>;
+	pinctrl-names = "default";
+	poe3_pins_mode = <0 0>, <4 0>;
+	status = "okay";
+	mtu3_ch67 {
+	       mtu3_outputs = <0>; /* MTU6_IOC_B-MTU6_IOC_D */
+	       addition_poe3_inputs = <0 4>;
+	};
 };
 #endif
