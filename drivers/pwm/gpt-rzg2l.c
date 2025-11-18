@@ -1215,7 +1215,8 @@ static irqreturn_t rzt2h_gpt_isr(int irq, void *data)
 
 		tmp = rzg2l_gpt_read(pc, GTBER);
 
-		if (tmp & GTCCRB_BUFFER_SINGLE) {
+		if ((tmp & GTCCRB_BUFFER_SINGLE) &&
+				(pc->gpt_operation == SINGLE_BUFFER_OUTPUT)) {
 			rzg2l_gpt_write(pc,
 				pc->bufferB[pc->buffer_mode_count_B],
 				GTCCRE);
@@ -1231,7 +1232,8 @@ static irqreturn_t rzt2h_gpt_isr(int irq, void *data)
 				pc->buffer_mode_count_B = 3;
 		}
 
-		if (tmp & GTCCRA_BUFFER_SINGLE) {
+		if ((tmp & GTCCRA_BUFFER_SINGLE) &&
+				(pc->gpt_operation == SINGLE_BUFFER_OUTPUT)) {
 			rzg2l_gpt_write(pc,
 				pc->bufferA[pc->buffer_mode_count_A],
 				GTCCRC);
