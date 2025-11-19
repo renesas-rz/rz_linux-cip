@@ -1418,6 +1418,7 @@ static int rzg2l_mipi_pm_runtime_resume(struct device *dev)
 
 static const struct dev_pm_ops rzg2l_mipi_pm_ops = {
 	RUNTIME_PM_OPS(rzg2l_mipi_pm_runtime_suspend, rzg2l_mipi_pm_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 /* -----------------------------------------------------------------------------
