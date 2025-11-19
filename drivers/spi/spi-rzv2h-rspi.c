@@ -30,6 +30,7 @@
 #define RSPI_SPDR		0x00
 #define RSPI_MRCKD		0x07
 #define RSPI_SPCR		0x08
+#define RSPI_SPPCR		0x0e
 #define RSPI_SSLP		0x10
 #define RSPI_SPBR		0x11
 #define RSPI_SPSCR		0x13
@@ -48,6 +49,9 @@
 #define RSPI_SPCR_SCKASE	BIT(12)
 #define SPCR_SPSCKSEL		BIT(7)
 #define RSPI_SPCR_SPE		BIT(0)
+
+/* Register SPPCR */
+#define RSPI_SPPCR_SPLP2	BIT(1)
 
 /* Register SPBR */
 #define RSPI_SPBR_SPR_MIN	0
@@ -663,6 +667,7 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 	u8 bits_per_word;
 	u32 conf32;
 	u16 conf16;
+	u8 conf8;
 
 	/* Make sure SPCR.SPE is 0 before amending the configuration */
 	rzv2h_rspi_spe_disable(rspi);
@@ -687,6 +692,10 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 
 	/* Use SPCMD0 only */
 	writeb(0x0, rspi->base + RSPI_SPSCR);
+
+	/* Setup loopback */
+	conf8 = FIELD_PREP(RSPI_SPPCR_SPLP2, !!(spi->mode & SPI_LOOP));
+	writeb(conf8, rspi->base + RSPI_SPPCR);
 
 	/* Setup mode */
 	conf32 = FIELD_PREP(RSPI_SPCMD_CPOL, !!(spi->mode & SPI_CPOL));
@@ -869,7 +878,7 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	init_waitqueue_head(&rspi->wait);
 
 	controller->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH |
-				SPI_LSB_FIRST;
+				SPI_LSB_FIRST | SPI_LOOP;
 	controller->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	controller->prepare_message = rzv2h_rspi_prepare_message;
 	controller->unprepare_message = rzv2h_rspi_unprepare_message;
