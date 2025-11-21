@@ -110,6 +110,7 @@
 	pinctrl-0 = <&gpt_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+	renesas,poegs = <&poeggd 4>;
 };
 #endif /* PMOD0_GPT */
 
@@ -166,6 +167,11 @@
 	status = "disabled";
 };
 #endif /* PMOD_MTU3 */
+
+&poeggd {
+	status = "okay";
+	renesas,poeg-config = <1>;
+};
 
 /*
  * To enable SCIF2 (SER0) on PMOD1 (CN7)
