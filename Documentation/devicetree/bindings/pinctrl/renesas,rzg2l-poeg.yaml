@@ -57,6 +57,21 @@ properties:
         <2> : POEG group C
         <3> : POEG group D
 
+  renesas,poeg-config:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 1, 2, 4, 6, 8, 10, 12, 14, 16 ]
+    description: |
+      POEG Configuration. Valid values are:
+        <1> :  User control
+        <2> :  GPT both output high
+        <4> :  GPT both output low
+        <6> :  GPT both output high + GPT both output low
+        <8> :  GPT dead time error
+        <10> : GPT both output high + GPT dead time error
+        <12> : GPT both output low + GPT dead time error
+        <14> : GPT both output {high, low} + GPT dead time error
+        <16> : External pin control
+
 required:
   - compatible
   - reg
@@ -83,4 +98,5 @@ examples:
         resets = <&cpg R9A07G044_POEG_D_RST>;
         renesas,poeg-id = <3>;
         renesas,gpt = <&gpt>;
+        renesas,poeg-config = <1>;
     };
