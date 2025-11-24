@@ -1127,15 +1127,35 @@ static int eswm_gwca_ts_request_irqs(struct eswm_private *priv)
 }
 
 /* Ethernet TSN Agent block (ETHA) and Ethernet MAC IP block (RMAC) */
-static int eswm_etha_change_mode(struct eswm_etha *etha,
+static inline void __iomem *eswm_etha_reg_addr(struct eswm_device *rdev,
+					       enum eswm_reg etha_reg)
+{
+	return rdev->priv->addr + ESWM_ETHA_OFFSET +
+		rdev->port * ESWM_ETHA_SIZE + etha_reg;
+}
+
+static inline u32 eswm_etha_read(struct eswm_device *rdev,
+				 enum eswm_reg etha_reg)
+{
+	return readl(eswm_etha_reg_addr(rdev, etha_reg));
+}
+
+static inline void eswm_etha_write(struct eswm_device *rdev,
+				   enum eswm_reg etha_reg, u32 data)
+{
+	writel(data, eswm_etha_reg_addr(rdev, etha_reg));
+}
+
+static int eswm_etha_change_mode(struct eswm_device *rdev,
 				    enum eswm_etha_mode mode)
 {
+	struct eswm_etha *etha = rdev->etha;
 	int ret;
 
 	if (!eswm_agent_clock_is_enabled(etha->coma_addr, etha->index))
 		eswm_agent_clock_ctrl(etha->coma_addr, etha->index, 1);
 
-	iowrite32(mode, etha->addr + EAMC);
+	eswm_etha_write(rdev, EAMC, mode);
 
 	ret = eswm_reg_wait(etha->addr, EAMS, EAMS_OPS_MASK, mode);
 
@@ -1145,10 +1165,11 @@ static int eswm_etha_change_mode(struct eswm_etha *etha,
 	return ret;
 }
 
-static void eswm_etha_read_mac_address(struct eswm_etha *etha)
+static void eswm_etha_read_mac_address(struct eswm_device *rdev)
 {
-	u32 mrmac0 = ioread32(etha->addr + MRMAC0);
-	u32 mrmac1 = ioread32(etha->addr + MRMAC1);
+	struct eswm_etha *etha = rdev->etha;
+	u32 mrmac0 = eswm_etha_read(rdev, MRMAC0);
+	u32 mrmac1 = eswm_etha_read(rdev, MRMAC1);
 	u8 *mac = &etha->mac_addr[0];
 
 	mac[0] = (mrmac0 >>  8) & 0xFF;
@@ -1159,25 +1180,27 @@ static void eswm_etha_read_mac_address(struct eswm_etha *etha)
 	mac[5] = (mrmac1 >>  0) & 0xFF;
 }
 
-static void eswm_etha_write_mac_address(struct eswm_etha *etha, const u8 *mac)
+static void eswm_etha_write_mac_address(struct eswm_device *rdev, const u8 *mac)
 {
-	iowrite32((mac[0] << 8) | mac[1], etha->addr + MRMAC0);
-	iowrite32((mac[2] << 24) | (mac[3] << 16) | (mac[4] << 8) | mac[5],
-		  etha->addr + MRMAC1);
+	eswm_etha_write(rdev, MRMAC0, (mac[0] << 8) | mac[1]);
+	eswm_etha_write(rdev, MRMAC1,
+			(mac[2] << 24) | (mac[3] << 16) |
+			(mac[4] << 8) | mac[5]);
 }
 
-static int eswm_etha_wait_link_verification(struct eswm_etha *etha)
+static int eswm_etha_wait_link_verification(struct eswm_device *rdev)
 {
-	iowrite32(MLVC_PLV, etha->addr + MLVC);
+	eswm_etha_write(rdev, MLVC, MLVC_PLV);
 
-	return eswm_reg_wait(etha->addr, MLVC, MLVC_PLV, 0);
+	return eswm_reg_wait(rdev->etha->addr, MLVC, MLVC_PLV, 0);
 }
 
-static void eswm_rmac_setting(struct eswm_etha *etha, const u8 *mac)
+static void eswm_rmac_setting(struct eswm_device *rdev, const u8 *mac)
 {
+	struct eswm_etha *etha = rdev->etha;
 	u32 pis, lsc;
 
-	eswm_etha_write_mac_address(etha, mac);
+	eswm_etha_write_mac_address(rdev, mac);
 
 	switch (etha->phy_interface) {
 	case PHY_INTERFACE_MODE_MII:
@@ -1191,7 +1214,7 @@ static void eswm_rmac_setting(struct eswm_etha *etha, const u8 *mac)
 		pis = MPIC_PIS_XGMII;
 		break;
 	default:
-		pis = FIELD_GET(MPIC_PIS_MASK, ioread32(etha->addr + MPIC));
+		pis = FIELD_GET(MPIC_PIS_MASK, eswm_etha_read(rdev, MPIC));
 		break;
 	}
 
@@ -1209,7 +1232,7 @@ static void eswm_rmac_setting(struct eswm_etha *etha, const u8 *mac)
 		lsc = MPIC_LSC_2_5G;
 		break;
 	default:
-		lsc = FIELD_GET(MPIC_LSC_MASK, ioread32(etha->addr + MPIC));
+		lsc = FIELD_GET(MPIC_LSC_MASK, eswm_etha_read(rdev, MPIC));
 		break;
 	}
 
@@ -1217,44 +1240,47 @@ static void eswm_rmac_setting(struct eswm_etha *etha, const u8 *mac)
 			FIELD_PREP(MPIC_PIS_MASK, pis) | FIELD_PREP(MPIC_LSC_MASK, lsc));
 }
 
-static void eswm_etha_enable_mii(struct eswm_etha *etha)
+static void eswm_etha_enable_mii(struct eswm_device *rdev)
 {
+	struct eswm_etha *etha = rdev->etha;
+
 	eswm_modify(etha->addr, MPIC, MPIC_PSMCS_MASK | MPIC_PSMHT_MASK,
 		       MPIC_PSMCS(etha->psmcs) | MPIC_PSMHT(0x06));
 	eswm_modify(etha->addr, MPSM, 0, MPSM_MFF_C45);
 }
 
-static int eswm_etha_hw_init(struct eswm_etha *etha, const u8 *mac)
+static int eswm_etha_hw_init(struct eswm_device *rdev, const u8 *mac)
 {
 	int err;
 
-	err = eswm_etha_change_mode(etha, EAMC_OPC_DISABLE);
+	err = eswm_etha_change_mode(rdev, EAMC_OPC_DISABLE);
 	if (err < 0)
 		return err;
-	err = eswm_etha_change_mode(etha, EAMC_OPC_CONFIG);
-	if (err < 0)
-		return err;
-
-	iowrite32(EAVCC_VEM_SC_TAG, etha->addr + EAVCC);
-	eswm_rmac_setting(etha, mac);
-	eswm_etha_enable_mii(etha);
-
-	err = eswm_etha_wait_link_verification(etha);
+	err = eswm_etha_change_mode(rdev, EAMC_OPC_CONFIG);
 	if (err < 0)
 		return err;
 
-	err = eswm_etha_change_mode(etha, EAMC_OPC_DISABLE);
+	eswm_etha_write(rdev, EAVCC, EAVCC_VEM_SC_TAG);
+	eswm_rmac_setting(rdev, mac);
+	eswm_etha_enable_mii(rdev);
+
+	err = eswm_etha_wait_link_verification(rdev);
 	if (err < 0)
 		return err;
 
-	return eswm_etha_change_mode(etha, EAMC_OPC_OPERATION);
+	err = eswm_etha_change_mode(rdev, EAMC_OPC_DISABLE);
+	if (err < 0)
+		return err;
+
+	return eswm_etha_change_mode(rdev, EAMC_OPC_OPERATION);
 }
 
-static int eswm_etha_mpsm_op(struct eswm_etha *etha, bool read,
+static int eswm_etha_mpsm_op(struct eswm_device *rdev, bool read,
 				unsigned int mmf, unsigned int pda,
 				unsigned int pra, unsigned int pop,
 				unsigned int prd)
 {
+	struct eswm_etha *etha = rdev->etha;
 	u32 val;
 	int ret;
 
@@ -1264,14 +1290,14 @@ static int eswm_etha_mpsm_op(struct eswm_etha *etha, bool read,
 		FIELD_PREP(MPSM_PRA_MASK, pra) |
 		FIELD_PREP(MPSM_POP_MASK, pop) |
 		FIELD_PREP(MPSM_PRD_MASK, prd);
-	iowrite32(val, etha->addr + MPSM);
+	eswm_etha_write(rdev, MPSM, val);
 
 	ret = eswm_reg_wait(etha->addr, MPSM, MPSM_PSME, 0);
 	if (ret)
 		return ret;
 
 	if (read) {
-		val = ioread32(etha->addr + MPSM);
+		val = eswm_etha_read(rdev, MPSM);
 		ret = FIELD_GET(MPSM_PRD_MASK, val);
 	}
 
@@ -1281,50 +1307,57 @@ static int eswm_etha_mpsm_op(struct eswm_etha *etha, bool read,
 static int eswm_etha_mii_read_c45(struct mii_bus *bus, int addr, int devad,
 					int regad)
 {
-	struct eswm_etha *etha = bus->priv;
+	struct eswm_device *rdev = bus->priv;
 	int ret;
 
-	ret = eswm_etha_mpsm_op(etha, false, MPSM_MFF_C45, addr, devad,
+	ret = eswm_etha_mpsm_op(rdev, false, MPSM_MFF_C45, addr, devad,
 				MPSM_POP_ADDRESS, regad);
 
 	if (ret)
 		return ret;
 
-	return eswm_etha_mpsm_op(etha, true, MPSM_MFF_C45, addr, devad,
+	return eswm_etha_mpsm_op(rdev, true, MPSM_MFF_C45, addr, devad,
 				MPSM_POP_READ_C45, 0);
 }
 
 static int eswm_etha_mii_write_c45(struct mii_bus *bus, int addr, int devad,
 					int regad, u16 val)
 {
-	struct eswm_etha *etha = bus->priv;
+	struct eswm_device *rdev = bus->priv;
 	int ret;
 
-	ret = eswm_etha_mpsm_op(etha, false, MPSM_MFF_C45, addr, devad,
+	ret = eswm_etha_mpsm_op(rdev, false, MPSM_MFF_C45, addr, devad,
 				MPSM_POP_ADDRESS, regad);
 
 	if (ret)
 		return ret;
 
-	return eswm_etha_mpsm_op(etha, true, MPSM_MFF_C45, addr, devad,
+	return eswm_etha_mpsm_op(rdev, true, MPSM_MFF_C45, addr, devad,
 				MPSM_POP_WRITE, val);
 }
 
 static int eswm_etha_mii_read_c22(struct mii_bus *bus, int phyad, int regad)
 {
-	struct eswm_etha *etha = bus->priv;
+	struct eswm_device *rdev = bus->priv;
 
-	return eswm_etha_mpsm_op(etha, true, MPSM_MFF_C22, phyad, regad,
+	return eswm_etha_mpsm_op(rdev, true, MPSM_MFF_C22, phyad, regad,
 				MPSM_POP_READ_C22, 0);
 }
 
 static int eswm_etha_mii_write_c22(struct mii_bus *bus, int phyad,
 					int regad, u16 val)
 {
-	struct eswm_etha *etha = bus->priv;
+	struct eswm_device *rdev = bus->priv;
 
-	return eswm_etha_mpsm_op(etha, false, MPSM_MFF_C22, phyad, regad,
+	return eswm_etha_mpsm_op(rdev, false, MPSM_MFF_C22, phyad, regad,
 				MPSM_POP_WRITE, val);
+}
+
+static int eswm_etha_ram_reset(struct eswm_device *rdev)
+{
+	eswm_etha_write(rdev, EATASRIRM, EATASRIRM_TASRIOG);
+	return eswm_reg_wait(rdev->etha->addr, EATASRIRM,
+				EATASRIRM_TASRR, EATASRIRM_TASRR);
 }
 
 /* Call of_node_put(port) after done */
@@ -1469,7 +1502,7 @@ static int eswm_mii_register(struct eswm_device *rdev)
 
 	mii_bus->name = "eswm_mii";
 	sprintf(mii_bus->id, "etha%d", rdev->etha->index);
-	mii_bus->priv = rdev->etha;
+	mii_bus->priv = rdev;
 	mii_bus->read = eswm_etha_mii_read_c22;
 	mii_bus->write = eswm_etha_mii_write_c22;
 	mii_bus->read_c45 = eswm_etha_mii_read_c45;
@@ -1600,7 +1633,7 @@ static int eswm_ether_port_init_one(struct eswm_device *rdev)
 	int err;
 
 	if (!rdev->etha->operated) {
-		err = eswm_etha_hw_init(rdev->etha, rdev->ndev->dev_addr);
+		err = eswm_etha_hw_init(rdev, rdev->ndev->dev_addr);
 		if (err < 0)
 			return err;
 		if (rdev->priv->etha_no_runtime_change)
@@ -1945,12 +1978,323 @@ static int eswm_eth_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 	}
 }
 
+static int eswm_taprio_check(struct net_device *ndev,
+			     struct tc_taprio_qopt_offload *taprio)
+{
+	struct netlink_ext_ack *extack = taprio->mqprio.extack;
+	u64 total_time = 0;
+	u32 i;
+
+	if (!netif_running(ndev)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "interface is down, link speed unknown\n");
+		return -ENETDOWN;
+	}
+
+	if (taprio->cycle_time_extension) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "cycle time extension not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (taprio->num_entries > ESWM_MAX_GCL_ENTRIES) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "too many GCL entries\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < taprio->num_entries; ++i) {
+		if (taprio->entries[i].command != TC_TAPRIO_CMD_SET_GATES)
+			return -EINVAL;
+
+		total_time += taprio->entries[i].interval;
+	}
+
+	if (taprio->cycle_time < total_time) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "cycle_time is smaller than sum of intervals\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int eswm_taprio_learn_entry(struct eswm_device *rdev,
+				   u32 addr, u32 interval_ns,
+				   bool open)
+{
+	u32 val;
+
+	if (interval_ns > EATASGL1_TASGTL)
+		return -ERANGE;
+
+	/* Set address to be learned */
+	eswm_etha_write(rdev, EATASGL0, EATASGL0_TASGAL(addr));
+
+	/* Set entry data: time + gate state */
+	val = (interval_ns & EATASGL1_TASGTL) | (open ? EATASGL1_TASGSL : 0);
+	eswm_etha_write(rdev, EATASGL1, val);
+
+	/* Wait EATASGLR.GL deasserted */
+	return eswm_reg_wait(rdev->etha->addr, EATASGLR, EATASGLR_GL, 0);
+}
+
+static int eswm_taprio_setup_gcl(struct eswm_device *rdev,
+				 struct tc_taprio_qopt_offload *taprio,
+				 u8 num_tc, u32 base, bool tas_running)
+{
+	u32 entries = taprio->num_entries;
+	u32 total = num_tc * entries;
+	u32 gate, k;
+	int err;
+
+	/* If the TAS module is dynamically used, the sum of EATASENCi.TASAEN
+	 * should be smaller or equal to 119.
+	 *
+	 * If the TAS module is statistically used, the sum of EATASENCi.TASAEN
+	 * should be smaller or equal to 247.
+	 */
+
+	if (tas_running) {
+		if (total > 119)
+			return -EINVAL;
+	} else {
+		if (total > 247)
+			return -EINVAL;
+	}
+
+	/* Configure number of entries per gate (EATASENCi) */
+	for (gate = 0; gate < num_tc; gate++) {
+		/* A gate corresponding to an entry number register should be
+		 * set as the number of entries - 1 used by the gate.
+		 */
+		u32 num = entries - 1;
+
+		eswm_etha_write(rdev, EATASENC(gate), EATASENC_TASAEN(num));
+	}
+
+	/* Learn TAS RAM entries */
+	for (gate = 0; gate < num_tc; gate++) {
+		for (k = 0; k < entries; k++) {
+			u32 interval = taprio->entries[k].interval;
+			u32 mask = taprio->entries[k].gate_mask;
+			bool open = !!(mask & BIT(gate));
+
+			/* Address in TAS RAM: base + gate*entries + k */
+			u32 addr = base + gate * entries + k;
+
+			err = eswm_taprio_learn_entry(rdev, addr,
+						      interval, open);
+			if (err)
+				return err;
+		}
+	}
+
+	return 0;
+}
+
+static void eswm_taprio_new_base_time(struct eswm_device *rdev,
+				      const u32 cycle_time,
+				      const ktime_t org_base_time,
+				      ktime_t *new_base_time)
+{
+	struct eswm_ptp_private *ptp_priv;
+	ktime_t current_time, threshold_time;
+	struct timespec64 ts;
+
+	ptp_priv = rdev->priv->ptp_priv;
+
+	/* Get the current time and calculate the threshold_time */
+	eswm_ptp_gettime(&ptp_priv->info, &ts);
+	current_time = timespec64_to_ktime(ts);
+	threshold_time = current_time + (2 * cycle_time);
+
+	/* If the org_base_time is in enough in future just use it */
+	if (org_base_time >= threshold_time) {
+		*new_base_time = org_base_time;
+		return;
+	}
+
+	/* If the org_base_time is smaller than current_time, calculate the new
+	 * base time as following.
+	 */
+	if (org_base_time <= current_time) {
+		u64 tmp = current_time - org_base_time;
+		u32 rem = 0;
+
+		if (tmp > cycle_time)
+			div_u64_rem(tmp, cycle_time, &rem);
+		rem = cycle_time - rem;
+		*new_base_time = threshold_time + rem;
+		return;
+	}
+
+	/* The only left place for org_base_time is between current_time and
+	 * threshold_time. In this case the new_base_time is calculated like
+	 * org_base_time + 2 * cycletime
+	 */
+	*new_base_time = org_base_time + 2 * cycle_time;
+}
+
+static int eswm_taprio_disable(struct eswm_device *rdev)
+{
+	int err;
+	u32 val;
+
+	val = eswm_etha_read(rdev, EATASC);
+	if (val & EATASC_TASCI) {
+		err = eswm_reg_wait(rdev->etha->addr, EATASC, EATASC_TASCI, 0);
+		if (err)
+			return err;
+		val = eswm_etha_read(rdev, EATASC);
+	}
+
+	val &= ~(EATASC_TASE | EATASC_TASCC);
+	eswm_etha_write(rdev, EATASC, val);
+
+	return 0;
+}
+
+static int eswm_taprio_destroy(struct net_device *ndev)
+{
+	struct eswm_device *rdev = netdev_priv(ndev);
+	unsigned int gate;
+	int err;
+
+	/* Disable TAS schedule */
+	err = eswm_taprio_disable(rdev);
+	if (err < 0)
+		return err;
+
+	/* Clear schedule timing */
+	eswm_etha_write(rdev, EATASCSTC0, 0);
+	eswm_etha_write(rdev, EATASCSTC1, 0);
+	eswm_etha_write(rdev, EATASCTC, 0);
+
+	/* Reset TAS Initial Gate State */
+	eswm_etha_write(rdev, EATASIGSC, 0);
+
+	/* Reset TAS Gate Learn */
+	eswm_etha_write(rdev, EATASGL0, 0);
+	eswm_etha_write(rdev, EATASGL1, 0);
+
+	/* Clear per-gate entry counts */
+	for (gate = 0; gate < ESWM_TAS_MAX_GATES; gate++)
+		eswm_etha_write(rdev, EATASENC(gate), 0);
+
+	return 0;
+}
+
+static int eswm_taprio_replace(struct net_device *ndev,
+			       struct tc_taprio_qopt_offload *taprio)
+{
+	struct eswm_device *rdev = netdev_priv(ndev);
+	struct netlink_ext_ack *extack = taprio->mqprio.extack;
+	struct timespec64 ts;
+	ktime_t base_time;
+	u64 start_ns;
+	int err;
+	u32 val, num;
+	u8 num_tc = taprio->mqprio.qopt.num_tc;
+	bool tas_running;
+
+	err = eswm_taprio_check(ndev, taprio);
+	if (err)
+		return err;
+
+	/* TAS RAM reset */
+	err = eswm_etha_ram_reset(rdev);
+	if (err < 0)
+		return err;
+
+	eswm_taprio_new_base_time(rdev, taprio->cycle_time,
+				  taprio->base_time, &base_time);
+
+	/* TAS setting flow */
+	val = eswm_etha_read(rdev, EATASC);
+	if (val & EATASC_TASCI) {
+		NL_SET_ERR_MSG_MOD(extack, "TAS configuration impossible\n");
+		return -EOPNOTSUPP;
+	}
+
+	tas_running = !!(val & EATASC_TASE);
+
+	/* Save TAS config address in num variable */
+	num = (val & EATASC_TASCA_MASK) >> EATASC_TASCA_SHIFT;
+
+	ts = ktime_to_timespec64(base_time);
+	start_ns = timespec64_to_ns(&ts);
+
+	/* Disable the TAS schedule before setting */
+	eswm_etha_write(rdev, EATASC, 0);
+
+	/* Set start time */
+	eswm_etha_write(rdev, EATASCSTC0, (u32)(start_ns & 0xFFFFFFFFULL));
+	eswm_etha_write(rdev, EATASCSTC1, (u32)(start_ns >> 32));
+
+	/* Set cycle time */
+	eswm_etha_write(rdev, EATASCTC, taprio->cycle_time);
+
+	/* Set initial gate state to the first schedule entry gate mask */
+	eswm_etha_write(rdev, EATASIGSC, taprio->entries[0].gate_mask & 0xFF);
+
+	/* Program TAS RAM entries using Learn flow */
+	err = eswm_taprio_setup_gcl(rdev, taprio, num_tc, num, tas_running);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "TAS GCL learn failed\n");
+		return err;
+	}
+
+	/* Apply settings per TAS setting flow */
+	if (tas_running)
+		eswm_etha_write(rdev, EATASC, EATASC_TASE | EATASC_TASCC);
+	else
+		eswm_etha_write(rdev, EATASC, EATASC_TASE);
+
+	return 0;
+}
+
+static int eswm_setup_taprio(struct net_device *ndev, void *type_data)
+{
+	struct tc_taprio_qopt_offload *taprio = type_data;
+	int err = 0;
+
+	switch (taprio->cmd) {
+	case TAPRIO_CMD_REPLACE:
+		err = eswm_taprio_replace(ndev, taprio);
+		break;
+	case TAPRIO_CMD_DESTROY:
+		err = eswm_taprio_destroy(ndev);
+		break;
+	case TAPRIO_CMD_STATS:
+		/* Hardware does not provide any TAS statistics */
+		err = -EOPNOTSUPP;
+		break;
+	default:
+		err = -EOPNOTSUPP;
+	}
+
+	return err;
+}
+
+static int eswm_setup_tc(struct net_device *ndev,
+			 enum tc_setup_type type, void *data)
+{
+	switch (type) {
+	case TC_SETUP_QDISC_TAPRIO:
+		return eswm_setup_taprio(ndev, data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct net_device_ops eswm_netdev_ops = {
 	.ndo_open = eswm_open,
 	.ndo_stop = eswm_stop,
 	.ndo_start_xmit = eswm_start_xmit,
 	.ndo_get_stats = eswm_get_stats,
 	.ndo_eth_ioctl = eswm_eth_ioctl,
+	.ndo_setup_tc = eswm_setup_tc,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_set_mac_address = eth_mac_addr,
 };
@@ -2028,6 +2372,7 @@ static int eswm_device_alloc(struct eswm_private *priv, unsigned int index)
 
 	ndev->base_addr = (unsigned long)rdev->addr;
 	snprintf(ndev->name, IFNAMSIZ, "tsn%d", index);
+	ndev->features = NETIF_F_HW_TC;
 	ndev->netdev_ops = &eswm_netdev_ops;
 	ndev->ethtool_ops = &eswm_ethtool_ops;
 	ndev->max_mtu = ESWM_MAX_MTU;
@@ -2100,8 +2445,6 @@ static int eswm_init(struct eswm_private *priv)
 		eswm_etha_init(priv, i);
 
 	eswm_clock_enable(priv);
-	for (i = 0; i < ESWM_NUM_PORTS; i++)
-		eswm_etha_read_mac_address(&priv->etha[i]);
 
 	eswm_reset(priv);
 
@@ -2128,6 +2471,8 @@ static int eswm_init(struct eswm_private *priv)
 				eswm_device_free(priv, i);
 			goto err_device_alloc;
 		}
+
+		eswm_etha_read_mac_address(priv->rdev[i]);
 	}
 
 	eswm_fwd_init(priv);
@@ -2250,6 +2595,7 @@ static int renesas_eth_sw_probe(struct platform_device *pdev)
 	priv->ptp_priv = eswm_ptp_alloc(pdev);
 	if (!priv->ptp_priv)
 		return -ENOMEM;
+	spin_lock_init(&priv->ptp_priv->lock);
 
 	platform_set_drvdata(pdev, priv);
 	priv->pdev = pdev;

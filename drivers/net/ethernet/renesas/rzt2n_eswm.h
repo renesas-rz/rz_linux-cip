@@ -11,12 +11,14 @@
 #include <linux/platform_device.h>
 #include <linux/net/renesas/rzt2-ethss.h>
 #include <linux/phylink.h>
+#include <net/pkt_sched.h>
 #include "rzt2n_eswm_ptp.h"
 
 #define ESWM_MAX_NUM_QUEUES	128
 
 #define ESWM_NUM_HW		3
 #define ESWM_NUM_PORTS		2
+#define ESWM_NUM_TC		8
 #define eswm_for_each_enabled_port(priv, i)		\
 		for (i = 0; i < ESWM_NUM_PORTS; i++)		\
 			if (priv->rdev[i]->disabled)		\
@@ -67,6 +69,7 @@
 #define FWRO	0
 #define TPRO	ESWM_TOP_OFFSET
 #define CARO	ESWM_COMA_OFFSET
+#define ETHA	ESWM_ETHA_OFFSET
 #define TARO	0
 #define RMRO	0x1000
 enum eswm_reg {
@@ -514,6 +517,7 @@ enum eswm_reg {
 	EACOULM0	= TARO + 0x02a0,
 	EACGSM		= TARO + 0x02c0,
 	EATASC		= TARO + 0x0300,
+	EATASIGSC	= TARO + 0x0304,
 	EATASENC0	= TARO + 0x0320,
 	EATASCTENC	= TARO + 0x0340,
 	EATASENM0	= TARO + 0x0360,
@@ -968,6 +972,7 @@ struct eswm_gwca_queue {
 	unsigned int ring_size;
 	unsigned int cur;
 	unsigned int dirty;
+	spinlock_t lock; /* Protects ring operations */
 
 	/* For [rt]x_ring */
 	unsigned int index;
@@ -1034,6 +1039,9 @@ struct eswm_device {
 
 	struct eswm_gwca_queue **tx_queues;
 	unsigned int num_tx_queues;
+	u8 tas_num_tc;
+	ktime_t base_time;
+	ktime_t cycle_time;
 };
 
 struct eswm_mfwd_mac_table_entry {
@@ -1050,6 +1058,7 @@ struct eswm_private {
 	struct platform_device *pdev;
 	void __iomem *addr;
 	struct eswm_ptp_private *ptp_priv;
+	struct ptp_clock_info info;
 
 	struct eswm_device *rdev[ESWM_NUM_PORTS];
 	DECLARE_BITMAP(opened_ports, ESWM_NUM_PORTS);
@@ -1068,5 +1077,32 @@ struct eswm_private {
 	bool etha_no_runtime_change;
 	bool gwca_halt;
 };
+
+int eswm_ptp_gettime(struct ptp_clock_info *ptp,
+		     struct timespec64 *ts);
+
+/* TAS (Time Aware Shaper) [802.1Qbv] */
+#define ESWM_MAX_GCL_ENTRIES	256
+#define ESWM_TAS_MAX_GATES	8
+
+#define EATASC_TASE		BIT(0)
+#define EATASC_TASCC		BIT(1)
+#define EATASC_TASCI		BIT(2)
+#define EATASC_TASCA_SHIFT	16
+#define EATASC_TASCA_MASK	GENMASK(23, 16)
+
+#define EATASIGSC_TASIGS(x)	((x) & GENMASK(7, 0))
+
+#define EATASENC(i)		(EATASENC0 + (i) * 0x4)
+#define EATASENC_TASAEN(x)	((x) & GENMASK(8, 0))
+
+#define EATASGL0_TASGAL(x)	((x) & GENMASK(7, 0))
+#define EATASGL1_TASGTL		GENMASK(27, 0)
+#define EATASGL1_TASGSL		BIT(28)
+
+#define EATASGLR_GL		BIT(31)
+
+#define EATASRIRM_TASRIOG	BIT(0)
+#define EATASRIRM_TASRR		BIT(1)
 
 #endif	/* #ifndef __ESWM_H__ */
