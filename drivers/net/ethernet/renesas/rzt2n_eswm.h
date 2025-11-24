@@ -1031,6 +1031,9 @@ struct eswm_device {
 	struct phylink_pcs *pcs[ESWM_NUM_HW - 1];
 	struct phylink *phylink;
 	struct phylink_config phylink_config;
+
+	struct eswm_gwca_queue **tx_queues;
+	unsigned int num_tx_queues;
 };
 
 struct eswm_mfwd_mac_table_entry {

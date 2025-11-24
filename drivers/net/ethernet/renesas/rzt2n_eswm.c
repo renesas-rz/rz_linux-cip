@@ -581,34 +581,82 @@ static int eswm_txdmac_alloc(struct net_device *ndev)
 {
 	struct eswm_device *rdev = netdev_priv(ndev);
 	struct eswm_private *priv = rdev->priv;
+	signed int i;
 	int err;
 
-	rdev->tx_queue = eswm_gwca_get(priv);
-	if (!rdev->tx_queue)
-		return -EBUSY;
+	rdev->num_tx_queues = ndev->num_tx_queues;
+	rdev->tx_queues = kcalloc(rdev->num_tx_queues,
+				  sizeof(*rdev->tx_queues), GFP_KERNEL);
+	if (!rdev->tx_queues)
+		return -ENOMEM;
 
-	err = eswm_gwca_queue_alloc(ndev, priv, rdev->tx_queue, true, TX_RING_SIZE);
-	if (err < 0) {
-		eswm_gwca_put(priv, rdev->tx_queue);
-		return err;
+	for (i = 0; i < rdev->num_tx_queues; i++) {
+		rdev->tx_queues[i] = eswm_gwca_get(priv);
+		if (!rdev->tx_queues[i]) {
+			err = -EBUSY;
+			goto err_put;
+		}
+
+		err = eswm_gwca_queue_alloc(ndev, priv, rdev->tx_queues[i],
+					    true, TX_RING_SIZE);
+		if (err < 0) {
+			eswm_gwca_put(priv, rdev->tx_queues[i]);
+			rdev->tx_queues[i] = NULL;
+			goto err_put;
+		}
 	}
 
 	return 0;
+
+err_put:
+	while (--i >= 0) {
+		eswm_gwca_queue_free(ndev, rdev->tx_queues[i]);
+		eswm_gwca_put(priv, rdev->tx_queues[i]);
+		rdev->tx_queues[i] = NULL;
+	}
+	kfree(rdev->tx_queues);
+	rdev->tx_queues = NULL;
+	rdev->num_tx_queues = 0;
+	return err;
 }
 
 static void eswm_txdmac_free(struct net_device *ndev)
 {
 	struct eswm_device *rdev = netdev_priv(ndev);
+	struct eswm_private *priv = rdev->priv;
+	unsigned int i;
 
-	eswm_gwca_queue_free(ndev, rdev->tx_queue);
-	eswm_gwca_put(rdev->priv, rdev->tx_queue);
+	if (!rdev->tx_queues)
+		return;
+
+	for (i = 0; i < rdev->num_tx_queues; i++) {
+		if (!rdev->tx_queues[i])
+			continue;
+		eswm_gwca_queue_free(ndev, rdev->tx_queues[i]);
+		eswm_gwca_put(priv, rdev->tx_queues[i]);
+		rdev->tx_queues[i] = NULL;
+	}
+
+	kfree(rdev->tx_queues);
+	rdev->tx_queues = NULL;
+	rdev->num_tx_queues = 0;
 }
 
 static int eswm_txdmac_init(struct eswm_private *priv, unsigned int index)
 {
 	struct eswm_device *rdev = priv->rdev[index];
 
-	return eswm_gwca_queue_format(rdev->ndev, priv, rdev->tx_queue);
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < rdev->num_tx_queues; i++) {
+		err = eswm_gwca_queue_format(rdev->ndev, priv,
+					     rdev->tx_queues[i]);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static int eswm_rxdmac_alloc(struct net_device *ndev)
@@ -861,28 +909,34 @@ err:
 static void eswm_tx_free(struct net_device *ndev)
 {
 	struct eswm_device *rdev = netdev_priv(ndev);
-	struct eswm_gwca_queue *gq = rdev->tx_queue;
-	struct eswm_ext_desc *desc;
-	struct sk_buff *skb;
+	unsigned int q;
 
-	for (; eswm_get_num_cur_queues(gq) > 0;
-	     gq->dirty = eswm_next_queue_index(gq, false, 1)) {
-		desc = &gq->tx_ring[gq->dirty];
-		if ((desc->desc.die_dt & DT_MASK) != DT_FEMPTY)
-			break;
+	for (q = 0; q < rdev->num_tx_queues; q++) {
+		struct eswm_gwca_queue *gq = rdev->tx_queues[q];
+		struct eswm_ext_desc *desc;
+		struct sk_buff *skb;
 
-		dma_rmb();
-		skb = gq->skbs[gq->dirty];
-		if (skb) {
-			rdev->ndev->stats.tx_packets++;
-			rdev->ndev->stats.tx_bytes += skb->len;
-			dma_unmap_single(ndev->dev.parent,
-					 gq->unmap_addrs[gq->dirty],
-					 skb->len, DMA_TO_DEVICE);
-			dev_kfree_skb_any(gq->skbs[gq->dirty]);
-			gq->skbs[gq->dirty] = NULL;
+		if (!gq)
+			continue;
+
+		for (; eswm_get_num_cur_queues(gq) > 0;
+		    gq->dirty = eswm_next_queue_index(gq, false, 1)) {
+			desc = &gq->tx_ring[gq->dirty];
+			if ((desc->desc.die_dt & DT_MASK) != DT_FEMPTY)
+				break;
+			dma_rmb();
+			skb = gq->skbs[gq->dirty];
+			if (skb) {
+				dma_unmap_single(ndev->dev.parent,
+						 gq->unmap_addrs[gq->dirty],
+						 skb->len, DMA_TO_DEVICE);
+				dev_kfree_skb_any(gq->skbs[gq->dirty]);
+				gq->skbs[gq->dirty] = NULL;
+				rdev->ndev->stats.tx_packets++;
+				rdev->ndev->stats.tx_bytes += skb->len;
+			}
+			desc->desc.die_dt = DT_EEMPTY;
 		}
-		desc->desc.die_dt = DT_EEMPTY;
 	}
 }
 
@@ -907,11 +961,13 @@ retry:
 	else if (eswm_is_queue_rxed(rdev->rx_queue))
 		goto retry;
 
-	netif_wake_subqueue(ndev, 0);
+	netif_tx_wake_all_queues(ndev);
 
 	if (napi_complete_done(napi, budget - quota)) {
 		spin_lock_irqsave(&priv->lock, flags);
-		eswm_enadis_data_irq(priv, rdev->tx_queue->index, true);
+		for (unsigned int q = 0; q < rdev->num_tx_queues; q++)
+			eswm_enadis_data_irq(priv,
+					     rdev->tx_queues[q]->index, true);
 		eswm_enadis_data_irq(priv, rdev->rx_queue->index, true);
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
@@ -931,7 +987,9 @@ static void eswm_queue_interrupt(struct net_device *ndev)
 
 	if (napi_schedule_prep(&rdev->napi)) {
 		spin_lock(&rdev->priv->lock);
-		eswm_enadis_data_irq(rdev->priv, rdev->tx_queue->index, false);
+		for (unsigned int q = 0; q < rdev->num_tx_queues; q++)
+			eswm_enadis_data_irq(rdev->priv,
+					     rdev->tx_queues[q]->index, false);
 		eswm_enadis_data_irq(rdev->priv, rdev->rx_queue->index, false);
 		spin_unlock(&rdev->priv->lock);
 		__napi_schedule(&rdev->napi);
@@ -943,7 +1001,7 @@ static irqreturn_t eswm_data_irq(struct eswm_private *priv, u32 *dis)
 	struct eswm_gwca_queue *gq;
 	unsigned int i, index, bit;
 
-	for (i = 0; i < priv->gwca.num_queues; i++) {
+	for_each_set_bit(i, priv->gwca.used, priv->gwca.num_queues) {
 		gq = &priv->gwca.queues[i];
 		index = gq->index / 32;
 		bit = BIT(gq->index % 32);
@@ -1609,7 +1667,9 @@ static int eswm_open(struct net_device *ndev)
 	netif_start_queue(ndev);
 
 	spin_lock_irqsave(&rdev->priv->lock, flags);
-	eswm_enadis_data_irq(rdev->priv, rdev->tx_queue->index, true);
+	for (unsigned int q = 0; q < rdev->num_tx_queues; q++)
+		eswm_enadis_data_irq(rdev->priv,
+				     rdev->tx_queues[q]->index, true);
 	eswm_enadis_data_irq(rdev->priv, rdev->rx_queue->index, true);
 	spin_unlock_irqrestore(&rdev->priv->lock, flags);
 
@@ -1642,7 +1702,9 @@ static int eswm_stop(struct net_device *ndev)
 	}
 
 	spin_lock_irqsave(&rdev->priv->lock, flags);
-	eswm_enadis_data_irq(rdev->priv, rdev->tx_queue->index, false);
+	for (unsigned int q = 0; q < rdev->num_tx_queues; q++)
+		eswm_enadis_data_irq(rdev->priv,
+				     rdev->tx_queues[q]->index, false);
 	eswm_enadis_data_irq(rdev->priv, rdev->rx_queue->index, false);
 	spin_unlock_irqrestore(&rdev->priv->lock, flags);
 
@@ -1656,8 +1718,17 @@ static bool eswm_ext_desc_set_info1(struct eswm_device *rdev,
 				       struct sk_buff *skb,
 				       struct eswm_ext_desc *desc)
 {
-	desc->info1 = cpu_to_le64(INFO1_DV(BIT(rdev->etha->index)) |
-				  INFO1_IPV(GWCA_IPV_NUM) | INFO1_FMT);
+	u64 info1;
+	u8 ipv, num_tc;
+
+	ipv = skb->priority & ESWM_MAX_CTAG_PCP; /* 0..7 */
+	num_tc = netdev_get_num_tc(rdev->ndev);
+	if (num_tc && ipv >= num_tc)
+		ipv = num_tc - 1;
+
+	info1 = INFO1_DV(BIT(rdev->etha->index)) |
+		INFO1_IPV(ipv) |
+		INFO1_FMT;
 	if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
 		struct eswm_gwca_ts_info *ts_info;
 
@@ -1669,6 +1740,9 @@ static bool eswm_ext_desc_set_info1(struct eswm_device *rdev,
 		rdev->ts_tag++;
 		desc->info1 |= cpu_to_le64(INFO1_TSUN(rdev->ts_tag) | INFO1_TXC);
 
+		info1 |= INFO1_TSUN(rdev->ts_tag) | INFO1_TXC;
+		desc->info1 = cpu_to_le64(info1);
+
 		ts_info->skb = skb_get(skb);
 		ts_info->port = rdev->port;
 		ts_info->tag = rdev->ts_tag;
@@ -1676,6 +1750,8 @@ static bool eswm_ext_desc_set_info1(struct eswm_device *rdev,
 
 		skb_tx_timestamp(skb);
 	}
+
+	desc->info1 = cpu_to_le64(info1);
 
 	return true;
 }
@@ -1725,7 +1801,12 @@ static u16 eswm_ext_desc_get_len(u8 die_dt, unsigned int orig_len)
 static netdev_tx_t eswm_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct eswm_device *rdev = netdev_priv(ndev);
-	struct eswm_gwca_queue *gq = rdev->tx_queue;
+	u16 qmap = skb_get_queue_mapping(skb);
+	struct eswm_gwca_queue *gq;
+
+	if (qmap >= rdev->num_tx_queues)
+		qmap = 0;
+	gq = rdev->tx_queues[qmap];
 	dma_addr_t dma_addr, dma_addr_orig;
 	netdev_tx_t ret = NETDEV_TX_OK;
 	struct eswm_ext_desc *desc;
@@ -1735,7 +1816,7 @@ static netdev_tx_t eswm_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	nr_desc = (skb->len - 1) / ESWM_DESC_BUF_SIZE + 1;
 	if (eswm_get_num_cur_queues(gq) >= gq->ring_size - nr_desc) {
-		netif_stop_subqueue(ndev, 0);
+		netif_stop_subqueue(ndev, qmap);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -1929,7 +2010,7 @@ static int eswm_device_alloc(struct eswm_private *priv, unsigned int index)
 	if (index >= ESWM_NUM_PORTS)
 		return -EINVAL;
 
-	ndev = alloc_etherdev_mqs(sizeof(struct eswm_device), 1, 1);
+	ndev = alloc_etherdev_mqs(sizeof(struct eswm_device), 8, 1);
 	if (!ndev)
 		return -ENOMEM;
 
@@ -2200,12 +2281,14 @@ static int renesas_eth_sw_probe(struct platform_device *pdev)
 	}
 
 	priv->gwca.index = AGENT_INDEX_GWCA;
-	priv->gwca.num_queues = min(ESWM_NUM_PORTS * NUM_QUEUES_PER_NDEV,
-				    ESWM_MAX_NUM_QUEUES);
+	priv->gwca.num_queues = ESWM_MAX_NUM_QUEUES;
 	priv->gwca.queues = devm_kcalloc(&pdev->dev, priv->gwca.num_queues,
 					 sizeof(*priv->gwca.queues), GFP_KERNEL);
 	if (!priv->gwca.queues)
 		return -ENOMEM;
+
+	for (unsigned int q = 0; q < priv->gwca.num_queues; q++)
+		priv->gwca.queues[q].index = q;
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
