@@ -71,5 +71,6 @@ int eswm_ptp_register(struct eswm_ptp_private *ptp_priv,
 			   enum eswm_ptp_reg_layout layout, u32 clock);
 int eswm_ptp_unregister(struct eswm_ptp_private *ptp_priv);
 struct eswm_ptp_private *eswm_ptp_alloc(struct platform_device *pdev);
+int eswm_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts);
 
 #endif	/* #ifndef __ESWM_PTP_H__ */

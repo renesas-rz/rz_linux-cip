@@ -56,8 +56,8 @@ static void _eswm_ptp_gettime(struct ptp_clock_info *ptp,
 		     ((s64)ioread32(ptp_priv->addr + ptp_priv->offs->monitor_t2) << 32);
 }
 
-static int eswm_ptp_gettime(struct ptp_clock_info *ptp,
-				 struct timespec64 *ts)
+int eswm_ptp_gettime(struct ptp_clock_info *ptp,
+		     struct timespec64 *ts)
 {
 	struct eswm_ptp_private *ptp_priv = ptp_to_priv(ptp);
 	unsigned long flags;
