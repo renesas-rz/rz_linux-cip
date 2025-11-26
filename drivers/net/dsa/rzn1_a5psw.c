@@ -211,6 +211,10 @@ static int a5psw_port_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 	struct a5psw *a5psw = ds->priv;
 
 	new_mtu += ETH_HLEN + A5PSW_EXTRA_MTU_LEN + ETH_FCS_LEN;
+
+	if (dsa_is_cpu_port(ds, port))
+		new_mtu += a5psw->of_data->management_port_frame_len_adj;
+
 	a5psw_reg_writel(a5psw, A5PSW_FRM_LENGTH(port), new_mtu);
 
 	return 0;
