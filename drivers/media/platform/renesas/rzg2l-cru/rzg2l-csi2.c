@@ -134,6 +134,8 @@ struct rzg2l_csi2_info {
 	unsigned int min_height;
 	unsigned int max_width;
 	unsigned int max_height;
+	const struct rzg2l_csi2_format *format;
+	unsigned int num_formats;
 };
 
 struct rzg2l_csi2_timings {
@@ -283,18 +285,72 @@ static const struct rzg2l_csi2_format rzg2l_csi2_formats[] = {
 	  .rate = RATE_RANGES(80, 4000)},
 };
 
+static const struct rzg2l_csi2_format rzv2h_csi2_formats[] = {
+	{ .code = MEDIA_BUS_FMT_UYVY8_1X16,	.bpp = 16,
+	  .rate = RATE_RANGES(80, 8400)},
+	{ .code = MEDIA_BUS_FMT_YUYV8_1X16,	.bpp = 16,
+	  .rate = RATE_RANGES(80, 8400)},
+	{ .code = MEDIA_BUS_FMT_RGB565_2X8_LE,	.bpp = 16,
+	  .rate = RATE_RANGES(80, 8400)},
+	{ .code = MEDIA_BUS_FMT_YUYV10_2X10,	.bpp = 20,
+	  .rate = RATE_RANGES(80, 8400)},
+	{ .code = MEDIA_BUS_FMT_RGB888_1X24,	.bpp = 24,
+	  .rate = RATE_RANGES(80, 8400)},
+	{ .code = MEDIA_BUS_FMT_SBGGR8_1X8,	.bpp = 8,
+	  .rate = RATE_RANGES(80, 5040)},
+	{ .code = MEDIA_BUS_FMT_SGBRG8_1X8,	.bpp = 8,
+	  .rate = RATE_RANGES(80, 5040)},
+	{ .code = MEDIA_BUS_FMT_SGRBG8_1X8,	.bpp = 8,
+	  .rate = RATE_RANGES(80, 5040)},
+	{ .code = MEDIA_BUS_FMT_SRGGB8_1X8,	.bpp = 8,
+	  .rate = RATE_RANGES(80, 5040)},
+	{ .code = MEDIA_BUS_FMT_SRGGB10_1X10,	.bpp = 10,
+	  .rate = RATE_RANGES(80, 6203)},
+	{ .code = MEDIA_BUS_FMT_SGRBG10_1X10,	.bpp = 10,
+	  .rate = RATE_RANGES(80, 6203)},
+	{ .code = MEDIA_BUS_FMT_SGBRG10_1X10,	.bpp = 10,
+	  .rate = RATE_RANGES(80, 6203)},
+	{ .code = MEDIA_BUS_FMT_SBGGR10_1X10,	.bpp = 10,
+	  .rate = RATE_RANGES(80, 6203)},
+	{ .code = MEDIA_BUS_FMT_SRGGB12_1X12,	.bpp = 12,
+	  .rate = RATE_RANGES(80, 7331)},
+	{ .code = MEDIA_BUS_FMT_SGRBG12_1X12,	.bpp = 12,
+	  .rate = RATE_RANGES(80, 7331)},
+	{ .code = MEDIA_BUS_FMT_SGBRG12_1X12,	.bpp = 12,
+	  .rate = RATE_RANGES(80, 7331)},
+	{ .code = MEDIA_BUS_FMT_SBGGR12_1X12,	.bpp = 12,
+	  .rate = RATE_RANGES(80, 7331)},
+	{ .code = MEDIA_BUS_FMT_SRGGB14_1X14,	.bpp = 14,
+	  .rate = RATE_RANGES(80, 8400)},
+	{ .code = MEDIA_BUS_FMT_SGRBG14_1X14,	.bpp = 14,
+	  .rate = RATE_RANGES(80, 8400)},
+	{ .code = MEDIA_BUS_FMT_SGBRG14_1X14,	.bpp = 14,
+	  .rate = RATE_RANGES(80, 8400)},
+	{ .code = MEDIA_BUS_FMT_SBGGR14_1X14,	.bpp = 14,
+	  .rate = RATE_RANGES(80, 8400)},
+	{ .code = MEDIA_BUS_FMT_SRGGB16_1X16,	.bpp = 16,
+	  .rate = RATE_RANGES(80, 8400)},
+	{ .code = MEDIA_BUS_FMT_SGRBG16_1X16,	.bpp = 16,
+	  .rate = RATE_RANGES(80, 8400)},
+	{ .code = MEDIA_BUS_FMT_SGBRG16_1X16,	.bpp = 16,
+	  .rate = RATE_RANGES(80, 8400)},
+	{ .code = MEDIA_BUS_FMT_SBGGR16_1X16,	.bpp = 16,
+	  .rate = RATE_RANGES(80, 8400)},
+};
+
 static inline struct rzg2l_csi2 *sd_to_csi2(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct rzg2l_csi2, subdev);
 }
 
-static const struct rzg2l_csi2_format *rzg2l_csi2_code_to_fmt(unsigned int code)
+static const struct rzg2l_csi2_format *rzg2l_csi2_code_to_fmt(unsigned int code,
+							      struct rzg2l_csi2 *csi2)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(rzg2l_csi2_formats); i++)
-		if (rzg2l_csi2_formats[i].code == code)
-			return &rzg2l_csi2_formats[i];
+	for (i = 0; i < csi2->info->num_formats; i++)
+		if (csi2->info->format[i].code == code)
+			return &csi2->info->format[i];
 
 	return NULL;
 }
@@ -347,7 +403,7 @@ static int rzg2l_csi2_calc_mbps(struct rzg2l_csi2 *csi2)
 
 	state = v4l2_subdev_lock_and_get_active_state(&csi2->subdev);
 	fmt = v4l2_subdev_state_get_format(state, RZG2L_CSI2_SINK);
-	format = rzg2l_csi2_code_to_fmt(fmt->code);
+	format = rzg2l_csi2_code_to_fmt(fmt->code, csi2);
 	v4l2_subdev_unlock_state(state);
 
 	/* Read the link frequency from remote subdevice. */
@@ -465,6 +521,8 @@ static const struct rzg2l_csi2_info rzg2l_csi2_info = {
 	.min_height = 240,
 	.max_width = 2800,
 	.max_height = 4095,
+	.format = rzg2l_csi2_formats,
+	.num_formats = ARRAY_SIZE(rzg2l_csi2_formats),
 };
 
 static int rzg2l_csi2_dphy_setting(struct v4l2_subdev *sd, bool on)
@@ -593,6 +651,8 @@ static const struct rzg2l_csi2_info rzv2h_csi2_info = {
 	.min_height = 240,
 	.max_width = 4096,
 	.max_height = 4096,
+	.format = rzv2h_csi2_formats,
+	.num_formats = ARRAY_SIZE(rzv2h_csi2_formats),
 };
 
 static int rzg2l_csi2_mipi_link_setting(struct v4l2_subdev *sd, bool on)
@@ -694,8 +754,8 @@ static int rzg2l_csi2_set_format(struct v4l2_subdev *sd,
 
 	sink_format = v4l2_subdev_state_get_format(state, RZG2L_CSI2_SINK);
 
-	if (!rzg2l_csi2_code_to_fmt(fmt->format.code))
-		sink_format->code = rzg2l_csi2_formats[0].code;
+	if (!rzg2l_csi2_code_to_fmt(fmt->format.code, csi2))
+		sink_format->code = csi2->info->format[0].code;
 	else
 		sink_format->code = fmt->format.code;
 
@@ -740,10 +800,12 @@ static int rzg2l_csi2_enum_mbus_code(struct v4l2_subdev *sd,
 				     struct v4l2_subdev_state *sd_state,
 				     struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index >= ARRAY_SIZE(rzg2l_csi2_formats))
+	struct rzg2l_csi2 *csi2 = sd_to_csi2(sd);
+
+	if (code->index >= csi2->info->num_formats)
 		return -EINVAL;
 
-	code->code = rzg2l_csi2_formats[code->index].code;
+	code->code = csi2->info->format[code->index].code;
 
 	return 0;
 }
@@ -757,7 +819,7 @@ static int rzg2l_csi2_enum_frame_size(struct v4l2_subdev *sd,
 	if (fse->index != 0)
 		return -EINVAL;
 
-	if (!rzg2l_csi2_code_to_fmt(fse->code))
+	if (!rzg2l_csi2_code_to_fmt(fse->code, csi2))
 		return -EINVAL;
 
 	fse->min_width = csi2->info->min_width;
