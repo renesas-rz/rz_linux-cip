@@ -72,6 +72,7 @@ struct rzv2h_cpg_cache {
 	u32 pll_clk1;
 	u32 pll_clk2;
 	u32 mux;
+	u32 div;
 };
 
 /**
@@ -1197,6 +1198,11 @@ static int rzv2h_cpg_pm_suspend(struct device *dev)
 			priv->cache[i].mux = readl(priv->base + info->core_clks[i].cfg.smux.offset);
 			continue;
 		}
+
+		if (info->core_clks[i].type == CLK_TYPE_DDIV) {
+			priv->cache[i].div = readl(priv->base + info->core_clks[i].cfg.ddiv.offset);
+			continue;
+		}
 	};
 
 	return 0;
@@ -1217,9 +1223,16 @@ static int rzv2h_cpg_pm_resume(struct device *dev)
 					  CPG_PLL_CLK2(info->core_clks[i].cfg.pll.offset));
 			continue;
 		};
+
 		if (info->core_clks[i].type == CLK_TYPE_SMUX) {
 			writel(priv->cache[i].mux | (RZV2H_CPG_SMUX_WRITE_EN_MASK << 16),
 					  priv->base + info->core_clks[i].cfg.smux.offset);
+			continue;
+		}
+
+		if (info->core_clks[i].type == CLK_TYPE_DDIV) {
+			writel(priv->cache[i].div | (RZV2H_CPG_SMUX_WRITE_EN_MASK << 16),
+					 priv->base + info->core_clks[i].cfg.ddiv.offset);
 			continue;
 		}
 	};
