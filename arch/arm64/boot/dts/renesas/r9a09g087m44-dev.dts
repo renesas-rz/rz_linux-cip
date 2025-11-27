@@ -59,11 +59,11 @@
 #define POEG_SUPPORT		1
 
 /*
- * Set SEL_SDHI_CANFD to below values to select using of:
- * - 0: SDHI (default)
+ * Set SEL_SCI1_POE3_LCDC_CANFD to below values to select using of:
+ * - 0: SCI1, POE3, LCDC (default)
  * - 1: CANFD
  */
-#define SEL_SDHI_CANFD		0
+#define SEL_SCI1_POE3_LCDC_CANFD		0
 
 /*
  * Set SEL_SCI1_POE3_LCDC to below values to select using of:
@@ -255,12 +255,14 @@
 		bias-pull-up;
 	};
 
+#if (!SEL_SCI1_POE3_LCDC_CANFD)
 #if (!SEL_SCI1_POE3_LCDC)
 	sci1_pins: sci1 {
 		pinmux = <RZT2H_PORT_PINMUX(18, 4, 0x14)>, /* SCI : TXD1/P18_4 */
 			 <RZT2H_PORT_PINMUX(18, 3, 0x14)>; /* SCI : RXD1/P18_3 */
 		bias-pull-up;
 	};
+#endif
 #endif
 
 #if (!SEL_SCI3_PTPOUT2)
@@ -271,7 +273,6 @@
 	};
 #endif
 
-#if (!SEL_SDHI_CANFD)
 #if (SEL_GPT_SD0)
 	sd0_pwr_en {
 		gpio-hog;
@@ -333,10 +334,10 @@
 		};
 	};
 
-#else
+#if (SEL_SCI1_POE3_LCDC_CANFD)
 	can1_pins: can1 {
-		pinmux = <RZT2H_PORT_PINMUX(12, 0, 0x19)>, /* CANFD : CANRX1/P12_0 */
-			 <RZT2H_PORT_PINMUX(12, 1, 0x19)>; /* CANFD : CANTX1/P12_1 */
+		pinmux = <RZT2H_PORT_PINMUX(18, 4, 0x19)>, /* CANFD : CANRX1/P18_4 */
+			 <RZT2H_PORT_PINMUX(18, 5, 0x19)>; /* CANFD : CANTX1/P18_5 */
 	};
 #endif
 
@@ -552,6 +553,7 @@
 		};
 	};
 
+#if (!SEL_SCI1_POE3_LCDC_CANFD)
 #if (SEL_I2C0_LCDC && SEL_SCI1_POE3_LCDC && SEL_ETHSW_LCDC)
 	du_pins: du {
 		du_data {
@@ -602,6 +604,7 @@
 			slew-rate	= <1>;
 		};
 	};
+#endif
 #endif
 
 #if !(SEL_GPT_SD0)
@@ -664,12 +667,14 @@
 	status = "okay";
 };
 
+#if (!SEL_SCI1_POE3_LCDC_CANFD)
 #if (!SEL_SCI1_POE3_LCDC)
 &sci1 {
 	pinctrl-0 = <&sci1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
+#endif
 #endif
 
 #if (!SEL_SCI3_PTPOUT2)
@@ -683,7 +688,6 @@
 };
 #endif
 
-#if (!SEL_SDHI_CANFD)
 #if (SEL_SD0)
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_pins>;
@@ -727,7 +731,7 @@
 	status = "okay";
 };
 
-#else
+#if (SEL_SCI1_POE3_LCDC_CANFD)
 &canfd {
 	pinctrl-0 = <&can1_pins>;
 	pinctrl-names = "default";
@@ -1099,6 +1103,7 @@
 };
 #endif
 
+#if (!SEL_SCI1_POE3_LCDC_CANFD)
 #if (SEL_I2C0_LCDC && SEL_SCI1_POE3_LCDC && SEL_ETHSW_LCDC)
 &du {
 	pinctrl-0 = <&du_pins>;
@@ -1114,6 +1119,7 @@
 		};
 	};
 };
+#endif
 #endif
 
 #if !(SEL_GPT_SD0)
