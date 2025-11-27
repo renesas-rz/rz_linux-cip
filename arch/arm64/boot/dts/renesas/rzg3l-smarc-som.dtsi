@@ -199,6 +199,13 @@
 			 <RZG3L_PORT_PINMUX(A, 5, 4)>; /* SDA */
 	};
 
+#if (SPDIF_SEL)
+	spdif_pins: spdif {
+		pinmux = <RZG3L_PORT_PINMUX(2, 0, 12)>, /* SPDIF_IN */
+			 <RZG3L_PORT_PINMUX(2, 1, 12)>; /* SPDIF_OUT */
+	};
+#endif
+
 	pdm_pins: pdm {
 		pinmux = <RZG3L_PORT_PINMUX(M, 4, 7)>, /* CLK1 */
 			 <RZG3L_PORT_PINMUX(M, 5, 7)>; /* DAT1 */
@@ -400,6 +407,17 @@
 	status = "okay";
 	mali-supply = <&reg_1p0v>;
 };
+
+#if (SPDIF_SEL)
+&spdif {
+	clocks = <&cpg CPG_MOD R9A08G046_SPDIF_PCLK>,
+		 <&versa3 2>, <&versa3 3>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&spdif_pins>;
+
+	status = "okay";
+};
+#endif
 
 &pdm {
 	pinctrl-0 = <&pdm_pins>;

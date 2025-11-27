@@ -41,6 +41,13 @@
  */
 #define MTU3_SUPPORT	0
 
+/*
+ * SPDIF_SEL - Select pin function between SPDIF and I2C3.
+ * 0 - I2C3 is selected		(DA7212 codec control, works with SSI0 audio)
+ * 1 - SPDIF is selected	(DA7212 not accessible)
+ */
+#define SPDIF_SEL		0
+
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/renesas,r9a08g046-pinctrl.h>
 
@@ -232,7 +239,7 @@
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "snd_rzg3l";
 
-#if (!SW_SD2_DEV_SEL)
+#if (!SW_SD2_DEV_SEL && !SPDIF_SEL)
 		ssi_link_play: simple-audio-card,dai-link@0 {
 			format = "i2s";
 			bitclock-master = <&cpu_dai>;
@@ -246,6 +253,20 @@
 			codec_dai: codec {
 				sound-dai = <&da7212>;
 				clocks = <&versa3 1>;
+			};
+		};
+
+#elif (!SW_SD2_DEV_SEL && SPDIF_SEL)
+		spdif_link: simple-audio-card,dai-link@2 {
+			bitclock-master = <&cpu_dai2>;
+			frame-master = <&cpu_dai2>;
+
+			cpu_dai2: cpu {
+				sound-dai = <&spdif>;
+			};
+
+			codec {
+				sound-dai = <&dummy_codec>;
 			};
 		};
 #endif
@@ -297,11 +318,13 @@
 	};
 #endif
 
+#if (!SPDIF_SEL)
 	i2c3_pins: i2c3 {
 		pinmux = <RZG3L_PORT_PINMUX(2, 0, 4)>, /* SCL */
 			 <RZG3L_PORT_PINMUX(2, 1, 4)>; /* SDA */
 		renesas,sys_sel_clonech = <1>;
 	};
+#endif
 
 	scif0_pins: scif0 {
 		pins = "SCIF_TXD", "SCIF_RXD";
@@ -583,6 +606,7 @@
 	};
 };
 
+#if (!SPDIF_SEL)
 &i2c3 {
 	pinctrl-0 = <&i2c3_pins>;
 	pinctrl-names = "default";
@@ -610,6 +634,7 @@
 		VDDIO-supply = <&reg_1p8v>;
 	};
 };
+#endif
 
 #if (!SW_DPI_EN && !MTU3_SUPPORT)
 &spi2 {
