@@ -11,6 +11,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/net/rzt2h-ethss.h>
 #include <dt-bindings/net/mscc-phy-vsc8531.h>
+#include <dt-bindings/interrupt-controller/irqc-rzt2h.h>
 
 /*
  * Select SDHI0 or eMMC support
@@ -455,7 +456,8 @@
 			<RZT2H_PORT_PINMUX(34, 7, 0x0F)>, /* ETH3_TXER */
 			<RZT2H_PORT_PINMUX(35, 0, 0x0F)>, /* ETH3_RXER */
 			<RZT2H_PORT_PINMUX(35, 1, 0x0F)>, /* ETH3_CRS */
-			<RZT2H_PORT_PINMUX(35, 2, 0x0F)>; /* ETH3_COL */
+			<RZT2H_PORT_PINMUX(35, 2, 0x0F)>, /* ETH3_COL */
+			<RZT2H_PORT_PINMUX(27, 2, 0x00)>; /* IRQ3 */
 			input-schmitt-disable;
 			slew-rate       = <1>;
 			drive-strength  = <3>;
@@ -492,6 +494,7 @@
 			<RZT2H_PORT_PINMUX(30, 2, 0x0F)>, /* ETH2_RXD[2] */
 			<RZT2H_PORT_PINMUX(30, 3, 0x0F)>, /* ETH2_RXD[3] */
 			<RZT2H_PORT_PINMUX(30, 4, 0x0F)>, /* ETH2_RXDV */
+			<RZT2H_PORT_PINMUX(31, 1, 0x00)>, /* IRQ13 */
 			<RZT2H_PORT_PINMUX(31, 2, 0x0F)>, /* ETH2_TXER */
 			<RZT2H_PORT_PINMUX(31, 3, 0x0F)>, /* ETH2_RXER */
 			<RZT2H_PORT_PINMUX(31, 4, 0x0F)>, /* ETH2_CRS */
@@ -515,6 +518,7 @@
 			<RZT2H_PORT_PINMUX(25, 6, 0x0F)>, /* ETH1_RXD[2] */
 			<RZT2H_PORT_PINMUX(25, 7, 0x0F)>, /* ETH1_RXD[3] */
 			<RZT2H_PORT_PINMUX(26, 0, 0x0F)>, /* ETH1_RXDV */
+			<RZT2H_PORT_PINMUX(26, 5, 0x00)>, /* IRQ12 */
 			<RZT2H_PORT_PINMUX(26, 6, 0x0F)>, /* ETH1_TXER */
 			<RZT2H_PORT_PINMUX(26, 7, 0x0F)>, /* ETH1_RXER */
 			<RZT2H_PORT_PINMUX(27, 0, 0x0F)>, /* ETH1_CRS */
@@ -537,6 +541,7 @@
 			<RZT2H_PORT_PINMUX(21, 1, 0x0F)>, /* ETH0_RXD[2] */
 			<RZT2H_PORT_PINMUX(21, 2, 0x0F)>, /* ETH0_RXD[3] */
 			<RZT2H_PORT_PINMUX(21, 3, 0x0F)>, /* ETH0_RXDV */
+			<RZT2H_PORT_PINMUX(22, 0, 0x00)>, /* IRQ11 */
 			<RZT2H_PORT_PINMUX(22, 1, 0x0F)>, /* ETH0_TXER */
 			<RZT2H_PORT_PINMUX(22, 2, 0x0F)>, /* ETH0_RXER */
 			<RZT2H_PORT_PINMUX(22, 3, 0x0F)>, /* ETH0_CRS */
@@ -768,6 +773,8 @@
 		#size-cells = <0>;
 		phy3: ethernet-phy@3 {
 			compatible = "ethernet-phy-id0007.0772";
+			interrupt-parent = <&intc_ex>;
+			interrupts = <RZT2H_IRQ3 IRQ_TYPE_EDGE_FALLING>;
 			phy-mode = "rgmii-id";
 			vsc8531,led-0-mode = <VSC8531_LINK_ACTIVITY>;
 			vsc8531,led-1-mode = <VSC8531_LINK_ACTIVITY>;
@@ -798,6 +805,8 @@
 		#size-cells = <0>;
 		phy2: ethernet-phy@2 {
 			compatible = "ethernet-phy-id0007.0772";
+			interrupt-parent = <&intc_ex>;
+			interrupts = <RZT2H_IRQ13 IRQ_TYPE_EDGE_FALLING>;
 			phy-mode = "rgmii-id";
 			vsc8531,led-0-mode = <VSC8531_LINK_ACTIVITY>;
 			vsc8531,led-1-mode = <VSC8531_LINK_ACTIVITY>;
@@ -843,6 +852,8 @@
 
 		phy0: ethernet-phy@0 {
 			compatible = "ethernet-phy-id0007.0772";
+			interrupt-parent = <&intc_ex>;
+			interrupts = <RZT2H_IRQ11 IRQ_TYPE_EDGE_FALLING>;
 			phy-mode = "mii";
 			max-speed = <100>;
 			vsc8531,led-0-mode = <VSC8531_LINK_ACTIVITY>;
@@ -853,6 +864,8 @@
 
 		phy1: ethernet-phy@1 {
 			compatible = "ethernet-phy-id0007.0772";
+			interrupt-parent = <&intc_ex>;
+			interrupts = <RZT2H_IRQ12 IRQ_TYPE_EDGE_FALLING>;
 			phy-mode = "mii";
 			max-speed = <100>;
 			vsc8531,led-0-mode = <VSC8531_LINK_ACTIVITY>;
