@@ -51,6 +51,11 @@ struct plat_sci_reg {
 	u8 size;
 };
 
+struct sci_irq_desc {
+	const char	*desc;
+	irq_handler_t	handler;
+};
+
 struct sci_port_params_bits {
 	unsigned int rxtx_enable;
 	unsigned int te_clear;
@@ -179,5 +184,7 @@ int sci_scbrr_calc(struct sci_port *s, unsigned int bps, unsigned int *brr,
 #ifdef CONFIG_SERIAL_SH_SCI_EARLYCON
 int __init scix_early_console_setup(struct earlycon_device *device, const struct sci_of_data *data);
 #endif
+
+extern const struct sci_irq_desc sci_irq_desc[];
 
 #endif /* __SH_SCI_COMMON_H__ */

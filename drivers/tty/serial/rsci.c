@@ -237,6 +237,8 @@ static void rsci_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned long flags;
 	unsigned int ctrl;
 	int best_clk = -1;
+	struct irq_desc *rxi_irq_desc;
+	int rxi_irq = s->irqs[SCIx_RXI_IRQ], ret = 0;
 
 	if ((termios->c_cflag & CSIZE) == CS7) {
 		ccr3_val |= CCR3_CHR0;
@@ -330,6 +332,33 @@ done:
 
 	ccr0_val |= CCR0_RE;
 	rsci_serial_out(port, CCR0, ccr0_val);
+
+	/*
+	 * In some cases, RXI IRQ handlers running in a threaded context
+	 * can cause frequent overruns at 3M baud rates.
+	 *
+	 * Therefore, reconfigure RXI IRQ by adding the IRQF_NO_THREAD flag
+	 * if the baudrate is configured from lower 3M to 3M or higher.
+	 * Or remove the IRQF_NO_THREAD flag when the baudrate is configured
+	 * from higher 3M to a lower.
+	 */
+	rxi_irq_desc = irq_to_desc(rxi_irq);
+	if (rxi_irq_desc) {
+		const struct sci_irq_desc *desc = &sci_irq_desc[SCIx_RXI_IRQ];
+		unsigned long flags = rxi_irq_desc->action->flags;
+
+		if (((baud >= 3000000) && !(flags & IRQF_NO_THREAD)) ||
+		    ((baud < 3000000) && (flags & IRQF_NO_THREAD))) {
+			free_irq(rxi_irq, s);
+
+			flags ^= IRQF_NO_THREAD;
+
+			ret = request_irq(rxi_irq, desc->handler, flags,
+					s->irqstr[SCIx_RXI_IRQ], port);
+			if (unlikely(ret))
+				dev_err(port->dev, "Can't allocate %s IRQ\n", desc->desc);
+		}
+	}
 
 	if ((termios->c_cflag & CREAD) != 0)
 		rsci_start_rx(port);

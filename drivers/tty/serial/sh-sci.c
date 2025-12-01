@@ -2144,10 +2144,7 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 	return ret;
 }
 
-static const struct sci_irq_desc {
-	const char	*desc;
-	irq_handler_t	handler;
-} sci_irq_desc[] = {
+const struct sci_irq_desc sci_irq_desc[] = {
 	/*
 	 * Split out handlers, the default case.
 	 */
