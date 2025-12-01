@@ -42,6 +42,8 @@ void cpg_mssr_detach_dev(struct generic_pm_domain *unused, struct device *dev);
  * various parameters used to configure a PLL. These limits ensure
  * the PLL operates within valid and stable ranges.
  *
+ * @input_fref: Reference input frequency to the PLL (in MHz)
+ *
  * @fout: Output frequency range (in MHz)
  * @fout.min: Minimum allowed output frequency
  * @fout.max: Maximum allowed output frequency
@@ -67,6 +69,8 @@ void cpg_mssr_detach_dev(struct generic_pm_domain *unused, struct device *dev);
  * @k.max: Maximum delta-sigma value
  */
 struct rzv2h_pll_limits {
+	u32 input_fref;
+
 	struct {
 		u32 min;
 		u32 max;
@@ -145,6 +149,7 @@ struct rzv2h_pll_div_pars {
 
 #define RZV2H_CPG_PLL_DSI_LIMITS(name)					\
 	static const struct rzv2h_pll_limits (name) = {			\
+		.input_fref = 24 * MEGA,				\
 		.fout = { .min = 25 * MEGA, .max = 375 * MEGA },	\
 		.fvco = { .min = 1600 * MEGA, .max = 3200 * MEGA },	\
 		.m = { .min = 64, .max = 533 },				\
@@ -155,6 +160,7 @@ struct rzv2h_pll_div_pars {
 
 #define RZG3E_CPG_PLL_DSI0_LIMITS(name)					\
 	static const struct rzv2h_pll_limits (name) = {			\
+		.input_fref = 24 * MEGA,				\
 		.fout = { .min = 25 * MEGA, .max = 1218 * MEGA },	\
 		.fvco = { .min = 1600 * MEGA, .max = 3200 * MEGA },	\
 		.m = { .min = 64, .max = 533 },				\
@@ -165,6 +171,7 @@ struct rzv2h_pll_div_pars {
 
 #define RZG3E_CPG_PLL_DSI1_LIMITS(name)					\
 	static const struct rzv2h_pll_limits (name) = {			\
+		.input_fref = 24 * MEGA,				\
 		.fout = { .min = 25 * MEGA, .max = 609 * MEGA },	\
 		.fvco = { .min = 1600 * MEGA, .max = 3200 * MEGA },	\
 		.m = { .min = 64, .max = 533 },				\
