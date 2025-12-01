@@ -114,6 +114,11 @@ static int irqc_irq_set_wake(struct irq_data *d, unsigned int on)
 
 static irqreturn_t irqc_irq_handler(int irq, void *dev_id)
 {
+	struct irqc_irq *i = dev_id;
+	struct irqc_priv *priv = i->priv;
+
+	generic_handle_domain_irq(priv->irq_domain, i->hw_irq);
+
 	return IRQ_HANDLED;
 }
 
@@ -164,45 +169,18 @@ static int configure_irq_ports(struct platform_device *pdev)
 	return 0;
 }
 
-static int irqc_request_irq(struct platform_device *pdev,
-			int irq_type,
-			const char * const irqs_name[], int n)
-{
-	struct irqc_priv *priv = (struct irqc_priv *)platform_get_drvdata(pdev);
-	struct device *dev = &pdev->dev;
-	int k, irq;
-
-	for (k = 0 ; k < n; k++) {
-		irq = platform_get_irq_byname(pdev, irqs_name[k]);
-		if (irq < 0) {
-			dev_err(dev, "No IRQ resource\n");
-			break;
-		}
-
-		priv->irq[k + priv->number_of_irqs].priv = priv;
-		priv->irq[k + priv->number_of_irqs].hw_irq =
-						k + priv->number_of_irqs;
-		priv->irq[k + priv->number_of_irqs].requested_irq = irq;
-		priv->irq[k + priv->number_of_irqs].type = irq_type;
-	}
-
-	priv->number_of_irqs += k;
-
-	return k;
-}
-
 static int irqc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct irqc_priv *priv;
 	struct resource *res;
 	const char *name = dev_name(dev);
-	int k, ret;
+	int k, irq, ret;
 	const char * const irqs_name[] = {"irq0", "irq1", "irq2", "irq3",
 					"irq4", "irq5", "irq6", "irq7",
 					"irq8", "irq9", "irq10", "irq11",
 					"irq12", "irq13", "irq14", "irq15"};
-	int irq_numbers;
+	unsigned long irqflags = IS_ENABLED(CONFIG_PREEMPT_RT) ? IRQF_NO_THREAD : 0;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -223,23 +201,19 @@ static int irqc_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base1))
 		return PTR_ERR(priv->base1);
 
-	/* Count irq numbers including IRQC and NMI */
-	irq_numbers = of_property_count_strings(dev->of_node,
-						"interrupt-names");
-	if ((irq_numbers < 0) ||
-	    (irq_numbers > IRQC_IRQ_MAX)) {
-		dev_err(dev, "wrong number of IRQs resources\n");
-		ret = -EINVAL;
-		goto err1;
-	}
+	for (k = 0 ; k < IRQC_IRQ_MAX; k++) {
+		irq = platform_get_irq_byname(pdev, irqs_name[k]);
+		if (irq < 0) {
+			dev_warn(dev, "No IRQ resource\n");
+			break;
+		}
 
-	/* allow any number of IRQs between 1 and IRQC_IRQ_MAX */
-	irqc_request_irq(pdev, IRQC_IRQ, irqs_name, irq_numbers);
-	if (priv->number_of_irqs < 1) {
-		dev_err(dev, "not enough IRQ resources\n");
-		ret = -EINVAL;
-		goto err1;
+		priv->irq[k].priv = priv;
+		priv->irq[k].hw_irq = k;
+		priv->irq[k].requested_irq = irq;
+		priv->irq[k].type = IRQC_IRQ;
 	}
+	priv->number_of_irqs = k;
 
 	priv->irq_domain = irq_domain_add_linear(pdev->dev.of_node,
 					      priv->number_of_irqs,
@@ -278,7 +252,7 @@ static int irqc_probe(struct platform_device *pdev)
 	/* request interrupts one by one */
 	for (k = 0; k < priv->number_of_irqs; k++) {
 		if (request_irq(priv->irq[k].requested_irq, irqc_irq_handler,
-				0, name, &priv->irq[k])) {
+				irqflags, name, &priv->irq[k])) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
 			ret = -ENOENT;
 			goto err2;
