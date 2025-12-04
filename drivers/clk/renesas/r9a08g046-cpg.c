@@ -289,7 +289,7 @@ static const char * const sel_xspi[] = { ".pll2_div2", ".pll1_div2", ".pll2_div3
 static const u32 mtable_sd[] = { 0, 1, 2, 3 };
 static const u32 mtable_pll4[] = { 0, 1 };
 
-static const struct cpg_core_clk r9a08g046_core_clks[] __initconst = {
+static const struct cpg_core_clk r9a08g046_core_clks[] = {
 	/* External Clock Inputs */
 	DEF_INPUT("extal", CLK_EXTAL),
 	DEF_INPUT("et0_txc_tx_clk_in", CLK_ET0_TXC_TX_CLK_IN),
