@@ -11,16 +11,21 @@
 #include <linux/irq.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/rz-mtu3.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/spinlock.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
+#include <linux/regmap.h>
 
 #include "rz-mtu3.h"
 
 struct rz_mtu3_priv {
 	void __iomem *mmio;
+	struct regmap *icu_regmap;
 	struct reset_control *rstc;
 	spinlock_t lock;
 };
@@ -54,6 +59,18 @@ static const unsigned long rz_mtu3_32bit_ch_reg_offs[][5] = {
 	[RZ_MTU3_CHAN_8] = MTU_32BIT_CH_8(0x408, 0x40c, 0x410, 0x414, 0x418)
 };
 
+static const char rz_mtu3_irq_names[][7][6] = {
+	[RZ_MTU3_CHAN_0] = {"tgia0", "tgib0", "tgic0", "tgid0", "tciv0", "tgie0", "tgif0"},
+	[RZ_MTU3_CHAN_1] = {"tgia1", "tgib1", "tciv1", "tciu1"},
+	[RZ_MTU3_CHAN_2] = {"tgia2", "tgib2", "tciv2", "tciu2"},
+	[RZ_MTU3_CHAN_3] = {"tgia3", "tgib3", "tgic3", "tgid3", "tciv3"},
+	[RZ_MTU3_CHAN_4] = {"tgia4", "tgib4", "tgic4", "tgid4", "tciv4"},
+	[RZ_MTU3_CHAN_5] = {"tgiu5", "tgiv5", "tgiw5"},
+	[RZ_MTU3_CHAN_6] = {"tgia6", "tgib6", "tgic6", "tgid6", "tciv6"},
+	[RZ_MTU3_CHAN_7] = {"tgia7", "tgib7", "tgic7", "tgid7", "tciv7"},
+	[RZ_MTU3_CHAN_8] = {"tgia8", "tgib8", "tgic8", "tgid8", "tciv8"},
+};
+
 static bool rz_mtu3_is_16bit_shared_reg(u16 offset)
 {
 	return (offset == RZ_MTU3_TDDRA || offset == RZ_MTU3_TDDRB ||
@@ -61,6 +78,47 @@ static bool rz_mtu3_is_16bit_shared_reg(u16 offset)
 		offset == RZ_MTU3_TCBRA || offset == RZ_MTU3_TCBRB ||
 		offset == RZ_MTU3_TCNTSA || offset == RZ_MTU3_TCNTSB);
 }
+
+static int rz_mtu3_get_irq_index(struct rz_mtu3 *mtu, char *irq_name)
+{
+	struct rz_mtu3_channel ch;
+	u8 i, irq_index, start = 0;
+
+	for (i = 0; i < RZ_MTU_NUM_CHANNELS; i++) {
+		ch = mtu->channels[i];
+		for (irq_index = 0; irq_index < ch.num_irq; irq_index++)
+			if (!strcmp(irq_name, rz_mtu3_irq_names[i][irq_index]))
+				return start + irq_index;
+		start = start + mtu->channels[i].num_irq;
+	}
+	return -EINVAL;
+}
+
+/* This function is used to select interrupts between MTU3 and GPT modules
+ * on RZ/G3L since they share the interrupts.
+ */
+int rz_mtu3_irq_sel(struct rz_mtu3 *mtu, char *irq_name)
+{
+	struct rz_mtu3_priv *priv = mtu->priv_data;
+	int irq_index;
+	unsigned int offset;
+
+	irq_index = rz_mtu3_get_irq_index(mtu, irq_name);
+	if (irq_index < 0)
+		return irq_index;
+
+	/* The first 32 interrupts are belong to INTPMSEL0. */
+	if (irq_index < 32)
+		offset = INTPMSEL0;
+	else {
+		offset = INTPMSEL1;
+		irq_index -= 32;
+	}
+	regmap_update_bits(priv->icu_regmap, offset, BIT(irq_index), BIT(irq_index));
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rz_mtu3_irq_sel);
 
 u16 rz_mtu3_shared_reg_read(struct rz_mtu3_channel *ch, u16 offset)
 {
@@ -326,6 +384,7 @@ static int rz_mtu3_probe(struct platform_device *pdev)
 {
 	struct rz_mtu3_priv *priv;
 	struct rz_mtu3 *ddata;
+	struct device_node *icu_node = NULL;
 	unsigned int i;
 	int ret;
 
@@ -344,6 +403,17 @@ static int rz_mtu3_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->mmio))
 		return PTR_ERR(priv->mmio);
 
+	ddata->has_mixed_irq = false;
+	icu_node = of_parse_phandle(pdev->dev.of_node, "renesas,icu", 0);
+	if (icu_node) {
+		ddata->has_mixed_irq = true;
+		priv->icu_regmap = device_node_to_regmap(icu_node);
+		of_node_put(icu_node);
+		if (IS_ERR(priv->icu_regmap))
+			return dev_err_probe(&pdev->dev, PTR_ERR(priv->icu_regmap),
+				"failed to get regmap from IRQC\n");
+	}
+
 	priv->rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(priv->rstc))
 		return PTR_ERR(priv->rstc);
@@ -360,6 +430,25 @@ static int rz_mtu3_probe(struct platform_device *pdev)
 		ddata->channels[i].channel_number = i;
 		ddata->channels[i].is_busy = false;
 		mutex_init(&ddata->channels[i].lock);
+		switch (i) {
+		case RZ_MTU3_CHAN_0:
+			ddata->channels[i].num_irq = 7;
+			break;
+		case RZ_MTU3_CHAN_1:
+		case RZ_MTU3_CHAN_2:
+			ddata->channels[i].num_irq = 4;
+			break;
+		case RZ_MTU3_CHAN_3:
+		case RZ_MTU3_CHAN_4:
+		case RZ_MTU3_CHAN_6:
+		case RZ_MTU3_CHAN_7:
+		case RZ_MTU3_CHAN_8:
+			ddata->channels[i].num_irq = 5;
+			break;
+		case RZ_MTU3_CHAN_5:
+			ddata->channels[i].num_irq = 3;
+			break;
+		}
 	}
 
 	ret = mfd_add_devices(&pdev->dev, 0, rz_mtu3_devs,

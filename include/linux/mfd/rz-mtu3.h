@@ -9,6 +9,10 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 
+/* GPT and MTU3 interrupt selection registers */
+#define INTPMSEL0	0x80 /* For RZ/G3L only */
+#define INTPMSEL1	0x84 /* For RZ/G3L only */
+
 /* 8-bit shared register offsets macros */
 #define RZ_MTU3_TSTRA	0x080 /* Timer start register A */
 #define RZ_MTU3_TSTRB	0x880 /* Timer start register B */
@@ -159,6 +163,7 @@ struct rz_mtu3_channel {
 	unsigned int channel_number;
 	struct mutex lock;
 	bool is_busy;
+	u8 num_irq;
 };
 
 /**
@@ -168,6 +173,7 @@ struct rz_mtu3_channel {
  * @rz_mtu3_channel: HW channels
  * @pdev: platform device
  * @priv_data: MTU3 core driver private data
+ * @has_mixed_irq: has mixed MTU3 and GPT interrupts
  */
 struct rz_mtu3 {
 	struct clk *clk;
@@ -175,6 +181,7 @@ struct rz_mtu3 {
 	struct platform_device *pdev;
 
 	void *priv_data;
+	bool has_mixed_irq;
 };
 
 static inline bool rz_mtu3_request_channel(struct rz_mtu3_channel *ch)
@@ -201,6 +208,7 @@ static inline void rz_mtu3_release_channel(struct rz_mtu3_channel *ch)
 bool rz_mtu3_is_enabled(struct rz_mtu3_channel *ch);
 void rz_mtu3_disable(struct rz_mtu3_channel *ch);
 int rz_mtu3_enable(struct rz_mtu3_channel *ch);
+int rz_mtu3_irq_sel(struct rz_mtu3 *mtu, char *irq_name);
 
 u8 rz_mtu3_8bit_ch_read(struct rz_mtu3_channel *ch, u16 off);
 u16 rz_mtu3_16bit_ch_read(struct rz_mtu3_channel *ch, u16 off);
