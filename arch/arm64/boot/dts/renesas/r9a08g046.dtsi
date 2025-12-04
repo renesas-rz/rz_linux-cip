@@ -1745,6 +1745,7 @@
 					  "tciv7",
 					  "tgia8", "tgib8", "tgic8", "tgid8",
 					  "tciv8";
+			renesas,icu = <&icu>;
 			clocks = <&cpg CPG_MOD R9A08G046_MTU_X_MCK_MTU3>;
 			clock-names = "fck";
 			power-domains = <&cpg>;
