@@ -3552,6 +3552,18 @@ static void rzg2l_pinctrl_pm_setup_pfc(struct rzg2l_pinctrl *pctrl)
 	spin_unlock_irqrestore(&pctrl->lock, flags);
 }
 
+static void rzg3l_pinctrl_pm_setup_clonech(struct rzg2l_pinctrl *pctrl)
+{
+	const struct rzg2l_hwcfg *hwcfg = pctrl->data->hwcfg;
+
+	if (!hwcfg->has_clone_ch)
+		return;
+
+	for (u32 pin = 0; pin < pctrl->desc.npins; pin++)
+		if (pctrl->val_clone[pin] >= 0)
+			rzg3l_sysc_set_clone_channel(pctrl->syscon, pctrl->val_clone[pin]);
+}
+
 static int rzg2l_pinctrl_suspend_noirq(struct device *dev)
 {
 	struct rzg2l_pinctrl *pctrl = dev_get_drvdata(dev);
@@ -3613,6 +3625,7 @@ static int rzg2l_pinctrl_resume_noirq(struct device *dev)
 	rzg2l_pinctrl_pm_setup_regs(pctrl, false);
 	rzg2l_pinctrl_pm_setup_dedicated_regs(pctrl, false);
 	rzg2l_gpio_irq_restore(pctrl);
+	rzg3l_pinctrl_pm_setup_clonech(pctrl);
 
 	return 0;
 }
