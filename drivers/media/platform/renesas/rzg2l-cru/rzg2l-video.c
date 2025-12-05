@@ -594,7 +594,7 @@ void rzg2l_cru_stop_image_processing(struct rzg2l_cru_dev *cru)
 		if (cru->info->fifo_empty(cru))
 			break;
 
-		usleep_range(10, 20);
+		udelay(10);
 	}
 
 	/* Notify that FIFO is not empty here */
@@ -610,7 +610,7 @@ void rzg2l_cru_stop_image_processing(struct rzg2l_cru_dev *cru)
 			AMnAXISTPACK_AXI_STOP_ACK)
 			break;
 
-		usleep_range(10, 20);
+		udelay(10);
 	}
 
 	/* Notify that AXI bus can not stop here */
@@ -1213,7 +1213,7 @@ void rzg2l_cru_suspend_stop_streaming(struct rzg2l_cru_dev *cru)
 						AMnAXISTPACK_AXI_STOP_ACK)
 			break;
 
-		usleep_range(10, 20);
+		udelay(10);
 	};
 	/* Cancel the AXI bus stop request */
 	rzg2l_cru_write(cru, AMnAXISTP, 0);
