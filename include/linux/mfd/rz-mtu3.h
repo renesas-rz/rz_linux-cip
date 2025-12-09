@@ -174,6 +174,7 @@ struct rz_mtu3_channel {
  * @pdev: platform device
  * @priv_data: MTU3 core driver private data
  * @has_mixed_irq: has mixed MTU3 and GPT interrupts
+ * @rstc: reset control
  */
 struct rz_mtu3 {
 	struct clk *clk;
@@ -182,6 +183,7 @@ struct rz_mtu3 {
 
 	void *priv_data;
 	bool has_mixed_irq;
+	struct reset_control *rstc;
 };
 
 static inline bool rz_mtu3_request_channel(struct rz_mtu3_channel *ch)
