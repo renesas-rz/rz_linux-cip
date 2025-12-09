@@ -63,8 +63,10 @@ static struct sk_buff *ethsw_tag_xmit(struct sk_buff *skb, struct net_device *de
 	ptag = dsa_etype_header_pos_tx(skb);
 
 	etype = *(__be16 *)(skb->data + 2 * ETH_ALEN + 8);
-	/* Insert transmit timestamping data if Ethernet type field is PTP type */
-	if (ntohs(etype) == 0x88F7)
+	/* Insert transmit timestamping data if Ethernet type field is PTP type
+	 * or IPv4 type.
+	 */
+	if (ntohs(etype) == 0x88F7 || ntohs(etype) == 0x0800)
 		ptag->ctrl_data = htons(ETHSW_CTRL_DATA_FORCE_FORWARD | ETHSW_CTRLBIT_TIMESTAMPING);
 	else
 		ptag->ctrl_data = htons(ETHSW_CTRL_DATA_FORCE_FORWARD);
@@ -100,8 +102,8 @@ static struct sk_buff *ethsw_tag_rcv(struct sk_buff *skb,
 	port = FIELD_GET(ETHSW_CTRL_DATA_PORT, ntohs(tag->ctrl_data));
 
 	etype = *(__be16 *)(skb->data - 2 + 8);
-	/* Get rx time stamp if Ethernet type field is PTP type */
-	if (ntohs(etype) == 0x88F7) { /* PTP Ethernet type field */
+	/* Get rx time stamp if Ethernet type field is PTP type or IPv4 type */
+	if (ntohs(etype) == 0x88F7 || ntohs(etype) == 0x0800) {
 		ETHSW_SKB_CB(skb)->rxtstamp = (ntohs(tag->ctrl_data2_hi) << 16)
 					      | ntohs(tag->ctrl_data2_lo);
 	}
