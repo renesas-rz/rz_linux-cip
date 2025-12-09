@@ -25,6 +25,7 @@
 
 	aliases {
 		mmc0 = &sdhi0;
+		i2c2 = &i2c2;
 		ethernet0 = &eth0;
 		ethernet1 = &eth1;
 	};
@@ -174,6 +175,11 @@
 		sd0-cd {
 			pinmux = <RZG2L_PORT_PINMUX(5, 0, 8)>; /* SD0_CD */
 		};
+	};
+
+	i2c2_pins: i2c2 {
+		pinmux = <RZG3L_PORT_PINMUX(A, 4, 4)>, /* SCL */
+			 <RZG3L_PORT_PINMUX(A, 5, 4)>; /* SDA */
 	};
 };
 
@@ -358,5 +364,12 @@
 };
 
 &adc1 {
+	status = "okay";
+};
+
+&i2c2 {
+	pinctrl-0 = <&i2c2_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 };
