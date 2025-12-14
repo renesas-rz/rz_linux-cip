@@ -137,6 +137,7 @@ static struct platform_driver renesas_gbeth_driver = {
 	.remove = renesas_gbeth_remove,
 	.driver = {
 		.name		= "renesas-gbeth",
+		.pm		= &stmmac_pltfr_pm_ops,
 		.of_match_table	= renesas_gbeth_match,
 	},
 };
