@@ -14,14 +14,6 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	/* ptp_clock input */
-	ptp_clock: ptp_clock {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		/* This value must be overridden by the board */
-		clock-frequency = <125000000>;
-	};
-
 	/* External CAN clock - to be overridden by boards that provide it */
 	can_clk: can-clk {
 		compatible = "fixed-clock";
@@ -39,22 +31,6 @@
 
 	/* et0_rxc_rx_clk clock input */
 	et0_rxc_rx_clk: et0_rxc_rx_clk {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		/* This value must be overridden by the board */
-		clock-frequency = <0>;
-	};
-
-	/* et1_txc_tx_clk clock input */
-	et1_txc_tx_clk: et1_txc_tx_clk {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		/* This value must be overridden by the board */
-		clock-frequency = <0>;
-	};
-
-	/* et1_rxc_rx_clk clock input */
-	et1_rxc_rx_clk: et1_rxc_rx_clk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		/* This value must be overridden by the board */
@@ -278,11 +254,9 @@
 			compatible = "renesas,r9a08g046-cpg";
 			reg = <0 0x11010000 0 0x10000>;
 			clocks = <&extal_clk>,
-				 <&et0_txc_tx_clk>, <&et0_rxc_rx_clk>,
-				 <&et1_txc_tx_clk>, <&et1_rxc_rx_clk>;
+				 <&et0_txc_tx_clk>, <&et0_rxc_rx_clk>;
 			clock-names = "extal",
-				"et0_txc_tx_clk_in", "et0_rxc_rx_clk_in",
-				"et1_txc_tx_clk_in", "et1_rxc_rx_clk_in";
+				"et0_txc_tx_clk_in", "et0_rxc_rx_clk_in";
 			#clock-cells = <2>;
 			#reset-cells = <1>;
 			#power-domain-cells = <0>;
@@ -534,7 +508,7 @@
 					  "tx-queue-2", "tx-queue-3";
 			clocks =  <&cpg CPG_MOD R9A08G046_ETH0_CLK_AXI>,
 				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_CHI>,
-				  <&ptp_clock>,
+				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_PTP_REF_I>,
 				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_TX_I>,
 				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_RX_I>,
 				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_TX_180_I>,
@@ -644,7 +618,7 @@
 					  "tx-queue-2", "tx-queue-3";
 			clocks =  <&cpg CPG_MOD R9A08G046_ETH1_CLK_AXI>,
 				  <&cpg CPG_MOD R9A08G046_ETH1_CLK_CHI>,
-				  <&ptp_clock>,
+				  <&cpg CPG_MOD R9A08G046_ETH1_CLK_PTP_REF_I>,
 				  <&cpg CPG_MOD R9A08G046_ETH1_CLK_TX_I>,
 				  <&cpg CPG_MOD R9A08G046_ETH1_CLK_RX_I>,
 				  <&cpg CPG_MOD R9A08G046_ETH1_CLK_TX_180_I>,
