@@ -671,3 +671,7 @@
 &ostm7 {
 	status = "okay";
 };
+
+&rtc {
+	status = "okay";
+};
