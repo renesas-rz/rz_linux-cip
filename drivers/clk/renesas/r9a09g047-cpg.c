@@ -37,6 +37,7 @@ enum clk_ids {
 	CLK_PLLDSI1,
 
 	/* Internal Core Clocks */
+	CLK_PLLCM33_DIV2,
 	CLK_PLLCM33_DIV3,
 	CLK_PLLCM33_DIV4,
 	CLK_PLLCM33_DIV5,
@@ -45,6 +46,9 @@ enum clk_ids {
 	CLK_PLLCM33_DIV4_DDIV2,
 	CLK_PLLCM33_DIV4_DDIV2_DIV2,
 	CLK_PLLCM33_GEAR,
+	CLK_PLLCM33_ADC_PCLK,
+	CLK_PLLCM33_ADC_ADCLK,
+	CLK_PLLCM33_ADC_PCLK_DIV2,
 	CLK_SMUX2_XSPI_CLK0,
 	CLK_SMUX2_XSPI_CLK1,
 	CLK_PLLCM33_XSPI,
@@ -189,9 +193,16 @@ static const struct cpg_core_clk r9a09g047_core_clks[]  = {
 	DEF_PLLDSI(".plldsi1", CLK_PLLDSI1, CLK_QEXTAL, PLLDSI1),
 
 	/* Internal Core Clocks */
+	DEF_FIXED(".pllcm33_div2", CLK_PLLCM33_DIV2, CLK_PLLCM33, 1, 2),
 	DEF_FIXED(".pllcm33_div3", CLK_PLLCM33_DIV3, CLK_PLLCM33, 1, 3),
 	DEF_FIXED(".pllcm33_div4", CLK_PLLCM33_DIV4, CLK_PLLCM33, 1, 4),
 	DEF_FIXED(".pllcm33_div5", CLK_PLLCM33_DIV5, CLK_PLLCM33, 1, 5),
+	DEF_CSDIV(".pllcm33_adc_pclk", CLK_PLLCM33_ADC_PCLK, CLK_PLLCM33_DIV2,
+						CSDIV1_DIVCTL0, dtable_8_10),
+	DEF_FIXED(".pllcm33_adc_pclk_div2", CLK_PLLCM33_ADC_PCLK_DIV2,
+						CLK_PLLCM33_ADC_PCLK, 1, 2),
+	DEF_CSDIV(".pllcm33_adc_adclk", CLK_PLLCM33_ADC_ADCLK, CLK_PLLCM33_ADC_PCLK,
+							CSDIV1_DIVCTL1, dtable_2_16),
 	DEF_FIXED(".pllcm33_div16", CLK_PLLCM33_DIV16, CLK_PLLCM33, 1, 16),
 	DEF_FIXED(".pllcm33_div32", CLK_PLLCM33_DIV32, CLK_PLLCM33, 1, 32),
 	DEF_DDIV(".pllcm33_div4_ddiv2", CLK_PLLCM33_DIV4_DDIV2, CLK_PLLCM33_DIV4,
@@ -650,6 +661,10 @@ static const struct rzv2h_mod_clk r9a09g047_mod_clks[] = {
 						BUS_MSTOP(5, BIT(7))),
 	DEF_MOD("pdm_1_cclk",			CDIV5_MAINOSC, 16, 6, 8, 6,
 						BUS_MSTOP(5, BIT(7))),
+	DEF_MOD("adc_pclk",			CLK_PLLCM33_ADC_PCLK_DIV2, 16, 7, 8, 7,
+						BUS_MSTOP(3, BIT(9))),
+	DEF_MOD("adc_adclk",			CLK_PLLCM33_ADC_ADCLK, 16, 8, 8, 8,
+						BUS_MSTOP(3, BIT(9))),
 	DEF_MOD("tsu_1_pclk",			CLK_QEXTAL, 16, 10, 8, 10,
 						BUS_MSTOP(2, BIT(15))),
 	DEF_MOD("adg_ssi_0_clk",		CLK_PLLCLN_DIV8, 22, 0, -1, -1,
@@ -876,6 +891,7 @@ static const struct rzv2h_reset r9a09g047_resets[] = {
 	DEF_RST(15, 3, 7, 4),		/* PDM0_CRESETN */
 	DEF_RST(15, 4, 7, 5),		/* PDM1_PRESETN */
 	DEF_RST(15, 5, 7, 6),		/* PDM1_CRESETN */
+	DEF_RST(15, 6, 7, 7),		/* ADC_ADRST_N */
 	DEF_RST(15, 8, 7, 9),		/* TSU_1_PRESETN */
 	DEF_RST(17, 11, 8, 12),		/* VSPI_SMRESET_VSPISS */
 	DEF_RST(17, 12, 8, 13),		/* VSPI_SRESET_VSP1Z */
