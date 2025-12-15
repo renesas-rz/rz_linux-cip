@@ -148,6 +148,16 @@
 			renesas,sd_ch1_poc;
 		};
 	};
+
+	usb0_pins: usb0 {
+		pinmux = <RZG3L_PORT_PINMUX(3, 1, 12)>, /* VBUS */
+			 <RZG3L_PORT_PINMUX(3, 0, 12)>; /* OVC */
+	};
+
+	usb1_pins: usb1 {
+		pinmux = <RZG3L_PORT_PINMUX(3, 5, 12)>, /* VBUS */
+			 <RZG3L_PORT_PINMUX(3, 4, 12)>; /* OVC */
+	};
 };
 
 &canfd {
@@ -208,3 +218,47 @@
 	};
 };
 #endif
+
+&phyrst {
+	status = "okay";
+};
+
+&usb2_phy0 {
+	pinctrl-0 = <&usb0_pins>;
+	pinctrl-names = "default";
+
+	vbus-supply = <&usb0_vbus_otg>;
+	status = "okay";
+};
+
+&usb2_phy1 {
+	pinctrl-0 = <&usb1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&ehci0 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&ohci0 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&hsusb0 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&ehci1 {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&ohci1 {
+	dr_mode = "host";
+	status = "okay";
+};
