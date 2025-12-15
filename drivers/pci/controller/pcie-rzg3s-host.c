@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 #include <linux/units.h>
 #include <linux/kthread.h>
+#include <linux/dma/pcie-rzg3s-dma.h>
 
 #include "../pci.h"
 #include "pcie-rzg3s-regs.h"
@@ -122,6 +123,7 @@ struct rzg3s_pcie_soc_data {
  * @channel: channel of PCIe
  */
 struct rzg3s_pcie_host {
+	struct rz_pcie pci;
 	void __iomem *axi;
 	void __iomem *pcie;
 	struct device *dev;
@@ -1649,6 +1651,12 @@ static void rzg3s_pcie_sysc_signal_action(void *data)
 			   FIELD_PREP(RZG3S_SYS_PCIE_RST_RSM_B_MASK, 0));
 }
 
+static void rzg3s_pcie_dma_remove_action(void *data)
+{
+	struct rz_pcie *pci = data;
+	rzg3s_pcie_dma_remove(pci);
+}
+
 static int
 rzg3s_pcie_host_setup(struct rzg3s_pcie_host *host,
 		      int (*intx_setup)(struct rzg3s_pcie_host *host),
@@ -1726,6 +1734,7 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 	struct device_node *sysc_np __free(device_node) =
 		of_parse_phandle(np, "renesas,sysc", 0);
 	struct rzg3s_pcie_host *host;
+	struct rz_pcie *pci;
 	int ret, channel;
 	u32 num_lanes;
 
@@ -1832,6 +1841,20 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = rzv2h_pcie_enable_dl_updown(host);
+	if (ret)
+		return ret;
+
+	/* Don't failed if DMA for PCIe is not enabled */
+	pci = &host->pci;
+	pci->dev = dev;
+	pci->base = host->axi;
+
+	ret = rzg3s_pcie_dma_probe(pci, false);
+	if (ret && ret != -ENODEV) {
+		return ret;
+	}
+
+	ret = devm_add_action_or_reset(dev, rzg3s_pcie_dma_remove_action, pci);
 	if (ret)
 		return ret;
 
