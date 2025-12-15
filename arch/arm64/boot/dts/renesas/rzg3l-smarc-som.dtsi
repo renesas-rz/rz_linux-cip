@@ -221,22 +221,17 @@
 
 			partition@0 {
 				label = "bl2";
-				reg = <0x00000000 0x0001d200>;
-				read-only;
+				reg = <0x00000000 0x00060000>;
 			};
-			partition@1d200 {
+
+			partition@60000 {
 				label = "fip";
-				reg = <0x0001d200 0x001c2e00>;
-				read-only;
+				reg = <0x00060000 0x007a0000>;
 			};
-			partition@1e0000 {
-				label = "env";
-				reg = <0x001e0000 0x00020000>;
-				read-only;
-			};
-			partition@200000 {
-				label = "test-area";
-				reg = <0x00200000 0x00e00000>;
+
+			partition@800000 {
+				label = "user";
+				reg = <0x800000 0x800000>;
 			};
 		};
 	};
