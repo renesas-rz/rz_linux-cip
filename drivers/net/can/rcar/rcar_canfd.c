@@ -444,6 +444,7 @@ struct rcar_canfd_hw_info {
 	unsigned ch_interface_mode:1;	/* Has channel interface mode */
 	unsigned shared_can_regs:1;	/* Has shared classical can registers */
 	unsigned external_clk:1;	/* Has external clock */
+	unsigned classical_can:1;       /* Has classical CAN */
 };
 
 /* Channel priv data */
@@ -617,6 +618,7 @@ static const struct rcar_canfd_hw_info rcar_gen3_hw_info = {
 	.ch_interface_mode = 0,
 	.shared_can_regs = 0,
 	.external_clk = 1,
+	.classical_can = 1,
 };
 
 static const struct rcar_canfd_hw_info rcar_gen4_hw_info = {
@@ -634,6 +636,7 @@ static const struct rcar_canfd_hw_info rcar_gen4_hw_info = {
 	.ch_interface_mode = 1,
 	.shared_can_regs = 1,
 	.external_clk = 1,
+	.classical_can = 1,
 };
 
 static const struct rcar_canfd_hw_info rzg2l_hw_info = {
@@ -651,6 +654,7 @@ static const struct rcar_canfd_hw_info rzg2l_hw_info = {
 	.ch_interface_mode = 0,
 	.shared_can_regs = 0,
 	.external_clk = 1,
+	.classical_can = 1,
 };
 
 static const struct rcar_canfd_hw_info r9a08g045_hw_info = {
@@ -702,6 +706,7 @@ static const struct rcar_canfd_hw_info r9a09g047_hw_info = {
 	.ch_interface_mode = 1,
 	.shared_can_regs = 1,
 	.external_clk = 0,
+	.classical_can = 1,
 };
 
 /* Helper functions */
@@ -857,7 +862,7 @@ static int rcar_canfd_reset_controller(struct rcar_canfd_global *gpriv)
 		}
 
 		/* Set the controller into appropriate mode */
-		if (gpriv->info->ch_interface_mode) {
+		if (gpriv->info->ch_interface_mode && gpriv->info->classical_can) {
 			/* Do not set CLOE and FDOE simultaneously */
 			if (!gpriv->fdmode) {
 				rcar_canfd_clear_bit_reg(&gpriv->fcbase[ch].cfdcfg,
@@ -875,7 +880,7 @@ static int rcar_canfd_reset_controller(struct rcar_canfd_global *gpriv)
 				rcar_canfd_clear_bit_reg(&gpriv->fcbase[ch].cfdcfg,
 							 RCANFD_GEN4_FDCFG_CLOE);
 			}
-		} else if (gpriv->fd_only_mode) {
+		} else if (gpriv->fd_only_mode && gpriv->info->classical_can) {
 			rcar_canfd_set_bit_reg(&gpriv->fcbase[ch].cfdcfg,
 					       RCANFD_GEN4_FDCFG_FDOE);
 		}
