@@ -293,11 +293,13 @@ static const struct pin_config_item renesas_rzg3l_conf_items[] = {
  * @pwpr: PWPR register offset
  * @sd_ch: SD_CH register offset
  * @eth_poc: ETH_POC register offset
+ * @other_poc: OTHER_POC register offset
  */
 struct rzg2l_register_offsets {
 	u16 pwpr;
 	u16 sd_ch;
 	u16 eth_poc;
+	u16 other_poc;
 };
 
 /**
@@ -399,6 +401,7 @@ struct rzg2l_pinctrl_pin_settings {
  * @ien: IEN registers cache
  * @sd_ch: SD_CH registers cache
  * @eth_poc: ET_POC registers cache
+ * @other_poc: OTHER_POC register cache
  * @eth_mode: ETH_MODE register cache
  * @qspi: QSPI registers cache
  * @xspi: XSPI registers cache
@@ -415,6 +418,7 @@ struct rzg2l_pinctrl_reg_cache {
 	u32	*isel[2];
 	u8	sd_ch[2];
 	u8	eth_poc[2];
+	u8      other_poc;
 	u8	eth_mode;
 	u8	qspi;
 	u8	xspi;
@@ -3356,7 +3360,14 @@ static void rzg2l_pinctrl_pm_setup_regs(struct rzg2l_pinctrl *pctrl, bool suspen
 		off = RZG2L_PIN_CFG_TO_PORT_OFFSET(cfg);
 		pincnt = hweight8(FIELD_GET(PIN_CFG_PIN_MAP_MASK, cfg));
 
-		caps = FIELD_GET(PIN_CFG_MASK, cfg);
+		if (cfg & RZG2L_VARIABLE_CFG) {
+			for (int i = 0 ; i < RZG2L_PINS_PER_PORT; i++) {
+				u64 tmp = rzg2l_pinctrl_get_variable_pin_cfg(pctrl, cfg, port, i);
+				caps |= FIELD_GET(PIN_CFG_MASK, tmp);
+			}
+		} else
+			caps = FIELD_GET(PIN_CFG_MASK, cfg);
+
 		has_iolh = !!(caps & (PIN_CFG_IOLH_A | PIN_CFG_IOLH_B | PIN_CFG_IOLH_C));
 		has_ien = !!(caps & PIN_CFG_IEN);
 		has_pupd = !!(caps & PIN_CFG_PUPD);
@@ -3538,6 +3549,7 @@ static int rzg2l_pinctrl_suspend_noirq(struct device *dev)
 	cache->xspi = readb(pctrl->base + XSPI);
 	cache->eth_mode = readb(pctrl->base + ETH_MODE);
 	cache->sd_ch2 = readb(pctrl->base + SD_CH2_POC);
+	cache->other_poc = readb(pctrl->base + OTHER_POC_0);
 
 	if (!atomic_read(&pctrl->wakeup_path))
 		clk_disable_unprepare(pctrl->clk);
@@ -3564,6 +3576,8 @@ static int rzg2l_pinctrl_resume_noirq(struct device *dev)
 	writeb(cache->qspi, pctrl->base + QSPI);
 	writeb(cache->qspi, pctrl->base + XSPI);
 	writeb(cache->eth_mode, pctrl->base + ETH_MODE);
+	writeb(cache->other_poc, pctrl->base + OTHER_POC_0);
+
 	for (u8 i = 0; i < 2; i++) {
 		if (regs->sd_ch)
 			writeb(cache->sd_ch[i], pctrl->base + SD_CH(regs->sd_ch, i));
@@ -3663,6 +3677,7 @@ static const struct rzg2l_hwcfg rzg3l_hwcfg = {
 		.pwpr = 0x3000,
 		.sd_ch = 0x3004,
 		.eth_poc = 0x3010,
+		.other_poc = 0x3028,
 	},
 	.iolh_groupa_ua = {
 		/* 1v8 power source */
