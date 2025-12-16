@@ -238,6 +238,35 @@ static int rzv2h_usb2phy_reset_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int rzv2h_usb2phy_reset_suspend(struct device *dev)
+{
+	struct rzv2h_usb2phy_reset_priv *priv = dev_get_drvdata(dev);
+
+	pm_runtime_put(dev);
+	reset_control_assert(priv->rstc);
+
+	return 0;
+}
+
+static int rzv2h_usb2phy_reset_resume(struct device *dev)
+{
+	struct rzv2h_usb2phy_reset_priv *priv = dev_get_drvdata(dev);
+	int error;
+
+	error = reset_control_deassert(priv->rstc);
+	if (error)
+		return dev_err_probe(dev, error, "Failed to deassert reset control\n");
+
+	error = pm_runtime_resume_and_get(dev);
+	if (error)
+		return dev_err_probe(dev, error, "pm_runtime_resume_and_get failed\n");
+
+	for (unsigned int i = 0; i < priv->data->init_val_count; i++)
+		writel(priv->data->init_vals[i].val, priv->base + priv->data->init_vals[i].reg);
+
+	return 0;
+}
+
 /*
  * initialization values required to prepare the PHY to receive
  * assert and deassert requests.
@@ -267,10 +296,14 @@ static const struct of_device_id rzv2h_usb2phy_reset_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rzv2h_usb2phy_reset_of_match);
 
+static DEFINE_SIMPLE_DEV_PM_OPS(rzv2h_usb2phy_reset_pm_ops,
+	rzv2h_usb2phy_reset_suspend, rzv2h_usb2phy_reset_resume);
+
 static struct platform_driver rzv2h_usb2phy_reset_driver = {
 	.driver = {
 		.name		= "rzv2h_usb2phy_reset",
 		.of_match_table	= rzv2h_usb2phy_reset_of_match,
+		.pm = &rzv2h_usb2phy_reset_pm_ops,
 	},
 	.probe = rzv2h_usb2phy_reset_probe,
 	.remove = rzv2h_usb2phy_reset_remove,
