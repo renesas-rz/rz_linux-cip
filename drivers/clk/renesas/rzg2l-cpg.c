@@ -2059,7 +2059,8 @@ static int rzg2l_cpg_suspend(struct device *dev)
 			continue;
 		}
 
-		if (info->core_clks[i].type == CLK_TYPE_DIV) {
+		if ((info->core_clks[i].type == CLK_TYPE_DIV) ||
+		    (info->core_clks[i].type == CLK_TYPE_G3S_DIV)) {
 			priv->cache[i].div = readl(priv->base +
 						   GET_REG_OFFSET(info->core_clks[i].conf));
 			continue;
@@ -2096,9 +2097,12 @@ static int rzg2l_cpg_resume(struct device *dev)
 			continue;
 		}
 
-		if (info->core_clks[i].type == CLK_TYPE_DIV) {
+		if ((info->core_clks[i].type == CLK_TYPE_DIV) ||
+		    (info->core_clks[i].type == CLK_TYPE_G3S_DIV)) {
 			writel(priv->cache[i].div | wen_mask,
 							priv->base + GET_REG_OFFSET(info->core_clks[i].conf));
+			if (info->core_clks[i].sconf)
+				rzg2l_cpg_wait_clk_update_done(priv->base, info->core_clks[i].sconf);
 			continue;
 		}
 	}
