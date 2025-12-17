@@ -1139,7 +1139,7 @@ static int rzt2h_pcie_enable_msi(struct rzt2h_pcie_host *host)
 	/* Two irqs are for MSI, but they are also used for non-MSI irqs */
 	err = devm_request_irq(dev, msi->irq, rzt2h_pcie_msi_irq,
 	/* Temporarily set only shared IRQ flag */
-			       IRQF_SHARED,
+			       IRQF_SHARED | IRQF_NO_THREAD,
 			       rzt2h_msi_bottom_chip.name, host);
 	if (err < 0) {
 		dev_err(dev, "failed to request IRQ: %d\n", err);
