@@ -26,6 +26,9 @@
 #include <linux/reset.h>
 #include <linux/arm-smccc.h>
 #include <uapi/linux/psci.h>
+#include <linux/of.h>
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 
 #include "pcie-rzt2h.h"
 
@@ -103,6 +106,7 @@ struct rzt2h_pcie_host {
 	struct irq_domain	*intx_domain;
 	struct reset_control    *rst;
 	int			lane;
+	int			channel;
 };
 
 static struct rzt2h_pcie_host *msi_to_host(struct rzt2h_msi *msi)
@@ -112,7 +116,7 @@ static struct rzt2h_pcie_host *msi_to_host(struct rzt2h_msi *msi)
 
 static void __iomem	*supplemental;
 
-static int rzt2h_pcie_hw_init(struct rzt2h_pcie *pcie, int lane);
+static int rzt2h_pcie_hw_init(struct rzt2h_pcie *pcie, int lane, int channel);
 
 static int rzt2h_pcie_request_issue(struct rzt2h_pcie *pcie, struct pci_bus *bus)
 {
@@ -654,9 +658,9 @@ static int PCIE_INT_Initialize(struct rzt2h_pcie *pcie)
 	return 0;
 }
 
-static int rzt2h_pcie_hw_init(struct rzt2h_pcie *pcie, int lane)
+static int rzt2h_pcie_hw_init(struct rzt2h_pcie *pcie, int lane, int channel)
 {
-	unsigned int timeout = 500;
+	unsigned int timeout = 50;
 	u32 value;
 
 	/* Set to the PCIe reset state   : step6 */
@@ -682,7 +686,8 @@ static int rzt2h_pcie_hw_init(struct rzt2h_pcie *pcie, int lane)
 	}
 	writel(MODE_EQ_AUTONOMOUS, pcie->base + PCI_RC_PCCTRL1);
 
-	rzt2h_pcie_setting_phy(pcie);
+	if (!channel)
+		rzt2h_pcie_setting_phy(pcie);
 	/* Setting of HWINT related registers : step8 */
 	PCIE_CFG_Initialize(pcie);
 
@@ -1262,9 +1267,11 @@ static int rzt2h_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rzt2h_pcie_host *host;
 	struct rzt2h_pcie *pcie;
-	u32 data;
-	int err, lane;
+	u32 data, val;
+	int err, lane, channel;
 	struct pci_host_bridge *bridge;
+	struct regmap *lane_regmap;
+	struct device_node *lane_np;
 
 	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 
@@ -1310,6 +1317,20 @@ static int rzt2h_pcie_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
+	/* Setting lanes */
+	lane_np = of_parse_phandle(dev->of_node, "lane-reg", 0);
+	if (!lane_np) {
+		dev_err(dev, "failed to get lane-reg\n");
+		return -EINVAL;
+	}
+
+	lane_regmap = syscon_node_to_regmap(lane_np);
+	of_node_put(lane_np);
+	if (IS_ERR(lane_regmap)) {
+		dev_err(dev, "failed to get regmap from lane-reg\n");
+		return IS_ERR(lane_regmap);
+	}
+
 	err = of_property_read_u32(dev->of_node, "pcie-lane", &lane);
 	if (err) {
 		dev_err(pcie->dev, "%pOF: No pcie-lane property found\n",
@@ -1318,7 +1339,20 @@ static int rzt2h_pcie_probe(struct platform_device *pdev)
 	}
 	host->lane = lane;
 
-	err = rzt2h_pcie_hw_init(pcie, host->lane);
+	val = (lane == 2) ? PCIE_LINKMODE_2LANES : PCIE_LINKMODE_1LANE;
+	regmap_update_bits(lane_regmap, PCIE_LINKMODE, PCIE_LINKMODE_MASK, val);
+	dev_info(dev, "pcie set lane config: pcie-lane=%u, val=0x%x\n",
+			lane, val);
+
+	err = of_property_read_u32(dev->of_node, "pcie,channel", &channel);
+	if (err) {
+		dev_err(pcie->dev, "%pOF: No pcie-channel property found\n",
+				dev->of_node);
+		return -EINVAL;
+	}
+	host->channel = channel;
+
+	err = rzt2h_pcie_hw_init(pcie, host->lane, host->channel);
 	if (err) {
 		dev_info(&pdev->dev, "PCIe link down\n");
 		return 0;
@@ -1402,7 +1436,7 @@ static int rzt2h_pcie_resume(struct device *dev)
 	if (rzt2h_pci_read_reg(pcie, AXI_WINDOW_BASEL_REG(0)) !=
 		pcie->save_reg.axi_window.base[0]) {
 
-		err = rzt2h_pcie_hw_init(pcie, host->lane);
+		err = rzt2h_pcie_hw_init(pcie, host->lane, host->channel);
 		if (err) {
 			dev_info(pcie->dev, "resume PCIe link down\n");
 			return err;

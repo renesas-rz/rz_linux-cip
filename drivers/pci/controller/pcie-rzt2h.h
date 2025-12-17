@@ -40,6 +40,11 @@
 	#define MODE_PORT_RC		BIT(0)
 	#define MODE_PORT_EP		0x0
 
+#define PCIE_LINKMODE			0x0
+	#define PCIE_LINKMODE_MASK	0x300
+	#define PCIE_LINKMODE_1LANE	0x300
+	#define PCIE_LINKMODE_2LANES	0x100
+
 #define PCI_EP_PCMSET1			0x400
 	#define MODE_PORT		(~BIT(1))
 
