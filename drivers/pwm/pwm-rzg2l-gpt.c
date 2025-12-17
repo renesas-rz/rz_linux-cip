@@ -596,12 +596,50 @@ static u32 rzg2l_gpt_calculate_pv_or_dc(u64 period_or_duty_cycle, u8 prescale)
 		     U32_MAX);
 }
 
+static void rzg2l_gpt_buffer_setting(struct rzg2l_gpt_chip *rzg2l_gpt, u8 hwpwm)
+{
+	u8 ch = RZG2L_GET_CH(hwpwm);
+	u8 sub_ch = rzg2l_gpt_subchannel(hwpwm);
+
+	switch (rzg2l_gpt->channel_data[hwpwm].operation) {
+	case NORMAL_OUTPUT:
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRAB(ch, sub_ch),
+				rzg2l_gpt->channel_data[hwpwm].buffer[BUFF_0]);
+		break;
+	case SINGLE_BUFFER_OUTPUT:
+		if (rzg2l_gpt->channel_data[hwpwm].buffer_mode_count == 0)
+			rzg2l_gpt->channel_data[hwpwm].buffer_mode_count = 2;
+
+		rzg2l_gpt->channel_data[hwpwm].buffer_mode_count--;
+
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRCE(ch, sub_ch),
+				rzg2l_gpt->channel_data[hwpwm].buffer[
+				rzg2l_gpt->channel_data[hwpwm].buffer_mode_count]);
+		break;
+	case DOUBLE_BUFFER_OUTPUT:
+		if (rzg2l_gpt->channel_data[hwpwm].buffer_mode_count == 0)
+			rzg2l_gpt->channel_data[hwpwm].buffer_mode_count = 3;
+
+		rzg2l_gpt->channel_data[hwpwm].buffer_mode_count--;
+
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRDF(ch, sub_ch),
+				rzg2l_gpt->channel_data[hwpwm].buffer[
+				rzg2l_gpt->channel_data[hwpwm].buffer_mode_count]);
+		break;
+	case DEADTIME_OUTPUT:
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRCE(ch, sub_ch),
+				rzg2l_gpt->channel_data[hwpwm].buffer[BUFF_1]);
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRDF(ch, sub_ch),
+				rzg2l_gpt->channel_data[hwpwm].buffer[BUFF_2]);
+		break;
+	}
+}
+
 /* Caller holds the lock while calling rzg2l_gpt_config() */
 static int rzg2l_gpt_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			    const struct pwm_state *state)
 {
 	struct rzg2l_gpt_chip *rzg2l_gpt = to_rzg2l_gpt_chip(chip);
-	u8 sub_ch = rzg2l_gpt_subchannel(pwm->hwpwm);
 	u8 ch = RZG2L_GET_CH(pwm->hwpwm);
 	u64 period_ticks, duty_ticks;
 	unsigned long pv, dc;
@@ -671,11 +709,11 @@ static int rzg2l_gpt_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTPR(ch), pv);
 	}
 
-	/* Set duty cycle */
-	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRAB(ch, sub_ch), dc);
-
 	/* Store duty cycle in buffer 0 to support buffer mode */
 	rzg2l_gpt->channel_data[pwm->hwpwm].buffer[BUFF_0] = dc;
+
+	if (!rzg2l_gpt_is_ch_enabled(rzg2l_gpt, pwm->hwpwm))
+		rzg2l_gpt_buffer_setting(rzg2l_gpt, pwm->hwpwm);
 
 	if (!rzg2l_gpt->channel_enable[ch]) {
 		/* Set initial value for counter */
@@ -1136,36 +1174,7 @@ static irqreturn_t gpt_gtciv_interrupt(int irq, void *data)
 			RZG2L_CHANNELS_PER_IO) {
 		pwm_id = RZG2L_GET_HWPWM(ch, sub_ch);
 
-		switch (rzg2l_gpt->channel_data[pwm_id].operation) {
-		case NORMAL_OUTPUT:
-			break;
-		case SINGLE_BUFFER_OUTPUT:
-			rzg2l_gpt->channel_data[pwm_id].buffer_mode_count--;
-
-			rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRCE(ch, sub_ch),
-					rzg2l_gpt->channel_data[pwm_id].buffer[
-					rzg2l_gpt->channel_data[pwm_id].buffer_mode_count]);
-
-			if (rzg2l_gpt->channel_data[pwm_id].buffer_mode_count == 0)
-				rzg2l_gpt->channel_data[pwm_id].buffer_mode_count = 2;
-			break;
-		case DOUBLE_BUFFER_OUTPUT:
-			rzg2l_gpt->channel_data[pwm_id].buffer_mode_count--;
-
-			rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRDF(ch, sub_ch),
-					rzg2l_gpt->channel_data[pwm_id].buffer[
-					rzg2l_gpt->channel_data[pwm_id].buffer_mode_count]);
-
-			if (rzg2l_gpt->channel_data[pwm_id].buffer_mode_count == 0)
-				rzg2l_gpt->channel_data[pwm_id].buffer_mode_count = 3;
-			break;
-		case DEADTIME_OUTPUT:
-			rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRCE(ch, sub_ch),
-					rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_1]);
-			rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRDF(ch, sub_ch),
-					rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_2]);
-			break;
-		}
+		rzg2l_gpt_buffer_setting(rzg2l_gpt, pwm_id);
 	}
 
 #if IS_BUILTIN(CONFIG_POEG_RZG2L)
@@ -1292,7 +1301,6 @@ static ssize_t buff0_store(struct device *dev, struct device_attribute *attr,
 	unsigned int pwm_id = hwpwm_from_pwmdev(dev);
 	struct pwm_device *pwm = &rzg2l_gpt->chip->pwms[pwm_id];
 	u8 ch = RZG2L_GET_CH(pwm_id);
-	u8 sub_ch = rzg2l_gpt_subchannel(pwm_id);
 	unsigned int val;
 	int ret;
 	u8 prescale;
@@ -1324,11 +1332,6 @@ static ssize_t buff0_store(struct device *dev, struct device_attribute *attr,
 	if (rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_1] == 0)
 		return -EINVAL;
 
-	/* Set buffer value for single buffer mode: A in GTCCRC and B in GTCCRE */
-	/* In deadtime mode GTCCRC is first compare */
-	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRCE(ch, sub_ch),
-			rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_1]);
-
 	return ret ? : count;
 }
 
@@ -1358,7 +1361,6 @@ static ssize_t buff1_store(struct device *dev, struct device_attribute *attr,
 	unsigned int pwm_id = hwpwm_from_pwmdev(dev);
 	struct pwm_device *pwm = &rzg2l_gpt->chip->pwms[pwm_id];
 	u8 ch = RZG2L_GET_CH(pwm_id);
-	u8 sub_ch = rzg2l_gpt_subchannel(pwm_id);
 	unsigned int val, time_0;
 	int ret;
 	u8 prescale;
@@ -1398,10 +1400,6 @@ static ssize_t buff1_store(struct device *dev, struct device_attribute *attr,
 			rzg2l_gpt_calculate_pv_or_dc(val_ticks, prescale);
 	if (rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_2] == 0)
 		return -EINVAL;
-
-	/* Set buffer value for double buffer mode: A in GTCCRD and B in GTCCRF */
-	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRDF(ch, sub_ch),
-			rzg2l_gpt->channel_data[pwm_id].buffer[BUFF_2]);
 
 	return ret ? : count;
 }
@@ -1477,13 +1475,11 @@ static ssize_t gpt_operation_store(struct device *dev,
 				RZG2L_GTCCRx_BUFFER_MASK(sub_ch), 0);
 		break;
 	case SINGLE_BUFFER_OUTPUT:
-		rzg2l_gpt->channel_data[pwm_id].buffer_mode_count = 2;
 		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTBER(ch),
 				RZG2L_GTCCRx_BUFFER_MASK(sub_ch),
 				RZG2L_GTCCRx_SINGLE_BUFFER(sub_ch));
 		break;
 	case DOUBLE_BUFFER_OUTPUT:
-		rzg2l_gpt->channel_data[pwm_id].buffer_mode_count = 3;
 		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTBER(ch),
 				RZG2L_GTCCRx_BUFFER_MASK(sub_ch),
 				RZG2L_GTCCRx_DOUBLE_BUFFER(sub_ch));
