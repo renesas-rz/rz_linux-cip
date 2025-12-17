@@ -995,7 +995,7 @@
 #if (SEL_PCIE)
 #if (!SEL_PCIE_MODE)
 &pcie0 {
-	pcie-lane = <1>;
+	pcie-lane = <2>;
 	status = "okay";
 };
 #else
