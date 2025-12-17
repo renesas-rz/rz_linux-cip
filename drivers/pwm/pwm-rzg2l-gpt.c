@@ -38,6 +38,7 @@
 #include <linux/of_address.h>
 #include <linux/bitfield.h>
 #include <linux/iio/iio.h>
+#include <linux/pm_runtime.h>
 #include <linux/poeg-rzg2l.h>
 
 #define RZG2L_GET_CH(hwpwm)	((hwpwm) / 2)
@@ -260,6 +261,11 @@ struct rz_gpt_pwm_channel {
 	unsigned long deadtime_first, deadtime_second;
 };
 
+struct rzg2l_gpt_cache {
+	u32 gtior;
+	u32 gtintad;
+};
+
 struct rzg2l_gpt_chip {
 	struct pwm_chip *chip;
 	void __iomem *mmio;
@@ -267,6 +273,7 @@ struct rzg2l_gpt_chip {
 	struct mutex mutex; /* lock to protect shared channel resources */
 	const struct rz_gpt_data_cfg *cfg;
 	struct rz_gpt_cpt_data *cpt_data;
+	struct reset_control *rst;
 	unsigned long rate_khz;
 	u32 period_ticks[RZG2L_MAX_HW_CHANNELS];
 	u32 counter_mode[RZG2L_MAX_HW_CHANNELS];
@@ -275,6 +282,7 @@ struct rzg2l_gpt_chip {
 	u8 channel_enable[RZG2L_MAX_HW_CHANNELS];
 	unsigned int irq_map[RZG2L_MAX_HW_CHANNELS][NR_IRQ_TYPE];
 	struct rz_gpt_pwm_channel channel_data[RZG2L_MAX_PWM_CHANNELS];
+	struct rzg2l_gpt_cache hw_cache[RZG2L_MAX_HW_CHANNELS];
 	u8 poeg;
 	spinlock_t lock;
 };
@@ -1438,35 +1446,11 @@ static ssize_t gpt_operation_available_show(struct device *dev,
 	return len;
 }
 
-static ssize_t gpt_operation_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static void gpt_set_operation_mode(struct rzg2l_gpt_chip *rzg2l_gpt,
+				   unsigned int pwm_id)
 {
-	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
-	unsigned int pwm_id = hwpwm_from_pwmdev(dev);
 	u8 ch = RZG2L_GET_CH(pwm_id);
 	u8 sub_ch = rzg2l_gpt_subchannel(pwm_id);
-	int ret;
-
-	ret = sysfs_match_string(gpt_operation_enum, buf);
-	if (ret < 0)
-		return ret;
-
-	if (rzg2l_gpt->channel_request[ch] != RZG2L_BOTH_AB ||
-	    rzg2l_gpt->channel_enable[ch]) {
-		if (ret == DEADTIME_OUTPUT || ret == COUNTING_INPUT) {
-			dev_err(&rzg2l_gpt->chip->dev,
-				"Please keep pwm%d and pwm%d are requested and not enabled to use deadtime output.\n",
-				pwm_id, rzg2l_gpt_sibling(pwm_id));
-			return -EINVAL;
-		}
-	}
-
-	guard(mutex)(&rzg2l_gpt->mutex);
-
-	rzg2l_gpt->channel_data[pwm_id].operation = ret;
-
-	/* Reset registers to prevent conflict setting between modes */
-	rzg2l_reset_period_and_duty(rzg2l_gpt, pwm_id);
 
 	switch (rzg2l_gpt->channel_data[pwm_id].operation) {
 	case NORMAL_OUTPUT:
@@ -1507,6 +1491,37 @@ static ssize_t gpt_operation_store(struct device *dev,
 		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTPR(ch), BIT(31)-1);
 		break;
 	}
+}
+
+static ssize_t gpt_operation_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+	unsigned int pwm_id = hwpwm_from_pwmdev(dev);
+	u8 ch = RZG2L_GET_CH(pwm_id);
+	int ret;
+
+	ret = sysfs_match_string(gpt_operation_enum, buf);
+	if (ret < 0)
+		return ret;
+
+	if (rzg2l_gpt->channel_request[ch] != RZG2L_BOTH_AB || rzg2l_gpt->channel_enable[ch]) {
+		if (ret == DEADTIME_OUTPUT || ret == COUNTING_INPUT) {
+			dev_err(&rzg2l_gpt->chip->dev,
+				"Please make sure pwm%d and pwm%d are requested and not enabled to use this operation.\n",
+				pwm_id, rzg2l_gpt_sibling(pwm_id));
+			return -EINVAL;
+		}
+	}
+
+	guard(mutex)(&rzg2l_gpt->mutex);
+
+	rzg2l_gpt->channel_data[pwm_id].operation = ret;
+
+	/* Reset registers to prevent conflict setting between modes */
+	rzg2l_reset_period_and_duty(rzg2l_gpt, pwm_id);
+
+	gpt_set_operation_mode(rzg2l_gpt, pwm_id);
 
 	return count;
 }
@@ -1900,7 +1915,6 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 {
 	struct rzg2l_gpt_chip *rzg2l_gpt;
 	struct device *dev = &pdev->dev;
-	struct reset_control *rstc;
 	struct pwm_chip *chip;
 	unsigned long rate;
 	struct clk *clk;
@@ -1932,10 +1946,19 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 		}
 	}
 
-	rstc = devm_reset_control_get_exclusive(dev, NULL);
-	reset_control_deassert(rstc);
-	if (IS_ERR(rstc))
-		return dev_err_probe(dev, PTR_ERR(rstc), "Cannot deassert reset control\n");
+	pm_runtime_enable(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0) {
+		dev_err(dev, "Could not get runtime PM\n");
+		pm_runtime_disable(dev);
+		return ret;
+	}
+
+	rzg2l_gpt->rst = devm_reset_control_get_exclusive(dev, NULL);
+	reset_control_deassert(rzg2l_gpt->rst);
+	if (IS_ERR(rzg2l_gpt->rst))
+		return dev_err_probe(dev, PTR_ERR(rzg2l_gpt->rst),
+				    "Cannot deassert reset control\n");
 
 	for (i = 0; i < RZG2L_MAX_HW_CHANNELS; i++) {
 		for (unsigned int j = 0; j < ARRAY_SIZE(gpt_irqs); j++) {
@@ -1954,7 +1977,7 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 		}
 	}
 
-	clk = devm_clk_get_enabled(dev, NULL);
+	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk))
 		return dev_err_probe(dev, PTR_ERR(clk), "Cannot get clock\n");
 
@@ -2013,17 +2036,83 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int rzg2l_gpt_suspend(struct device *dev)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+	u8 ch;
+
+	for (ch = 0; ch < RZG2L_MAX_HW_CHANNELS; ch++) {
+		if (!rzg2l_gpt->channel_request[ch])
+			continue;
+
+		rzg2l_gpt->hw_cache[ch].gtintad = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTINTAD(ch));
+		rzg2l_gpt->hw_cache[ch].gtior = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTIOR(ch));
+	}
+
+	pm_runtime_put_sync(dev);
+	reset_control_assert(rzg2l_gpt->rst);
+
+	return 0;
+}
+
+static int rzg2l_gpt_resume(struct device *dev)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+	u8 ch, sub_ch;
+	int ret;
+
+	ret = reset_control_deassert(rzg2l_gpt->rst);
+	if (ret)
+		return ret;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret) {
+		reset_control_assert(rzg2l_gpt->rst);
+		return ret;
+	}
+
+	for (ch = 0; ch < RZG2L_MAX_HW_CHANNELS; ch++) {
+		if (!rzg2l_gpt->channel_request[ch])
+			continue;
+
+		for_each_set_bit(sub_ch,
+				(unsigned long *)&rzg2l_gpt->channel_request[ch],
+				RZG2L_CHANNELS_PER_IO) {
+			u8 pwm_id = RZG2L_GET_HWPWM(ch, sub_ch);
+
+			/* Restore gpt mode setting */
+			gpt_set_operation_mode(rzg2l_gpt, pwm_id);
+
+			if (rzg2l_gpt->channel_data[pwm_id].operation == DEADTIME_OUTPUT) {
+				if (!sub_ch) {
+					rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTDVU(ch),
+							rzg2l_gpt->channel_data[pwm_id].deadtime_first);
+					rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTDVD(ch),
+							rzg2l_gpt->channel_data[pwm_id].deadtime_second);
+				}
+			}
+		}
+
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTINTAD(ch), rzg2l_gpt->hw_cache[ch].gtintad);
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTIOR(ch), rzg2l_gpt->hw_cache[ch].gtior);
+	}
+
+	return 0;
+}
+
 static const struct of_device_id rzg2l_gpt_of_table[] = {
 	{ .compatible = "renesas,rzg2l-gpt", .data = &rzg2l_cfg,},
 	{ .compatible = "renesas,rzg3l-gpt", .data = &rzg3l_cfg,},
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rzg2l_gpt_of_table);
+static DEFINE_SIMPLE_DEV_PM_OPS(rzg2l_gpt_pm_ops, rzg2l_gpt_suspend, rzg2l_gpt_resume);
 
 static struct platform_driver rzg2l_gpt_driver = {
 	.driver = {
 		.name = "pwm-rzg2l-gpt",
 		.of_match_table = rzg2l_gpt_of_table,
+		.pm = pm_sleep_ptr(&rzg2l_gpt_pm_ops),
 	},
 	.probe = rzg2l_gpt_probe,
 };
