@@ -845,6 +845,7 @@
 				     <SOC_PERIPHERAL_IRQ(50) IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "wdt", "perrout";
 			resets = <&cpg R9A07G043_WDT0_PRESETN>;
+			renesas,syscon-cpg-wdtovf-rst = <&cpg 0xb10 0>;
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
