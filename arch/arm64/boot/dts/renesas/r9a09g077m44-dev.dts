@@ -982,7 +982,7 @@
 #if (!SEL_GMAC1_PCIE)
 #if (SEL_PCIE_RC_EP)
 &pcie0 {
-	pcie-lane = <1>;
+	pcie-lane = <2>;
 	status = "okay";
 };
 #else
