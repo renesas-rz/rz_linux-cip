@@ -33,8 +33,6 @@ enum {
 	HSTTRGR,			/* Tx FIFO Data Count Trigger Register */
 	SEMR,				/* Serial extended mode register */
 	MDDR,				/* Modulation Duty Register */
-
-	SCIx_NR_REGS,
 };
 
 
