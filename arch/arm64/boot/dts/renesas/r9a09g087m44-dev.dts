@@ -171,6 +171,14 @@
 		regulator-always-on;
 	};
 
+	vmmc_sdhi0: regulator-vcc-sdhi0 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "SDHI0 Vmmc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 #if (SEL_GPT_SD0)
 	vccq_sdhi0: regulator-vccq-sdhi0 {
 		compatible = "regulator-gpio";
@@ -181,7 +189,7 @@
 
 		gpios = <&pinctrl RZT2H_GPIO(2, 6) GPIO_ACTIVE_HIGH>; /* SDHI : SD0_IOVS/P02_6 */
 
-		gpios-states = <1>;
+		gpios-states = <0>;
 		states = <3300000 0 1800000 1>;
 	};
 #endif
@@ -192,8 +200,6 @@
 		regulator-name = "SDHI1 Vmmc";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpios = <&pinctrl RZT2H_GPIO(8, 5) GPIO_ACTIVE_HIGH>; /* SDHI : SD1_PWEN/P08_5 */
-		enable-active-high;
 	};
 
 	vccq_sdhi1: regulator-vccq-sdhi1 {
@@ -205,7 +211,7 @@
 
 		gpios = <&pinctrl RZT2H_GPIO(8, 6) GPIO_ACTIVE_HIGH>; /* SDHI : SD1_IOVS/P08_6 */
 
-		gpios-states = <1>;
+		gpios-states = <0>;
 		states = <3300000 0 1800000 1>;
 	};
 
@@ -271,15 +277,6 @@
 		pinmux = <RZT2H_PORT_PINMUX(13, 5, 0x14)>, /* SCI : RXD3/P13_4 */
 			 <RZT2H_PORT_PINMUX(13, 4, 0x14)>, /* SCI : TXD3/P13_5 */
 			 <RZT2H_PORT_PINMUX(14, 0, 0x14)>; /* SCI : DE3/P14_0 */
-	};
-#endif
-
-#if (SEL_GPT_SD0)
-	sd0_pwr_en {
-		gpio-hog;
-		gpios = <RZT2H_GPIO(2, 5) GPIO_ACTIVE_HIGH>; /* SDHI : SD0_PWEN/P02_5 */
-		output-high;
-		line-name = "sd0_pwr_en";
 	};
 #endif
 
@@ -693,6 +690,11 @@
 };
 #endif
 
+&vmmc_sdhi1 {
+	gpios = <&pinctrl RZT2H_GPIO(8, 5) GPIO_ACTIVE_HIGH>; /* SDHI : SD1_PWEN/P08_5 */
+	enable-active-high;
+};
+
 #if (SEL_SD0)
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_pins>;
@@ -708,12 +710,17 @@
 };
 #else
 #if (SEL_GPT_SD0)
+&vmmc_sdhi0 {
+	gpios = <&pinctrl RZT2H_GPIO(2, 5) GPIO_ACTIVE_HIGH>; /* SDHI : SD0_PWEN/P02_5 */
+	enable-active-high;
+};
+
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_pins>;
 	pinctrl-1 = <&sdhi0_pins>;
 	pinctrl-names = "default", "state_uhs";
 
-	vmmc-supply = <&reg_3p3v>;
+	vmmc-supply = <&vmmc_sdhi0>;
 	vqmmc-supply = <&vccq_sdhi0>;
 	bus-width = <4>;
 	sd-uhs-sdr50;
