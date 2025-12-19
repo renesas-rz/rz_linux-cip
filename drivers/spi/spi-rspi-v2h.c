@@ -1172,15 +1172,41 @@ MODULE_DEVICE_TABLE(platform, spi_driver_ids);
 static int rspi_suspend(struct device *dev)
 {
 	struct rspi_data *rspi = dev_get_drvdata(dev);
+	int ret;
 
-	return spi_controller_suspend(rspi->ctlr);
+	ret = spi_controller_suspend(rspi->ctlr);
+	if (ret)
+		return ret;
+
+	reset_control_assert(rspi->rstc);
+	pm_runtime_put(dev);
+
+	return 0;
 }
 
 static int rspi_resume(struct device *dev)
 {
 	struct rspi_data *rspi = dev_get_drvdata(dev);
+	int ret;
 
-	return spi_controller_resume(rspi->ctlr);
+	ret = reset_control_reset(rspi->rstc);
+	if (ret)
+		return ret;
+
+	pm_runtime_resume_and_get(dev);
+	if (ret) {
+		reset_control_assert(rspi->rstc);
+		return ret;
+	}
+
+	ret = spi_controller_resume(rspi->ctlr);
+	if (ret) {
+		pm_runtime_put(dev);
+		reset_control_assert(rspi->rstc);
+		return ret;
+	}
+
+	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(rspi_pm_ops, rspi_suspend, rspi_resume);
