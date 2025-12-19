@@ -165,9 +165,7 @@
 #define PFC_OEN			(0x3C40) /* known on RZ/V2H(P) only */
 #define XSPI			(0x300c) /* known on RZ/G3L only */
 #define SD_CH2_POC		(0x3024) /* known on RZ/G3L only */
-#define OTHER_POC_0		(0x3028 + 0) /* known on RZ/G3L only */
-#define OTHER_POC_1		(0x3028 + 1) /* known on RZ/G3L only */
-#define OTHER_POC_2		(0x3028 + 2) /* known on RZ/G3L only */
+#define OTHER_POC_0		(0x3028) /* known on RZ/G3L only */
 
 #define PVDD_2500		2	/* I/O domain voltage 2.5V */
 #define PVDD_1800		1	/* I/O domain voltage <= 1.8V */
@@ -1024,9 +1022,9 @@ static int rzg2l_caps_to_pwr_reg(const struct rzg2l_register_offsets *regs, u32 
 	if (caps & PIN_CFG_IO_VMC_OTHER_0)
 		return OTHER_POC_0;
 	if (caps & PIN_CFG_IO_VMC_OTHER_1)
-		return OTHER_POC_1;
+		return OTHER_POC_0;
 	if (caps & PIN_CFG_IO_VMC_OTHER_2)
-		return OTHER_POC_2;
+		return OTHER_POC_0;
 
 	return -EINVAL;
 }
@@ -1036,7 +1034,7 @@ static int rzg2l_get_power_source(struct rzg2l_pinctrl *pctrl, u32 pin, u32 caps
 	const struct rzg2l_hwcfg *hwcfg = pctrl->data->hwcfg;
 	const struct rzg2l_register_offsets *regs = &hwcfg->regs;
 	int pwr_reg;
-	u8 offs;
+	u8 offs = 0;
 	u8 val;
 
 	if (caps & PIN_CFG_SOFT_PS)
@@ -1046,9 +1044,14 @@ static int rzg2l_get_power_source(struct rzg2l_pinctrl *pctrl, u32 pin, u32 caps
 	if (pwr_reg < 0)
 		return pwr_reg;
 
-	offs = pwr_reg % 4;
-	val = readb(pctrl->base + (pwr_reg & 0xFFFC));
-	val = (val >> offs) & 0x1;
+	val = readb(pctrl->base + pwr_reg);
+
+	if (pwr_reg == OTHER_POC_0) {
+		u32 poc = FIELD_GET(GENMASK(23, 21), caps);
+		offs = ffs(poc) - 1;
+		val = (val >> offs) & 0x1;
+	}
+
 	switch (val) {
 	case PVDD_1800:
 		return 1800;
@@ -1067,7 +1070,7 @@ static int rzg2l_set_power_source(struct rzg2l_pinctrl *pctrl, u32 pin, u32 caps
 	const struct rzg2l_hwcfg *hwcfg = pctrl->data->hwcfg;
 	const struct rzg2l_register_offsets *regs = &hwcfg->regs;
 	int pwr_reg;
-	u8 offs;
+	u8 offs = 0;
 	u8 val;
 
 	if (caps & PIN_CFG_SOFT_PS) {
@@ -1079,9 +1082,13 @@ static int rzg2l_set_power_source(struct rzg2l_pinctrl *pctrl, u32 pin, u32 caps
 	if (pwr_reg < 0)
 		return pwr_reg;
 
-	offs = pwr_reg % 4;
-	val = readb(pctrl->base + (pwr_reg & 0xFFFC));
-	val &= ~BIT(offs);
+	val = readb(pctrl->base + pwr_reg);
+
+	if (pwr_reg == OTHER_POC_0) {
+		u32 poc = FIELD_GET(GENMASK(23, 21), caps);
+		offs = ffs(poc) - 1;
+		val &= ~BIT(offs);
+	}
 
 	switch (ps) {
 	case 1800:
@@ -1099,7 +1106,7 @@ static int rzg2l_set_power_source(struct rzg2l_pinctrl *pctrl, u32 pin, u32 caps
 		return -EINVAL;
 	}
 
-	writeb(val, pctrl->base + (pwr_reg & 0xFFFC));
+	writeb(val, pctrl->base + pwr_reg);
 	pctrl->settings[pin].power_source = ps;
 
 	return 0;
