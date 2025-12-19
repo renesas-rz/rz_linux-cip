@@ -3581,7 +3581,7 @@ static int rzg2l_pinctrl_resume_noirq(struct device *dev)
 	}
 
 	writeb(cache->qspi, pctrl->base + QSPI);
-	writeb(cache->qspi, pctrl->base + XSPI);
+	writeb(cache->xspi, pctrl->base + XSPI);
 	writeb(cache->eth_mode, pctrl->base + ETH_MODE);
 	writeb(cache->other_poc, pctrl->base + OTHER_POC_0);
 
