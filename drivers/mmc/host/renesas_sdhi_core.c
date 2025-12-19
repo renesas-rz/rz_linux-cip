@@ -26,6 +26,7 @@
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/slot-gpio.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinctrl-state.h>
 #include <linux/platform_data/tmio.h>
@@ -1418,6 +1419,74 @@ void renesas_sdhi_remove(struct platform_device *pdev)
 	tmio_mmc_host_free(host);
 }
 EXPORT_SYMBOL_GPL(renesas_sdhi_remove);
+
+int renesas_sdhi_suspend(struct device *dev)
+{
+	struct tmio_mmc_host *host = dev_get_drvdata(dev);
+	struct renesas_sdhi *priv = host_to_priv(host);
+	int ret;
+
+	ret = pm_runtime_force_suspend(dev);
+	if (ret) {
+		dev_info(dev, "pm_runtime_force_suspend failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = reset_control_assert(priv->rstc);
+	if (ret) {
+		dev_info(dev, "assert rstc failed\n");
+		goto err_force_resume;
+	}
+
+	ret = reset_control_assert(priv->rstc_axim);
+	if (ret) {
+		dev_info(dev, "assert rstc_axim failed\n");
+		goto err_force_resume;
+	}
+
+	ret = reset_control_assert(priv->rstc_axis);
+	if (ret) {
+		dev_info(dev, "assert rstc_axis failed\n");
+		goto err_force_resume;
+	}
+
+	return 0;
+
+err_force_resume:
+	pm_runtime_force_resume(dev);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(renesas_sdhi_suspend);
+
+int renesas_sdhi_resume(struct device *dev)
+{
+	struct tmio_mmc_host *host = dev_get_drvdata(dev);
+	struct renesas_sdhi *priv = host_to_priv(host);
+	int ret;
+
+	ret = reset_control_deassert(priv->rstc);
+	if (ret)
+		return ret;
+
+	ret = reset_control_deassert(priv->rstc_axim);
+	if (ret)
+		return ret;
+
+	ret = reset_control_deassert(priv->rstc_axis);
+	if (ret)
+		return ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret) {
+		reset_control_assert(priv->rstc);
+		reset_control_assert(priv->rstc_axim);
+		reset_control_assert(priv->rstc_axis);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(renesas_sdhi_resume);
 
 MODULE_DESCRIPTION("Renesas SDHI core driver");
 MODULE_LICENSE("GPL v2");
