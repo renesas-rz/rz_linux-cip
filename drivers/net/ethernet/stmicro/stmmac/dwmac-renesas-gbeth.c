@@ -31,6 +31,28 @@ static const char *const renesas_gbeth_clks[] = {
 	"tx", "tx-180", "rx", "rx-180",
 };
 
+static int renesas_gbeth_init(struct platform_device *pdev, void *priv)
+{
+	struct plat_stmmacenet_data *plat_dat;
+	struct renesas_gbeth *gbeth = priv;
+	int ret;
+
+	plat_dat = gbeth->plat_dat;
+
+	ret = reset_control_deassert(gbeth->rstc);
+	if (ret) {
+		dev_err(gbeth->dev, "Reset deassert failed\n");
+		return ret;
+	}
+
+	ret = clk_bulk_prepare_enable(plat_dat->num_clks,
+						plat_dat->clks);
+	if (ret)
+		reset_control_assert(gbeth->rstc);
+
+	return ret;
+}
+
 static void renesas_gbeth_exit(struct platform_device *pdev, void *priv)
 {
 	struct plat_stmmacenet_data *plat_dat;
@@ -91,21 +113,16 @@ static int renesas_gbeth_probe(struct platform_device *pdev)
 	if (IS_ERR(gbeth->rstc))
 		return PTR_ERR(gbeth->rstc);
 
-	err = reset_control_deassert(gbeth->rstc);
-	if (err)
-		return dev_err_probe(dev, err, "Reset deassert failed\n");
-
-	err = clk_bulk_prepare_enable(plat_dat->num_clks, plat_dat->clks);
-	if (err) {
-		reset_control_assert(gbeth->rstc);
-		return dev_err_probe(dev, err, "Failed to enable clocks\n");
-	}
-
 	gbeth->dev = dev;
 	gbeth->plat_dat = plat_dat;
 	plat_dat->bsp_priv = gbeth;
 	plat_dat->set_clk_tx_rate = stmmac_set_clk_tx_rate;
+	plat_dat->init = renesas_gbeth_init;
 	plat_dat->exit = renesas_gbeth_exit;
+
+	err = renesas_gbeth_init(pdev, gbeth);
+	if (err)
+		return err;
 
 	err = stmmac_dvr_probe(dev, plat_dat, &stmmac_res);
 	if (err)
