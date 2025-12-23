@@ -500,11 +500,15 @@
 &ehci0 {
 	dr_mode = "otg";
 	status = "okay";
+
+	memory-region = <&global_cma>;
 };
 
 &ohci0 {
 	dr_mode = "otg";
 	status = "okay";
+
+	memory-region = <&global_cma>;
 };
 
 &hsusb0 {
@@ -515,11 +519,15 @@
 &ehci1 {
 	dr_mode = "host";
 	status = "okay";
+
+	memory-region = <&global_cma>;
 };
 
 &ohci1 {
 	dr_mode = "host";
 	status = "okay";
+
+	memory-region = <&global_cma>;
 };
 
 &pcie {
