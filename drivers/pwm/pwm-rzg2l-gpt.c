@@ -262,6 +262,7 @@ struct rz_gpt_pwm_channel {
 };
 
 struct rzg2l_gpt_cache {
+	u32 gtcnt;
 	u32 gtior;
 	u32 gtintad;
 };
@@ -725,7 +726,9 @@ static int rzg2l_gpt_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	if (!rzg2l_gpt->channel_enable[ch]) {
 		/* Set initial value for counter */
-		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCNT(ch), 0);
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCNT(ch), rzg2l_gpt->hw_cache[ch].gtcnt);
+
+		rzg2l_gpt->hw_cache[ch].gtcnt = 0;
 
 		/* Enable overflow interrupt */
 		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTINTAD(ch),
@@ -2047,6 +2050,7 @@ static int rzg2l_gpt_suspend(struct device *dev)
 
 		rzg2l_gpt->hw_cache[ch].gtintad = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTINTAD(ch));
 		rzg2l_gpt->hw_cache[ch].gtior = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTIOR(ch));
+		rzg2l_gpt->hw_cache[ch].gtcnt = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTCNT(ch));
 	}
 
 	pm_runtime_put_sync(dev);
