@@ -36,6 +36,7 @@
 
 	aliases {
 		i2c0 = &i2c0;
+		i2c1 = &i2c1;
 		serial3 = &scif0;
 		mmc1 = &sdhi1;
 	};
