@@ -1237,6 +1237,63 @@
 			renesas,sysc = <&sysc>;
 			status = "disabled";
 		};
+
+		cru: video0@10830000 {
+			compatible = "renesas,rzg3l-cru";
+			reg = <0 0x10830000 0 0x400>;
+			clocks = <&cpg CPG_MOD R9A08G046_CRU_VCLK>,
+				 <&cpg CPG_MOD R9A08G046_CRU_PCLK>,
+				 <&cpg CPG_MOD R9A08G046_CRU_ACLK>;
+			clock-names = "video", "pclk", "aclk";
+			interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&cpg R9A08G046_CRU_PRESETN>,
+				 <&cpg R9A08G046_CRU_ARESETN>;
+			reset-names = "presetn", "aresetn";
+			power-domains = <&cpg>;
+			channel,id = <0>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+
+					cru_to_csi2: endpoint {
+						remote-endpoint = <&csi2_to_cru>;
+					};
+				};
+			};
+		};
+
+		csi2: csi2@10830400 {
+			compatible = "renesas,rzg3l-csi2";
+			reg = <0 0x10830400 0 0xc00>;
+			interrupts = <GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A08G046_CRU_VCLK>,
+				 <&cpg CPG_MOD R9A08G046_CRU_SYSCLK>,
+				 <&cpg CPG_MOD R9A08G046_CRU_PCLK>;
+			clock-names = "video", "system";
+			resets = <&cpg R9A08G046_CRU_CMN_RSTB>,
+				 <&cpg R9A08G046_CRU_PRESETN>;
+			reset-names = "cmn-rstb", "presetn";
+			power-domains = <&cpg>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+
+					csi2_to_cru: endpoint {
+						remote-endpoint = <&cru_to_csi2>;
+					};
+				};
+			};
+		};
 	};
 
 	stmmac_axi_setup: stmmac-axi-config {
