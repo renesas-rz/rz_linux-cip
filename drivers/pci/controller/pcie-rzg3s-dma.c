@@ -661,6 +661,7 @@ err:
 	kfree(dmac);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(rzg3s_pcie_dma_probe);
 
 void rzg3s_pcie_dma_remove(struct rz_pcie *pci)
 {
@@ -682,3 +683,4 @@ void rzg3s_pcie_dma_remove(struct rz_pcie *pci)
 	kfree(dmac->channels);
 	kfree(dmac);
 }
+EXPORT_SYMBOL_GPL(rzg3s_pcie_dma_remove);
