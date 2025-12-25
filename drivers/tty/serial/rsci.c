@@ -149,6 +149,15 @@ MODULE_IMPORT_NS(SH_SCI);
 /* FFCLR (FIFO Flag CLear Register) */
 #define FFCLR_DRC		BIT(0)	/* DR Clear */
 
+struct rsci_suspend_regs {
+	u32 ccr0;
+	u32 ccr1;
+	u32 ccr2;
+	u32 ccr3;
+	u32 ccr4;
+	u32 fcr;
+};
+
 static u32 rsci_serial_in(struct uart_port *p, int offset)
 {
 	return readl(p->membase + offset);
@@ -614,7 +623,7 @@ static const char *rsci_type(struct uart_port *port)
 
 static size_t rsci_suspend_regs_size(void)
 {
-	return 0;
+	return sizeof(struct rsci_suspend_regs);
 }
 
 static void rsci_shutdown_complete(struct uart_port *port)
@@ -623,6 +632,32 @@ static void rsci_shutdown_complete(struct uart_port *port)
 	 * Stop RX and TX, disable related interrupts, keep clock source
 	 */
 	rsci_serial_out(port, CCR0, 0);
+}
+
+static void rsci_console_save(struct uart_port *port)
+{
+	struct sci_port *s = to_sci_port(port);
+	struct rsci_suspend_regs *regs = s->suspend_regs;
+
+	regs->ccr0 = rsci_serial_in(port, CCR0);
+	regs->ccr1 = rsci_serial_in(port, CCR1);
+	regs->ccr2 = rsci_serial_in(port, CCR2);
+	regs->ccr3 = rsci_serial_in(port, CCR3);
+	regs->ccr4 = rsci_serial_in(port, CCR4);
+	regs->fcr = rsci_serial_in(port, FCR);
+}
+
+static void rsci_console_restore(struct uart_port *port)
+{
+	struct sci_port *s = to_sci_port(port);
+	struct rsci_suspend_regs *regs = s->suspend_regs;
+
+	rsci_serial_out(port, CCR3, regs->ccr3);
+	rsci_serial_out(port, CCR2, regs->ccr2);
+	rsci_serial_out(port, CCR1, regs->ccr1);
+	rsci_serial_out(port, CCR4, regs->ccr4);
+	rsci_serial_out(port, FCR, regs->fcr);
+	rsci_serial_out(port, CCR0, regs->ccr0);
 }
 
 static const struct sci_common_regs rsci_common_regs = {
@@ -687,6 +722,8 @@ static const struct sci_port_ops rsci_port_ops = {
 	.poll_put_char		= rsci_poll_put_char,
 	.prepare_console_write	= rsci_prepare_console_write,
 	.finish_console_write	= rsci_finish_console_write,
+	.console_save		= rsci_console_save,
+	.console_restore	= rsci_console_restore,
 	.suspend_regs_size	= rsci_suspend_regs_size,
 	.set_rtrg		= rsci_scif_set_rtrg,
 	.shutdown_complete	= rsci_shutdown_complete,
