@@ -134,7 +134,7 @@ struct sci_port {
 	struct dma_chan			*chan_rx;
 
 	struct reset_control		*rstc;
-	struct sci_suspend_regs		*suspend_regs;
+	void			*suspend_regs;
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
 	struct dma_chan			*chan_tx_saved;
