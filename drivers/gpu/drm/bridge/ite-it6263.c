@@ -890,6 +890,41 @@ static int it6263_probe(struct i2c_client *client)
 	return devm_drm_bridge_add(dev, &it->bridge);
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int it6263_pm_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int it6263_pm_resume(struct device *dev)
+{
+	struct i2c_client *i2c = to_i2c_client(dev);
+	struct it6263 *it6263 = i2c_get_clientdata(i2c);
+	int ret;
+
+	ret = regmap_write(it6263->hdmi_regmap, HDMI_REG_LVDS_PORT,
+			   LVDS_INPUT_CTRL_I2C_ADDR << 1);
+	if (ret)
+		goto unregister_lvds_i2c;
+
+	ret = regmap_write(it6263->hdmi_regmap, HDMI_REG_LVDS_PORT_EN, 0x01);
+	if (ret)
+		goto unregister_lvds_i2c;
+
+	it6263_lvds_config(it6263);
+
+	return 0;
+unregister_lvds_i2c:
+	i2c_unregister_device(it6263->lvds_i2c);
+
+	return ret;
+}
+#endif
+
+static const struct dev_pm_ops it6263_pm_ops = {
+SET_SYSTEM_SLEEP_PM_OPS(it6263_pm_suspend, it6263_pm_resume)
+};
+
 static const struct of_device_id it6263_of_match[] = {
 	{ .compatible = "ite,it6263", },
 	{ }
@@ -907,6 +942,7 @@ static struct i2c_driver it6263_driver = {
 	.driver = {
 		.name = "it6263",
 		.of_match_table = it6263_of_match,
+		.pm = &it6263_pm_ops,
 	},
 	.id_table = it6263_i2c_ids,
 };
