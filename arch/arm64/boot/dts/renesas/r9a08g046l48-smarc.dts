@@ -285,6 +285,14 @@
 			};
 		};
 	};
+
+#if (!SW_DPI_EN && RZG3L_SMARC_MIPI_DSI_ENABLE)
+	sound_card {
+		compatible = "audio-graph-card";
+		label = "HDMI-Audio";
+		dais = <&i2s2_port>;
+	};
+#endif
 };
 
 &pinctrl {
@@ -510,6 +518,15 @@
 			 <RZG3L_PORT_PINMUX(H, 0, 9)>; /* RXD */
 	};
 #endif
+
+#if (!SW_DPI_EN && RZG3L_SMARC_MIPI_DSI_ENABLE)
+	ssi2_pins: ssi2 {
+		pinmux = <RZG3L_PORT_PINMUX(7, 1, 9)>, /* BCK */
+			 <RZG3L_PORT_PINMUX(7, 2, 9)>, /* RCK */
+			 <RZG3L_PORT_PINMUX(7, 3, 9)>, /* TXD */
+			 <RZG3L_PORT_PINMUX(7, 0, 9)>; /* RXD */
+	};
+#endif
 };
 
 &canfd {
@@ -578,6 +595,13 @@
 				reg = <1>;
 				adv7535_out: endpoint@1 {
 					remote-endpoint = <&dsi_to_hdmi_con_out>;
+				};
+			};
+
+			port@2 {
+				reg = <2>;
+				codec_endpoint: endpoint {
+					remote-endpoint = <&i2s2_cpu_endpoint>;
 				};
 			};
 		};
@@ -859,3 +883,25 @@
 
 	status = "okay";
 };
+
+#if (!SW_DPI_EN && RZG3L_SMARC_MIPI_DSI_ENABLE)
+&ssi2 {
+	clocks = <&cpg CPG_MOD R9A08G046_SSI2_PCLK2>,
+		 <&cpg CPG_MOD R9A08G046_SSI2_PCLK_SFR>,
+		 <&versa3 2>, <&versa3 3>;
+	pinctrl-0 = <&ssi2_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	i2s2_port: port {
+		i2s2_cpu_endpoint: endpoint {
+			remote-endpoint = <&codec_endpoint>;
+			dai-format = "i2s";
+
+			bitclock-master = <&i2s2_cpu_endpoint>;
+			frame-master = <&i2s2_cpu_endpoint>;
+		};
+	};
+};
+#endif
