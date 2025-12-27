@@ -1557,7 +1557,7 @@ static const struct clk_ops rzg2l_mod_clock_ops = {
 };
 
 static struct mod_clock
-*rzg2l_mod_clock__get_sibling(struct mod_clock *clock,
+*rzg2l_mod_clock_get_sibling(struct mod_clock *clock,
 			      struct rzg2l_cpg_priv *priv)
 {
 	struct mod_clock *clk;
@@ -1722,7 +1722,7 @@ rzg2l_cpg_register_mod_clk(const struct rzg2l_mod_clk *mod,
 		struct mod_clock *sibling;
 
 		clock->enabled = rzg2l_mod_clock_is_enabled(&clock->hw);
-		sibling = rzg2l_mod_clock__get_sibling(clock, priv);
+		sibling = rzg2l_mod_clock_get_sibling(clock, priv);
 		if (sibling) {
 			clock->sibling = sibling;
 			sibling->sibling = clock;
