@@ -1354,3 +1354,7 @@
 	dma-ranges = <0x42000000 0 0x48000000 0 0x48000000 0x3 0xF8000000>;
 	status = "okay";
 };
+
+&adc {
+	status = "okay";
+};
