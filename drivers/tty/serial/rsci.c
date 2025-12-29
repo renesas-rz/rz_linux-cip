@@ -432,15 +432,15 @@ static int rsci_txroom(struct uart_port *port)
 
 static void rsci_transmit_chars(struct uart_port *port)
 {
+	struct circ_buf *xmit = &port->state->xmit;
 	unsigned int stopped = uart_tx_stopped(port);
-	struct tty_port *tport = &port->state->port;
 	u32 status, ctrl;
 	int count;
 
 	status = rsci_serial_in(port, CSR);
 	if (!(status & CSR_TDRE)) {
 		ctrl = rsci_serial_in(port, CCR0);
-		if (kfifo_is_empty(&tport->xmit_fifo))
+		if (uart_circ_empty(xmit))
 			ctrl &= ~CCR0_TIE;
 		else
 			ctrl |= CCR0_TIE;
@@ -456,7 +456,10 @@ static void rsci_transmit_chars(struct uart_port *port)
 		if (port->x_char) {
 			c = port->x_char;
 			port->x_char = 0;
-		} else if (stopped || !kfifo_get(&tport->xmit_fifo, &c)) {
+		} else if (!uart_circ_empty(xmit) && !stopped) {
+			c = xmit->buf[xmit->tail];
+			xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
+		} else {
 			break;
 		}
 
@@ -466,10 +469,10 @@ static void rsci_transmit_chars(struct uart_port *port)
 		port->icount.tx++;
 	} while (--count > 0);
 
-	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
-	if (kfifo_is_empty(&tport->xmit_fifo)) {
+	if (uart_circ_empty(xmit)) {
 		ctrl = rsci_serial_in(port, CCR0);
 		ctrl &= ~CCR0_TIE;
 		ctrl |= CCR0_TEIE;
