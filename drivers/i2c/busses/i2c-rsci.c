@@ -378,6 +378,10 @@ static int rsci_i2c_probe(struct platform_device *pdev)
 	struct i2c_adapter *adap;
 	int i, ret;
 
+	if (!of_property_read_bool(dev->of_node,
+				"renesas,rsci_i2c"))
+		return -ENODEV;
+
 	riic = devm_kzalloc(dev, sizeof(*riic), GFP_KERNEL);
 	if (!riic)
 		return -ENOMEM;
@@ -553,7 +557,7 @@ static const struct dev_pm_ops rsci_i2c_pm_ops = {
 };
 
 static const struct of_device_id rsci_i2c_dt_ids[] = {
-	{ .compatible = "renesas,rsci-i2c", .data = &rsci_common_info },
+	{ .compatible = "renesas,r9a09g047-rsci", .data = &rsci_common_info },
 	{ /* Sentinel */ },
 };
 
@@ -561,7 +565,7 @@ static struct platform_driver rsci_i2c_driver = {
 	.probe		= rsci_i2c_probe,
 	.remove		= rsci_i2c_remove,
 	.driver		= {
-		.name	= "rz-rsci-i2c",
+		.name	= "rsci-i2c",
 		.of_match_table = rsci_i2c_dt_ids,
 		.pm     = pm_ptr(&rsci_i2c_pm_ops),
 	},
