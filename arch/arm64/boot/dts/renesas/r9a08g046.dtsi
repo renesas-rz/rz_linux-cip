@@ -867,33 +867,40 @@
 		};
 
 		eth0: ethernet@11c30000 {
-			compatible = "renesas,r9a09g057-gbeth", "renesas,rzv2h-gbeth",
-				     "snps,dwmac-5.20";
+			compatible = "renesas,r9a08g046-gbeth", "snps,dwmac-5.30a";
 			reg = <0 0x11c30000 0 0x10000>;
 			interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 85 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 86 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 87 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 88 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 81 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 82 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 83 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 84 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 89 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 90 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 91 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 92 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi",
 					  "rx-queue-0", "rx-queue-1", "rx-queue-2",
 					  "rx-queue-3", "tx-queue-0", "tx-queue-1",
-					  "tx-queue-2", "tx-queue-3";
+					  "tx-queue-2", "tx-queue-3", "ptp-pps-0",
+					  "ptp-pps-1", "ptp-pps-2", "ptp-pps-3";
 			clocks =  <&cpg CPG_MOD R9A08G046_ETH0_CLK_AXI>,
 				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_CHI>,
 				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_PTP_REF_I>,
 				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_TX_I>,
 				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_RX_I>,
 				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_TX_180_I>,
-				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_RX_180_I>;
+				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_RX_180_I>,
+				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_TX_I_RMII>,
+				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_RX_I_RMII>;
 			clock-names = "stmmaceth", "pclk", "ptp_ref",
-				      "tx", "rx", "tx-180", "rx-180";
+				      "tx", "rx", "tx-180", "rx-180",
+				      "rmii", "rmii_tx", "rmii_rx";
 			resets = <&cpg R9A08G046_ETH0_ARESET_N>;
 			power-domains = <&cpg>;
 			snps,multicast-filter-bins = <256>;
@@ -977,33 +984,41 @@
 		};
 
 		eth1: ethernet@11c40000 {
-			compatible = "renesas,r9a09g057-gbeth", "renesas,rzv2h-gbeth",
-				     "snps,dwmac-5.20";
+			compatible = "renesas,r9a08g046-gbeth", "snps,dwmac-5.30a";
 			reg = <0 0x11c40000 0 0x10000>;
 			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 100 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 101 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 102 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 103 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 96 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 97 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 98 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 99 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 104 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 105 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 106 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 107 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi",
 					  "rx-queue-0", "rx-queue-1", "rx-queue-2",
 					  "rx-queue-3", "tx-queue-0", "tx-queue-1",
-					  "tx-queue-2", "tx-queue-3";
+					  "tx-queue-2", "tx-queue-3", "ptp-pps-0",
+					  "ptp-pps-1", "ptp-pps-2", "ptp-pps-3";
 			clocks =  <&cpg CPG_MOD R9A08G046_ETH1_CLK_AXI>,
 				  <&cpg CPG_MOD R9A08G046_ETH1_CLK_CHI>,
 				  <&cpg CPG_MOD R9A08G046_ETH1_CLK_PTP_REF_I>,
 				  <&cpg CPG_MOD R9A08G046_ETH1_CLK_TX_I>,
 				  <&cpg CPG_MOD R9A08G046_ETH1_CLK_RX_I>,
 				  <&cpg CPG_MOD R9A08G046_ETH1_CLK_TX_180_I>,
-				  <&cpg CPG_MOD R9A08G046_ETH1_CLK_RX_180_I>;
+				  <&cpg CPG_MOD R9A08G046_ETH1_CLK_RX_180_I>,
+				  <&cpg CPG_MOD R9A08G046_ETH1_CLK_RMII_I>,
+				  <&cpg CPG_MOD R9A08G046_ETH1_CLK_TX_I_RMII>,
+				  <&cpg CPG_MOD R9A08G046_ETH1_CLK_RX_I_RMII>;
 			clock-names = "stmmaceth", "pclk", "ptp_ref",
-				      "tx", "rx", "tx-180", "rx-180";
+				      "tx", "rx", "tx-180", "rx-180",
+				      "rmii", "rmii_tx", "rmii_rx";
 			resets = <&cpg R9A08G046_ETH1_ARESET_N>;
 			power-domains = <&cpg>;
 			snps,multicast-filter-bins = <256>;
