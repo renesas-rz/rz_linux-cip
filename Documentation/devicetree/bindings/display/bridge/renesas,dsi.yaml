@@ -28,6 +28,7 @@ properties:
           - const: renesas,r9a09g057-mipi-dsi
 
       - enum:
+          - renesas,r9a09g047-mipi-dsi # RZ/G3E
           - renesas,r9a09g057-mipi-dsi # RZ/V2H(P)
 
   reg:
@@ -84,6 +85,13 @@ properties:
           - const: pclk
           - const: vclk
           - const: lpclk
+      - items:
+          - const: pllrefclk
+          - const: aclk
+          - const: pclk
+          - const: vclk1
+          - const: vclk2
+          - const: lpclk
 
   resets:
     oneOf:
@@ -136,13 +144,6 @@ properties:
                   - const: 3
                   - const: 4
 
-            required:
-              - data-lanes
-
-    required:
-      - port@0
-      - port@1
-
 required:
   - compatible
   - reg
@@ -164,14 +165,76 @@ allOf:
       properties:
         compatible:
           contains:
-            const: renesas,r9a09g057-mipi-dsi
+            const: renesas,r9a09g047-mipi-dsi
+    then:
+      properties:
+        ports:
+          properties:
+            port@0:
+              description: DSI input port 0
+            port@1:
+              description: DSI input port 1
+              properties:
+                endpoint:
+                  properties:
+                    data-lanes: false
+            port@2:
+              description: DSI output port
+              properties:
+                endpoint:
+                  $ref: /schemas/media/video-interfaces.yaml#
+                  unevaluatedProperties: false
+
+                  properties:
+                    data-lanes:
+                      description: array of physical DSI data lane indexes.
+                      minItems: 1
+                      items:
+                        - const: 1
+                        - const: 2
+                        - const: 3
+                        - const: 4
+                  required:
+                    - data-lanes
+
+          required:
+            - port@0
+            - port@1
+            - port@2
+    else:
+      properties:
+        ports:
+          properties:
+            port@0: true
+            port@1:
+              properties:
+                endpoint:
+                  properties:
+                    data-lanes: true
+                  required:
+                    - data-lanes
+
+          required:
+            - port@0
+            - port@1
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,r9a09g047-mipi-dsi
     then:
       properties:
         clocks:
-          maxItems: 5
+          items:
+            - description: DSI PLL reference input clock
+            - description: DSI AXI bus clock
+            - description: DSI Register access clock
+            - description: DSI Video clock
+            - description: DSI Video clock (2nd input clock)
+            - description: DSI D-PHY Escape mode transmit clock
 
         clock-names:
-          maxItems: 5
+          minItems: 6
 
         resets:
           maxItems: 2
@@ -179,18 +242,37 @@ allOf:
         reset-names:
           maxItems: 2
     else:
-      properties:
-        clocks:
-          minItems: 6
+      if:
+        properties:
+          compatible:
+            contains:
+              const: renesas,r9a09g057-mipi-dsi
+      then:
+        properties:
+          clocks:
+            maxItems: 5
 
-        clock-names:
-          minItems: 6
+          clock-names:
+            maxItems: 5
 
-        resets:
-          minItems: 3
+          resets:
+            maxItems: 2
 
-        reset-names:
-          minItems: 3
+          reset-names:
+            maxItems: 2
+      else:
+        properties:
+          clocks:
+            minItems: 6
+
+          clock-names:
+            minItems: 6
+
+          resets:
+            minItems: 3
+
+          reset-names:
+            minItems: 3
 
 examples:
   - |
