@@ -20,6 +20,8 @@ properties:
       - enum:
           - renesas,r9a07g043u-du # RZ/G2UL
           - renesas,r9a07g044-du # RZ/G2{L,LC}
+          - renesas,r9a09g047-du0 # RZ/G3E DU0
+          - renesas,r9a09g047-du1 # RZ/G3E DU1
           - renesas,r9a09g057-du # RZ/V2H(P)
       - items:
           - enum:
@@ -137,6 +139,46 @@ allOf:
 
           required:
             - port@0
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,r9a09g047-du0
+    then:
+      properties:
+        ports:
+          properties:
+            port@0:
+              description: DSI
+            port@1:
+              description: LVDS
+            port@2:
+              description: LVDS
+
+          required:
+            - port@0
+            - port@1
+            - port@2
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,r9a09g047-du1
+    then:
+      properties:
+        ports:
+          properties:
+            port@0:
+              description: DSI
+            port@1:
+              description: LVDS
+            port@2:
+              description: DPAD
+
+          required:
+            - port@0
+            - port@1
+            - port@2
 
 examples:
   # RZ/G2L DU
