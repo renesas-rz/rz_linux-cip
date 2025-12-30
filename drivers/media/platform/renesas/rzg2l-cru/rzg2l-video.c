@@ -425,9 +425,6 @@ void rzg3e_cru_csi2_setup(struct rzg2l_cru_dev *cru,
 
 	icnmc |= rzg2l_cru_read(cru, info->image_conv) & ~ICnMC_INF_MASK;
 
-	/* Set virtual channel CSI2 */
-	icnmc |= ICnMC_VCSEL(csi_vc);
-
 	rzg2l_cru_write(cru, ICnSVCNUM, csi_vc);
 	rzg2l_cru_write(cru, ICnSVC, ICnSVC_SVC0(0) | ICnSVC_SVC1(1) |
 			ICnSVC_SVC2(2) | ICnSVC_SVC3(3));
@@ -789,7 +786,6 @@ static int rzg2l_cru_get_virtual_channel(struct rzg2l_cru_dev *cru)
 
 void rzg3e_cru_enable_interrupts(struct rzg2l_cru_dev *cru)
 {
-	rzg2l_cru_write(cru, CRUnIE2, CRUnIE2_FSxE(cru->svc_channel));
 	rzg2l_cru_write(cru, CRUnIE2, CRUnIE2_FExE(cru->svc_channel));
 }
 
@@ -939,6 +935,8 @@ irqreturn_t rzg2l_cru_irq(int irq, void *data)
 	if (!irq_status)
 		goto done;
 
+	dev_dbg(cru->dev, "CRUnINTS 0x%x\n", irq_status);
+
 	handled = 1;
 
 	rzg2l_cru_write(cru, CRUnINTS, rzg2l_cru_read(cru, CRUnINTS));
@@ -951,7 +949,7 @@ irqreturn_t rzg2l_cru_irq(int irq, void *data)
 
 	/* Increase stop retries if capture status is 'RZG2L_CRU_DMA_STOPPING' */
 	if (cru->state == RZG2L_CRU_DMA_STOPPING) {
-		if (irq_status & CRUnINTS_SFS)
+		if (irq_status & CRUnINTS_EFS)
 			dev_dbg(cru->dev, "IRQ while state stopping\n");
 		goto done;
 	}
@@ -1084,10 +1082,10 @@ irqreturn_t rzg3e_cru_irq(int irq, void *data)
 		}
 
 		if (cru->state == RZG2L_CRU_DMA_STOPPING) {
-			if (irq_status & CRUnINTS2_FSxS(0) ||
-			    irq_status & CRUnINTS2_FSxS(1) ||
-			    irq_status & CRUnINTS2_FSxS(2) ||
-			    irq_status & CRUnINTS2_FSxS(3))
+			if (irq_status & CRUnINTS2_FExS(0) ||
+			    irq_status & CRUnINTS2_FExS(1) ||
+			    irq_status & CRUnINTS2_FExS(2) ||
+			    irq_status & CRUnINTS2_FExS(3))
 				dev_dbg(cru->dev, "IRQ while state stopping\n");
 			return IRQ_HANDLED;
 		}
