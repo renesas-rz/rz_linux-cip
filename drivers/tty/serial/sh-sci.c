@@ -3758,6 +3758,11 @@ static struct plat_sci_port *sci_parse_dt(struct platform_device *pdev,
 
 	data = of_device_get_match_data(&pdev->dev);
 
+	if (sci_is_rsci_type(data->type) &&
+			(of_property_read_bool(np, "renesas,rsci_i2c") ||
+			of_property_read_bool(np, "renesas,rsci_spi")))
+		return ERR_PTR(-ENODEV);
+
 	rstc = devm_reset_control_array_get_optional_exclusive(&pdev->dev);
 	if (IS_ERR(rstc))
 		return ERR_PTR(dev_err_probe(&pdev->dev, PTR_ERR(rstc),
