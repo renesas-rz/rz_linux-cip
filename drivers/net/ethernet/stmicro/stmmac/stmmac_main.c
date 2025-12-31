@@ -1126,8 +1126,14 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 
 	stmmac_mac_set(priv, priv->ioaddr, true);
 	if (phy && priv->dma_cap.eee) {
+		/* Disable EEE RX clock stop to ensure VLAN register access works
+		 * correctly.
+		 */
+		bool clk_stop_enable = !priv->plat->rx_clk_runs_in_lpi &&
+			!(priv->dev->features & NETIF_F_VLAN_FEATURES);
+
 		priv->eee_active =
-			phy_init_eee(phy, !priv->plat->rx_clk_runs_in_lpi) >= 0;
+			phy_init_eee(phy, clk_stop_enable) >= 0;
 		priv->eee_enabled = stmmac_eee_init(priv);
 		priv->tx_lpi_enabled = priv->eee_enabled;
 		stmmac_set_eee_pls(priv, priv->hw, true);
