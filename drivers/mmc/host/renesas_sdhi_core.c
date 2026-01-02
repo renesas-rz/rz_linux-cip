@@ -37,6 +37,7 @@
 #include <linux/reset.h>
 #include <linux/sh_dma.h>
 #include <linux/slab.h>
+#include <linux/sys_soc.h>
 
 #include "renesas_sdhi.h"
 #include "tmio_mmc.h"
@@ -59,6 +60,14 @@
 #define SDHI_VER_GEN3_SDMMC	0xcd10
 
 #define SDHI_GEN3_MMC0_ADDR	0xee140000
+
+/* Definitions for values the SDHI_IOVCTRL register */
+#define SDHI_IOVCTRL_SEL18	BIT(0)	/* only known on RZ/T2N */
+
+static const struct soc_device_attribute rzt2n_match[] = {
+	{ .family = "RZ/T2N" },
+	{ /* sentinel */ }
+};
 
 static void renesas_sdhi_sdbuf_width(struct tmio_mmc_host *host, int width)
 {
@@ -264,9 +273,16 @@ static int renesas_sdhi_start_signal_voltage_switch(struct mmc_host *mmc,
 
 	switch (ios->signal_voltage) {
 	case MMC_SIGNAL_VOLTAGE_330:
+		if (soc_device_match(rzt2n_match))
+			writel(readl(priv->iovctrl_base) &
+				~SDHI_IOVCTRL_SEL18, priv->iovctrl_base);
+
 		pin_state = priv->pins_default;
 		break;
 	case MMC_SIGNAL_VOLTAGE_180:
+		if (soc_device_match(rzt2n_match))
+			writel(SDHI_IOVCTRL_SEL18, priv->iovctrl_base);
+
 		pin_state = priv->pins_uhs;
 		break;
 	default:
@@ -1043,6 +1059,19 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 			    GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	/* Get the IO voltage control base address (for RZ/T2N only) */
+	if (soc_device_match(rzt2n_match)) {
+		struct resource *res1;
+
+		res1 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		if (!res1)
+			return -EINVAL;
+
+		priv->iovctrl_base = devm_ioremap_resource(&pdev->dev, res1);
+		if (IS_ERR(priv->iovctrl_base))
+			return PTR_ERR(priv->iovctrl_base);
+	}
 
 	priv->quirks = quirks;
 	mmc_data = &priv->mmc_data;
