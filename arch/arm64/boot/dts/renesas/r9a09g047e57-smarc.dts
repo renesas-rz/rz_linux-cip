@@ -200,6 +200,10 @@
 		pinmux = <RZG3E_PORT_PINMUX(S, 0, 0)>; /* NMI */
 		input-schmitt-enable;
 	};
+
+	pcie0_pins: pcie0 {
+		pinmux = <RZG3E_PORT_PINMUX(G, 7, 1)>; /* PCIE_SLOT_RST */
+	};
 };
 
 &scif0 {
@@ -246,4 +250,13 @@
 &xhci {
 	pinctrl-0 = <&usb3_pins>;
 	pinctrl-names = "default";
+};
+
+&pcie0 {
+	pinctrl-0 = <&pcie0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	/* First 128MB is reserved for secure area. */
+	dma-ranges = <0x42000000 0 0x48000000 0 0x48000000 0x1 0xF8000000>;
 };
