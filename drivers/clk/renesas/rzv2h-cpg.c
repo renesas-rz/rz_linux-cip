@@ -65,6 +65,15 @@
 
 #define CPG_CLKSTATUS0		(0x700)
 
+/* CPG macro */
+#define RZV2H_CPG_SMUX_WRITE_EN_MASK	0x1111
+
+struct rzv2h_cpg_cache {
+	u32 pll_clk1;
+	u32 pll_clk2;
+	u32 mux;
+};
+
 /**
  * struct rzv2h_cpg_priv - Clock Pulse Generator Private Data
  *
@@ -98,6 +107,9 @@ struct rzv2h_cpg_priv {
 	atomic_t *mstop_count;
 
 	struct reset_controller_dev rcdev;
+
+	struct rzv2h_cpg_cache *cache;
+	const struct rzv2h_cpg_info *info;
 };
 
 #define rcdev_to_priv(x)	container_of(x, struct rzv2h_cpg_priv, rcdev)
@@ -1089,6 +1101,7 @@ static int __init rzv2h_cpg_probe(struct platform_device *pdev)
 	unsigned int nclks, i;
 	struct clk **clks;
 	int error;
+	struct rzv2h_cpg_cache *cached;
 
 	info = of_device_get_match_data(dev);
 
@@ -1128,6 +1141,7 @@ static int __init rzv2h_cpg_probe(struct platform_device *pdev)
 	priv->num_mod_clks = info->num_hw_mod_clks;
 	priv->last_dt_core_clk = info->last_dt_core_clk;
 	priv->num_resets = info->num_resets;
+	priv->info = info;
 
 	for (i = 0; i < nclks; i++)
 		clks[i] = ERR_PTR(-ENOENT);
@@ -1154,8 +1168,68 @@ static int __init rzv2h_cpg_probe(struct platform_device *pdev)
 	if (error)
 		return error;
 
+	cached = devm_kzalloc(priv->dev, info->num_core_clks * sizeof(*cached), GFP_KERNEL);
+	if (!cached)
+		return -ENOMEM;
+
+	priv->cache = cached;
+
 	return 0;
 }
+
+static int rzv2h_cpg_pm_suspend(struct device *dev)
+{
+	struct rzv2h_cpg_priv *priv = dev_get_drvdata(dev);
+	const struct rzv2h_cpg_info *info = priv->info;
+	int i;
+
+	for (i = 0; i < info->num_core_clks; i++) {
+		if ((info->core_clks[i].type == CLK_TYPE_PLLDSI) ||
+		    (info->core_clks[i].type == CLK_TYPE_PLL)) {
+			priv->cache[i].pll_clk1 = readl(priv->base +
+						  CPG_PLL_CLK1(info->core_clks[i].cfg.pll.offset));
+			priv->cache[i].pll_clk2 = readl(priv->base +
+						  CPG_PLL_CLK2(info->core_clks[i].cfg.pll.offset));
+			continue;
+		}
+
+		if (info->core_clks[i].type == CLK_TYPE_SMUX) {
+			priv->cache[i].mux = readl(priv->base + info->core_clks[i].cfg.smux.offset);
+			continue;
+		}
+	};
+
+	return 0;
+};
+
+static int rzv2h_cpg_pm_resume(struct device *dev)
+{
+	struct rzv2h_cpg_priv *priv = dev_get_drvdata(dev);
+	const struct rzv2h_cpg_info *info = priv->info;
+	int i;
+
+	for (i = 0; i < info->num_core_clks; i++) {
+		if ((info->core_clks[i].type == CLK_TYPE_PLLDSI) ||
+		    (info->core_clks[i].type == CLK_TYPE_PLL)) {
+			writel(priv->cache[i].pll_clk1, priv->base +
+					  CPG_PLL_CLK1(info->core_clks[i].cfg.pll.offset));
+			writel(priv->cache[i].pll_clk2, priv->base +
+					  CPG_PLL_CLK2(info->core_clks[i].cfg.pll.offset));
+			continue;
+		};
+		if (info->core_clks[i].type == CLK_TYPE_SMUX) {
+			writel(priv->cache[i].mux | (RZV2H_CPG_SMUX_WRITE_EN_MASK << 16),
+					  priv->base + info->core_clks[i].cfg.smux.offset);
+			continue;
+		}
+	};
+
+	return 0;
+};
+
+static const struct dev_pm_ops rzv2h_cpg_pm_ops = {
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(rzv2h_cpg_pm_suspend, rzv2h_cpg_pm_resume)
+};
 
 static const struct of_device_id rzv2h_cpg_match[] = {
 #ifdef CONFIG_CLK_R9A09G047
@@ -1183,6 +1257,7 @@ static struct platform_driver rzv2h_cpg_driver = {
 	.driver		= {
 		.name	= "rzv2h-cpg",
 		.of_match_table = rzv2h_cpg_match,
+		.pm = &rzv2h_cpg_pm_ops,
 	},
 };
 
