@@ -209,16 +209,15 @@ static void rzg2l_cru_buffer_queue(struct vb2_buffer *vb)
 	struct rzg2l_cru_dev *cru = vb2_get_drv_priv(vb->vb2_queue);
 	unsigned long flags;
 
-	if (cru->suspend) {
+	if (cru->state == RZG2L_CRU_DMA_SUSPEND) {
 		if (!wait_event_timeout(cru->setup_wait,
-					!cru->suspend,
+					cru->state != RZG2L_CRU_DMA_SUSPEND,
 					msecs_to_jiffies(SETUP_WAIT_TIME))) {
 			dev_warn(cru->dev, "set up timeout\n");
 			return_unused_buffers(cru, VB2_BUF_STATE_ERROR);
 		}
 
 		rzg2l_cru_initialize_axi(cru);
-		cru->suspend = false;
 	}
 
 	spin_lock_irqsave(&cru->qlock, flags);
@@ -678,7 +677,8 @@ void rzg2l_cru_stop_image_processing(struct rzg2l_cru_dev *cru)
 	if (icnms)
 		dev_err(cru->dev, "Failed stop HW, something is seriously broken\n");
 
-	cru->state = RZG2L_CRU_DMA_STOPPED;
+	if (cru->state != RZG2L_CRU_DMA_SUSPEND)
+		cru->state = RZG2L_CRU_DMA_STOPPED;
 
 	/* Wait until the FIFO becomes empty */
 	for (retries = 5; retries > 0; retries--) {
@@ -878,11 +878,9 @@ static int rzg2l_cru_set_stream(struct rzg2l_cru_dev *cru, int on)
 	if (!on) {
 		int stream_off_ret = 0;
 
-		if (!cru->suspend) {
-			ret = v4l2_subdev_call(sd, video, s_stream, 0);
-			if (ret)
-				stream_off_ret = ret;
-		}
+		ret = v4l2_subdev_call(sd, video, s_stream, 0);
+		if (ret)
+			stream_off_ret = ret;
 
 		ret = v4l2_subdev_call(sd, video, post_streamoff);
 		if (ret == -ENOIOCTLCMD)
@@ -954,9 +952,10 @@ irqreturn_t rzg2l_cru_irq(int irq, void *data)
 	}
 
 	/* Increase stop retries if capture status is 'RZG2L_CRU_DMA_STOPPING' */
-	if (cru->state == RZG2L_CRU_DMA_STOPPING) {
+	if (cru->state == RZG2L_CRU_DMA_STOPPING ||
+	    cru->state == RZG2L_CRU_DMA_SUSPEND) {
 		if (irq_status & CRUnINTS_EFS)
-			dev_dbg(cru->dev, "IRQ while state stopping\n");
+			dev_dbg(cru->dev, "IRQ while state stopping or suspending\n");
 		goto done;
 	}
 
@@ -1070,12 +1069,13 @@ irqreturn_t rzg3e_cru_irq(int irq, void *data)
 			return IRQ_HANDLED;
 		}
 
-		if (cru->state == RZG2L_CRU_DMA_STOPPING) {
+		if (cru->state == RZG2L_CRU_DMA_STOPPING ||
+		    cru->state == RZG2L_CRU_DMA_SUSPEND) {
 			if (irq_status & CRUnINTS2_FExS(0) ||
 			    irq_status & CRUnINTS2_FExS(1) ||
 			    irq_status & CRUnINTS2_FExS(2) ||
 			    irq_status & CRUnINTS2_FExS(3))
-				dev_dbg(cru->dev, "IRQ while state stopping\n");
+				dev_dbg(cru->dev, "IRQ while state stopping or suspending\n");
 			return IRQ_HANDLED;
 		}
 
@@ -1241,48 +1241,19 @@ void rzg2l_cru_resume_start_streaming(struct work_struct *work)
 
 	spin_lock_irqsave(&cru->qlock, flags);
 	cru->sequence = 0;
+	cru->state = RZG2L_CRU_DMA_STARTING;
 	spin_unlock_irqrestore(&cru->qlock, flags);
 
-	cru->suspend = false;
-	rzg2l_cru_write(cru, AMnFIFO, 1);
 	wake_up(&cru->setup_wait);
 }
 
 void rzg2l_cru_suspend_stop_streaming(struct rzg2l_cru_dev *cru)
 {
-	int retries = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&cru->qlock, flags);
-
-	/* Disable and clear the interrupt */
-	cru->info->disable_interrupts(cru);
-
-	/* Stop the operation of image conversion */
-	rzg2l_cru_write(cru, ICnEN, 0);
-
-	/* Stop AXI bus */
-	rzg2l_cru_write(cru, AMnAXISTP, AMnAXISTP_AXI_STOP);
-
-	/* Wait until the AXI bus stop */
-	for (retries = 5; retries > 0; retries--) {
-		if (rzg2l_cru_read(cru, AMnAXISTPACK) &
-						AMnAXISTPACK_AXI_STOP_ACK)
-			break;
-
-		udelay(20);
-	};
-
-	/* Cancel the AXI bus stop request */
-	rzg2l_cru_write(cru, AMnAXISTP, 0);
-
-	spin_unlock_irqrestore(&cru->qlock, flags);
+	cru->state = RZG2L_CRU_DMA_SUSPEND;
+	rzg2l_cru_set_stream(cru, 0);
 
 	/* Release all active buffers */
 	return_unused_buffers(cru, VB2_BUF_STATE_ERROR);
-
-	cru->suspend = true;
-	rzg2l_cru_set_stream(cru, 0);
 }
 
 static const struct vb2_ops rzg2l_cru_qops = {
@@ -1320,7 +1291,6 @@ int rzg2l_cru_dma_register(struct rzg2l_cru_dev *cru)
 	spin_lock_init(&cru->qlock);
 
 	cru->state = RZG2L_CRU_DMA_STOPPED;
-	cru->suspend = false;
 	init_waitqueue_head(&cru->setup_wait);
 
 	for (i = 0; i < RZG2L_CRU_HW_BUFFER_MAX; i++)

@@ -827,7 +827,6 @@ static int rzg2l_cru_suspend(struct device *dev)
 	rzg2l_cru_suspend_stop_streaming(cru);
 	if (!(reset_control_status(cru->presetn)))
 		reset_control_assert(cru->presetn);
-	reset_control_assert(cru->aresetn);
 
 	clk_disable_unprepare(cru->vclk);
 	pm_runtime_put_sync(dev);
