@@ -27,6 +27,8 @@
 #define ETHSS_PHYLINK_SWLINK_MASK(x)	BIT(x)
 #define ETHSS_PHYLINK_ESWMLINK_HIGH(x)  (BIT(x) << 8)
 #define ETHSS_PHYLINK_ESWMLINK_MASK(x)  (BIT(x) << 8)
+#define ETHSS_PHYLINK_HPSWLINK_HIGH(x)  (BIT(x) << 12)
+#define ETHSS_PHYLINK_HPSWLINK_MASK(x)  (BIT(x) << 12)
 
 #define ETHSS_CONVCTRL(port)		(0x100 + (port) * 4)
 
@@ -68,6 +70,11 @@
 #define ETHSS_SWDUPC			0x308
 #define ETHSS_SWDUPC_DUPLEX_MASK(x)	BIT(x)
 #define ETHSS_SWDUPC_DUPLEX_FULL(x)	BIT(x)
+
+/*  HPSW Auxiliary Registers */
+#define HPSW_LINK_SPD			0x020
+#define HPSW_C_CLK_SEL			0x024
+#define HPSW_C_CLK_CSEL			GENMASK(1, 0)
 
 #define ETHSS_MAX_NR_PORTS		5
 
@@ -435,6 +442,13 @@ int ethss_gmac_ptp_timer(struct ethss *ethss, int gmac, int ethsw_timer)
 
 	return 0;
 }
+
+static void ethss_hpsw_config(struct ethss *ethss)
+{
+	/*  Clock Select for Transmitting and Receiving on HPSW Port C */
+	ethss_reg_writel(ethss, HPSW_C_CLK_SEL, HPSW_C_CLK_CSEL);
+}
+
 EXPORT_SYMBOL(ethss_gmac_ptp_timer);
 
 static int ethss_init_hw(struct ethss *ethss, u32 cfg_mode)
@@ -589,6 +603,33 @@ static void ethss_parse_eswmlink(struct ethss *ethss, struct device *dev)
 	}
 }
 
+static void ethss_parse_hpswlink(struct ethss *ethss, struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct device_node *conv;
+	int val, hpswlink, port;
+
+	for_each_child_of_node(np, conv) {
+		if (of_property_read_u32(conv, "renesas,hpsw-phylink",
+					 &hpswlink))
+			continue;
+
+		if (of_property_read_u32(conv, "reg", &port))
+			continue;
+
+		if (!of_device_is_available(conv))
+			continue;
+
+		/* HPSW_PHYLINK active high */
+		val = 0;
+		if (hpswlink == 0)
+			val = ETHSS_PHYLINK_HPSWLINK_HIGH(port);
+
+		ethss_reg_rmw(ethss, ETHSS_PHYLINK,
+			      ETHSS_PHYLINK_HPSWLINK_MASK(port), val);
+	}
+}
+
 int ethss_eswm_ptp_timer(struct ethss *ethss, int eswm_timer)
 {
 	if (eswm_timer > 1)
@@ -689,6 +730,8 @@ static int ethss_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to set Pulse Generator\n");
 
 	ethss_parse_eswmlink(ethss, dev);
+	ethss_parse_hpswlink(ethss, dev);
+	ethss_hpsw_config(ethss);
 
 	/* ethss_create() relies on that fact that data are attached to the
 	 * platform device to determine if the driver is ready so this needs to
