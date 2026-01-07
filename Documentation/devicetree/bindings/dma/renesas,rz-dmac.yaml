@@ -70,14 +70,24 @@ properties:
   '#dma-cells':
     const: 1
     description:
-      The cell specifies the encoded MID/RID or the REQ No values of
-      the DMAC port connected to the DMA client and the slave channel
-      configuration parameters.
-      bits[0:9] - Specifies the MID/RID or the REQ No value
-      bit[10] - Specifies DMA request high enable (HIEN)
-      bit[11] - Specifies DMA request detection type (LVL)
-      bits[12:14] - Specifies DMAACK output mode (AM)
-      bit[15] - Specifies Transfer Mode (TM)
+      renesas,rz-dmac:
+        The cell specifies the encoded MID/RID or the REQ No values of
+        the DMAC port connected to the DMA client and the slave channel
+        configuration parameters.
+        bits[0:9] - Specifies the MID/RID or the REQ No value
+        bit[10] - Specifies DMA request high enable (HIEN)
+        bit[11] - Specifies DMA request detection type (LVL)
+        bits[12:14] - Specifies DMAACK output mode (AM)
+        bit[15] - Specifies Transfer Mode (TM)
+      renesas,r9a09g057-dmac:
+        The cell specifies the DMAC REQ values of the DMAC channel
+        configuration connected to ICU parameters.
+        bits[0:9] - Specifies DMAC request number value
+        bit[10] - Specifies DMA request high enable (HIEN)
+        bit[11] - Specifies DMA request detection type (LVL)
+        bits[12:14] - Specifies DMAACK output mode (AM)
+        bit[15] - Specifies Transfer Mode (TM)
+        bits[22:16] - Specifies DMAACK output number : if not use define as 7F (all 1)
 
   dma-channels:
     const: 16
