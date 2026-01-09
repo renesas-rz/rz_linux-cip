@@ -100,6 +100,13 @@
 
 /* DMAC registers */
 #define RZG3S_PCI_INTTABLE			0x140
+
+#define RZG3S_PCI_DMAINTVEC0			0x4d0
+#define RZG3S_PCI_DMAINTVEC1			0x4d4
+#define RZG3S_PCI_DMA_CH_MSI_EN(chan)		(BIT(5) << ((chan % 4) * 8))
+#define RZG3S_PCI_DMA_CH_VEC(chan, vec)		((GENMASK(4, 0) & vec) << ((chan % 4) * 8))
+#define RZG3S_PCI_DMA_CH_MSI_VEC_MASK(chan)	(GENMASK(5, 0) << ((chan % 4) * 8))
+
 #define RZG3S_PCI_DMACTRL			0x800
 #define RZG3S_PCI_DMACTRL_D_PMRS_256		0x1
 
@@ -243,9 +250,6 @@
 /* Timeouts experimentally determined. */
 #define RZG3S_REQ_ISSUE_TIMEOUT_US		2500
 
-/* Maximum number of DMA channels */
-#define RZG3S_PCI_DMA_MAX_CHANNEL		8
-
 /* Only in RZ/V2H */
 #define PCIE_MAX_CHANNEL			2
 
@@ -384,29 +388,5 @@
 #define SYS_PCIE_LANE_MODE			0x1060
 #define LINK_MASTER_4_LANE_MODE			0x100	/* 4 lane * 1 mode */
 #define LINK_MASTER_2_LANE_MODE			0x300	/* 2 lane * 2 mode */
-
-struct rzg3s_pcie_dmac;
-struct rz_pcie {
-	struct device *dev;
-	void __iomem *base;
-	struct rzg3s_pcie_dmac *dmac;
-};
-
-#if IS_REACHABLE(CONFIG_PCIE_RENESAS_RZG3S_DMA)
-int rzg3s_pcie_dma_probe(struct rz_pcie *pcie);
-void rzg3s_pcie_dma_remove(struct rz_pcie *pcie);
-#else
-static inline int rzg3s_pcie_dma_probe(struct rz_pcie *pcie)
-{
-	return -ENODEV;
-}
-static inline void rzg3s_pcie_dma_remove(struct rz_pcie *pcie)
-{
-	return;
-}
-#endif /* CONFIG_PCIE_RENESAS_RZG3S_DMA */
-
-void rzg3s_pcie_update_bits(void __iomem *base, u32 offset, u32 mask,
-                                   u32 val);
 
 #endif /* _PCIE_RZG3S_H */
