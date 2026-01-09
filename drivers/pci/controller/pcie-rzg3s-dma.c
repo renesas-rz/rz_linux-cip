@@ -10,6 +10,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
 #include <linux/platform_device.h>
+#include <linux/pci-epf.h>
+#include <linux/dma/pcie-rzg3s-dma.h>
 #include "../../../drivers/dma/virt-dma.h"
 #include "../../../drivers/dma/dmaengine.h"
 
@@ -20,6 +22,11 @@
 #include "pcie-rzg3s-regs.h"
 
 struct rzg3s_pcie_dma_chan;
+
+enum rzg3s_pcie_dma_type {
+	RZG3S_PCI_DMA_REMOTE = 0,
+	RZG3S_PCI_DMA_LOCAL
+};
 
 enum rzg3s_pcie_dma_status {
 	RZG3S_PCI_DMA_IDLE,
@@ -80,6 +87,8 @@ struct rzg3s_pcie_dmac {
 	int dma_irq;
 	unsigned int n_channels;
 	struct rzg3s_pcie_dma_chan *channels;
+	struct rz_pcie *pcie;
+	enum rzg3s_pcie_dma_type type;
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -156,12 +165,59 @@ static inline struct rzg3s_pcie_dma_desc *to_rzg3s_pcie_dma_desc(struct virt_dma
 	return container_of(vd, struct rzg3s_pcie_dma_desc, vd);
 };
 
+static inline bool is_local_dma(struct rzg3s_pcie_dmac *dmac)
+{
+	return (dmac->type == RZG3S_PCI_DMA_LOCAL);
+}
+
+static void rzg3s_pcie_dma_update_bits(void __iomem *base, u32 offset, u32 mask,
+				       u32 val)
+{
+	u32 tmp;
+
+	tmp = readl(base + offset);
+	tmp &= ~mask;
+	tmp |= val & mask;
+	writel(tmp, base + offset);
+}
+
+static int rzg3s_pcie_dma_translate_address(struct rz_pcie *pcie)
+{
+	struct rzg3s_pcie_dma_region *region;
+	u8 win;
+
+	for (int i = 0; i < 2 * pcie->ch_cnt; i++) {
+		if (i < pcie->ch_cnt)
+			region = &pcie->ll_region[i];
+		else
+			region = &pcie->dt_region[i - pcie->ch_cnt];
+		/*
+		 * According to RZ PCIe Endpoint driver
+		 * AXI Window #0 is allocated for BAR0, #4 is allocated for BAR2.
+		 * Memory reserved for linked list and data is only allocated within BAR0 and BAR2.
+		 * BAR4 is limited for access to AXI Bridge Registers (including DMA control registers)
+		 */
+		if (region->bar == BAR_0)
+			win = 0;
+		else if (region->bar == BAR_2)
+			win = 4;
+		else
+			return -EINVAL;
+
+		region->paddr = ((u64)readl(pcie->base + RZG3S_PCI_ADESTU(win)) << 32) |
+				readl(pcie->base + RZG3S_PCI_ADESTL(win));
+		region->paddr += region->off;
+	}
+
+	return 0;
+}
+
 static int rzg3s_pcie_dma_transfer_desc(struct rzg3s_pcie_dma_chan *chan)
 {
 	struct rzg3s_pcie_dmac *dmac = chan->dmac;
 	struct virt_dma_desc *vdesc;
 	dma_addr_t dsa;
-	u32 mask;
+	u32 mask, val;
 
 	vdesc = vchan_next_desc(&chan->vc);
 	if (!vdesc)
@@ -171,9 +227,25 @@ static int rzg3s_pcie_dma_transfer_desc(struct rzg3s_pcie_dma_chan *chan)
 	/* Set DMAC PCIe Max Read Request Size */
 	writel(RZG3S_PCI_DMACTRL_D_PMRS_256, dmac->base + RZG3S_PCI_DMACTRL);
 
+	/*
+	 * In case of local DMA, dma_int irq is used as DMA interrupt,
+	 * and MSI in case of remote DMA.
+	 * The method of interrupt for each channel is selected by
+	 * DMA Interrupt Vector{0,1} Register.
+	 */
+	if (!is_local_dma(dmac)) {
+		mask = RZG3S_PCI_DMA_CH_MSI_VEC_MASK(chan->index);
+		val = (RZG3S_PCI_DMA_CH_VEC(chan->index, 0) | RZG3S_PCI_DMA_CH_MSI_EN(chan->index));
+
+		if (chan->index < 4)
+			rzg3s_pcie_dma_update_bits(dmac->base, RZG3S_PCI_DMAINTVEC0, mask, val);
+		else
+			rzg3s_pcie_dma_update_bits(dmac->base, RZG3S_PCI_DMAINTVEC1, mask, val);
+	}
+
 	/* Enable DMA INT */
 	mask = (RZG3S_PCI_DMAINTE_CH_END_EN(chan->index) | RZG3S_PCI_DMAINTE_CH_ERR_EN(chan->index));
-	rzg3s_pcie_update_bits(dmac->base, RZG3S_PCI_DMAINTE, mask, mask);
+	rzg3s_pcie_dma_update_bits(dmac->base, RZG3S_PCI_DMAINTE, mask, mask);
 
 	/* Set starting address of Descriptor List */
 	dsa = chan->desc->node[0].pdesc;
@@ -191,6 +263,7 @@ static int rzg3s_pcie_dma_transfer_desc(struct rzg3s_pcie_dma_chan *chan)
 static struct rzg3s_pcie_dma_desc *rzg3s_pcie_dma_alloc_desc(struct rzg3s_pcie_dma_chan *chan,
 							     int sg_len)
 {
+	struct rzg3s_pcie_dmac *dmac = chan->dmac;
 	struct rzg3s_pcie_dma_desc *desc;
 	int i;
 
@@ -200,18 +273,38 @@ static struct rzg3s_pcie_dma_desc *rzg3s_pcie_dma_alloc_desc(struct rzg3s_pcie_d
 
 	desc->chan = chan;
 	desc->n_nodes = sg_len;
-	for (i = 0; i < sg_len; i++) {
-		desc->node[i].desc = dma_pool_alloc(chan->pool,
-				GFP_NOWAIT, &desc->node[i].pdesc);
-		if (!desc->node[i].desc)
-			goto err;
+
+	/*
+	 * For local DMA, allocate linked-list using dma_pool.
+	 * For remote DMA, reuse the reserved memory for linked-list.
+	 */
+	if (is_local_dma(chan->dmac)) {
+		for (i = 0; i < sg_len; i++) {
+			desc->node[i].desc = dma_pool_alloc(chan->pool,
+					GFP_NOWAIT, &desc->node[i].pdesc);
+			if (!desc->node[i].desc)
+				goto err_pool_alloc;
+		}
+	} else {
+		struct rzg3s_pcie_dma_region *ll_region = &dmac->pcie->ll_region[chan->index];
+		for (i = 0; i < sg_len; i++) {
+			desc->node[i].pdesc = ll_region->paddr + (i * ALIGN(sizeof(struct rzg3s_pcie_dma_hw_node), 64));
+			if (desc->node[i].pdesc > ll_region->paddr + ll_region->sz) {
+				dev_err(chan->dmac->dev, "exceed linked list region\n");
+				goto err;
+			}
+
+			desc->node[i].desc = ll_region->vaddr + (i * ALIGN(sizeof(struct rzg3s_pcie_dma_hw_node), 64));
+		}
 	}
 
+
 	return desc;
-err:
+err_pool_alloc:
 	while (--i >= 0)
 		dma_pool_free(chan->pool, desc->node[i].desc,
 			      desc->node[i].pdesc);
+err:
 	kfree(desc);
 
 	return NULL;
@@ -225,10 +318,12 @@ static void rzg3s_pcie_dma_release_desc(struct rzg3s_pcie_dma_desc *desc)
 	if (!desc)
 		return;
 
-	while (i < desc->n_nodes) {
-		dma_pool_free(chan->pool, desc->node[i].desc,
-			      desc->node[i].pdesc);
-		i++;
+	if (is_local_dma(chan->dmac)) {
+		while (i < desc->n_nodes) {
+			dma_pool_free(chan->pool, desc->node[i].desc,
+				      desc->node[i].pdesc);
+			i++;
+		}
 	}
 
 	kfree(desc);
@@ -239,22 +334,27 @@ static int rzg3s_pcie_dma_alloc_chan_resources(struct dma_chan *ch)
 	struct rzg3s_pcie_dma_chan *chan = to_rzg3s_pcie_dma_chan(ch);
 
 	/*
-	 * Create the dma pool for descriptor allocation
+	 * Create the dma pool for descriptor allocation in case of local DMA
 	 * According to the RZ/G3S HW manual (Rev.1.10, section 34.4.4.2 Descriptor-Type
 	 * transfer) The descriptor start address must be 16-byte aligned and
 	 * allocation of a single descriptor (0x00 to 0x24) to straddle a 4-K boundary is
 	 * prohibited, the 6 lower-order bits [5:0] are fixed to 000000b.
          */
+	if (is_local_dma(chan->dmac)) {
+		chan->pool = dma_pool_create(dev_name(&ch->dev->device),
+						    chan->dmac->dev,
+						    sizeof(struct rzg3s_pcie_dma_hw_node),
+						    __alignof__(struct rzg3s_pcie_dma_hw_node),
+						    0);
 
-	chan->pool = dma_pool_create(dev_name(&ch->dev->device),
-					    chan->dmac->dev,
-					    sizeof(struct rzg3s_pcie_dma_hw_node),
-					    __alignof__(struct rzg3s_pcie_dma_hw_node),
-					    0);
-
-	if (!chan->pool) {
-		dev_err(chan->dmac->dev, "unable to allocate desc pool\n");
-		return -ENOMEM;
+		if (!chan->pool) {
+			dev_err(chan->dmac->dev, "unable to allocate desc pool\n");
+			return -ENOMEM;
+		}
+	} else {
+		struct rzg3s_pcie_dma_region *ll_region = &chan->dmac->pcie->ll_region[chan->index];
+		if (ll_region->vaddr == NULL)
+			return -ENOMEM;
 	}
 
 	dev_dbg(chan->dmac->dev, "%s: alloc chan:%d",
@@ -268,12 +368,14 @@ static void rzg3s_pcie_dma_free_chan_resources(struct dma_chan *ch)
 	struct rzg3s_pcie_dma_chan *chan = to_rzg3s_pcie_dma_chan(ch);
 	unsigned long flags;
 
-	spin_lock_irqsave(&chan->vc.lock, flags);
-	chan->desc = NULL;
-	spin_unlock_irqrestore(&chan->vc.lock, flags);
+	if (is_local_dma(chan->dmac)) {
+		spin_lock_irqsave(&chan->vc.lock, flags);
+		chan->desc = NULL;
+		spin_unlock_irqrestore(&chan->vc.lock, flags);
 
-	dma_pool_destroy(chan->pool);
-	chan->pool = NULL;
+		dma_pool_destroy(chan->pool);
+		chan->pool = NULL;
+	}
 
 	dev_dbg(chan->dmac->dev, "%s: freeing chan:%d\n",
 		__func__, chan->vc.chan.chan_id);
@@ -327,36 +429,17 @@ static enum dma_status rzg3s_pcie_dma_tx_status(struct dma_chan *ch,
 	return ret;
 }
 
-static struct dma_async_tx_descriptor *
-rzg3s_pcie_dma_prep_slave_sg(struct dma_chan *ch, struct scatterlist *sgl,
-			     unsigned int sg_len,
-			     enum dma_transfer_direction direction,
-			     unsigned long flags, void *context)
+static int rzg3s_pcie_dma_fill_local_hw_node(struct rzg3s_pcie_dma_desc *desc,
+					     struct scatterlist *sgl,
+					     unsigned int sg_len,
+					     enum dma_transfer_direction direction)
 {
-	struct rzg3s_pcie_dma_chan *chan = to_rzg3s_pcie_dma_chan(ch);
-	struct rzg3s_pcie_dma_hw_node *hw_node;
-	struct rzg3s_pcie_dma_desc *desc;
+	struct rzg3s_pcie_dma_chan *chan = desc->chan;
 	struct scatterlist *sg;
 	dma_addr_t remote_addr;
 	int i;
 
-	if (!is_slave_direction(direction)) {
-		dev_err(chan->dmac->dev, "bad direction?\n");
-		return NULL;
-	}
-
-	desc = rzg3s_pcie_dma_alloc_desc(chan, sg_len);
-	if (!desc) {
-		dev_err(chan->dmac->dev, "no memory for desc\n");
-		return NULL;
-	}
-
-	/*
-	 * Remote address is RC's memory address if device using this DMA is EP
-	 * or, is address in EP BAR if device using this DMA is RC
-	 */
 	remote_addr = (direction == DMA_MEM_TO_DEV) ? chan->scfg.dst_addr : chan->scfg.src_addr;
-
 	for_each_sg(sgl, sg, sg_len, i) {
 		/*
 		 * According to the RZ/G3S HW manual (Rev.1.10, section 34.3.1.56
@@ -365,10 +448,10 @@ rzg3s_pcie_dma_prep_slave_sg(struct dma_chan *ch, struct scatterlist *sgl,
 		 * (lower 3 bits are fixed to 000b) but attempt to write to these registers
 		 * has shown that these addresses are 16-byte aligned (lower 4 bits are fixed to 0000b)
 		 */
+		struct rzg3s_pcie_dma_hw_node *hw_node = desc->node[i].desc;
+
 		if (!IS_ALIGNED(sg_dma_address(sg), SZ_16) || !IS_ALIGNED(sg_dma_len(sg), SZ_16))
 			goto err_align;
-
-		hw_node = desc->node[i].desc;
 
 		hw_node->param0 = RZG3S_PCI_DMA_DSCFM | RZG3S_PCI_DMA_WBD | RZG3S_PCI_DMA_LV;
 		if (i == (sg_len - 1))
@@ -413,12 +496,115 @@ rzg3s_pcie_dma_prep_slave_sg(struct dma_chan *ch, struct scatterlist *sgl,
 		remote_addr += sg_dma_len(sg);
 	}
 
-	return vchan_tx_prep(&chan->vc, &desc->vd, flags);
+	return 0;
 err_align:
 	dev_err(chan->dmac->dev, "scatter data must be 16-byte aligned\n");
-	rzg3s_pcie_dma_release_desc(desc);
+	return -EINVAL;
+}
 
-	return NULL;
+static int rzg3s_pcie_dma_fill_remote_hw_node(struct rzg3s_pcie_dma_desc *desc,
+					      struct scatterlist *sgl,
+					      unsigned int sg_len,
+					      enum dma_transfer_direction direction)
+{
+	struct rzg3s_pcie_dma_chan *chan = desc->chan;
+	struct scatterlist *sg;
+	dma_addr_t remote_addr;
+	int i;
+
+	remote_addr = (direction == DMA_MEM_TO_DEV) ? chan->scfg.dst_addr : chan->scfg.src_addr;
+	for_each_sg(sgl, sg, sg_len, i) {
+		struct rzg3s_pcie_dma_hw_node __iomem *hw_node = desc->node[i].desc;
+
+		if (!IS_ALIGNED(sg_dma_address(sg), SZ_16) || !IS_ALIGNED(sg_dma_len(sg), SZ_16))
+			goto err_align;
+
+		if (i == (sg_len - 1))
+			writel(RZG3S_PCI_DMA_DSCFM | RZG3S_PCI_DMA_WBD | RZG3S_PCI_DMA_LV |
+			       RZG3S_PCI_DMA_LE, &hw_node->param0);
+		else
+			writel(RZG3S_PCI_DMA_DSCFM | RZG3S_PCI_DMA_WBD | RZG3S_PCI_DMA_LV,
+			      &hw_node->param0);
+
+		if (direction == DMA_DEV_TO_MEM) {
+			writel(RZG3S_PCI_DMA_CCH_L(RZG3S_PCI_DMA_CCH_L_DEFAULT) |
+			       RZG3S_PCI_DMA_CCH_D(RZG3S_PCI_DMA_CCH_D_AXI_TO_PCIE) |
+			       RZG3S_PCI_DMA_TC(RZG3S_PCI_DMA_TC_DEFAULT) |
+			       RZG3S_PCI_DMA_ATB(RZG3S_PCI_DMA_ATB_DEFAULT) |
+			       RZG3S_PCI_DMA_FUNC(RZG3S_PCI_DMA_FUNC_0) |
+			       RZG3S_PCI_DMA_DIR(RZG3S_PCI_DMA_DIR_AXI_TO_PCIE),
+			       &hw_node->param1);
+			writel(lower_32_bits(remote_addr), &hw_node->saddr_L);
+			writel(upper_32_bits(remote_addr), &hw_node->saddr_U);
+
+			writel(lower_32_bits(sg_dma_address(sg)), &hw_node->daddr_L);
+			writel(upper_32_bits(sg_dma_address(sg)), &hw_node->daddr_U);
+		} else {
+			writel(RZG3S_PCI_DMA_CCH_L(RZG3S_PCI_DMA_CCH_L_DEFAULT) |
+			       RZG3S_PCI_DMA_CCH_D(RZG3S_PCI_DMA_CCH_D_PCIE_TO_AXI) |
+			       RZG3S_PCI_DMA_TC(RZG3S_PCI_DMA_TC_DEFAULT) |
+			       RZG3S_PCI_DMA_ATB(RZG3S_PCI_DMA_ATB_DEFAULT) |
+			       RZG3S_PCI_DMA_FUNC(RZG3S_PCI_DMA_FUNC_0) |
+			       RZG3S_PCI_DMA_DIR(RZG3S_PCI_DMA_DIR_PCIE_TO_AXI),
+			       &hw_node->param1);
+			writel(lower_32_bits(remote_addr), &hw_node->daddr_L);
+			writel(upper_32_bits(remote_addr), &hw_node->daddr_U);
+
+			writel(lower_32_bits(sg_dma_address(sg)), &hw_node->saddr_L);
+			writel(upper_32_bits(sg_dma_address(sg)), &hw_node->saddr_U);
+		}
+
+		writel(sg_dma_len(sg), &hw_node->size);
+		writel(lower_32_bits(desc->node[(i + 1) % sg_len].pdesc), &hw_node->next_L);
+		writel(upper_32_bits(desc->node[(i + 1) % sg_len].pdesc), &hw_node->next_U);
+
+		/*
+		 * Unlike the typical assumption by other IPs,
+		 * the peripheral memory isn't a FIFO memory. In this case, it's a
+		 * linear memory and that why the source/destination addresses are increased
+		 * by the same portion (data length)
+		 */
+		remote_addr += sg_dma_len(sg);
+	}
+
+	return 0;
+err_align:
+	dev_err(chan->dmac->dev, "scatter data must be 16-byte aligned\n");
+	return -EINVAL;
+}
+
+static struct dma_async_tx_descriptor *
+rzg3s_pcie_dma_prep_slave_sg(struct dma_chan *ch, struct scatterlist *sgl,
+			     unsigned int sg_len,
+			     enum dma_transfer_direction direction,
+			     unsigned long flags, void *context)
+{
+	struct rzg3s_pcie_dma_chan *chan = to_rzg3s_pcie_dma_chan(ch);
+	struct rzg3s_pcie_dma_desc *desc;
+	int ret;
+
+	if (!is_slave_direction(direction)) {
+		dev_err(chan->dmac->dev, "bad direction?\n");
+		return NULL;
+	}
+
+	desc = rzg3s_pcie_dma_alloc_desc(chan, sg_len);
+	if (!desc) {
+		dev_err(chan->dmac->dev, "no memory for desc\n");
+		return NULL;
+	}
+
+	if (is_local_dma(chan->dmac))
+		ret = rzg3s_pcie_dma_fill_local_hw_node(desc, sgl, sg_len, direction);
+	else
+		ret = rzg3s_pcie_dma_fill_remote_hw_node(desc, sgl, sg_len, direction);
+
+	if (ret) {
+		rzg3s_pcie_dma_release_desc(desc);
+		return NULL;
+	}
+
+	return vchan_tx_prep(&chan->vc, &desc->vd, flags);
 }
 
 static int rzg3s_pcie_dma_terminate_all(struct dma_chan *ch)
@@ -494,9 +680,12 @@ static void rzg3s_pcie_dma_free_desc(struct virt_dma_desc *vdesc)
 	struct rzg3s_pcie_dma_desc *desc = to_rzg3s_pcie_dma_desc(vdesc);
 	int i;
 
-	for (i = 0; i < desc->n_nodes; i++)
-		dma_pool_free(desc->chan->pool, desc->node[i].desc,
-			      desc->node[i].pdesc);
+	if (is_local_dma(desc->chan->dmac)) {
+		for (i = 0; i < desc->n_nodes; i++)
+			dma_pool_free(desc->chan->pool, desc->node[i].desc,
+				      desc->node[i].pdesc);
+	}
+
 	kfree(desc);
 }
 
@@ -518,11 +707,22 @@ static irqreturn_t rzg3s_pcie_dma_irq_handler(int irq, void *dev_id)
 		else if (reg & RZG3S_PCI_DMAINTS_CH_ERR(chan->index))
 			chan->status = RZG3S_PCI_DMA_ERR;
 
-		rzg3s_pcie_update_bits(dmac->base, RZG3S_PCI_DMAINTS,
+		if (!is_local_dma(dmac)) {
+			if (chan->index < 4)
+				rzg3s_pcie_dma_update_bits(dmac->base, RZG3S_PCI_DMAINTVEC0,
+						       RZG3S_PCI_DMA_CH_MSI_VEC_MASK(chan->index),
+						       ~RZG3S_PCI_DMA_CH_MSI_VEC_MASK(chan->index));
+			else
+				rzg3s_pcie_dma_update_bits(dmac->base, RZG3S_PCI_DMAINTVEC1,
+						       RZG3S_PCI_DMA_CH_MSI_VEC_MASK(chan->index),
+						       ~RZG3S_PCI_DMA_CH_MSI_VEC_MASK(chan->index));
+		}
+
+		rzg3s_pcie_dma_update_bits(dmac->base, RZG3S_PCI_DMAINTS,
 				       RZG3S_PCI_DMAINTS_CH_ALL(chan->index),
 				       RZG3S_PCI_DMAINTS_CH_ALL(chan->index));
 
-		rzg3s_pcie_update_bits(dmac->base, RZG3S_PCI_DMAINTE,
+		rzg3s_pcie_dma_update_bits(dmac->base, RZG3S_PCI_DMAINTE,
 				       RZG3S_PCI_DMAINTE_CH_ALL(chan->index),
 				       ~RZG3S_PCI_DMAINTE_CH_ALL(chan->index));
 	}
@@ -572,6 +772,7 @@ static int rzg3s_pcie_dma_channel_setup(struct rzg3s_pcie_dmac *dmac)
 {
 	struct device *dev = dmac->dev;
 	struct dma_device *engine = &dmac->engine;
+	struct rz_pcie *pcie = dmac->pcie;
 	int i, ret;
 
 	dmac->n_channels = RZG3S_PCI_DMA_MAX_CHANNEL;
@@ -590,6 +791,13 @@ static int rzg3s_pcie_dma_channel_setup(struct rzg3s_pcie_dmac *dmac)
 		chan->index = i;
 		chan->desc = NULL;
 		chan->vc.desc_free = rzg3s_pcie_dma_free_desc;
+		/*
+		 * In case of remote DMA, save the data region as channel's private part
+		 * so consumer driver can get and use later.
+		 */
+		if (i < pcie->ch_cnt && dmac->type == RZG3S_PCI_DMA_REMOTE)
+			chan->vc.chan.private = &pcie->dt_region[i];
+
 		vchan_init(&chan->vc, engine);
 	}
 
@@ -619,9 +827,8 @@ err:
 	return ret;
 }
 
-int rzg3s_pcie_dma_probe(struct rz_pcie *pci)
+int rzg3s_pcie_dma_probe(struct rz_pcie *pci, bool remote_dma)
 {
-	struct platform_device *pdev = to_platform_device(pci->dev);
 	struct device *dev = pci->dev;
 	struct rzg3s_pcie_dmac *dmac;
 	int ret = 0;
@@ -630,15 +837,40 @@ int rzg3s_pcie_dma_probe(struct rz_pcie *pci)
 	if (!dmac)
 		return -ENOMEM;
 
+	dmac->type = (remote_dma) ? RZG3S_PCI_DMA_REMOTE : RZG3S_PCI_DMA_LOCAL;
+	dmac->pcie = pci;
 	dmac->dev = pci->dev;
 	dmac->base = pci->base;
 	pci->dmac = dmac;
-	dmac->dma_irq = platform_get_irq_byname(pdev, "dma");
 
-	if (dmac->dma_irq < 0) {
-		dev_err(dev, "cannot get DMA_INT irq for PCIe\n");
-		ret = dmac->dma_irq;
+	if (!dmac->base) {
+		ret = -ENOMEM;
 		goto err;
+	}
+
+	if (is_local_dma(dmac)) {
+		struct platform_device *pdev = to_platform_device(pci->dev);
+
+		dmac->dma_irq = platform_get_irq_byname(pdev, "dma");
+		if (dmac->dma_irq < 0) {
+			ret = dmac->dma_irq;
+			goto err;
+		}
+	} else {
+		if (!pci->ch_cnt) {
+			ret = -EINVAL;
+			goto err;
+		}
+
+		/* Common MSI IRQ shared among all channels */
+		dmac->dma_irq = pci->irq_vector(dev, 0);
+
+		/* Find physical address of linked list and data region in EP's BARs */
+		ret = rzg3s_pcie_dma_translate_address(pci);
+		if (ret) {
+			dev_err(dev, "Cannot find physical address in EP's memmory\n");
+			goto err;
+		}
 	}
 
 	ret = devm_request_threaded_irq(dev, dmac->dma_irq, rzg3s_pcie_dma_irq_handler,
@@ -675,8 +907,7 @@ void rzg3s_pcie_dma_remove(struct rz_pcie *pci)
 	for (i = 0; i < dmac->n_channels; i++) {
 		struct rzg3s_pcie_dma_chan *chan = &dmac->channels[i];
 
-		if (!chan->desc)
-			rzg3s_pcie_dma_release_desc(chan->desc);
+		rzg3s_pcie_dma_release_desc(chan->desc);
 		dma_pool_destroy(chan->pool);
 	}
 
