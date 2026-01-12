@@ -350,3 +350,7 @@
 	status = "okay";
 	timeout-sec = <60>;
 };
+
+&dmac0 {
+	memory-region = <&global_cma>;
+};
