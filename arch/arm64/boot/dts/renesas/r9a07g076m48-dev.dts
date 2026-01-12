@@ -340,3 +340,13 @@
 
 	status = "okay";
 };
+
+&wdt2 {
+	status = "okay";
+	timeout-sec = <60>;
+};
+
+&wdt3 {
+	status = "okay";
+	timeout-sec = <60>;
+};
