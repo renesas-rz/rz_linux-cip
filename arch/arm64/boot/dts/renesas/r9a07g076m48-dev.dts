@@ -227,6 +227,11 @@
 			 <RZT2_PORT_PINMUX(03, 0, 0x0F)>, /* ETHSS : ETH4_RXD3/P03_0 */
 			 <RZT2_PORT_PINMUX(03, 1, 0x0F)>; /* ETHSS : ETH4_RXDV/P03_1 */
 	};
+
+	icu_pins: icu_pins {
+		pinmux = <RZT2_PORT_PINMUX(8, 1, 0x0)>, /* Interrupt : IRQ08_1/P08_1 */
+			 <RZT2_PORT_PINMUX(10, 4, 0x0)>; /* Interrupt : IRQ10_4/P10_4 */
+	};
 };
 
 &extal {
@@ -325,5 +330,13 @@
 
 &mii_conv4 {
 	renesas,ethss-port = <ETHSS_GMAC2_PORT>;
+	status = "okay";
+};
+
+&intc_ex {
+	pinctrl-0 = <&icu_pins>;
+	pinctrl-names = "default";
+	irq-port = <8 1>, <10 4>;
+
 	status = "okay";
 };
