@@ -232,6 +232,23 @@
 		pinmux = <RZT2_PORT_PINMUX(8, 1, 0x0)>, /* Interrupt : IRQ08_1/P08_1 */
 			 <RZT2_PORT_PINMUX(10, 4, 0x0)>; /* Interrupt : IRQ10_4/P10_4 */
 	};
+
+	xspi1_pins: xspi1 {
+		xspi1_clk {
+			pinmux = <RZT2_PORT_PINMUX(15, 6, 0x20)>; /* xSPI : XSPI1_CKP/P15_6 */
+		};
+
+		xspi1_data {
+			pinmux = <RZT2_PORT_PINMUX(16, 2, 0x20)>, /* xSPI : XSPI1_IO0/P16_2 */
+				 <RZT2_PORT_PINMUX(16, 3, 0x20)>, /* xSPI : XSPI1_IO1/P16_3 */
+				 <RZT2_PORT_PINMUX(16, 4, 0x20)>, /* xSPI : XSPI1_IO2/P16_4 */
+				 <RZT2_PORT_PINMUX(16, 5, 0x20)>; /* xSPI : XSPI1_IO3/P16_5 */
+		};
+
+		xspi1_cs {
+			pinmux = <RZT2_PORT_PINMUX(15, 7, 0x20)>; /* xSPI : XSPI1_CS0#/P15_7 */
+		};
+	};
 };
 
 &extal {
@@ -373,4 +390,42 @@
 
 &cmtw1 {
 	status = "okay";
+};
+
+&xspi1 {
+	pinctrl-0 = <&xspi1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		m25p,fast-read;
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "bl2-1";
+				reg = <0x00000000 0x00060000>;
+				read-only;
+			};
+
+			partition@60000 {
+				label = "fip-1";
+				reg = <0x00060000 0x001a0000>;
+				read-only;
+			};
+
+			partition@200000 {
+				label = "user-1";
+				reg = <0x00200000 0x00e00000>;
+			};
+		};
+	};
 };
