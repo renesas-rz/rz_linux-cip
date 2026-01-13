@@ -28,6 +28,7 @@
 
 /* Registers */
 #define RSPI_SPDR		0x00
+#define RSPI_MRCKD		0x07
 #define RSPI_SPCR		0x08
 #define RSPI_SSLP		0x10
 #define RSPI_SPBR		0x11
@@ -45,6 +46,7 @@
 #define RSPI_SPCR_SPIIE		BIT(18)
 #define RSPI_SPCR_SPRIE		BIT(17)
 #define RSPI_SPCR_SCKASE	BIT(12)
+#define SPCR_SPSCKSEL		BIT(7)
 #define RSPI_SPCR_SPE		BIT(0)
 
 /* Register SPBR */
@@ -97,6 +99,7 @@ struct rzv2h_rspi_priv {
 	unsigned int bytes_per_word;
 	u32 freq;
 	u16 status;
+	u8 spi_clk_delay;
 	int rx_irq, tx_irq, end_irq;
 	phys_addr_t phys;
 
@@ -678,6 +681,10 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 
 	writel(conf32, rspi->base + RSPI_SPCR);
 
+	writeb(rspi->spi_clk_delay, rspi->base + RSPI_MRCKD);
+	writel(readl(rspi->base + RSPI_SPCR) | SPCR_SPSCKSEL,
+					rspi->base + RSPI_SPCR);
+
 	/* Use SPCMD0 only */
 	writeb(0x0, rspi->base + RSPI_SPSCR);
 
@@ -758,6 +765,7 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	struct resource *res;
 	unsigned long tclk_rate;
 	int ret, i;
+	u8 clk_delay;
 
 	if (of_property_read_bool(pdev->dev.of_node, "spi-slave"))
 		controller = devm_spi_alloc_target(dev, sizeof(*rspi));
@@ -777,6 +785,19 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 		return PTR_ERR(rspi->base);
 
 	rspi->phys = res->start;
+
+	/* Get Digital delay value */
+	ret = device_property_read_u8(&pdev->dev, "spi-clk-delay", &clk_delay);
+	if (!ret) {
+		if (clk_delay > 7) {
+			dev_err(&pdev->dev, "Invalid delay Value\n");
+			ret = -EINVAL;
+		}
+	} else {
+		clk_delay = 0;
+	}
+
+	rspi->spi_clk_delay = clk_delay;
 
 	ret = devm_clk_bulk_get_all_enabled(dev, &(rspi->clks));
 	if (ret != RSPI_CLK_NUM)
