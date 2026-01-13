@@ -155,8 +155,8 @@ void rzv2h_icu_register_dma_req(struct platform_device *icu_dev, u8 dmac_index, 
 }
 EXPORT_SYMBOL_GPL(rzv2h_icu_register_dma_req);
 
-void rzv2h_icu_register_dma_ack (struct platform_device *icu_dev, u8 dmac_index,
-					u8 ack_no, u8 dmac_channel)
+void rzv2h_icu_register_dma_ack(struct platform_device *icu_dev, u8 dmac_index,
+				u8 ack_no, u8 dmac_channel)
 {
 	struct rzv2h_icu_priv *priv = platform_get_drvdata(icu_dev);
 	u32 icu_dmackselk, dmaack, dmaack_mask;
@@ -165,7 +165,10 @@ void rzv2h_icu_register_dma_ack (struct platform_device *icu_dev, u8 dmac_index,
 	k  = ack_no / 4;
 	field_no = ack_no % 4;
 
-	sel = dmac_channel + (16 * dmac_index);
+	if (dmac_channel == RZV2H_ICU_DMAC_ACK_NO_DEFAULT)
+		sel = dmac_channel;
+	else
+		sel = dmac_channel + (16 * dmac_index);
 
 	dmaack_mask = ICU_DMAC_DACK_SEL_MASK(field_no);
 	dmaack = ICU_DMAC_PREP_DACK_SEL(sel, field_no);
