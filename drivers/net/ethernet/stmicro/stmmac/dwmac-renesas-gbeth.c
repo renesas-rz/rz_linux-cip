@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
+#include <linux/of.h>
 
 #include "stmmac_platform.h"
 
@@ -70,6 +71,7 @@ static void renesas_gbeth_exit(struct platform_device *pdev, void *priv)
 
 static int renesas_gbeth_probe(struct platform_device *pdev)
 {
+	struct device_node *node = pdev->dev.of_node;
 	struct plat_stmmacenet_data *plat_dat;
 	struct stmmac_resources stmmac_res;
 	struct device *dev = &pdev->dev;
@@ -112,6 +114,15 @@ static int renesas_gbeth_probe(struct platform_device *pdev)
 	gbeth->rstc = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(gbeth->rstc))
 		return PTR_ERR(gbeth->rstc);
+
+	/* Disable TSO and enable TBS on all queues */
+	if (of_property_read_bool(node, "enable-time-based-scheduling")) {
+		dev_info(dev, "TBS enabled: configuring TX queues for time-based scheduling\n");
+		for (i = 0; i < plat_dat->tx_queues_to_use; i++) {
+			plat_dat->tx_queues_cfg[i].tbs_en = 1;
+			dev_dbg(dev, "TX queue %d: TBS enabled\n", i);
+		}
+	}
 
 	gbeth->dev = dev;
 	gbeth->plat_dat = plat_dat;
