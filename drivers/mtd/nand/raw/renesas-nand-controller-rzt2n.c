@@ -33,6 +33,7 @@
 #define     CMD_TYPE_CPB	0x1200
 #define     CMD_TYPE_RST	0x1100
 #define     CMD_TYPE_ERS	0x1000
+#define     CMD_TYPE_FEAT       0x0100
 #define   CMDREG0_INT		BIT(20)
 #define   CMDREG0_DMA_SEL	BIT(21)
 #define   CMDREG0_TRD_NUM	GENMASK(26, 24)
@@ -1128,6 +1129,73 @@ static int rzt2n_nand_pio_send_and_wait(struct cdns_nand_ctrl *cdns_ctrl,
 	return 0;
 }
 
+static int rzt2n_nand_cmd_set_feature(struct nand_chip *chip,
+				      const struct nand_subop *subop)
+{
+	struct cdns_nand_ctrl *cdns_ctrl = to_cdns_nand_ctrl(chip->controller);
+	const struct nand_op_instr *instr, *data_instr = NULL;
+	u32 reg, feat_val;
+	u8 cs = chip->cur_cs, feat_addr;
+	int i, status, op_id;
+	size_t len = 0;
+
+	for (op_id = 0; op_id < subop->ninstrs; op_id++) {
+		instr = &subop->instrs[op_id];
+		switch (instr->type) {
+		case NAND_OP_CMD_INSTR:
+			break;
+
+		case NAND_OP_ADDR_INSTR:
+			feat_addr = instr->ctx.addr.addrs[0];
+			break;
+
+		case NAND_OP_DATA_IN_INSTR:
+		case NAND_OP_DATA_OUT_INSTR:
+			const u8 *p = NULL;
+
+			data_instr = instr;
+			len = instr->ctx.data.len;
+			p = (const u8 *)instr->ctx.data.buf.out;
+			feat_val |= (u32)p[i] << (8 * i);
+			break;
+
+		case NAND_OP_WAITRDY_INSTR:
+			break;
+		}
+	}
+
+	/* Wait for thread ready */
+	status = rzt2n_nand_wait_for_value(cdns_ctrl, TRDSTAT,
+					   1000000,
+					   BIT(cs), true);
+	if (status)
+		return status;
+
+	/* Set Feature operation */
+	writel_relaxed(feat_addr, cdns_ctrl->reg + CMDREG1);
+	writel_relaxed(feat_val, cdns_ctrl->reg + CMDREG2);
+
+	/* Set CMDREG0 */
+	reg = FIELD_PREP(CMDREG0_CT, CMDREG0_CT_PIO);
+	reg |= FIELD_PREP(CMDREG0_TRD_NUM, cs);
+	reg |= FIELD_PREP(CMDREG0_INT, 1);
+	reg |= FIELD_PREP(CMDREG0_CMD_TYPE, CMD_TYPE_FEAT);
+
+	/* Issue command */
+	writel_relaxed(reg, cdns_ctrl->reg + CMDREG0);
+
+	/* Wait Thread Completion */
+	status = rzt2n_nand_wait_for_value(cdns_ctrl, TRDCOMPINTSTAT,
+					   1000000,
+					   BIT(cs), false);
+	if (status)
+		return status;
+
+	writel_relaxed(BIT(cs), cdns_ctrl->reg + TRDCOMPINTSTAT);
+
+	return 0;
+}
+
 static int rzt2n_nand_erase(struct nand_chip *chip, u32 page)
 {
 	struct cdns_nand_ctrl *cdns_ctrl = to_cdns_nand_ctrl(chip->controller);
@@ -1813,6 +1881,13 @@ static const struct nand_op_parser rzt2n_nand_op_parser = NAND_OP_PARSER(
 		NAND_OP_PARSER_PAT_DATA_IN_ELEM(false, MAX_DATA_SIZE)
 	),
 	NAND_OP_PARSER_PATTERN(
+		rzt2n_nand_cmd_set_feature,
+		NAND_OP_PARSER_PAT_CMD_ELEM(false),
+		NAND_OP_PARSER_PAT_ADDR_ELEM(false, 1),
+		NAND_OP_PARSER_PAT_DATA_OUT_ELEM(false, 4),
+		NAND_OP_PARSER_PAT_WAITRDY_ELEM(false)
+	),
+	NAND_OP_PARSER_PATTERN(
 		rzt2n_nand_cmd_write,
 		NAND_OP_PARSER_PAT_CMD_ELEM(false),
 		NAND_OP_PARSER_PAT_ADDR_ELEM(false, MAX_ADDRESS_CYC),
@@ -2307,6 +2382,9 @@ static int rzt2n_nand_chip_init(struct cdns_nand_ctrl *cdns_ctrl,
 
 	mtd = nand_to_mtd(chip);
 	mtd->dev.parent = cdns_ctrl->dev;
+
+	chip->parameters.supports_set_get_features = 1;
+	set_bit(ONFI_FEATURE_ADDR_TIMING_MODE, chip->parameters.set_feature_list);
 
 	/*
 	 * Default to HW ECC engine mode. If the nand-ecc-mode property is given
