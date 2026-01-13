@@ -294,13 +294,22 @@ static void ethsw_phylink_mac_link_up(struct phylink_config *config,
 		      ETHSW_CMD_CFG_TX_CRC_APPEND;
 	struct dsa_port *dp = dsa_phylink_to_port(config);
 	struct ethsw *ethsw = dp->ds->priv;
-	struct phylink_pcs *pcs = ethsw->pcs[dp->index];
-	struct ethss_port *ethss_port = phylink_pcs_to_ethss_port(pcs);
+	struct phylink_pcs *pcs = NULL;
+	struct ethss_port *ethss_port = NULL;
 
-	ethss_port->speed = speed;
+	if (dp->index < ARRAY_SIZE(ethsw->pcs))
+		pcs = ethsw->pcs[dp->index];
 
-	if (dp->index != ETHSW_CPU_PORT)
-		ethss_switchcore_adjust(ethsw->pcs[dp->index], duplex, speed);
+	if (pcs)
+		ethss_port = phylink_pcs_to_ethss_port(pcs);
+
+	if (ethss_port)
+		ethss_port->speed = speed;
+
+	if (pcs && dp->index != ETHSW_CPU_PORT &&
+	    mode != MLO_AN_FIXED &&
+	    interface != PHY_INTERFACE_MODE_INTERNAL)
+		ethss_switchcore_adjust(pcs, duplex, speed);
 
 	if (speed == SPEED_1000)
 		cmd_cfg |= ETHSW_CMD_CFG_ETH_SPEED;
