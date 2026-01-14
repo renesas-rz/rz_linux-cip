@@ -553,6 +553,8 @@
 			clocks = <&cpg CPG_MOD R9A07G076_SPI0_CLK>;
 			power-domains = <&cpg>;
 			num-cs = <1>;
+			dmas = <&dmac0 0x25FE>, <&dmac0 0x25FD>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -568,6 +570,8 @@
 			clocks = <&cpg CPG_MOD R9A07G076_SPI1_CLK>;
 			power-domains = <&cpg>;
 			num-cs = <1>;
+			dmas = <&dmac0 0x2603>, <&dmac0 0x2602>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -583,6 +587,8 @@
 			clocks = <&cpg CPG_MOD R9A07G076_SPI2_CLK>;
 			power-domains = <&cpg>;
 			num-cs = <1>;
+			dmas = <&dmac0 0x2608>, <&dmac0 0x2607>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
