@@ -527,6 +527,38 @@
 			#size-cells = <0>;
 			status = "disabled";
 		};
+
+		tsu: thermal@80086000 {
+			compatible = "renesas,tsu-r9a07g076";
+			reg = <0 0x80086000 0 0x1000>;
+			clocks = <&cpg CPG_MOD R9A07G076_TSU_CLK>;
+			clock-names = "tsu_clk";
+			#thermal-sensor-cells = <1>;
+		};
+	};
+
+	thermal-zones {
+		emergency {
+			polling-delay = <1000>;
+			on-temperature = <110000>;
+			off-temperature = <95000>;
+			target_cpus = <&cpu1>;
+			status = "disabled";
+		};
+
+		sensor_thermal: sensor-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&tsu 0>;
+
+			trips {
+				sensor_crit: sensor-crit {
+					temperature = <123000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+		};
 	};
 
 	timer {
