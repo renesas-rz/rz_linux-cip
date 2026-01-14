@@ -591,7 +591,7 @@ static void rsci_prepare_console_write(struct uart_port *port, u32 ctrl)
 	u32 ctrl_temp = s->params->param_bits->rxtx_enable;
 
 	if (s->type == RSCI_PORT_SCIF16)
-		ctrl_temp |= CCR0_TIE | s->hscif_tot;
+		ctrl_temp |= s->hscif_tot;
 
 	rsci_serial_out(port, CCR0, ctrl_temp);
 }
