@@ -361,10 +361,11 @@ static int rz_mtu3_clk_setup_channel(struct rz_mtu3_clk_channel_priv *ch,
 
 	sprintf(name, "tgia%u", index);
 	irq = platform_get_irq_byname(ddata->pdev, name);
-	if (irq < 0) {
+	if (irq < 0 && ch->function == MTU3_CLOCKEVENT) {
 		/* Skip channels with no declared interrupt. */
 		return 0;
-	}
+	} else
+		goto setup_noirq;
 
 	/* Setting to select irq for MTU3 on RZ/G3S. */
 	if (of_device_is_compatible(np, "renesas,r9a08g045-mtu3")) {
@@ -385,6 +386,7 @@ static int rz_mtu3_clk_setup_channel(struct rz_mtu3_clk_channel_priv *ch,
 		return ret;
 	}
 
+setup_noirq:
 	ch->index = index;
 	ddata->channels[index].channel_number = index;
 
