@@ -596,6 +596,7 @@ enum da7213_supplies {
 struct da7213_priv {
 	struct regmap *regmap;
 	struct mutex ctrl_lock;
+	struct device *dev;
 	struct regulator_bulk_data supplies[DA7213_NUM_SUPPLIES];
 	struct clk *mclk;
 	unsigned int mclk_rate;
