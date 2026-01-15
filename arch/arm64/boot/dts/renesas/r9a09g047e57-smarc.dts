@@ -123,10 +123,12 @@
 
 &pinctrl {
 	canfd_pins: canfd {
+#if (!SW_PDM_EN)
 		can1_pins: can1 {
 			pinmux = <RZG3E_PORT_PINMUX(L, 2, 3)>, /* RX */
 				 <RZG3E_PORT_PINMUX(L, 3, 3)>; /* TX */
 		};
+#endif
 
 		can4_pins: can4 {
 			pinmux = <RZG3E_PORT_PINMUX(5, 2, 3)>, /* RX */

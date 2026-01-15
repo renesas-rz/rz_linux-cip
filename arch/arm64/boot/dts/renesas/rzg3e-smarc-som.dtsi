@@ -22,12 +22,44 @@
  *      1 - Select PDM
  */
 
+/*
+ * SSI-DA7212
+ *
+ * These commands are required when Playback/Capture
+ *
+ *	amixer -q cset name='Aux Switch' on
+ *	amixer -q cset name='Mixin Left Aux Left Switch' on
+ *	amixer -q cset name='Mixin Right Aux Right Switch' on
+ *	amixer -q cset name='ADC Switch' on
+ *	amixer -q cset name='Mixout Right Mixin Right Switch' off
+ *	amixer -q cset name='Mixout Left Mixin Left Switch' off
+ *	amixer -q cset name='Headphone Volume' 80%
+ *	amixer -q cset name='Headphone Switch' on
+ *	amixer -q cset name='Mixout Left DAC Left Switch' on
+ *	amixer -q cset name='Mixout Right DAC Right Switch' on
+ *	amixer -q cset name='DAC Left Source MUX' 'DAI Input Left'
+ *	amixer -q cset name='DAC Right Source MUX' 'DAI Input Right'
+ *	amixer -q sset 'Mic 1 Amp Source MUX' 'MIC_P'
+ *	amixer -q sset 'Mic 2 Amp Source MUX' 'MIC_P'
+ *	amixer -q sset 'Mixin Left Mic 1' on
+ *	amixer -q sset 'Mixin Right Mic 2' on
+ *	amixer -q sset 'Mic 1' 80% on
+ *	amixer -q sset 'Mic 2' 80% on
+ *	amixer -q sset 'Lineout' 80% on
+ *	amixer -q sset 'Mixin PGA' 40% on
+ *
+ * When Capture, use this command to amplify sound
+ *	amixer set 'DVC In',0 10%
+ *	amixer set 'DVC Out',0 20%
+ */
+
 / {
 	compatible = "renesas,rzg3e-smarcm", "renesas,r9a09g047e57", "renesas,r9a09g047";
 
 	aliases {
 		ethernet0 = &eth0;
 		ethernet1 = &eth1;
+		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		mmc0 = &sdhi0;
 		mmc2 = &sdhi2;
@@ -99,12 +131,44 @@
 		regulator-always-on;
 	};
 
+	x2: x2-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+	};
+
 	/* 32.768kHz crystal */
 	x3: x3-clock {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <32768>;
 	};
+
+#if (SW_PDM_EN)
+	codec_test0: codec_test {
+		compatible = "linux,snd-soc-dummy";
+		#sound-dai-cells = <0>;
+		port {
+			dummy_codec: endpoint {
+				remote-endpoint = <&pdm_endpoint>;
+			};
+		};
+	};
+#endif
+
+	sound_card: sound {
+		compatible = "audio-graph-card";
+
+		label = "rcar-sound";
+		dais = <&rsnd_port0	/* DA7211 */
+			&rsnd_port1	/* HDMI0  */
+#if (SW_PDM_EN)
+			&pdm_link
+#endif
+			>;
+	};
+
+
 };
 
 &audio_extal_clk {
@@ -134,6 +198,41 @@
 	mali-supply = <&reg_vdd0p8v_others>;
 };
 
+&i2c1 {
+	pinctrl-0 = <&i2c1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	da7212: codec@1a {
+		compatible = "dlg,da7212";
+		#sound-dai-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x1a>;
+
+		clocks = <&versa3 1>;
+		clock-names = "mclk";
+
+		dlg,micbias1-lvl = <2500>;
+		dlg,micbias2-lvl = <2500>;
+		dlg,dmic-data-sel = "lrise_rfall";
+		dlg,dmic-samplephase = "between_clkedge";
+		dlg,dmic-clkrate = <3000000>;
+
+		VDDA-supply = <&reg_1p8v>;
+		VDDSP-supply = <&reg_3p3v>;
+		VDDMIC-supply = <&reg_3p3v>;
+		VDDIO-supply = <&reg_1p8v>;
+
+		port {
+			da7212_endpoint: endpoint {
+				remote-endpoint = <&rsnd_endpoint0>;
+			};
+		};
+	};
+};
+
 &i2c2 {
 	pinctrl-0 = <&i2c2_pins>;
 	pinctrl-names = "default";
@@ -152,6 +251,21 @@
 
 		interrupts-extended = <&pinctrl RZG3E_GPIO(S, 1) IRQ_TYPE_EDGE_FALLING>;
 	};
+
+	versa3: clock-generator@68 {
+		compatible = "renesas,5p35023";
+		reg = <0x68>;
+		#clock-cells = <1>;
+		clocks = <&x2>;
+
+		assigned-clocks = <&versa3 0>, <&versa3 1>,
+				  <&versa3 2>, <&versa3 3>,
+				  <&versa3 4>, <&versa3 5>;
+		assigned-clock-rates = <24000000>, <12288000>,
+				       <11289600>, <12288000>,
+				       <25000000>, <25000000>;
+	};
+
 };
 
 &mdio0 {
@@ -246,7 +360,12 @@
 		};
 	};
 
-	i2c2_pins: i2c {
+	i2c1_pins: i2c1 {
+		pinmux = <RZG3E_PORT_PINMUX(3, 2, 1)>, /* SCL1 */
+			 <RZG3E_PORT_PINMUX(3, 3, 1)>; /* SDA1 */
+	};
+
+	i2c2_pins: i2c2 {
 		pinmux = <RZG3E_PORT_PINMUX(3, 4, 1)>, /* SCL2 */
 			 <RZG3E_PORT_PINMUX(3, 5, 1)>; /* SDA2 */
 	};
@@ -334,6 +453,34 @@
 			 <RZG3E_PORT_PINMUX(L, 0, 0)>, /* XSPI0_CKP */
 			 <RZG3E_PORT_PINMUX(L, 1, 0)>; /* XSPI0_CS0 */
 	};
+
+	sound_pins: sound {
+		sound_clk_pins: sound_clk {
+			pinmux = <RZG3E_PORT_PINMUX(4, 2, 8)>, /* AUDIO_CLKB */
+				 <RZG3E_PORT_PINMUX(4, 3, 8)>; /* AUDIO_CLKC */
+		};
+
+		ssi34_pins: ssi34 {
+			pinmux = <RZG3E_PORT_PINMUX(0, 3, 9)>, /* SSI3_SCK */
+				 <RZG3E_PORT_PINMUX(0, 4, 9)>, /* SSI3_WS */
+				 <RZG3E_PORT_PINMUX(0, 2, 9)>, /* SSI3_SDATA */
+				 <RZG3E_PORT_PINMUX(0, 5, 9)>; /* SSI4_SDATA */
+		};
+
+		ssi0_pins: ssi0 {
+			pinmux = <RZG3E_PORT_PINMUX(7, 1, 9)>, /* SSI0_SCK */
+				 <RZG3E_PORT_PINMUX(7, 2, 9)>, /* SSI0_WS */
+				 <RZG3E_PORT_PINMUX(7, 0, 9)>; /* SSI0_SDATA */
+		};
+	};
+#if (SW_PDM_EN)
+	pdm0_pins: pdm0 {
+		pinmux = <RZG3E_PORT_PINMUX(L, 2, 7)>, /* PDMCLK01 */
+			 <RZG3E_PORT_PINMUX(L, 3, 7)>; /* PDMDAT01 */
+	};
+
+#endif
+
 };
 
 &qextal_clk {
@@ -441,4 +588,86 @@
 
 &rtc {
 	status = "okay";
+};
+
+&audio_extal_clk {
+	clock-frequency = <48000000>;
+};
+
+&audio_clkb {
+	clock-frequency = <11289600>;
+};
+
+&audio_clkc {
+	clock-frequency = <12288000>;
+};
+
+&rcar_sound {
+	pinctrl-0 = <&sound_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	/* audio_clkout */
+	#clock-cells = <0>;
+	clock-frequency = <11289600>;
+
+	/* Multi DAI */
+	#sound-dai-cells = <1>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		rsnd_port0: port@0 {
+			reg = <0>;
+			rsnd_endpoint0: endpoint {
+				remote-endpoint = <&da7212_endpoint>;
+
+				dai-format = "i2s";
+				bitclock-master = <&rsnd_endpoint0>;
+				frame-master = <&rsnd_endpoint0>;
+				mclk-fs = <512>;
+
+				playback = <&ssi3>, <&src0>, <&dvc0>;
+				capture = <&ssi4>, <&src1>, <&dvc1>;
+			};
+		};
+
+#if (!SW_LCD_EN)
+		rsnd_port1: port@1 {
+			reg = <1>;
+			rsnd_endpoint1: endpoint {
+				remote-endpoint = <&adv7535_codec_ep>;
+				dai-format = "i2s";
+				bitclock-master = <&rsnd_endpoint1>;
+				frame-master = <&rsnd_endpoint1>;
+
+				playback = <&ssi0>;
+			};
+		};
+#endif
+	};
+};
+
+#if (SW_PDM_EN)
+&pdm0 {
+	pinctrl-0 = <&pdm0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	pdm_link: port {
+		pdm_endpoint: endpoint {
+			remote-endpoint = <&dummy_codec>;
+		};
+	};
+
+	channel1 {
+		status = "okay";
+	};
+};
+#endif
+
+&ssi4 {
+	shared-pin;
 };
