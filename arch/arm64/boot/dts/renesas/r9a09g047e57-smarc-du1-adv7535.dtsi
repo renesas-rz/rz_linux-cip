@@ -112,6 +112,13 @@
 					remote-endpoint = <&dsi_to_hdmi_out>;
 				};
 			};
+
+			port@2 {
+				reg = <2>;
+				adv7535_codec_ep: endpoint {
+					remote-endpoint = <&rsnd_endpoint1>;
+				};
+			};
 		};
 	};
 };
