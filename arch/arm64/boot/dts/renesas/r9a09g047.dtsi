@@ -559,6 +559,36 @@
 			};
 		};
 
+		vspi0: vspm@16050000 {
+			compatible = "renesas,vspm";
+			reg = <0 0x16050000 0 0x8000>,
+			      <0 0x16060000 0 0x200>;
+			interrupts = <GIC_SPI 923 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 0x1a5>,
+				 <&cpg CPG_MOD 0x1a6>,
+				 <&cpg CPG_MOD 0x1a7>;
+			clock-names = "vsp_mclk", "vsp_aclk", "vsp_pclk";
+			renesas,#ch = <0>;
+			renesas,#rpf = <1>;
+			renesas,#rpf_clut = <1>;
+			renesas,#wpf_rot = <1>;
+			renesas,has-sru;
+			renesas,has-uds;
+			renesas,has-lut;
+			renesas,has-clu;
+			renesas,has-hst;
+			renesas,has-hsi;
+			renesas,has-hgo;
+			renesas,has-hgt;
+			renesas,has-shp;
+			renesas,#read_outstanding = <2>;
+			renesas,#start_reservation = <2>;
+			power-domains = <&cpg>;
+			resets = <&cpg 0x11b>, <&cpg 0x11c>, <&cpg 0x11d>;
+			reset-names = "smreset_vspiss", "sreset_vsp1z",
+				      "spreset_fcpvi0";
+		};
+
 		wdt1: watchdog@14400000 {
 			compatible = "renesas,r9a09g047-wdt", "renesas,r9a09g057-wdt";
 			reg = <0 0x14400000 0 0x400>;
