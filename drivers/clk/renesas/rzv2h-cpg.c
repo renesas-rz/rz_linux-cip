@@ -74,7 +74,8 @@
 #define CPG_CLKSTATUS0		(0x700)
 
 /* CPG macro */
-#define RZV2H_CPG_SMUX_WRITE_EN_MASK	0x1111
+#define CPG_SSEL_WEN_MASK	(BIT(28) | BIT(24) | BIT(20) | BIT(16))
+#define CPG_SDDIV_WEN_MASK	(BIT(28) | BIT(24) | BIT(20) | BIT(16))
 
 struct rzv2h_cpg_cache {
 	u32 pll_clk1;
@@ -1812,25 +1813,26 @@ static int rzv2h_cpg_pm_suspend(struct device *dev)
 	int i;
 
 	for (i = 0; i < info->num_core_clks; i++) {
-		if ((info->core_clks[i].type == CLK_TYPE_PLLDSI) ||
-		    (info->core_clks[i].type == CLK_TYPE_PLL)) {
+		switch (info->core_clks[i].type) {
+		case CLK_TYPE_PLL:
+		case CLK_TYPE_PLLDSI:
 			priv->cache[i].pll_clk1 = readl(priv->base +
 						  CPG_PLL_CLK1(info->core_clks[i].cfg.pll.offset));
 			priv->cache[i].pll_clk2 = readl(priv->base +
 						  CPG_PLL_CLK2(info->core_clks[i].cfg.pll.offset));
-			continue;
+			break;
+		case CLK_TYPE_SMUX:
+		case CLK_TYPE_PLLDSI_SMUX:
+			priv->cache[i].mux = readl(priv->base +
+						  info->core_clks[i].cfg.smux.offset);
+			break;
+		case CLK_TYPE_DDIV:
+		case CLK_TYPE_PLLDSI_DIV:
+			priv->cache[i].div = readl(priv->base +
+						  info->core_clks[i].cfg.ddiv.offset);
+			break;
 		}
-
-		if (info->core_clks[i].type == CLK_TYPE_SMUX) {
-			priv->cache[i].mux = readl(priv->base + info->core_clks[i].cfg.smux.offset);
-			continue;
-		}
-
-		if (info->core_clks[i].type == CLK_TYPE_DDIV) {
-			priv->cache[i].div = readl(priv->base + info->core_clks[i].cfg.ddiv.offset);
-			continue;
-		}
-	};
+	}
 
 	return 0;
 };
@@ -1842,27 +1844,26 @@ static int rzv2h_cpg_pm_resume(struct device *dev)
 	int i;
 
 	for (i = 0; i < info->num_core_clks; i++) {
-		if ((info->core_clks[i].type == CLK_TYPE_PLLDSI) ||
-		    (info->core_clks[i].type == CLK_TYPE_PLL)) {
+		switch (info->core_clks[i].type) {
+		case CLK_TYPE_PLLDSI:
+		case CLK_TYPE_PLL:
 			writel(priv->cache[i].pll_clk1, priv->base +
-					  CPG_PLL_CLK1(info->core_clks[i].cfg.pll.offset));
+			       CPG_PLL_CLK1(info->core_clks[i].cfg.conf));
 			writel(priv->cache[i].pll_clk2, priv->base +
-					  CPG_PLL_CLK2(info->core_clks[i].cfg.pll.offset));
-			continue;
-		};
-
-		if (info->core_clks[i].type == CLK_TYPE_SMUX) {
-			writel(priv->cache[i].mux | (RZV2H_CPG_SMUX_WRITE_EN_MASK << 16),
-					  priv->base + info->core_clks[i].cfg.smux.offset);
-			continue;
+			       CPG_PLL_CLK2(info->core_clks[i].cfg.conf));
+			break;
+		case CLK_TYPE_PLLDSI_SMUX:
+		case CLK_TYPE_SMUX:
+			writel(priv->cache[i].mux | CPG_SSEL_WEN_MASK, priv->base +
+			       info->core_clks[i].cfg.smux.offset);
+			break;
+		case CLK_TYPE_DDIV:
+		case CLK_TYPE_PLLDSI_DIV:
+			writel(priv->cache[i].div | CPG_SDDIV_WEN_MASK, priv->base +
+			       info->core_clks[i].cfg.ddiv.offset);
+			break;
 		}
-
-		if (info->core_clks[i].type == CLK_TYPE_DDIV) {
-			writel(priv->cache[i].div | (RZV2H_CPG_SMUX_WRITE_EN_MASK << 16),
-					 priv->base + info->core_clks[i].cfg.ddiv.offset);
-			continue;
-		}
-	};
+	}
 
 	return 0;
 };
