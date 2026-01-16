@@ -154,6 +154,17 @@
 			 <RZT2_PORT_PINMUX(3, 3, 0x12)>; /* GMAC : GMAC1_MDIO/P3_3 */
 	};
 
+#if (!SEL_ETHSW_ESWM)
+	ethsw_pins: ethsw_pins {
+		pinmux = <RZT2_PORT_PINMUX(20, 4, 0x14)>, /* ETHSW : ETHSW_MDC/P20_4 */
+			 <RZT2_PORT_PINMUX(20, 5, 0x14)>, /* ETHSW : ETHSW_MDIO/P20_5 */
+			 <RZT2_PORT_PINMUX(20, 6, 0x14)>, /* ETHSW : ETHSW_PHYLINK0/P20_6 */
+			 <RZT2_PORT_PINMUX(22, 5, 0x14)>, /* ETHSW : ETHSW_PHYLINK1/P22_5 */
+			 <RZT2_PORT_PINMUX(25, 0, 0x14)>; /* ETHSW : ETHSW_PHYLINK2/P25_0 */
+	};
+#endif
+
+#if (SEL_ETHSW_ESWM)
 	eswm_pins: eswm_pins {
 		pinmux = <RZT2_PORT_PINMUX(9, 3, 0x2F)>, /* ESWM : ESWM_MPINT0/P09_3 */
 			 <RZT2_PORT_PINMUX(9, 4, 0x2F)>, /* ESWM : ESWM_MPINT1/P09_4 */
@@ -162,6 +173,7 @@
 			 <RZT2_PORT_PINMUX(20, 4, 0x2F)>, /* ESWM : ESWM_MDC/P20_4 */
 			 <RZT2_PORT_PINMUX(20, 5, 0x2F)>; /* ESWM : ESWM_MDIO/P20_5 */
 	};
+#endif
 
 	pins_refclk: pins_refclk {
 		pinmux = <RZT2_PORT_PINMUX(20, 7, 0x02)>, /* Clock : ETH0_REFCLK/P20_7 */
@@ -325,6 +337,18 @@
 };
 #endif
 
+#if (!SEL_ETHSW_ESWM)
+&gmac0 {
+	status = "okay";
+	phy-mode = "rgmii";
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+};
+#endif
+
 &gmac1 {
 	phy-handle = <&phy3>;
 	phy-mode = "rgmii-id";
@@ -368,6 +392,72 @@
 	renesas,ethss-switch-portmanagement = <ETHSS_GMAC0_PORT>;
 #endif
 };
+
+#if (!SEL_ETHSW_ESWM)
+&ethsw {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	phy-reset-gpios = <&pinctrl RZT2_GPIO(07, 0) GPIO_ACTIVE_HIGH>; /* ETH012: RESETOUT/P07_0 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&ethsw_pins>;
+
+	dsa,member = <0 0>;
+
+	mdio {
+		clock-frequency = <2500000>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <0>;
+		};
+
+		phy1: ethernet-phy@1 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <1>;
+		};
+
+		phy2: ethernet-phy@2 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <2>;
+		};
+	};
+};
+
+&switch_port0 {
+	label = "lan0";
+	phy-mode = "rgmii-id";
+	pcs-handle = <&mii_conv0>;
+	phy-handle = <&phy0>;
+	status = "okay";
+};
+
+&switch_port1 {
+	label = "lan1";
+	phy-mode = "rgmii-id";
+	pcs-handle = <&mii_conv1>;
+	phy-handle = <&phy1>;
+	status = "okay";
+};
+
+&switch_port2 {
+	label = "lan2";
+	phy-mode = "rgmii-id";
+	pcs-handle = <&mii_conv2>;
+	phy-handle = <&phy2>;
+	status = "okay";
+};
+
+&switch_port3 {
+	status = "okay";
+};
+#endif
 
 #if (!SEL_ETHSW_ESWM)
 &mii_conv0 {
