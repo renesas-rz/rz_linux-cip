@@ -196,6 +196,9 @@
 			 <RZT2_PORT_PINMUX(20, 1, 0x0F)>, /* ETHSS : ETH0_RXD2/P20_1 */
 			 <RZT2_PORT_PINMUX(20, 2, 0x0F)>, /* ETHSS : ETH0_RXD3/P20_2 */
 			 <RZT2_PORT_PINMUX(20, 3, 0x0F)>; /* ETHSS : ETH0_RXDV/P20_3 */
+			input-schmitt-disable;
+			slew-rate	= <1>;
+			drive-strength	= <3>;
 	};
 
 	eth1_pins: ethss_1 {
@@ -211,6 +214,9 @@
 			 <RZT2_PORT_PINMUX(22, 2, 0x0F)>, /* ETHSS : ETH1_RXD2/P22_2 */
 			 <RZT2_PORT_PINMUX(22, 3, 0x0F)>, /* ETHSS : ETH1_RXD3/P22_3 */
 			 <RZT2_PORT_PINMUX(22, 4, 0x0F)>; /* ETHSS : ETH1_RXDV/P22_4 */
+			input-schmitt-disable;
+			slew-rate	= <1>;
+			drive-strength	= <3>;
 	};
 
 	eth2_pins: ethss_2 {
@@ -226,6 +232,9 @@
 			 <RZT2_PORT_PINMUX(24, 1, 0x0F)>, /* ETHSS : ETH2_RXD2/P24_1 */
 			 <RZT2_PORT_PINMUX(24, 2, 0x0F)>, /* ETHSS : ETH2_RXD3/P24_2 */
 			 <RZT2_PORT_PINMUX(24, 3, 0x0F)>; /* ETHSS : ETH2_RXDV/P24_3 */
+			input-schmitt-disable;
+			slew-rate	= <1>;
+			drive-strength	= <3>;
 	};
 
 	eth3_pins: ethss_3 {
@@ -241,6 +250,9 @@
 			 <RZT2_PORT_PINMUX(01, 1, 0x0F)>, /* ETHSS : ETH3_RXD2/P01_1 */
 			 <RZT2_PORT_PINMUX(01, 2, 0x0F)>, /* ETHSS : ETH3_RXD3/P01_2 */
 			 <RZT2_PORT_PINMUX(01, 3, 0x0F)>; /* ETHSS : ETH3_RXDV/P01_3 */
+			input-schmitt-disable;
+			slew-rate	= <1>;
+			drive-strength	= <3>;
 	};
 
 	eth4_pins: ethss_4 {
@@ -256,6 +268,9 @@
 			 <RZT2_PORT_PINMUX(02, 7, 0x0F)>, /* ETHSS : ETH4_RXD2/P02_7 */
 			 <RZT2_PORT_PINMUX(03, 0, 0x0F)>, /* ETHSS : ETH4_RXD3/P03_0 */
 			 <RZT2_PORT_PINMUX(03, 1, 0x0F)>; /* ETHSS : ETH4_RXDV/P03_1 */
+			input-schmitt-disable;
+			slew-rate	= <1>;
+			drive-strength	= <3>;
 	};
 
 	icu_pins: icu_pins {
