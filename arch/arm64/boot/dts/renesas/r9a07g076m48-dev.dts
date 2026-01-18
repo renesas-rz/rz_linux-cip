@@ -53,6 +53,14 @@
  */
 #define SEL_I2C0_ADC12		1
 
+/*
+ * NAND and eMMC on SDHI0 share the same pins.
+ * eMMC is enabled by default.
+ * To enable NAND, must set disable the below macro:
+ */
+#define EMMC_ENABLE		1
+#define NAND_ENABLE		(!EMMC_ENABLE)
+
 / {
 	model = "Renesas Development EVK based on r9a07g076m48";
 	compatible = "renesas,r9a07g076m48-dev", "renesas,r9a07g076m48", "renesas,r9a07g076";
@@ -185,6 +193,8 @@
 			 <RZT2_PORT_PINMUX(13, 7, 0x1A)>; /* SCIe: TXDE7/P13_7 */
 	};
 
+
+#if EMMC_ENABLE
 	sdhi0_pins: sd0 {
 		sd0_data {
 			pinmux = <RZT2_PORT_PINMUX(4, 6, 0x2C)>, /* SDHI : SD0_DATA0/P04_6 */
@@ -202,6 +212,40 @@
 				 <RZT2_PORT_PINMUX(4, 5, 0x2C)>; /* SDHI : SD0_CMD/P04_5 */
 		};
 	};
+#endif
+
+#if NAND_ENABLE
+	nandc_pins: nand {
+		nand_data {
+			pinmux = <RZT2_PORT_PINMUX(4, 6, 0x2D)>, /* NANDC : NAND_IO0/P04_6 */
+				 <RZT2_PORT_PINMUX(4, 7, 0x2D)>, /* NANDC : NAND_IO1/P04_7 */
+				 <RZT2_PORT_PINMUX(5, 0, 0x2D)>, /* NANDC : NAND_IO2/P05_0 */
+				 <RZT2_PORT_PINMUX(5, 1, 0x2D)>, /* NANDC : NAND_IO3/P05_1 */
+				 <RZT2_PORT_PINMUX(5, 2, 0x2D)>, /* NANDC : NAND_IO4/P05_2 */
+				 <RZT2_PORT_PINMUX(5, 3, 0x2D)>, /* NANDC : NAND_IO5/P05_3 */
+				 <RZT2_PORT_PINMUX(5, 4, 0x2D)>, /* NANDC : NAND_IO6/P05_4 */
+				 <RZT2_PORT_PINMUX(5, 5, 0x2D)>; /* NANDC : NAND_IO7/P05_5 */
+			input-schmitt-disable;
+			slew-rate       = <1>;
+			drive-strength  = <2>;
+		};
+
+		nand_ctrl {
+			pinmux = <RZT2_PORT_PINMUX(4, 4, 0x2D)>, /* NANDC : NAND_WE#/P04_4 */
+				 <RZT2_PORT_PINMUX(4, 5, 0x2D)>, /* NANDC : NAND_RE#/P04_5 */
+				 <RZT2_PORT_PINMUX(5, 6, 0x2D)>, /* NANDC : NAND_WP#/P05_6 */
+				 <RZT2_PORT_PINMUX(8, 5, 0x2D)>, /* NANDC : NAND_ALE/P08_5 */
+				 <RZT2_PORT_PINMUX(8, 6, 0x2D)>, /* NANDC : NAND_CLE/P08_6 */
+				 <RZT2_PORT_PINMUX(8, 7, 0x2D)>; /* NANDC : NAND_CE0#/P08_7 */
+			slew-rate       = <1>;
+			drive-strength  = <1>;
+		};
+
+		nand_status {
+			pinmux = <RZT2_PORT_PINMUX(9, 3, 0x2D)>; /* NANDC : NAND_RY/BY#0/P09_3 */
+		};
+	};
+#endif
 
 	sdhi1_pins: sd1 {
 		sd1_data {
@@ -486,6 +530,7 @@
 	status = "okay";
 };
 
+#if EMMC_ENABLE
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_pins>;
 	pinctrl-1 = <&sdhi0_pins>;
@@ -499,6 +544,32 @@
 	fixed-emmc-driver-type = <1>;
 	status = "okay";
 };
+#endif
+
+#if NAND_ENABLE
+&nandc {
+	pinctrl-0 = <&nandc_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+		label = "nand0";
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "nand-partition";
+				reg = <0x00000000 0x40000000>;
+			};
+		};
+	};
+};
+#endif
 
 &sdhi1 {
 	pinctrl-0 = <&sdhi1_pins>;
