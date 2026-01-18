@@ -27,6 +27,7 @@
 #include "rzg2l_du_encoder.h"
 #include "rzg2l_du_kms.h"
 #include "rzg2l_du_vsp.h"
+#include "rzg3e_lvds.h"
 
 #define DU_MCR0			0x00
 #define DU_MCR0_DI_EN		BIT(8)
