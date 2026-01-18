@@ -1,0 +1,183 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/bridge/renesas,rzg3e-lvds.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas RZ/G3E LVDS Encoder
+
+maintainers:
+  - Biju Das <biju.das.jz@bp.renesas.com>
+  - Tommaso Merciai <tommaso.merciai.xr@bp.renesas.com>
+
+description: |
+  These DT bindings describe the LVDS encoder embedded in the Renesas RZ/G3E
+  SoCs. This has 2 channels and can be used in different modes depending on
+  the use case.
+
+  In particular, has 5 operating modes:
+
+  Single-link(ch0 only):
+    This mode outputs the image data of LCDC0 to LVDS (ch0).
+    In this mode, LVDS (ch1) is not used.
+
+  Single-link(ch1 only):
+    This mode outputs the image data of LCDC1 to LVDS (ch1).
+    In this mode, LVDS (ch0) is not used.
+
+  Single-link(2ch):
+    In this mode, the image data of LCDC0 is output to LVDS (ch0) and the
+    image data of LCDC1 is output to LVDS (ch1).
+    Since LVDS (ch0) and LVDS (ch1) are not synchronously related, they
+    can be output in different image formats and can be operated
+    asynchronously.
+
+  Single-link(Multi)
+    In this mode, the image data of LCDC0 is output to both LVDS (ch0) and
+    LVDS (ch1). LVDS (ch0) and LVDS (ch1) operate synchronously.
+
+  Dual-link:
+    In this mode, the input image data of LCDC0 is separated into Even pixels
+    and Odd pixels, and the output is distributed to LVDS ch0 and ch1.
+
+properties:
+  compatible:
+    const: renesas,r9a09g047-lvds
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: Peripheral clock
+      - description: PHY clock
+      - description: Dot clock
+
+  clock-names:
+    items:
+      - const: pclk
+      - const: phyclk
+      - const: dotclk
+
+  resets:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  renesas,id:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
+    description:
+      LVDS encoder channel number.
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: Input channel, directly connected to the Display Unit.
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: |
+          Output channel, directly connected to the LVDS panel or bridge.
+
+    required:
+      - port@0
+      - port@1
+
+  renesas,companion:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      phandle to the companion LVDS encoder for dual-link operation. This
+      property shall only be set for the primary LVDS encoder when dual-link
+      mode is required. The companion encoder shall not have this property set.
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - resets
+  - power-domains
+  - renesas,id
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/renesas,r9a09g047-cpg.h>
+
+    lvds-cmn@164c0000 {
+        compatible = "simple-mfd", "syscon";
+        reg = <0x164c0000 0x10000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        lvds0: lvds0-encoder@10 {
+            compatible = "renesas,r9a09g047-lvds";
+            reg = <0x10 0x8>;
+            clocks = <&cpg CPG_MOD 0x1a4>,
+                     <&cpg CPG_MOD 0x1a0>,
+                     <&cpg CPG_MOD 0x1a2>;
+            clock-names = "pclk", "phyclk", "dotclk";
+            resets = <&cpg 0x11a>;
+            power-domains = <&cpg>;
+            renesas,id = <0>;
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+                    lvds0_in: endpoint {
+                        remote-endpoint = <&du_out_lvds0>;
+                    };
+                };
+
+                port@1 {
+                    reg = <1>;
+                    lvds0_out: endpoint {
+                        remote-endpoint = <&panel_in>;
+                    };
+                };
+            };
+        };
+
+        lvds1: lvds1-encoder@18 {
+            compatible = "renesas,r9a09g047-lvds";
+            reg = <0x18 0x8>;
+            clocks = <&cpg CPG_MOD 0x1a4>,
+                     <&cpg CPG_MOD 0x1a1>,
+                     <&cpg CPG_MOD 0x1a3>;
+            clock-names = "pclk", "phyclk", "dotclk";
+            resets = <&cpg 0x11a>;
+            power-domains = <&cpg>;
+            renesas,id = <1>;
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+                    lvds1_in: endpoint {
+                        remote-endpoint = <&du_out_lvds1>;
+                    };
+                };
+
+                port@1 {
+                    reg = <1>;
+                    lvds1_out: endpoint {
+                        remote-endpoint = <&panel_in>;
+                    };
+                };
+            };
+        };
+    };
+
+...
