@@ -59,6 +59,8 @@ enum clk_ids {
 	CLK_PLLDTY_ACPU,
 	CLK_PLLDTY_ACPU_DIV2,
 	CLK_PLLDTY_ACPU_DIV4,
+	CLK_PLLDTY_DIV2,
+	CLK_PLLDTY_DIV4,
 	CLK_PLLDTY_DIV8,
 	CLK_PLLDTY_RCPU,
 	CLK_PLLDTY_RCPU_DIV4,
@@ -214,6 +216,8 @@ static const struct cpg_core_clk r9a09g047_core_clks[]  = {
 	DEF_DDIV(".plldty_acpu", CLK_PLLDTY_ACPU, CLK_PLLDTY, CDDIV0_DIVCTL2, dtable_2_64),
 	DEF_FIXED(".plldty_acpu_div2", CLK_PLLDTY_ACPU_DIV2, CLK_PLLDTY_ACPU, 1, 2),
 	DEF_FIXED(".plldty_acpu_div4", CLK_PLLDTY_ACPU_DIV4, CLK_PLLDTY_ACPU, 1, 4),
+	DEF_FIXED(".plldty_div2", CLK_PLLDTY_DIV2, CLK_PLLDTY, 1, 2),
+	DEF_FIXED(".plldty_div4", CLK_PLLDTY_DIV4, CLK_PLLDTY, 1, 4),
 	DEF_FIXED(".plldty_div8", CLK_PLLDTY_DIV8, CLK_PLLDTY, 1, 8),
 
 	DEF_FIXED(".plleth_250_fix", CLK_PLLETH_DIV_250_FIX, CLK_PLLETH, 1, 4),
@@ -538,6 +542,10 @@ static const struct rzv2h_mod_clk r9a09g047_mod_clks[] = {
 						BUS_MSTOP(3, BIT(4))),
 	DEF_MOD("ge3d_ace_clk",			CLK_PLLDTY_ACPU_DIV2, 15, 2, 7, 18,
 						BUS_MSTOP(3, BIT(4))),
+	DEF_MOD("vcd_aclk",			CLK_PLLDTY_DIV4, 15, 3, 7, 19,
+						BUS_MSTOP(9, BIT(13) | BIT(12) | BIT(11))),
+	DEF_MOD("vcd_pclk",			CLK_PLLDTY_DIV8, 15, 4, 7, 20,
+						BUS_MSTOP(9, BIT(13) | BIT(12) | BIT(11))),
 	DEF_MOD("ssif_clk",			CLK_PLLCLN_DIV8, 15, 5, 7, 21,
 						BUS_MSTOP(2, BIT(4) | BIT(3))),
 	DEF_MOD("scu_clk",			CLK_PLLCLN_DIV8, 15, 6, 7, 22,
@@ -654,12 +662,24 @@ static const struct rzv2h_mod_clk r9a09g047_mod_clks[] = {
 						BUS_MSTOP_NONE),
 	DEF_MOD("ssi_9_clk",			CLK_PLLCLN_DIV8, 24, 10, -1, -1,
 						BUS_MSTOP_NONE),
+	DEF_MOD("vspi_clk_m",			CLK_PLLDTY_DIV2, 26, 5, 10, 27,
+						BUS_MSTOP(13, BIT(2) | BIT(1))),
+	DEF_MOD("vspi_clk_a",			CLK_PLLDTY_DIV4, 26, 6, 10, 28,
+						BUS_MSTOP(13, BIT(2) | BIT(1))),
+	DEF_MOD("vspi_clk_p",			CLK_PLLDTY_DIV8, 26, 7, 10, 29,
+						BUS_MSTOP(13, BIT(2) | BIT(1))),
 	DEF_MOD("lcdc_1_clk_a",			CLK_PLLDTY_ACPU_DIV2, 26, 8, 10, 30,
 						BUS_MSTOP(13, BIT(5) | BIT(4) | BIT(3))),
 	DEF_MOD("lcdc_1_clk_p",			CLK_PLLDTY_DIV16, 26, 9, 10, 31,
 						BUS_MSTOP(13, BIT(5) | BIT(4) | BIT(3))),
 	DEF_MOD("lcdc_1_clk_d",			CLK_SMUX2_DSI1_CLK, 26, 10, 11, 0,
 						BUS_MSTOP(13, BIT(5) | BIT(4) | BIT(3))),
+	DEF_MOD("fdp1_clk_m",			CLK_PLLDTY_DIV2, 27, 1, 11, 7,
+						BUS_MSTOP(13, BIT(10) | BIT(9))),
+	DEF_MOD("fdp1_clk_a",			CLK_PLLDTY_DIV4, 27, 2, 11, 8,
+						BUS_MSTOP(13, BIT(10) | BIT(9))),
+	DEF_MOD("fdp1_clk_p",			CLK_PLLDTY_DIV8, 27, 3, 11, 9,
+						BUS_MSTOP(13, BIT(10) | BIT(9))),
 };
 
 static const struct rzv2h_reset r9a09g047_resets[] = {
@@ -736,6 +756,7 @@ static const struct rzv2h_reset r9a09g047_resets[] = {
 	DEF_RST(13, 13, 6, 14),		/* GE3D_RESETN */
 	DEF_RST(13, 14, 6, 15),		/* GE3D_AXI_RESETN */
 	DEF_RST(13, 15, 6, 16),		/* GE3D_ACE_RESETN */
+	DEF_RST(14, 0, 6, 17),		/* VCD_RESETN */
 	DEF_RST(14, 1, 6, 18),		/* SSIF_0_ASYNC_RESET_SSI */
 	DEF_RST(14, 2, 6, 19),		/* SSIF_0_SYNC_RESET_SSI0 */
 	DEF_RST(14, 3, 6, 20),		/* SSIF_0_SYNC_RESET_SSI1 */
@@ -758,7 +779,13 @@ static const struct rzv2h_reset r9a09g047_resets[] = {
 	DEF_RST(15, 4, 7, 5),		/* PDM1_PRESETN */
 	DEF_RST(15, 5, 7, 6),		/* PDM1_CRESETN */
 	DEF_RST(15, 8, 7, 9),		/* TSU_1_PRESETN */
+	DEF_RST(17, 11, 8, 12),		/* VSPI_SMRESET_VSPISS */
+	DEF_RST(17, 12, 8, 13),		/* VSPI_SRESET_VSP1Z */
+	DEF_RST(17, 13, 8, 14),		/* VSPI_SPRESET_FCPVI0 */
 	DEF_RST(17, 14, 8, 15),		/* LCDC_1_RESET_N */
+	DEF_RST(18, 4, 9, 4),		/* FDP1_BRDG_RESETN */
+	DEF_RST(18, 5, 9, 5),		/* FDP1_FDP1_RESETN */
+	DEF_RST(18, 6, 9, 6),		/* FDP1_FCPF1_RESETP */
 	DEF_RST(7, 10, 3, 11),		/* RTC_RST_RTC_V */
 };
 
