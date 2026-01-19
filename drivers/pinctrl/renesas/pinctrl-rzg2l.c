@@ -218,6 +218,7 @@ static const struct pin_config_item renesas_rzv2h_conf_items[] = {
  * @sd_ch: SD_CH register offset
  * @eth_poc: ETH_POC register offset
  * @oen: OEN register offset
+ * @osc: OSC register offset
  */
 struct rzg2l_register_offsets {
 	u16 pwpr;
@@ -225,6 +226,7 @@ struct rzg2l_register_offsets {
 	u16 qspi;
 	u16 eth_poc;
 	u16 oen;
+	u16 osc;
 };
 
 /**
@@ -325,6 +327,7 @@ struct rzg2l_pinctrl_pin_settings {
  * @eth_poc: ET_POC registers cache
  * @oen: Output Enable register cache
  * @qspi: QSPI registers cache
+ * @osc: OSC register cache
  */
 struct rzg2l_pinctrl_reg_cache {
 	u8	*p;
@@ -341,6 +344,7 @@ struct rzg2l_pinctrl_reg_cache {
 	u8	eth_poc[2];
 	u8	oen;
 	u8	qspi;
+	u32	osc;
 };
 
 struct rzg2l_pinctrl {
@@ -3277,6 +3281,9 @@ static int rzg2l_pinctrl_suspend_noirq(struct device *dev)
 
 	cache->oen = readb(pctrl->base + pctrl->data->hwcfg->regs.oen);
 
+	if (regs->osc)
+		cache->osc = readl(pctrl->base + pctrl->data->hwcfg->regs.osc);
+
 	if (!atomic_read(&pctrl->wakeup_path))
 		clk_disable_unprepare(pctrl->clk);
 	else
@@ -3306,6 +3313,9 @@ static int rzg2l_pinctrl_resume_noirq(struct device *dev)
 	raw_spin_lock_irqsave(&pctrl->lock, flags);
 	rzg2l_oen_write_with_pwpr(pctrl, cache->oen);
 	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+
+	if (regs->osc)
+		writel(cache->osc, pctrl->base + regs->osc);
 
 	for (u8 i = 0; i < 2; i++) {
 		if (regs->sd_ch)
@@ -3409,6 +3419,7 @@ static const struct rzg2l_hwcfg rzv2h_hwcfg = {
 	.regs = {
 		.pwpr = 0x3c04,
 		.oen = 0x3c40,
+		.osc = 0x3c00,
 	},
 	.tint_start_index = 17,
 	.oen_pwpr_lock = true,
