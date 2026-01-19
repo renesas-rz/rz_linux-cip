@@ -96,7 +96,7 @@ static const char * const sel_sdhi[] = { ".clk_533", ".clk_400", ".clk_266" };
 
 static const u32 mtable_sdhi[] = { 1, 2, 3 };
 
-static const struct cpg_core_clk r9a07g043_core_clks[] __initconst = {
+static const struct cpg_core_clk r9a07g043_core_clks[] = {
 	/* External Clock Inputs */
 	DEF_INPUT("extal", CLK_EXTAL),
 
@@ -376,7 +376,7 @@ static const struct rzg2l_reset r9a07g043_resets[] = {
 
 };
 
-static const unsigned int r9a07g043_crit_mod_clks[] __initconst = {
+static const unsigned int r9a07g043_crit_mod_clks[] = {
 #ifdef CONFIG_ARM64
 	MOD_CLK_BASE + R9A07G043_GIC600_GICCLK,
 	MOD_CLK_BASE + R9A07G043_IA55_CLK,
