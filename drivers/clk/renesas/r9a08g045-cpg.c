@@ -135,7 +135,7 @@ static const char * const sel_pll4[] = { ".osc_div1000", ".pll4" };
 static const u32 mtable_sd[] = { 0, 2, 3 };
 static const u32 mtable_pll4[] = { 0, 1 };
 
-static const struct cpg_core_clk r9a08g045_core_clks[] __initconst = {
+static const struct cpg_core_clk r9a08g045_core_clks[] = {
 	/* External Clock Inputs */
 	DEF_INPUT("extal", CLK_EXTAL),
 
@@ -456,7 +456,7 @@ static const struct rzg2l_reset r9a08g045_resets[] = {
 	DEF_RST(R9A08G045_VBAT_BRESETN, 0x914, 0),
 };
 
-static const unsigned int r9a08g045_crit_mod_clks[] __initconst = {
+static const unsigned int r9a08g045_crit_mod_clks[] = {
 	MOD_CLK_BASE + R9A08G045_GIC600_GICCLK,
 	MOD_CLK_BASE + R9A08G045_IA55_PCLK,
 	MOD_CLK_BASE + R9A08G045_IA55_CLK,
