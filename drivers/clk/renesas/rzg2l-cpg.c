@@ -154,6 +154,13 @@ struct rzg2l_pll5_mux_dsi_div_param {
 	u8 dsi_div_b;
 };
 
+struct rzg2l_cpg_cache {
+	u32 pll_clk1;
+	u32 pll_clk2;
+	u32 mux;
+	u32 div;
+};
+
 /**
  * struct rzg2l_cpg_priv - Clock Pulse Generator Private Data
  *
@@ -187,6 +194,7 @@ struct rzg2l_cpg_priv {
 	struct generic_pm_domain genpd;
 
 	struct rzg2l_pll5_mux_dsi_div_param mux_dsi_div_params;
+	struct rzg2l_cpg_cache *cache;
 };
 
 static inline u8 rzg2l_cpg_div_ab(u8 a, u8 b)
@@ -1987,6 +1995,7 @@ static int __init rzg2l_cpg_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	const struct rzg2l_cpg_info *info;
 	struct rzg2l_cpg_priv *priv;
+	struct rzg2l_cpg_cache *cached;
 	unsigned int nclks, i;
 	struct clk **clks;
 	int error;
@@ -2010,8 +2019,13 @@ static int __init rzg2l_cpg_probe(struct platform_device *pdev)
 	if (!clks)
 		return -ENOMEM;
 
+	cached = devm_kmalloc_array(dev, info->num_core_clks, sizeof(*cached), GFP_KERNEL);
+	if (!cached)
+		return -ENOMEM;
+
 	dev_set_drvdata(dev, priv);
 	priv->clks = clks;
+	priv->cache = cached;
 	priv->num_core_clks = info->num_total_core_clks;
 	priv->num_mod_clks = info->num_hw_mod_clks;
 	priv->num_resets = info->num_resets;
@@ -2053,9 +2067,67 @@ static int __init rzg2l_cpg_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int rzg2l_cpg_suspend(struct device *dev)
+{
+	struct rzg2l_cpg_priv *priv = dev_get_drvdata(dev);
+	const struct rzg2l_cpg_info *info = priv->info;
+	unsigned int i;
+
+	for (i = 0; i < info->num_core_clks; i++) {
+		if (info->core_clks[i].type == CLK_TYPE_G3S_PLL) {
+			priv->cache[i].pll_clk1 = readl(priv->base +
+						  GET_REG_SAMPLL_CLK1(info->core_clks[i].conf));
+			priv->cache[i].pll_clk2 = readl(priv->base +
+						  GET_REG_SAMPLL_CLK2(info->core_clks[i].conf));
+			continue;
+		}
+
+		if (info->core_clks[i].type == CLK_TYPE_MUX) {
+			priv->cache[i].mux = readl(priv->base +
+					     GET_REG_OFFSET(info->core_clks[i].conf));
+			continue;
+		}
+
+		if (info->core_clks[i].type == CLK_TYPE_DIV ||
+		    info->core_clks[i].type == CLK_TYPE_G3S_DIV) {
+			priv->cache[i].div = readl(priv->base +
+					     GET_REG_OFFSET(info->core_clks[i].conf));
+			continue;
+		}
+	}
+
+       return 0;
+}
+
 static int rzg2l_cpg_resume(struct device *dev)
 {
 	struct rzg2l_cpg_priv *priv = dev_get_drvdata(dev);
+	const struct rzg2l_cpg_info *info = priv->info;
+	u32 wen_mask = GENMASK(31, 16);
+	unsigned int i;
+
+	for (i = 0; i < info->num_core_clks; i++) {
+		if (info->core_clks[i].type == CLK_TYPE_G3S_PLL) {
+			writel(priv->cache[i].pll_clk1,
+					priv->base + GET_REG_SAMPLL_CLK1(info->core_clks[i].conf));
+			writel(priv->cache[i].pll_clk2,
+					priv->base + GET_REG_SAMPLL_CLK2(info->core_clks[i].conf));
+			continue;
+		}
+
+		if (info->core_clks[i].type == CLK_TYPE_MUX) {
+			writel(priv->cache[i].mux | wen_mask,
+					priv->base + GET_REG_OFFSET(info->core_clks[i].conf));
+			continue;
+		}
+
+		if (info->core_clks[i].type == CLK_TYPE_DIV ||
+		    info->core_clks[i].type == CLK_TYPE_G3S_DIV) {
+			writel(priv->cache[i].div | wen_mask,
+					priv->base + GET_REG_OFFSET(info->core_clks[i].conf));
+			continue;
+		}
+	}
 
 	rzg2l_mod_clock_init_mstop(priv);
 
@@ -2063,7 +2135,7 @@ static int rzg2l_cpg_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops rzg2l_cpg_pm_ops = {
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(NULL, rzg2l_cpg_resume)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(rzg2l_cpg_suspend, rzg2l_cpg_resume)
 };
 
 static const struct of_device_id rzg2l_cpg_match[] = {

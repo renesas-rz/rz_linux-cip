@@ -113,7 +113,7 @@ static const char * const sel_e[] = { ".main", ".dive" };
 static const char * const sel_w[] = { ".main", ".divw" };
 static const char * const sel_sdi[] = { ".main", ".pll2_200" };
 
-static const struct cpg_core_clk r9a09g011_core_clks[] __initconst = {
+static const struct cpg_core_clk r9a09g011_core_clks[] = {
 	/* External Clock Inputs */
 	DEF_INPUT("extal",	CLK_EXTAL),
 
@@ -144,7 +144,7 @@ static const struct cpg_core_clk r9a09g011_core_clks[] __initconst = {
 	DEF_FIXED(".selb_d2",	CLK_SEL_B_D2,	CLK_SEL_B,	1,	2),
 };
 
-static const struct rzg2l_mod_clk r9a09g011_mod_clks[] __initconst = {
+static const struct rzg2l_mod_clk r9a09g011_mod_clks[] = {
 	DEF_MOD("pfc",		R9A09G011_PFC_PCLK,	 CLK_MAIN,     0x400, 2, 0),
 	DEF_MOD("gic",		R9A09G011_GIC_CLK,	 CLK_SEL_B_D2, 0x400, 5, 0),
 	DEF_MOD("sdi0_aclk",	R9A09G011_SDI0_ACLK,	 CLK_SEL_D,    0x408, 0, 0),
@@ -211,7 +211,7 @@ static const struct rzg2l_reset r9a09g011_resets[] = {
 	DEF_RST_MON(R9A09G011_WDT0_PRESETN,	0x614, 12, 19),
 };
 
-static const unsigned int r9a09g011_crit_mod_clks[] __initconst = {
+static const unsigned int r9a09g011_crit_mod_clks[] = {
 	MOD_CLK_BASE + R9A09G011_CA53_CLK,
 	MOD_CLK_BASE + R9A09G011_CPERI_GRPB_PCLK,
 	MOD_CLK_BASE + R9A09G011_CPERI_GRPC_PCLK,

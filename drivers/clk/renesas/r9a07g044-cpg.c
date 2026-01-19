@@ -151,7 +151,7 @@ static const struct {
 #ifdef CONFIG_CLK_R9A07G054
 	struct cpg_core_clk drp[3];
 #endif
-} core_clks __initconst = {
+} core_clks = {
 	.common = {
 		/* External Clock Inputs */
 		DEF_INPUT("extal", CLK_EXTAL),
@@ -498,7 +498,7 @@ static struct rzg2l_reset r9a07g044_resets[] = {
 #endif
 };
 
-static const unsigned int r9a07g044_crit_mod_clks[] __initconst = {
+static const unsigned int r9a07g044_crit_mod_clks[] = {
 	MOD_CLK_BASE + R9A07G044_GIC600_GICCLK,
 	MOD_CLK_BASE + R9A07G044_IA55_CLK,
 	MOD_CLK_BASE + R9A07G044_DMAC_ACLK,
