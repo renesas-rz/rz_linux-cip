@@ -37,6 +37,9 @@
 #define DU_DITR0_VSPOL		BIT(16)
 #define DU_DITR0_HSPOL		BIT(17)
 
+/* LVDS dual channel mode: Only for RZ/G3E */
+#define DU_DITR0_ODDP_EN	BIT(24)
+
 #define DU_DITR1		0x14
 #define DU_DITR1_VSA(x)		((x) << 0)
 #define DU_DITR1_VACTIVE(x)	((x) << 16)
@@ -113,6 +116,13 @@ static void rzg2l_du_crtc_set_display_timing(struct rzg2l_du_crtc *rcrtc)
 	      | DU_DITR4_HFP(mode->hsync_start - mode->hdisplay);
 
 	pbcr0 = DU_PBCR0_PB_DEP(0x1f);
+
+	if (rstate->outputs == BIT(RZG2L_DU_OUTPUT_LVDS0)) {
+		struct drm_bridge *bridge = rcdu->lvds[0];
+
+		if (rzg3e_lvds_dual_link(bridge))
+			ditr0 |= DU_DITR0_ODDP_EN;
+	}
 
 	writel(ditr0, rcdu->mmio + DU_DITR0);
 	writel(ditr1, rcdu->mmio + DU_DITR1);

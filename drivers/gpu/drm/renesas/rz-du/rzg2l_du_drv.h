@@ -58,6 +58,7 @@ struct rzg2l_du_device_info {
 #define RZG2L_DU_MAX_CRTCS		1
 #define RZG2L_DU_MAX_VSPS		1
 #define RZG2L_DU_MAX_DSI		1
+#define RZG2L_DU_MAX_LVDS		2
 
 struct rzg2l_du_device {
 	struct device *dev;
@@ -71,6 +72,7 @@ struct rzg2l_du_device {
 	unsigned int num_crtcs;
 
 	struct rzg2l_du_vsp vsps[RZG2L_DU_MAX_VSPS];
+	struct drm_bridge *lvds[RZG2L_DU_MAX_LVDS];
 };
 
 static inline struct rzg2l_du_device *to_rzg2l_du_device(struct drm_device *dev)
