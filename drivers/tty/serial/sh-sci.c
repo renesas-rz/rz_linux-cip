@@ -2017,6 +2017,7 @@ static irqreturn_t sci_tx_end_interrupt(int irq, void *ptr)
 {
 	struct uart_port *port = ptr;
 	struct sci_port *s = to_sci_port(port);
+	struct tty_port *tport = &port->state->port;
 	const struct sci_common_regs *regs = s->params->common_regs;
 	unsigned long flags;
 	u32 ctrl;
@@ -2028,6 +2029,14 @@ static irqreturn_t sci_tx_end_interrupt(int irq, void *ptr)
 	ctrl = s->ops->read_reg(port, regs->control) &
 		~(s->params->param_bits->te_clear);
 	s->ops->write_reg(port, regs->control, ctrl);
+
+	if (sci_is_rsci_type(s->type)) {
+		enable_irq(s->irqs[SCIx_TXI_IRQ]);
+		if (!kfifo_is_empty(&tport->xmit_fifo))
+			s->ops->write_reg(port, regs->control,
+			  ctrl | s->params->param_bits->tx_en);
+	}
+
 	uart_port_unlock_irqrestore(port, flags);
 
 	return IRQ_HANDLED;

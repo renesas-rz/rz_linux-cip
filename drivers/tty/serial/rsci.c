@@ -431,6 +431,7 @@ static int rsci_txroom(struct uart_port *port)
 
 static void rsci_transmit_chars(struct uart_port *port)
 {
+	struct sci_port *s = to_sci_port(port);
 	unsigned int stopped = uart_tx_stopped(port);
 	struct tty_port *tport = &port->state->port;
 	u32 status, ctrl;
@@ -473,6 +474,7 @@ static void rsci_transmit_chars(struct uart_port *port)
 		ctrl &= ~CCR0_TIE;
 		ctrl |= CCR0_TEIE;
 		rsci_serial_out(port, CCR0, ctrl);
+		disable_irq_nosync(s->irqs[SCIx_TXI_IRQ]);
 	}
 }
 
@@ -630,6 +632,7 @@ static const struct sci_port_params_bits rsci_port_param_bits = {
 	.rxtx_enable = CCR0_RE | CCR0_TE,
 	.te_clear = CCR0_TE | CCR0_TEIE,
 	.poll_sent_bits = CSR_TDRE | CSR_TEND,
+	.tx_en = CCR0_TE | CCR0_TIE,
 };
 
 static const struct sci_port_params rsci_rzg3e_port_params = {
