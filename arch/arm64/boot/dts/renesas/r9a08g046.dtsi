@@ -420,10 +420,6 @@
 			channel@7 {
 				reg = <7>;
 			};
-
-			channel@8 {
-				reg = <8>;
-			};
 		};
 
 		adc1: adc@108C0000 {
@@ -443,38 +439,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			channel@0 {
-				reg = <0>;
-			};
-
-			channel@1 {
-				reg = <1>;
-			};
-
-			channel@2 {
-				reg = <2>;
-			};
-
-			channel@3 {
-				reg = <3>;
-			};
-
-			channel@4 {
-				reg = <4>;
-			};
-
-			channel@5 {
-				reg = <5>;
-			};
-
-			channel@6 {
-				reg = <6>;
-			};
-
-			channel@7 {
-				reg = <7>;
-			};
-
 			channel@8 {
 				reg = <8>;
 			};
@@ -487,7 +451,7 @@
 			resets = <&cpg R9A08G046_TSU_PRESETN>;
 			power-domains = <&cpg>;
 			#thermal-sensor-cells = <0>;
-			io-channels = <&adc1 8>;
+			io-channels = <&adc1 0>;
 			io-channel-names = "tsu";
 		};
 
