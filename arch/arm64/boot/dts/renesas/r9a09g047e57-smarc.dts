@@ -39,6 +39,7 @@
 #include "r9a09g047e57-smarc-du1-adv7535.dtsi"
 #include "rzg3e-smarc-som.dtsi"
 #include "renesas-smarc2.dtsi"
+#include "renesas-smarc2-dual-lvds-hdmi.dtsi"
 
 #define OV5645_PARENT_I2C i2c0
 #include "rz-smarc-cru-csi-ov5645.dtsi"
