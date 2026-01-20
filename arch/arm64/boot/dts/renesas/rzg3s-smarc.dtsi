@@ -445,9 +445,15 @@
 };
 
 #if (!SW_GPIO8_CAN0_STB && !SW_GPIO9_CAN1_STB)
+&poegga {
+	renesas,poeg-config = <1>;
+	status = "okay";
+};
+
 &gpt {
 	pinctrl-0 = <&gpt_pins>;
 	pinctrl-names = "default";
+	renesas,poegs = <&poegga 0>;
 	status = "okay";
 };
 #endif
