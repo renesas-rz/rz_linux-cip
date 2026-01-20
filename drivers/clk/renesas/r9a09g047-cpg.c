@@ -23,7 +23,6 @@ enum clk_ids {
 	CLK_AUDIO_EXTAL,
 	CLK_RTXIN,
 	CLK_QEXTAL,
-	AUDIO_CLKA,
 	AUDIO_CLKB,
 	AUDIO_CLKC,
 
@@ -174,7 +173,6 @@ static const struct cpg_core_clk r9a09g047_core_clks[]  = {
 	DEF_INPUT("audio_extal", CLK_AUDIO_EXTAL),
 	DEF_INPUT("rtxin", CLK_RTXIN),
 	DEF_INPUT("qextal", CLK_QEXTAL),
-	DEF_INPUT("audio_clka", AUDIO_CLKA),
 	DEF_INPUT("audio_clkb", AUDIO_CLKB),
 	DEF_INPUT("audio_clkc", AUDIO_CLKC),
 
@@ -558,7 +556,7 @@ static const struct rzv2h_mod_clk r9a09g047_mod_clks[] = {
 						BUS_MSTOP(2, BIT(2))),
 	DEF_MOD("adg_clk_195m",			CLK_PLLCLN_DIV8, 15, 10, 7, 26,
 						BUS_MSTOP(2, BIT(2))),
-	DEF_MOD("adg_audio_clka",		AUDIO_CLKA, 15, 11, 7, 27,
+	DEF_MOD("adg_audio_clka",		CLK_AUDIO_EXTAL, 15, 11, 7, 27,
 						BUS_MSTOP(2, BIT(2))),
 	DEF_MOD("adg_audio_clkb",		AUDIO_CLKB, 15, 12, 7, 28,
 						BUS_MSTOP(2, BIT(2))),
