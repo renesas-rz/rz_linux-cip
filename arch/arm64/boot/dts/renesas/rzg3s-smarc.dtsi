@@ -417,9 +417,15 @@
 };
 
 #if (SW_GPIO_CAN_PMOD1 == SW_ON && SW_GPIO_CAN_PMOD2 == SW_ON)
+&poegga {
+	renesas,poeg-config = <1>;
+	status = "okay";
+};
+
 &gpt {
 	pinctrl-0 = <&gpt_pins>;
 	pinctrl-names = "default";
+	renesas,poegs = <&poegga 0>;
 	status = "okay";
 };
 #endif
