@@ -659,8 +659,29 @@ int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_mod *cmd_mod,
 void rsnd_adg_clk_control(struct rsnd_priv *priv, int enable);
 void rsnd_adg_clk_dbg_info(struct rsnd_priv *priv, struct seq_file *m);
 
-#define MAX_RESETS 60
-#define MAX_DMA 10
+/*
+ * Max RESETS of RZ/V2H and SoC similar
+ * ADG     : 1  channels
+ * SRC	   : 10 channels
+ * SSI     : 10 channels
+ * SSIU    : 28 channels
+ * SPDIF   : 3  channels
+ * DMA channels
+ * + DVC   : 2  channels {tx}
+ * + SRC   : 20 channels {tx, rx}
+ * + SSIU  : 56 channels {tx, rx}
+ * + SPDIF : 6  channels {tx, rx}
+ */
+#define MAX_RESETS 136
+
+/*
+ * Max DMA channel of RZ/V2H and SoC similar
+ * DVC     : 2  channels {tx}
+ * SRC     : 20 channels {tx, rx}
+ * SSIU    : 56 channels {tx, rx}
+ * SPDIF   : 6  channels {tx, rx}
+ */
+#define MAX_DMA 84
 /*
  *	R-Car sound priv
  */
