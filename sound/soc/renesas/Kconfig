@@ -64,6 +64,14 @@ config SND_SOC_RZ_PDM
           Select this option if your platform includes a PDM interface
 	  and requires audio input from PDM microphones.
 
+config SND_SOC_RZ_SPDIF
+	tristate "RZ SPDIF driver support"
+	help
+	  This option enables RZ SPDIF sound support.
+	  This is an audio driver support transmission of
+	  digital audio data via the S/PDIF (Sony/Philips
+	  Digital Interface Format).
+
 ##
 ## Boards
 ##
