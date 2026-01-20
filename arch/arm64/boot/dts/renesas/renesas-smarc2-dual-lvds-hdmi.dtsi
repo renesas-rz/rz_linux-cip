@@ -1,0 +1,118 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the SMARC Dual LVDS-HDMI sub board.
+ * (for the RZ SMARC Carrier-II Board).
+ *
+ * Copyright (C) 2026 Renesas Electronics Corp.
+ */
+
+/ {
+	lvds-to-hdmi-out {
+		compatible = "hdmi-connector";
+		type = "d";
+		port {
+			lvds_to_hdmi_con_out: endpoint {
+				remote-endpoint = <&it6263_out>;
+			};
+		};
+	};
+};
+
+&du0 {
+	status = "okay";
+
+	ports {
+		port@1 {
+			du0_out_lvds0: endpoint {
+				remote-endpoint = <&lvds0_in>;
+			};
+		};
+
+		port@2 {
+			du0_out_lvds1: endpoint {
+				remote-endpoint = <&lvds1_in>;
+			};
+		};
+	};
+};
+
+&lvds0 {
+	status = "okay";
+	renesas,companion = <&lvds1>;
+
+	ports {
+		port@0 {
+			reg = <0>;
+			lvds0_in: endpoint {
+				remote-endpoint = <&du0_out_lvds0>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			lvds_ch0: endpoint {
+				remote-endpoint = <&bridge_in_odd>;
+			};
+		};
+	};
+};
+
+&lvds1 {
+	status = "okay";
+
+	ports {
+		port@0 {
+			reg = <0>;
+			lvds1_in: endpoint {
+				remote-endpoint = <&du0_out_lvds1>;
+			};
+		};
+
+		port@1 {
+			lvds_ch1: endpoint {
+				remote-endpoint = <&bridge_in_even>;
+			};
+		};
+	};
+};
+
+&i2c7 {
+	pinctrl-0 = <&i2c7_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	it6263: hdmi@4c {
+		compatible = "ite,it6263";
+		reg = <0x4c>;
+		data-mapping = "vesa-24";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				dual-lvds-odd-pixels;
+				bridge_in_odd: endpoint {
+					remote-endpoint = <&lvds_ch0>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				dual-lvds-even-pixels;
+				bridge_in_even: endpoint {
+					remote-endpoint = <&lvds_ch1>;
+				};
+			};
+
+			port@2 {
+				reg = <2>;
+				it6263_out: endpoint {
+					remote-endpoint = <&lvds_to_hdmi_con_out>;
+				};
+			};
+		};
+	};
+};
+
