@@ -13,6 +13,7 @@
 #define SCKCR2				0x04
 #define SCKCR3				0x08
 #define SCKCR4				0x0C
+#define SCKCR5				0x100
 #define PMSEL				0x10
 #define PMSEL_PLL0			BIT(0)
 #define PMSEL_PLL2			BIT(2)
@@ -76,6 +77,8 @@
 #define DIVSPI1			DDIV_PACK(SCKCR3, 2, 2)
 #define DIVSPI2			DDIV_PACK(SCKCR3, 4, 2)
 #define DIVSPI3			DDIV_PACK(SCKCR2, 16, 2)
+#define DIVSDHI0                DDIV_PACK(SCKCR5, 8, 1)
+#define DIVSDHI1                DDIV_PACK(SCKCR5, 10, 1)
 
 #define SEL_PLL_PACK(offset, bitpos, size) \
 	(((offset) << 20) | ((bitpos) << 12) | ((size) << 8))
