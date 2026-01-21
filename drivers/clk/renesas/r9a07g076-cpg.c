@@ -22,7 +22,7 @@
 
 enum clk_ids {
 	/* Core Clock Outputs exported to DT */
-	LAST_DT_CORE_CLK = R9A07G076_SDHI_IMCLK,
+	LAST_DT_CORE_CLK = R9A07G076_SDHI1_IMCLK,
 
 	/* External Input Clocks */
 	CLK_EXTAL,
@@ -53,6 +53,12 @@ enum clk_ids {
 static const struct clk_div_table dtable_1_2[] = {
 	{0, 2},
 	{0x3, 1},
+	{0, 0},
+};
+
+static const struct clk_div_table dtable_1_16[] = {
+	{0, 16},
+	{1, 1},
 	{0, 0},
 };
 
@@ -126,7 +132,8 @@ static const struct cpg_core_clk r9a07g076_core_clks[] __initconst = {
 	DEF_FIXED("DDR", R9A07G076_DDR_CLK, CLK_SEL_CLK_PLL2, 1, 2),
 	DEF_FIXED("HDDR", R9A07G076_HDDR_CLK, CLK_SEL_CLK_PLL2, 1, 4),
 	DEF_FIXED("SDHIHS", R9A07G076_SDHI_CLKHS, CLK_SEL_CLK_PLL1, 1, 2),
-	DEF_FIXED("SDHI", R9A07G076_SDHI_IMCLK, CLK_SEL_CLK_PLL1, 1, 8),
+	DEF_DIV("SDHI0", R9A07G076_SDHI0_IMCLK, CLK_SEL_CLK_PLL4, DIVSDHI0, dtable_1_16, 0, 0),
+	DEF_DIV("SDHI1", R9A07G076_SDHI1_IMCLK, CLK_SEL_CLK_PLL4, DIVSDHI1, dtable_1_16, 0, 0),
 };
 
 static const struct rzt2_mod_clk r9a07g076_mod_clks[] __initconst = {
@@ -176,8 +183,8 @@ static const struct rzt2_mod_clk r9a07g076_mod_clks[] __initconst = {
 	DEF_MOD("spi3", R9A07G076_SPI3_CLK, R9A07G076_PCLKSPI3, MSTPCRG, 2, 1),
 	DEF_MOD("gpt5", R9A07G076_GPT5_CLK, R9A07G076_PCLKH, MSTPCRG, 3, 1),
 	DEF_MOD("nandc", R9A07G076_NANDC_CLK, R9A07G076_PCLKAM, MSTPCRH, 4, 0),
-	DEF_MOD("sdhi0", R9A07G076_SDHI0_CLK, R9A07G076_PCLKAM, MSTPCRM, 12, 0),
-	DEF_MOD("sdhi1", R9A07G076_SDHI1_CLK, R9A07G076_PCLKAM, MSTPCRM, 13, 0),
+	DEF_MOD("sdhi0", R9A07G076_SDHI0_CLK, R9A07G076_SDHI0_IMCLK, MSTPCRM, 12, 0),
+	DEF_MOD("sdhi1", R9A07G076_SDHI1_CLK, R9A07G076_SDHI1_IMCLK, MSTPCRM, 13, 0),
 	DEF_MOD("ca55c0", R9A07G076_CA55C0_CLK, R9A07G076_CA55, MSTPCRN, 2, 1),
 	DEF_MOD("ca55c1", R9A07G076_CA55C1_CLK, R9A07G076_CA55, MSTPCRN, 3, 1),
 };
