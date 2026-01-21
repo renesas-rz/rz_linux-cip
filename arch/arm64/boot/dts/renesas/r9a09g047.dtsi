@@ -581,6 +581,8 @@
 			renesas,has-hgo;
 			renesas,has-hgt;
 			renesas,has-shp;
+			renesas,syscon-cpg = <&cpg>;
+			renesas,syscon-sysc = <&sys>;
 			renesas,#read_outstanding = <2>;
 			renesas,#start_reservation = <2>;
 			power-domains = <&cpg>;
