@@ -414,12 +414,16 @@ static void rz_mtu3_32bit_cnt_setting(struct counter_device *counter)
 {
 	struct rz_mtu3_channel *const ch1 = rz_mtu3_get_ch(counter, 0);
 	struct rz_mtu3_channel *const ch2 = rz_mtu3_get_ch(counter, 1);
+	struct rz_mtu3_cnt *const priv = counter_priv(counter);
 
 	/* Phase counting mode 1 is used as default in initialization. */
 	rz_mtu3_8bit_ch_write(ch1, RZ_MTU3_TMDR1, RZ_MTU3_TMDR1_PH_CNT_MODE_1);
 
 	rz_mtu3_8bit_ch_write(ch1, RZ_MTU3_TCR, RZ_MTU3_TCR_CCLR_TGRA);
-	rz_mtu3_8bit_ch_write(ch1, RZ_MTU3_TIOR, RZ_MTU3_TIOR_IC_BOTH);
+	if (priv->mtu_32bit_max != U32_MAX)
+		rz_mtu3_8bit_ch_write(ch1, RZ_MTU3_TIOR, RZ_MTU3_TIOR_NO_OUTPUT);
+	else
+		rz_mtu3_8bit_ch_write(ch1, RZ_MTU3_TIOR, RZ_MTU3_TIOR_IC_BOTH);
 
 	rz_mtu3_enable(ch1);
 	rz_mtu3_enable(ch2);
@@ -939,7 +943,10 @@ static int rz_mtu3_cnt_pm_runtime_resume(struct device *dev)
 			} else if (count->id == RZ_MTU3_32_BIT_CH) {
 				rz_mtu3_32bit_ch_write(ch, RZ_MTU3_TCNTLW, priv->cache.mtu12_val);
 				rz_mtu3_8bit_ch_write(ch1, RZ_MTU3_TCR, RZ_MTU3_TCR_CCLR_TGRA);
-				rz_mtu3_8bit_ch_write(ch1, RZ_MTU3_TIOR, RZ_MTU3_TIOR_IC_BOTH);
+				if (ceiling != U32_MAX)
+					rz_mtu3_8bit_ch_write(ch1, RZ_MTU3_TIOR, RZ_MTU3_TIOR_NO_OUTPUT);
+				else
+					rz_mtu3_8bit_ch_write(ch1, RZ_MTU3_TIOR, RZ_MTU3_TIOR_IC_BOTH);
 
 				rz_mtu3_enable(ch1);
 				rz_mtu3_enable(ch2);
