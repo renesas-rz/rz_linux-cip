@@ -601,6 +601,7 @@
 				 <&cpg CPG_MOD 0x1b3>;
 			clock-names = "fdp_mclk", "fdp_aclk", "fdp_pclk";
 			power-domains = <&cpg>;
+			renesas,syscon-cpg = <&cpg>;
 			resets = <&cpg 0x124>, <&cpg 0x125>, <&cpg 0x126>;
 			reset-names = "brdg_resetn", "fdp1_resetn",
 				      "fcpf1_resetp";
