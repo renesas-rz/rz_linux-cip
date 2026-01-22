@@ -30,6 +30,7 @@ properties:
           - enum:
               - renesas,r9a09g056-xspi  # RZ/V2N
               - renesas,r9a09g057-xspi  # RZ/V2H(P)
+              - renesas,r9a08g045-xspi  # RZ/G3S
           - const: renesas,r9a09g047-xspi
 
   reg:
