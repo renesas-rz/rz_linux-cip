@@ -769,7 +769,7 @@ static const struct spi_ops rsci_common_ops = {
 #ifdef CONFIG_OF
 static const struct of_device_id rsci_of_match[] = {
 	/* RSCI SPI on RZ/V2H and similar SoCs */
-	{ .compatible = "renesas,rsci-spi", .data = &rsci_common_ops },
+	{ .compatible = "renesas,r9a09g047-rsci", .data = &rsci_common_ops },
 	{ /* sentinel */ }
 };
 
@@ -864,6 +864,9 @@ static int rsci_spi_probe(struct platform_device *pdev)
 	int ret, i;
 	const struct spi_ops *ops;
 	unsigned long clksrc;
+
+	if (!of_property_read_bool(pdev->dev.of_node, "renesas,rsci_spi"))
+		return -ENODEV;
 
 	if (of_property_read_bool(pdev->dev.of_node, "spi-slave")) {
 		ctlr = spi_alloc_slave(&pdev->dev, sizeof(struct rsci_data));
@@ -1014,7 +1017,7 @@ static struct platform_driver rsci_spi_driver = {
 	.remove = rsci_spi_remove,
 	.id_table = spi_driver_ids,
 	.driver	= {
-		.name = "rz_rsci_spi",
+		.name = "rsci_spi",
 		.pm = DEV_PM_OPS,
 		.of_match_table = of_match_ptr(rsci_of_match),
 	},
