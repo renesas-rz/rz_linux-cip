@@ -363,6 +363,18 @@
 				 <RZG2L_PORT_PINMUX(14, 1, 7)>; /* SD2_CD# */
 		};
 	};
+
+	xspi_pins: xspi {
+		xspi-data {
+			pins = "XSPI_IO0", "XSPI_IO1", "XSPI_IO2", "XSPI_IO3";
+			power-source = <1800>;
+		};
+
+		xspi-ctrl {
+			pins = "XSPI_SPCLK", "XSPI_CS0#", "XSPI_RESET#";
+			power-source = <1800>;
+		};
+	};
 };
 
 &rtc {
@@ -383,4 +395,40 @@
 &wdt0 {
 	timeout-sec = <60>;
 	status = "okay";
+};
+
+&xspi {
+	pinctrl-0 = <&xspi_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	flash@0 {
+		compatible = "atmel,at25ql128a", "jedec,spi-nor";
+		reg = <0>;
+		m25p,fast-read;
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "bl2";
+				reg = <0x00000000 0x00060000>;
+			};
+
+			partition@60000 {
+				label = "fip";
+				reg = <0x00060000 0x007a0000>;
+			};
+
+			partition@800000 {
+				label = "user";
+				reg = <0x800000 0x800000>;
+			};
+		};
+	};
 };
