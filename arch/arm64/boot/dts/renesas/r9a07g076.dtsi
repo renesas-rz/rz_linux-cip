@@ -708,6 +708,54 @@
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
+
+		i2c0: i2c@80088000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "renesas,riic-r9a07g076";
+			reg = <0 0x80088000 0 0x20>;
+			interrupts = <GIC_SPI 489 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 490 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 491 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 492 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "eei", "rxi", "txi", "tei";
+			clocks = <&cpg CPG_MOD R9A07G076_IIC0_CLK>;
+			clock-frequency = <100000>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@80088400 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "renesas,riic-r9a07g076";
+			reg = <0 0x80088400 0 0x20>;
+			interrupts = <GIC_SPI 493 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 494 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 495 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 496 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "eei", "rxi", "txi", "tei";
+			clocks = <&cpg CPG_MOD R9A07G076_IIC1_CLK>;
+			clock-frequency = <100000>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@81008000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "renesas,riic-r9a07g076";
+			reg = <0 0x81008000 0 0x20>;
+			interrupts = <GIC_SPI 497 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 498 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 499 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 500 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "eei", "rxi", "txi", "tei";
+			clocks = <&cpg CPG_MOD R9A07G076_IIC2_CLK>;
+			clock-frequency = <100000>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
 	};
 
 	thermal-zones {
