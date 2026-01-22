@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /*
- * Device Tree Source for the RZ/G3L SMARC Dual LVDS-HDMI
+ * Device Tree Source for the RZ/G3L SMARC LVDS-HDMI
  *
  * Copyright (C) 2025 Renesas Electronics Corp.
  */
