@@ -528,8 +528,16 @@ static void rsci_receive_chars(struct uart_port *port)
 			 * Non FIFO mode is not supported
 			 */
 			if (rdat & RDR_FFER) {
-				flag = TTY_FRAME;
-				port->icount.frame++;
+				status = rsci_serial_in(port, CSR);
+				if (!(status & CSR_RXDMON) && !c) {
+					flag = TTY_BREAK;
+					port->icount.brk++;
+					if (uart_handle_break(port))
+						continue;
+				} else {
+					flag = TTY_FRAME;
+					port->icount.frame++;
+				}
 			} else if (rdat & RDR_FPER) {
 				flag = TTY_PARITY;
 				port->icount.parity++;
