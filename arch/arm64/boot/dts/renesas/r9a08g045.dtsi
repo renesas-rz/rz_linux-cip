@@ -764,6 +764,28 @@
 			renesas,syscon-cpg-wdtovf-rst = <&cpg 0xb10 0>;
 			status = "disabled";
 		};
+
+		xspi: spi@10060000 {
+			compatible = "renesas,r9a08g045-xspi",
+				     "renesas,r9a09g047-xspi";
+			reg = <0 0x10060000 0 0x10000>,
+			      <0 0x20000000 0 0x10000000>;
+			reg-names = "regs", "dirmap";
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pulse", "err_pulse";
+			clocks = <&cpg CPG_MOD R9A08G045_SPI_CLK>,
+				 <&cpg CPG_MOD R9A08G045_SPI_HCLK>,
+				 <&cpg CPG_MOD R9A08G045_SPI_ACLK>,
+				 <&cpg CPG_MOD R9A08G045_SPI_CLKX2>;
+			clock-names = "spi", "hclk", "aclk", "spix2";
+			resets = <&cpg R9A08G045_SPI_HRESETN>,
+				 <&cpg R9A08G045_SPI_ARESETN>;
+			power-domains = <&cpg>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
 	};
 
 	timer {
