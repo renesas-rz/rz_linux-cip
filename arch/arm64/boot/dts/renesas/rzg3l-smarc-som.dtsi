@@ -369,8 +369,8 @@
 		compatible = "ethernet-phy-id0022.1640", "ethernet-phy-ieee802.3-c22";
 		reg = <7>;
 		interrupts-extended = <&icu 3 IRQ_TYPE_LEVEL_LOW>;
-		rxc-skew-psec = <0>;
-		txc-skew-psec = <0>;
+		rxc-skew-psec = <1400>;
+		txc-skew-psec = <1400>;
 		rxdv-skew-psec = <0>;
 		txdv-skew-psec = <0>;
 		rxd0-skew-psec = <0>;
@@ -389,8 +389,8 @@
 		compatible = "ethernet-phy-id0022.1640", "ethernet-phy-ieee802.3-c22";
 		reg = <7>;
 		interrupts-extended = <&icu 16 IRQ_TYPE_LEVEL_LOW>;
-		rxc-skew-psec = <0>;
-		txc-skew-psec = <0>;
+		rxc-skew-psec = <1400>;
+		txc-skew-psec = <1400>;
 		rxdv-skew-psec = <0>;
 		txdv-skew-psec = <0>;
 		rxd0-skew-psec = <0>;
