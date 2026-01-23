@@ -67,6 +67,7 @@ static int	pcie_thread_status;
 static int	pcie_receiver_detection;
 static struct	task_struct *pcie_kthread_tsk;
 static struct	rzg3s_pcie_host *tmp_host;
+static void rzv2h_pcie_dl_updown(struct rzg3s_pcie_host *host);
 
 enum rz_pcie_type {
 	RZG3S_PCIE,
@@ -343,6 +344,22 @@ static struct pci_ops rzg3s_pcie_root_ops = {
 	.map_bus	= rzg3s_pcie_root_map_bus,
 };
 
+static irqreturn_t rzg3s_pcie_evt_irq(int irq, void *data)
+{
+	struct rzg3s_pcie_host *host = data;
+	u32 status;
+
+	status = readl(host->axi + RZG3S_PCI_PEIS0);
+	if (!(status & RZG3S_PCI_PEIS0_DL_UPDOWN))
+		return IRQ_NONE;
+
+	dev_dbg(host->dev, "PCIe link up/down\n");
+
+	rzv2h_pcie_dl_updown(host);
+
+	return IRQ_HANDLED;
+}
+
 static void rzv2h_pcie_reset_assert(void)
 {
 	rzg3s_pcie_update_bits(tmp_host->axi, RZV2H_PCI_RESET_REG,
@@ -375,7 +392,7 @@ static void rzv2h_pcie_dl_wait_status(void)
 static int pcie_kthread(void *arg)
 {
 	u8 state_rx_detect;
-	u8 ltssm_state_detect = 0x3;
+	u8 ltssm_state_detect = GENMASK(1, 0);
 	unsigned long reg;
 	unsigned long tmp_cnt = 0;
 
@@ -385,7 +402,7 @@ static int pcie_kthread(void *arg)
 
 			msleep(1000);
 			reg = readl(tmp_host->axi + RZG3S_PCI_PCSTAT1);
-			if (FIELD_GET(RZG3S_PCI_PCSTAT1_LTSSM_STATE, reg) ==
+			if (FIELD_GET(RZG3S_PCI_PCSTAT1_LTSSM_STATE, reg) &
 			    ltssm_state_detect) {
 				reg = readl(tmp_host->axi + RZG3S_PCI_PCSTAT2);
 				state_rx_detect = FIELD_GET(RZG3S_PCI_PCSTAT2_STATE_RX_DETECT,
@@ -408,6 +425,9 @@ static int pcie_kthread(void *arg)
 					pcie_thread_status = RZV2_PCIE_THREAD_IDLE;
 					pcie_receiver_detection = 0x00;
 				}
+			} else {
+				pcie_thread_status = RZV2_PCIE_THREAD_IDLE;
+				pcie_receiver_detection = 0x00;
 			}
 		} else
 			msleep(20);
@@ -415,8 +435,26 @@ static int pcie_kthread(void *arg)
 	return 0;
 }
 
-static void rzv2h_pcie_enable_dl_updown(struct rzg3s_pcie_host *host)
+static int rzv2h_pcie_enable_dl_updown(struct rzg3s_pcie_host *host)
 {
+	struct platform_device *pdev = to_platform_device(host->dev);
+	struct device *dev = host->dev;
+	const char *devname;
+	int irq, ret;
+
+	irq = platform_get_irq_byname(pdev, "pcie_evt");
+	if (irq < 0)
+		return dev_err_probe(dev, irq ? irq : -EINVAL,
+				     "Failed to get event IRQ!\n");
+
+	devname = devm_kasprintf(dev, GFP_KERNEL, "%s-evt", dev_name(dev));
+	if (!devname)
+		return -ENOMEM;
+
+	ret = devm_request_irq(dev, irq, rzg3s_pcie_evt_irq, 0, devname, host);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to request IRQ: %d\n", ret);
+
 	pcie_thread_status = RZV2_PCIE_THREAD_IDLE;
 	pcie_receiver_detection = 0x00;
 
@@ -426,10 +464,7 @@ static void rzv2h_pcie_enable_dl_updown(struct rzg3s_pcie_host *host)
 	else
 		pr_info("pcie kthread pid:%d\n", pcie_kthread_tsk->pid);
 
-	/* enable DL_UpDown interrupts */
-	rzg3s_pcie_update_bits(host->axi, RZG3S_PCI_PEIE0,
-			       RZG3S_PCI_PEIE0_DL_UPDOWN,
-			       RZG3S_PCI_PEIE0_DL_UPDOWN);
+	return 0;
 }
 
 static void rzv2h_pcie_dl_updown(struct rzg3s_pcie_host *host)
@@ -477,8 +512,6 @@ static irqreturn_t rzg3s_pcie_msi_irq(int irq, void *data)
 	struct rzg3s_pcie_msi *msi = &host->msi;
 	unsigned long bit;
 	u32 status;
-
-	rzv2h_pcie_dl_updown(host);
 
 	status = readl(host->axi + RZG3S_PCI_PINTRCVIS);
 	if (!(status & RZG3S_PCI_PINTRCVIS_MSI))
@@ -1254,6 +1287,11 @@ static int rzg3s_pcie_host_init(struct rzg3s_pcie_host *host, bool probe)
 	val = FIELD_GET(RZG3S_PCI_PCSTAT2_STATE_RX_DETECT, val);
 	dev_info(host->dev, "PCIe x%d: link up\n", hweight32(val));
 
+	/* enable DL_UpDown interrupts */
+	rzg3s_pcie_update_bits(host->axi, RZG3S_PCI_PEIE0,
+			       RZG3S_PCI_PEIE0_DL_UPDOWN,
+			       RZG3S_PCI_PEIE0_DL_UPDOWN);
+
 	if (probe) {
 		ret = devm_add_action_or_reset(host->dev,
 					       rzg3s_pcie_cfg_resets_action,
@@ -1781,7 +1819,9 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	rzv2h_pcie_enable_dl_updown(host);
+	ret = rzv2h_pcie_enable_dl_updown(host);
+	if (ret)
+		return ret;
 
 	msleep(PCIE_RESET_CONFIG_WAIT_MS);
 
