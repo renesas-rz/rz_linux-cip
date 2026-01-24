@@ -68,6 +68,12 @@ static const struct clk_div_table dtable_25_32[] = {
 	{0, 0},
 };
 
+static const struct clk_div_table dtable_20_40[] = {
+	{0, 20},
+	{1, 40},
+	{0, 0},
+};
+
 /* Mux clock tables */
 static const char * const sel_clk_pll0[] = { ".sel_loco", ".sel_pll0" };
 static const char * const sel_clk_pll1[] = { ".sel_loco", ".sel_pll1" };
@@ -105,6 +111,8 @@ static const struct cpg_core_clk r9a07g076_core_clks[] __initconst = {
 	/* Core output clk */
 	DEF_DIV("CA55", R9A07G076_CA55, CLK_SEL_CLK_PLL0, DIVCA55,
 		dtable_1_2, 0, 1),
+	DEF_DIV("CAN", R9A07G076_CAN, CLK_SEL_CLK_PLL1, DIVCANFD,
+		dtable_20_40, 0, 0),
 	DEF_FIXED("PCLKAH", R9A07G076_PCLKAH, CLK_SEL_CLK_PLL1, 1, 4),
 	DEF_FIXED("PCLKAM", R9A07G076_PCLKAM, CLK_SEL_CLK_PLL1, 1, 8),
 	DEF_FIXED("PCLKAL", R9A07G076_PCLKAL, CLK_SEL_CLK_PLL1, 1, 16),
@@ -170,7 +178,7 @@ static const struct rzt2_mod_clk r9a07g076_mod_clks[] __initconst = {
 	DEF_MOD("cmtw0", R9A07G076_CMTW0_CLK, R9A07G076_PCLKL, MSTPCRD, 5, 0),
 	DEF_MOD("cmtw1", R9A07G076_CMTW1_CLK, R9A07G076_PCLKL, MSTPCRD, 6, 0),
 	DEF_MOD("tsu", R9A07G076_TSU_CLK, R9A07G076_PCLKL, MSTPCRD, 7, 0),
-	DEF_MOD("canfd", R9A07G076_CANFD_CLK, R9A07G076_PCLKM, MSTPCRD, 10, 0),
+	DEF_MOD("canfd", R9A07G076_CANFD_CLK, R9A07G076_CAN, MSTPCRD, 10, 0),
 	DEF_MOD("gmac0", R9A07G076_GMAC0_CLK, R9A07G076_PCLKH, MSTPCRE, 0, 0),
 	DEF_MOD("ethsw", R9A07G076_ETHSW_CLK, R9A07G076_PCLKH, MSTPCRE, 1, 0),
 	DEF_MOD("ethss", R9A07G076_ETHSS_CLK, R9A07G076_PCLKM, MSTPCRE, 3, 0),
