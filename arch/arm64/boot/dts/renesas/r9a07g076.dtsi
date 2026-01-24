@@ -756,6 +756,35 @@
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
+
+		canfd: can@80040000 {
+			compatible = "renesas,r9a07g076-canfd";
+			reg = <0 0x80040000 0 0x20000>;
+			interrupts =	<GIC_SPI 501 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 502 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 503 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 504 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 505 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 506 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 507 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 508 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "ch0_trx", "ch0_err", "ch0_rec",
+					  "ch1_trx", "ch1_err", "ch1_rec",
+					  "g_recc", "g_err";
+			clocks = <&cpg CPG_MOD R9A07G076_CANFD_CLK>,
+				 <&cpg CPG_CORE R9A07G076_PCLKH>,
+				 <&cpg CPG_CORE R9A07G076_CAN>;
+			clock-names = "fck", "ram_clk", "can_clk";
+			power-domains = <&cpg>;
+			status = "disabled";
+
+			channel0 {
+				status = "disabled";
+			};
+			channel1 {
+				status = "disabled";
+			};
+		};
 	};
 
 	thermal-zones {
