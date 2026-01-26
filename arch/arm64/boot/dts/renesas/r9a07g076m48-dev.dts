@@ -36,6 +36,7 @@
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
 		i2c0 = &i2c0;
+		i2c1 = &i2c1;
 		eth0 = &gmac0;
 		eth1 = &gmac1;
 		eth2 = &gmac2;
@@ -322,6 +323,11 @@
 	i2c0_pins: i2c0 {
 		pinmux = <RZT2_PORT_PINMUX(15, 4, 0x1C)>, /* IIC : IIC_SCL0/P15_4 */
 			 <RZT2_PORT_PINMUX(15, 5, 0x1C)>; /* IIC : IIC_SDA0/P15_5 */
+	};
+
+	i2c1_pins: i2c1 {
+		pinmux = <RZT2_PORT_PINMUX(17, 0, 0x1C)>, /* IIC : IIC_SCL1/P17_0 */
+			 <RZT2_PORT_PINMUX(17, 1, 0x1C)>; /* IIC : IIC_SDA1/P17_1 */
 	};
 };
 
@@ -707,6 +713,18 @@
 
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+	eeprom: eeprom@50 {
+		compatible = "renesas,r1ex24016", "atmel,24c16";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+};
+
+&i2c1 {
+	pinctrl-0 = <&i2c1_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";
