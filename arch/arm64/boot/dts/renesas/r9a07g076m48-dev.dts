@@ -35,6 +35,7 @@
 		serial3 = &scie7;
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
+		i2c0 = &i2c0;
 		eth0 = &gmac0;
 		eth1 = &gmac1;
 		eth2 = &gmac2;
@@ -317,6 +318,11 @@
 		};
 	};
 #endif
+
+	i2c0_pins: i2c0 {
+		pinmux = <RZT2_PORT_PINMUX(15, 4, 0x1C)>, /* IIC : IIC_SCL0/P15_4 */
+			 <RZT2_PORT_PINMUX(15, 5, 0x1C)>; /* IIC : IIC_SDA0/P15_5 */
+	};
 };
 
 &extal {
@@ -698,3 +704,10 @@
 	};
 };
 #endif
+
+&i2c0 {
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
