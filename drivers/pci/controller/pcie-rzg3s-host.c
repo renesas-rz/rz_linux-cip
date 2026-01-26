@@ -1382,7 +1382,7 @@ static int rzg3s_pcie_set_inbound_windows(struct rzg3s_pcie_host *host,
 
 		pci_addr += size;
 		cpu_addr += size;
-		size_id = size;
+		size_id += size;
 		id++;
 	}
 	*index = id;
