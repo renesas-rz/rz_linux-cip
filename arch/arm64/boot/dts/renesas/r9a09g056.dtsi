@@ -1266,6 +1266,13 @@
 			power-domains = <&cpg>;
 			resets = <&cpg 0x81>, <&cpg 0x82>;
 			reset-names = "presetn", "tresetn";
+			dmas = <&dmac0 0x4492>, <&dmac0 0x4493>,
+			       <&dmac1 0x4492>, <&dmac1 0x4493>,
+			       <&dmac2 0x4492>, <&dmac2 0x4493>,
+			       <&dmac3 0x4492>, <&dmac3 0x4493>,
+			       <&dmac4 0x4492>, <&dmac4 0x4493>;
+			dma-names = "rx", "tx", "rx", "tx", "rx",
+				    "tx", "rx", "tx", "rx", "tx";
 			status = "disabled";
 		};
 
@@ -1285,6 +1292,13 @@
 			power-domains = <&cpg>;
 			resets = <&cpg 0x83>, <&cpg 0x84>;
 			reset-names = "presetn", "tresetn";
+			dmas = <&dmac0 0x4495>, <&dmac0 0x4496>,
+			       <&dmac1 0x4495>, <&dmac1 0x4496>,
+			       <&dmac2 0x4495>, <&dmac2 0x4496>,
+			       <&dmac3 0x4495>, <&dmac3 0x4496>,
+			       <&dmac4 0x4495>, <&dmac4 0x4496>;
+			dma-names = "rx", "tx", "rx", "tx", "rx",
+				    "tx", "rx", "tx", "rx", "tx";
 			status = "disabled";
 		};
 
@@ -1304,6 +1318,13 @@
 			power-domains = <&cpg>;
 			resets = <&cpg 0x85>, <&cpg 0x86>;
 			reset-names = "presetn", "tresetn";
+			dmas = <&dmac0 0x4498>, <&dmac0 0x4499>,
+			       <&dmac1 0x4498>, <&dmac1 0x4499>,
+			       <&dmac2 0x4498>, <&dmac2 0x4499>,
+			       <&dmac3 0x4498>, <&dmac3 0x4499>,
+			       <&dmac4 0x4498>, <&dmac4 0x4499>;
+			dma-names = "rx", "tx", "rx", "tx", "rx",
+				    "tx", "rx", "tx", "rx", "tx";
 			status = "disabled";
 		};
 
@@ -1323,6 +1344,13 @@
 			power-domains = <&cpg>;
 			resets = <&cpg 0x87>, <&cpg 0x88>;
 			reset-names = "presetn", "tresetn";
+			dmas = <&dmac0 0x449b>, <&dmac0 0x449c>,
+			       <&dmac1 0x449b>, <&dmac1 0x449c>,
+			       <&dmac2 0x449b>, <&dmac2 0x449c>,
+			       <&dmac3 0x449b>, <&dmac3 0x449c>,
+			       <&dmac4 0x449b>, <&dmac4 0x449c>;
+			dma-names = "rx", "tx", "rx", "tx", "rx",
+				    "tx", "rx", "tx", "rx", "tx";
 			status = "disabled";
 		};
 
@@ -1342,6 +1370,13 @@
 			power-domains = <&cpg>;
 			resets = <&cpg 0x89>, <&cpg 0x8a>;
 			reset-names = "presetn", "tresetn";
+			dmas = <&dmac0 0x449e>, <&dmac0 0x449f>,
+			       <&dmac1 0x449e>, <&dmac1 0x449f>,
+			       <&dmac2 0x449e>, <&dmac2 0x449f>,
+			       <&dmac3 0x449e>, <&dmac3 0x449f>,
+			       <&dmac4 0x449e>, <&dmac4 0x449f>;
+			dma-names = "rx", "tx", "rx", "tx", "rx",
+				    "tx", "rx", "tx", "rx", "tx";
 			status = "disabled";
 		};
 
@@ -1361,6 +1396,13 @@
 			power-domains = <&cpg>;
 			resets = <&cpg 0x8b>, <&cpg 0x8c>;
 			reset-names = "presetn", "tresetn";
+			dmas = <&dmac0 0x44a1>, <&dmac0 0x44a2>,
+			       <&dmac1 0x44a1>, <&dmac1 0x44a2>,
+			       <&dmac2 0x44a1>, <&dmac2 0x44a2>,
+			       <&dmac3 0x44a1>, <&dmac3 0x44a2>,
+			       <&dmac4 0x44a1>, <&dmac4 0x44a2>;
+			dma-names = "rx", "tx", "rx", "tx", "rx",
+				    "tx", "rx", "tx", "rx", "tx";
 			status = "disabled";
 		};
 
@@ -1380,6 +1422,13 @@
 			power-domains = <&cpg>;
 			resets = <&cpg 0x8d>, <&cpg 0x8e>;
 			reset-names = "presetn", "tresetn";
+			dmas = <&dmac0 0x44a4>, <&dmac0 0x44a5>,
+			       <&dmac1 0x44a4>, <&dmac1 0x44a5>,
+			       <&dmac2 0x44a4>, <&dmac2 0x44a5>,
+			       <&dmac3 0x44a4>, <&dmac3 0x44a5>,
+			       <&dmac4 0x44a4>, <&dmac4 0x44a5>;
+			dma-names = "rx", "tx", "rx", "tx", "rx",
+				    "tx", "rx", "tx", "rx", "tx";
 			status = "disabled";
 		};
 
@@ -1399,6 +1448,13 @@
 			power-domains = <&cpg>;
 			resets = <&cpg 0x8f>, <&cpg 0x90>;
 			reset-names = "presetn", "tresetn";
+			dmas = <&dmac0 0x44a7>, <&dmac0 0x44a8>,
+			       <&dmac1 0x44a7>, <&dmac1 0x44a8>,
+			       <&dmac2 0x44a7>, <&dmac2 0x44a8>,
+			       <&dmac3 0x44a7>, <&dmac3 0x44a8>,
+			       <&dmac4 0x44a7>, <&dmac4 0x44a8>;
+			dma-names = "rx", "tx", "rx", "tx", "rx",
+				    "tx", "rx", "tx", "rx", "tx";
 			status = "disabled";
 		};
 
@@ -1418,6 +1474,13 @@
 			power-domains = <&cpg>;
 			resets = <&cpg 0x91>, <&cpg 0x92>;
 			reset-names = "presetn", "tresetn";
+			dmas = <&dmac0 0x44aa>, <&dmac0 0x44ab>,
+			       <&dmac1 0x44aa>, <&dmac1 0x44ab>,
+			       <&dmac2 0x44aa>, <&dmac2 0x44ab>,
+			       <&dmac3 0x44aa>, <&dmac3 0x44ab>,
+			       <&dmac4 0x44aa>, <&dmac4 0x44ab>;
+			dma-names = "rx", "tx", "rx", "tx", "rx",
+				    "tx", "rx", "tx", "rx", "tx";
 			status = "disabled";
 		};
 
@@ -1437,6 +1500,13 @@
 			power-domains = <&cpg>;
 			resets = <&cpg 0x93>, <&cpg 0x94>;
 			reset-names = "presetn", "tresetn";
+			dmas = <&dmac0 0x44ad>, <&dmac0 0x44ae>,
+			       <&dmac1 0x44ad>, <&dmac1 0x44ae>,
+			       <&dmac2 0x44ad>, <&dmac2 0x44ae>,
+			       <&dmac3 0x44ad>, <&dmac3 0x44ae>,
+			       <&dmac4 0x44ad>, <&dmac4 0x44ae>;
+			dma-names = "rx", "tx", "rx", "tx", "rx",
+				    "tx", "rx", "tx", "rx", "tx";
 			status = "disabled";
 		};
 
