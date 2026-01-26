@@ -32,6 +32,13 @@
  */
 #define SEL_ETH34_ESWM_MTU3	0
 
+/*
+ * Set SEL_PCIE_RC_EP to below values to select using of:
+ * - 0: PCI_RC (Default)
+ * - 1: PCI_EP
+ */
+#define SEL_PCIE_RC_EP		0
+
 / {
 	model = "Renesas Development EVK based on r9a07g076m48";
 	compatible = "renesas,r9a07g076m48-dev", "renesas,r9a07g076m48", "renesas,r9a07g076";
@@ -369,12 +376,14 @@
 		pinmux = <RZT2_PORT_PINMUX(11, 5, 0x08)>; /* POE3 : POE0#/P11_5 */
 	};
 
+#if (!SEL_PCIE_RC_EP)
 	pcie_rstout {
 		gpio-hog;
 		gpios = <RZT2_GPIO(24, 5) GPIO_ACTIVE_HIGH>; /* PCIE: RSTOUT/P24_5 */
 		output-high;
 		line-name = "pcie_rstout";
 	};
+#endif
 };
 
 &extal {
@@ -826,7 +835,13 @@
 #endif
 };
 
+#if (!SEL_PCIE_RC_EP)
 &pcie0 {
 	pcie-lane = <1>;
 	status = "okay";
 };
+#else
+&pcie0_ep {
+	status = "okay";
+};
+#endif
