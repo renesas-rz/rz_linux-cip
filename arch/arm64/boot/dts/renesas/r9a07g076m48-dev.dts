@@ -32,6 +32,7 @@
 	aliases {
 		serial0 = &sci0;
 		serial1 = &sci1;
+		serial3 = &scie7;
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
 		eth0 = &gmac0;
@@ -121,6 +122,12 @@
 	sci1_pins: sci1 {
 		pinmux = <RZT2_PORT_PINMUX(11, 1, 0x18)>, /* SCI : RXD1/SCL1/MISO1/P11_1 */
 			 <RZT2_PORT_PINMUX(11, 2, 0x18)>; /* SCI : TXD1/SDA1/MOSI1/P11_2 */
+	};
+
+	scie7_pins: scie7 {
+		pinmux = <RZT2_PORT_PINMUX(14, 0, 0x1A)>, /* SCIe: RXDE7/P14_0 */
+			 <RZT2_PORT_PINMUX(13, 6, 0x1A)>, /* SCIe: DEE7/P13_6 */
+			 <RZT2_PORT_PINMUX(13, 7, 0x1A)>; /* SCIe: TXDE7/P13_7 */
 	};
 
 	sdhi0_pins: sd0 {
@@ -329,6 +336,15 @@
 &sci1 {
 	pinctrl-0 = <&sci1_pins>;
 	pinctrl-names = "default";
+	status = "okay";
+};
+
+&scie7 {
+	pinctrl-0 = <&scie7_pins>;
+	pinctrl-names = "default";
+	linux,rs485-enabled-at-boot-time;
+	rs485-rx-during-tx;
+	rs485-enabled;
 	status = "okay";
 };
 
