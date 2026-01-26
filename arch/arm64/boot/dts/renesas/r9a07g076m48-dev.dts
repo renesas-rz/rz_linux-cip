@@ -329,6 +329,11 @@
 		pinmux = <RZT2_PORT_PINMUX(17, 0, 0x1C)>, /* IIC : IIC_SCL1/P17_0 */
 			 <RZT2_PORT_PINMUX(17, 1, 0x1C)>; /* IIC : IIC_SDA1/P17_1 */
 	};
+
+	can1_pins: can1 {
+		pinmux = <RZT2_PORT_PINMUX(8, 0, 0x1D)>, /* CANFD : CANRX1/P08_0 */
+			 <RZT2_PORT_PINMUX(8, 2, 0x1D)>; /* CANFD : CANTX1/P08_2 */
+	};
 };
 
 &extal {
@@ -728,4 +733,14 @@
 	pinctrl-names = "default";
 
 	status = "okay";
+};
+
+&canfd {
+	pinctrl-0 = <&can1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	channel1 {
+		status = "okay";
+	};
 };
