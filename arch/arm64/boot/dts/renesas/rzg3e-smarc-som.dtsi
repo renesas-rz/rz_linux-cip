@@ -454,6 +454,13 @@
 			 <RZG3E_PORT_PINMUX(L, 1, 0)>; /* XSPI0_CS0 */
 	};
 
+	rspi0_pins: rspi0 {
+		pinmux = <RZG3E_PORT_PINMUX(M, 4, 2)>, /* MISOA */
+			 <RZG3E_PORT_PINMUX(M, 5, 2)>, /* MOSIA */
+			 <RZG3E_PORT_PINMUX(M, 7, 2)>, /* SSLA0 */
+			 <RZG3E_PORT_PINMUX(M, 6, 2)>; /* RSPCKA */
+	};
+
 	sound_pins: sound {
 		sound_clk_pins: sound_clk {
 			pinmux = <RZG3E_PORT_PINMUX(4, 2, 8)>, /* AUDIO_CLKB */
@@ -542,6 +549,13 @@
 };
 
 &wdt1 {
+	status = "okay";
+};
+
+&rspi0 {
+	pinctrl-0 = <&rspi0_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 };
 
