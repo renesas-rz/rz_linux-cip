@@ -1018,6 +1018,11 @@ static const struct regulator_desc renesas_sdhi_vqmmc_regulator = {
 	.n_voltages = ARRAY_SIZE(renesas_sdhi_vqmmc_voltages),
 };
 
+static void sdhi_renesas_reset_assert(void *data)
+{
+	reset_control_assert(data);
+}
+
 int renesas_sdhi_probe(struct platform_device *pdev,
 		       const struct tmio_mmc_dma_ops *dma_ops,
 		       const struct renesas_sdhi_of_data *of_data,
@@ -1074,6 +1079,15 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	priv->rstc = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(priv->rstc))
 		return PTR_ERR(priv->rstc);
+
+	ret = reset_control_deassert(priv->rstc);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(&pdev->dev, sdhi_renesas_reset_assert,
+				       priv->rstc);
+	if (ret)
+		return ret;
 
 	priv->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (!IS_ERR(priv->pinctrl)) {
