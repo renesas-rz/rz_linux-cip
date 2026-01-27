@@ -741,21 +741,23 @@ static int rz_ssi_dma_transfer(struct rz_ssi_priv *ssi,
 	dma_paddr = runtime->dma_addr + frames_to_bytes(runtime,
 							strm->dma_buffer_pos);
 	dma_size = frames_to_bytes(runtime, amount);
-	desc = dmaengine_prep_slave_single(strm->dma_ch, dma_paddr, dma_size,
-					   dir,
-					   DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	if (!desc) {
-		dev_err(ssi->dev, "dmaengine_prep_slave_single() fail\n");
-		return -ENOMEM;
-	}
 
-	desc->callback = rz_ssi_dma_complete;
-	desc->callback_param = strm;
+	scoped_guard(spinlock_irqsave, &ssi->lock) {
+		desc = dmaengine_prep_slave_single(strm->dma_ch, dma_paddr, dma_size,
+						   dir,
+						   DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc) {
+			dev_err(ssi->dev, "dmaengine_prep_slave_single() fail\n");
+			return -ENOMEM;
+		}
 
-	if (dmaengine_submit(desc) < 0) {
-		dev_err(ssi->dev, "dmaengine_submit() fail\n");
-		return -EIO;
-	}
+		desc->callback = rz_ssi_dma_complete;
+		desc->callback_param = strm;
+
+		if (dmaengine_submit(desc) < 0) {
+			dev_err(ssi->dev, "dmaengine_submit() fail\n");
+			return -EIO;
+		}
 
 	/* Update DMA pointer */
 	strm->dma_buffer_pos += amount;
@@ -764,6 +766,7 @@ static int rz_ssi_dma_transfer(struct rz_ssi_priv *ssi,
 
 	/* Start DMA */
 	dma_async_issue_pending(strm->dma_ch);
+	}
 
 	return 0;
 }
