@@ -1066,9 +1066,15 @@
 	status = "okay";
 };
 
+&poeg0gc {
+	renesas,poeg-config = <1>;
+	status = "okay";
+};
+
 &gpt0 {
 	pinctrl-0 = <&gpt0_pins>;
 	pinctrl-names = "default";
+	renesas,poegs = <&poeg0gc 2>;
 	status = "okay";
 };
 
