@@ -875,6 +875,11 @@
 			renesas,output-impedance = <3>;
 		};
 	};
+
+	gpt0_pins: gpt0 {
+		pinmux = <RZV2N_PORT_PINMUX(7, 2, 9)>, /* GTIOC0_2A - Pmod_6A - GPIO8 */
+			 <RZV2N_PORT_PINMUX(7, 3, 9)>; /* GTIOC0_2B - Pmod_3A - GPIO8 */
+	};
 };
 
 &qextal_clk {
@@ -927,6 +932,12 @@
 	pinctrl-0 = <&usb3_pins>;
 	pinctrl-names = "default";
 	memory-region = <&global_cma>;
+	status = "okay";
+};
+
+&gpt0 {
+	pinctrl-0 = <&gpt0_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
