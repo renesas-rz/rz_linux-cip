@@ -183,6 +183,16 @@
 		};
 	};
 
+	reg_0p8v: regulator0 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "fixed-0.8V";
+		regulator-min-microvolt = <800000>;
+		regulator-max-microvolt = <800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	reg_1p8v: regulator-1p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-1.8V";
@@ -346,6 +356,11 @@
 &hsusb {
 	dr_mode = "otg";
 	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+	mali-supply = <&reg_0p8v>;
 };
 
 &i2c0 {
