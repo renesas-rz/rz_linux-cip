@@ -685,3 +685,11 @@
 &ssi4 {
 	shared-pin;
 };
+
+&cmtw0 {
+	status = "okay";
+};
+
+&cmtw1 {
+	status = "okay";
+};
