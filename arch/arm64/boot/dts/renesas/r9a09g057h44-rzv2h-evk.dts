@@ -48,12 +48,13 @@
  *
  * Please change the jumper setting in board devicetree corresponding to below Macros:
  *
- * SEL_CAN01_HEADER:
- *	1: CAN0/1 (default)		0: External Header Pin
+ * SEL_CAN0_HEADER/SEL_CAN1_HEADER:
+ *	1: CAN0/1 (default)		0: SPDIF0/1
  */
 
 /* Switch selection settings */
-#define SEL_CAN01_HEADER		1
+#define SEL_CAN0_HEADER		1
+#define SEL_CAN1_HEADER		1
 / {
 	model = "Renesas RZ/V2H EVK Board based on r9a09g057h44";
 	compatible = "renesas,rzv2h-evk", "renesas,r9a09g057h44", "renesas,r9a09g057";
@@ -211,7 +212,7 @@
 		clock-frequency = <24000000>;
 	};
 
-#if (!SEL_CAN01_HEADER)
+#if (!SEL_CAN0_HEADER)
 	codec_test0: codec_test0 {
 		compatible = "linux,snd-soc-dummy";
 		#sound-dai-cells = <0>;
@@ -221,7 +222,8 @@
 			};
 		};
 	};
-
+#endif
+#if (!SEL_CAN1_HEADER)
 	codec_test1: codec_test1 {
 		compatible = "linux,snd-soc-dummy";
 		#sound-dai-cells = <0>;
@@ -240,8 +242,10 @@
 
 		dais = <&rsnd_port0	/* DA7211 */
 			&rsnd_port1	/* HDMI0  */
-#if (!SEL_CAN01_HEADER)
+#if (!SEL_CAN0_HEADER)
 			&spdif_port0
+#endif
+#if (!SEL_CAN1_HEADER)
 			&spdif_port1
 #endif
 			>;
@@ -678,7 +682,7 @@
 			};
 		};
 
-#if (!SEL_CAN01_HEADER)
+#if (!SEL_CAN0_HEADER)
 		spdif_port0: port@2 {
 			reg = <2>;
 			spdif0_endpoint: endpoint {
@@ -691,9 +695,15 @@
 				capture  = <&spdif0>;
 			};
 		};
-
+#endif
+#if (!SEL_CAN1_HEADER)
+#if (!SEL_CAN0_HEADER)
 		spdif_port1: port@3 {
 			reg = <3>;
+#else
+		spdif_port1: port@2 {
+			reg = <2>;
+#endif
 			spdif1_endpoint: endpoint {
 				remote-endpoint = <&dummy_codec1>;
 
@@ -839,15 +849,21 @@
 			 <RZV2H_PORT_PINMUX(0, 7, 1)>; /* I2C8_SCL */
 	};
 
-#if (SEL_CAN01_HEADER)
-	can0_pins: can0 {
-		pinmux = <RZV2H_PORT_PINMUX(8, 0, 5)>, /* TX */
-			 <RZV2H_PORT_PINMUX(8, 1, 5)>; /* RX */
-	};
+#if (SEL_CAN0_HEADER || SEL_CAN1_HEADER)
+	can_pins: can {
+#if (SEL_CAN0_HEADER)
+		can0_pins: can0 {
+			pinmux = <RZV2H_PORT_PINMUX(8, 0, 5)>, /* TX */
+				 <RZV2H_PORT_PINMUX(8, 1, 5)>; /* RX */
+		};
+#endif
 
-	can1_pins: can1 {
-		pinmux = <RZV2H_PORT_PINMUX(8, 2, 5)>, /* TX */
-			 <RZV2H_PORT_PINMUX(8, 3, 5)>; /* RX */
+#if (SEL_CAN1_HEADER)
+		can1_pins: can1 {
+			pinmux = <RZV2H_PORT_PINMUX(8, 2, 5)>, /* TX */
+				 <RZV2H_PORT_PINMUX(8, 3, 5)>; /* RX */
+		};
+#endif
 	};
 #endif
 
@@ -871,12 +887,13 @@
 				 <RZV2H_PORT_PINMUX(9, 7, 8)>; /* AUDIO_CLKOUT */
 		};
 
-#if (!SEL_CAN01_HEADER)
+#if (!SEL_CAN0_HEADER)
 		spdif0_pins: spdif0 {
 			pinmux = <RZV2H_PORT_PINMUX(8, 0, 8)>, /* SPDIF0_OUT */
 				 <RZV2H_PORT_PINMUX(8, 1, 8)>; /* SPDIF0_IN */
 		};
-
+#endif
+#if (!SEL_CAN1_HEADER)
 		spdif2_pins: spdif2 {
 			pinmux = <RZV2H_PORT_PINMUX(8, 2, 8)>, /* SPDIF2_OUT */
 				 <RZV2H_PORT_PINMUX(8, 3, 8)>; /* SPDIF2_IN */
@@ -1148,19 +1165,22 @@
 	status = "okay";
 };
 
-#if (SEL_CAN01_HEADER)
+#if (SEL_CAN0_HEADER || SEL_CAN1_HEADER)
 &canfd {
-	pinctrl-0 = <&can0_pins &can1_pins>;
+	pinctrl-0 = <&can_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 
+#if (SEL_CAN0_HEADER)
 	channel0 {
 		status = "okay";
 	};
-
+#endif
+#if (SEL_CAN1_HEADER)
 	channel1 {
 		status = "okay";
 	};
+#endif
 };
 #endif
 
