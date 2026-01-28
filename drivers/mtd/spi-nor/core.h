@@ -561,6 +561,15 @@ struct flash_info {
 		.n_sectors = (_n_sectors),				\
 		.page_size = 256,					\
 
+#define SNOR_ID3(_jedec_id)						\
+	.id = {								\
+		((_jedec_id) >> 16) & 0xff,				\
+		((_jedec_id) >> 8) & 0xff,				\
+		(_jedec_id) & 0xff,					\
+	},								\
+	.id_len = 3,							\
+	.parse_sfdp = true,						\
+
 #define CAT25_INFO(_sector_size, _n_sectors, _page_size, _addr_nbytes)	\
 		.sector_size = (_sector_size),				\
 		.n_sectors = (_n_sectors),				\
