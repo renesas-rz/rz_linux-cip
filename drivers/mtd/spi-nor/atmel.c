@@ -186,6 +186,7 @@ static const struct flash_info atmel_nor_parts[] = {
 		.fixups = &atmel_nor_global_protection_fixups },
 	{ "at25sl321",	INFO(0x1f4216, 0, 64 * 1024, 64)
 		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+	{ "at25ql128a", SNOR_ID3(0x1f4218) },
 	{ "at26f004",   INFO(0x1f0400, 0, 64 * 1024,  8)
 		NO_SFDP_FLAGS(SECT_4K) },
 	{ "at26df081a", INFO(0x1f4501, 0, 64 * 1024, 16)
