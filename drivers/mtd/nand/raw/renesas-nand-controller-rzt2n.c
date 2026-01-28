@@ -19,6 +19,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/reset.h>
+#include "internals.h"
 
 #define MAX_ADDRESS_CYC		6
 #define MAX_ERASE_ADDRESS_CYC	3
@@ -381,6 +382,9 @@ struct cdns_nand_chip {
 	u8 bbm_len;
 	/* ECC strength index. */
 	u8 corr_str_idx;
+
+	/* Timing mode requested from DT */
+	u8 req_mode;
 
 	u8 cs[] __counted_by(nsels);
 };
@@ -2323,13 +2327,25 @@ static const struct nand_controller_ops rzt2n_nand_controller_ops = {
 	.setup_interface = rzt2n_nand_setup_interface,
 };
 
+static int rzt2n_nand_choose_interface_config(struct nand_chip *chip,
+					      struct nand_interface_config *iface)
+{
+	struct cdns_nand_chip *cdns_chip = to_cdns_nand_chip(chip);
+	struct nand_interface_config ifc;
+
+	onfi_fill_interface_config(chip, &ifc, NAND_SDR_IFACE, cdns_chip->req_mode);
+
+	return nand_choose_best_sdr_timings(chip, iface, &ifc.timings.sdr);
+}
+
 static int rzt2n_nand_chip_init(struct cdns_nand_ctrl *cdns_ctrl,
-				  struct device_node *np)
+				struct device_node *np)
 {
 	struct cdns_nand_chip *cdns_chip;
 	struct mtd_info *mtd;
 	struct nand_chip *chip;
 	int nsels, ret, i;
+	u32 dt_mode;
 	u32 cs;
 
 	nsels = of_property_count_elems_of_size(np, "reg", sizeof(u32));
@@ -2382,6 +2398,24 @@ static int rzt2n_nand_chip_init(struct cdns_nand_ctrl *cdns_ctrl,
 
 	mtd = nand_to_mtd(chip);
 	mtd->dev.parent = cdns_ctrl->dev;
+
+	/*
+	 * Get timing mode if present in DTS.
+	 * If not set or invalid, use the default timing mode.
+	 */
+	if (!of_property_read_u32(np, "timing-mode", &dt_mode)) {
+		if (dt_mode > 5) {
+			dev_warn(cdns_ctrl->dev, "invalid DT timing-mode %u, using default\n",
+				 dt_mode);
+		} else {
+			cdns_chip->req_mode = dt_mode;
+
+			dev_info(cdns_ctrl->dev, "DT requested timing-mode: %u\n",
+				 cdns_chip->req_mode);
+
+			chip->ops.choose_interface_config = rzt2n_nand_choose_interface_config;
+		}
+	}
 
 	chip->parameters.supports_set_get_features = 1;
 	set_bit(ONFI_FEATURE_ADDR_TIMING_MODE, chip->parameters.set_feature_list);
