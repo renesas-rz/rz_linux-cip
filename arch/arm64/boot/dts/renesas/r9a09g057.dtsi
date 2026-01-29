@@ -276,6 +276,7 @@
 			reg = <0 0x10430000 0 0x10000>;
 			clocks = <&cpg CPG_CORE R9A09G057_SYS_0_PCLK>;
 			resets = <&cpg 0x30>;
+			#renesas,sysc-signal-cells = <2>;
 		};
 
 		xspi: spi@11030000 {
@@ -2124,6 +2125,7 @@
 			resets =  <&cpg 246>;
 			reset-names = "adrst-n";
 			power-domains = <&cpg>;
+			renesas,sysc-signal = <&sys 0x1600 0x1>;
 			status = "disabled";
 
 			#address-cells = <1>;
