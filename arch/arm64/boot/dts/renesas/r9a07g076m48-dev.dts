@@ -556,6 +556,7 @@
 	nand@0 {
 		reg = <0>;
 		label = "nand0";
+		timing-mode = <3>;
 
 		partitions {
 			compatible = "fixed-partitions";
