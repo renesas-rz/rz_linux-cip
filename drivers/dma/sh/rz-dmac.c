@@ -11,6 +11,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/cleanup.h>
+#include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/interrupt.h>
@@ -26,6 +27,8 @@
 #include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/suspend.h>
+#include <linux/sys_soc.h>
 
 #include "../dmaengine.h"
 #include "../virt-dma.h"
@@ -101,6 +104,7 @@ struct rz_dmac {
 	struct dma_device engine;
 	struct rz_dmac_icu icu;
 	struct device *dev;
+	struct clk *aclk;
 	struct reset_control *rstc;
 	void __iomem *base;
 	void __iomem *ext_base;
@@ -186,6 +190,11 @@ struct rz_dmac {
 /* RZ/V2H ICU related */
 #define RZV2H_MAX_DMAC_INDEX		4
 
+static const struct soc_device_attribute rzg3s_match[] = {
+	{ .family = "RZ/G3S" },
+	{ .family = "RZ/G2L" },
+	{ /* Sentinel*/ }
+};
 /*
  * -----------------------------------------------------------------------------
  * Device access
@@ -999,24 +1008,64 @@ static int rz_dmac_init(struct rz_dmac *dmac)
  * Power management
  */
 
-static int __maybe_unused rz_dmac_suspend(struct device *dev)
+static int rz_dmac_noirq_suspend(struct device *dev)
 {
 	struct rz_dmac *dmac = dev_get_drvdata(dev);
+	bool is_rzg3s = soc_device_match(rzg3s_match);
+	int ret;
 
-	reset_control_assert(dmac->rstc);
-	pm_runtime_put(dev);
+	if (pm_suspend_target_state == PM_SUSPEND_TO_IDLE)
+		return 0;
+
+	pm_runtime_put_sync(dev);
+	if (is_rzg3s)
+		clk_disable_unprepare(dmac->aclk);
+
+	ret = reset_control_assert(dmac->rstc);
+	if (ret) {
+		if (is_rzg3s)
+			clk_prepare_enable(dmac->aclk);
+
+		pm_runtime_resume_and_get(dev);
+		return ret;
+	}
 
 	return 0;
 }
 
-static int __maybe_unused rz_dmac_resume(struct device *dev)
+static int rz_dmac_noirq_resume(struct device *dev)
 {
 	struct rz_dmac *dmac = dev_get_drvdata(dev);
+	bool is_rzg3s = soc_device_match(rzg3s_match);
+	int ret;
 
-	pm_runtime_get_sync(dev);
-	reset_control_deassert(dmac->rstc);
+	if (pm_suspend_target_state == PM_SUSPEND_TO_IDLE)
+		return rz_dmac_init(dmac);
+
+	ret = reset_control_deassert(dmac->rstc);
+	if (ret) {
+		dev_err(dev, "Failed to deassert reset: %d\n", ret);
+		return ret;
+	}
+
+	if (is_rzg3s) {
+		ret = clk_prepare_enable(dmac->aclk);
+		if (ret)
+			goto err_assert_reset;
+	}
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
+		goto err_disable_clk;
 
 	return rz_dmac_init(dmac);
+
+err_disable_clk:
+	if (is_rzg3s)
+		clk_disable_unprepare(dmac->aclk);
+err_assert_reset:
+	reset_control_assert(dmac->rstc);
+	return ret;
 }
 
 static const struct dev_pm_ops rz_dmac_pm = {
@@ -1025,8 +1074,8 @@ static const struct dev_pm_ops rz_dmac_pm = {
 	 *   - Wait for the current transfer to complete and stop the device,
 	 *   - Resume transfers, if any.
 	 */
-	SET_SYSTEM_SLEEP_PM_OPS(rz_dmac_suspend,
-				      rz_dmac_resume)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(rz_dmac_noirq_suspend,
+				  rz_dmac_noirq_resume)
 };
 
 /*
@@ -1219,6 +1268,12 @@ static int rz_dmac_probe(struct platform_device *pdev)
 
 	/* Initialize the channels. */
 	INIT_LIST_HEAD(&dmac->engine.channels);
+
+	if (soc_device_match(rzg3s_match)) {
+		dmac->aclk = devm_clk_get_enabled(&pdev->dev, "main");
+		if (IS_ERR(dmac->aclk))
+			return dev_err_probe(&pdev->dev, PTR_ERR(dmac->aclk), "failed to get clock\n");
+	}
 
 	dmac->rstc = devm_reset_control_array_get_optional_exclusive(&pdev->dev);
 	if (IS_ERR(dmac->rstc))
