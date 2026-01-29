@@ -11,10 +11,13 @@
 #include <linux/iopoll.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/mfd/syscon.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
 #include <linux/reset.h>
+#include <linux/regmap.h>
 
 #define RZT2H_ADCSR_REG			0x00
 #define RZT2H_ADCSR_ADIE_MASK		BIT(12)
@@ -33,6 +36,13 @@
 #define RZT2H_ADCALCTL_CAL_ERR_MASK	BIT(2)
 
 #define RZT2H_ADC_NEED_CALIBRATION	BIT(0)
+#define RZT2H_ADC_CFG_SYS		BIT(1)
+
+struct adc_mstp_ada_b {
+	struct regmap *regmap;
+	u32 offset;
+	u32 mask;
+};
 
 struct rzt2h_adc_data {
 	u32 flags;
@@ -54,6 +64,12 @@ struct rzt2h_adc {
 	unsigned int num_channels;
 	unsigned int max_channels;
 	const struct rzt2h_adc_data *data;
+	struct adc_mstp_ada_b *mstp_ada_b;
+};
+
+struct rzt2h_adc_ops {
+	int (*init)(struct rzt2h_adc *adc);
+	int (*deinit)(struct rzt2h_adc *adc);
 };
 
 static void rzt2h_adc_start(struct rzt2h_adc *adc, unsigned int conversion_type)
@@ -213,11 +229,69 @@ static int rzt2h_adc_parse_properties(struct rzt2h_adc *adc)
 	return 0;
 }
 
+static int rzt2h_adc_parse_dt(struct rzt2h_adc *adc)
+{
+	struct device *dev = adc->dev;
+	const struct rzt2h_adc_data *data = adc->data;
+	struct of_phandle_args args;
+	struct adc_mstp_ada_b *mstp_ada_b = NULL;
+	int ret;
+
+	if (data->flags & RZT2H_ADC_CFG_SYS) {
+		mstp_ada_b = devm_kzalloc(dev, sizeof(*mstp_ada_b), GFP_KERNEL);
+
+		if (!mstp_ada_b)
+			return -ENOMEM;
+
+		ret = of_parse_phandle_with_args(dev->of_node, "renesas,sysc-signal",
+						"#renesas,sysc-signal-cells", 0, &args);
+
+		if (ret)
+			return ret;
+
+		mstp_ada_b->regmap = syscon_node_to_regmap(args.np);
+		mstp_ada_b->offset = args.args[0];
+		mstp_ada_b->mask = args.args[1];
+
+		of_node_put(args.np);
+		if (IS_ERR(mstp_ada_b->regmap))
+			return PTR_ERR(mstp_ada_b->regmap);
+	}
+
+	adc->mstp_ada_b = mstp_ada_b;
+
+	return 0;
+}
+
 static void rzt2h_adc_reset_assert(void *data)
 {
 	struct rzt2h_adc *adc = data;
 
 	reset_control_assert(adc->rstc);
+}
+
+static void rzv2h_adc_set_mstp_ada_b(struct rzt2h_adc *adc, bool act)
+{
+	struct adc_mstp_ada_b *mstp_ada_b = adc->mstp_ada_b;
+
+	if (!mstp_ada_b)
+		return;
+
+	regmap_update_bits(mstp_ada_b->regmap, mstp_ada_b->offset, mstp_ada_b->mask, act);
+}
+
+static int rzv2h_adc_init(struct rzt2h_adc *adc)
+{
+	rzv2h_adc_set_mstp_ada_b(adc, false);
+
+	return 0;
+}
+
+static int rzv2h_adc_deinit(struct rzt2h_adc *adc)
+{
+	rzv2h_adc_set_mstp_ada_b(adc, true);
+
+	return 0;
 }
 
 static int rzt2h_adc_probe(struct platform_device *pdev)
@@ -251,6 +325,10 @@ static int rzt2h_adc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = rzt2h_adc_parse_dt(adc);
+	if (ret)
+		return ret;
+
 	adc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(adc->base))
 		return PTR_ERR(adc->base);
@@ -265,6 +343,13 @@ static int rzt2h_adc_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret,
 					"failed to register reset assert devm action\n");
+
+	if (data->ops && data->ops->init) {
+		ret = data->ops->init(adc);
+
+		if (ret != 0)
+			return dev_err_probe(dev, ret, "failed to init ADC\n");
+	}
 
 	pm_runtime_set_autosuspend_delay(dev, 300);
 	pm_runtime_use_autosuspend(dev);
@@ -287,6 +372,17 @@ static int rzt2h_adc_probe(struct platform_device *pdev)
 	indio_dev->num_channels = adc->num_channels;
 
 	return devm_iio_device_register(dev, indio_dev);
+}
+
+static int rzt2h_adc_remove(struct platform_device *pdev)
+{
+	struct rzt2h_adc *adc = dev_get_drvdata(&pdev->dev);
+	const struct rzt2h_adc_data *data = adc->data;
+
+	if (data->ops && data->ops->deinit)
+		data->ops->deinit(adc);
+
+	return 0;
 }
 
 static const struct iio_chan_spec rzt2h_adc_chan_template = {
@@ -313,10 +409,17 @@ static const struct iio_chan_spec rzv2h_adc_chan_template = {
 	.type = IIO_VOLTAGE,
 };
 
+static const struct rzt2h_adc_ops rzv2h_ops = {
+	.init = rzv2h_adc_init,
+	.deinit = rzv2h_adc_deinit,
+};
+
 static struct rzt2h_adc_data rzv2h_pdata = {
+	.flags = RZT2H_ADC_CFG_SYS,
 	.max_channels = 8,
 	.timeout = 100,
 	.channel_template = &rzv2h_adc_chan_template,
+	.ops = &rzv2h_ops,
 };
 
 static const struct of_device_id rzt2h_adc_match[] = {
@@ -348,6 +451,7 @@ static int rzt2h_adc_pm_runtime_resume(struct device *dev)
 static int __maybe_unused rzt2h_adc_sys_suspend(struct device* dev)
 {
 	struct rzt2h_adc *adc = dev_get_drvdata(dev);
+	const struct rzt2h_adc_data *data = adc->data;
 	int ret;
 
 	ret = pm_runtime_force_suspend(dev);
@@ -356,13 +460,20 @@ static int __maybe_unused rzt2h_adc_sys_suspend(struct device* dev)
 
 	reset_control_assert(adc->rstc);
 
+	if (data->ops && data->ops->deinit)
+		data->ops->deinit(adc);
+
 	return 0;
 }
 
 static int __maybe_unused rzt2h_adc_sys_resume(struct device *dev)
 {
 	struct rzt2h_adc *adc = dev_get_drvdata(dev);
+	const struct rzt2h_adc_data *data = adc->data;
 	int ret;
+
+	if (data->ops && data->ops->init)
+		data->ops->init(adc);
 
 	ret = reset_control_deassert(adc->rstc);
 	if (ret)
@@ -382,6 +493,7 @@ static const struct dev_pm_ops rzt2h_adc_pm_ops = {
 
 static struct platform_driver rzt2h_adc_driver = {
 	.probe		= rzt2h_adc_probe,
+	.remove		= rzt2h_adc_remove,
 	.driver		= {
 		.name		= "rzt2h-adc",
 		.of_match_table = rzt2h_adc_match,
