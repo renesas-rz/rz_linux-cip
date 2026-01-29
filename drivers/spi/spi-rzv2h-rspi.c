@@ -54,7 +54,7 @@
 #define RSPI_SPPCR_SPLP2	BIT(1)
 
 /* Register SPBR */
-#define RSPI_SPBR_SPR_MIN	0
+#define RSPI_SPBR_SPR_MIN	1
 #define RSPI_SPBR_SPR_MAX	255
 
 /* Register SPCMD */
@@ -630,8 +630,12 @@ static u32 rzv2h_rspi_setup_clock(struct rzv2h_rspi_priv *rspi, u32 hz)
 	 *
 	 * Where:
 	 * * RSPI_n_TCLK is fixed to 200MHz on V2H
-	 * * n = SPR - is RSPI_SPBR.SPR (from 0 to 255)
+	 * * n = SPR - is RSPI_SPBR.SPR (from 1 to 255)
 	 * * N = BRDV - is RSPI_SPCMD.BRDV (from 0 to 3)
+	 *
+	 * Note:
+	 * Since the maximum frequency of the RSPCKn clock signal is 50 MHz,
+	 * setting with N=0 and n=0 (resulting in 100Mbps) are prohibited.
 	 */
 	tclk_rate = clk_get_rate(rspi->tclk);
 	for (brdv = RSPI_SPCMD_BRDV_MIN; brdv <= RSPI_SPCMD_BRDV_MAX; brdv++) {
