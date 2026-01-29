@@ -463,6 +463,10 @@ static const unsigned int r9a08g045_crit_mod_clks[] __initconst = {
 	MOD_CLK_BASE + R9A08G045_VBAT_BCLK,
 };
 
+static const unsigned int r9a08g045_no_pm_mod_clks[] = {
+	MOD_CLK_BASE + R9A08G045_DMAC_ACLK,
+};
+
 const struct rzg2l_cpg_info r9a08g045_cpg_info = {
 	/* Core Clocks */
 	.core_clks = r9a08g045_core_clks,
@@ -473,6 +477,10 @@ const struct rzg2l_cpg_info r9a08g045_cpg_info = {
 	/* Critical Module Clocks */
 	.crit_mod_clks = r9a08g045_crit_mod_clks,
 	.num_crit_mod_clks = ARRAY_SIZE(r9a08g045_crit_mod_clks),
+
+	/* No PM Module Clocks */
+	.no_pm_mod_clks = r9a08g045_no_pm_mod_clks,
+	.num_no_pm_mod_clks = ARRAY_SIZE(r9a08g045_no_pm_mod_clks),
 
 	/* Module Clocks */
 	.mod_clks = r9a08g045_mod_clks,
