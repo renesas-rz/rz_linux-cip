@@ -2696,6 +2696,77 @@
 			renesas,fcp = <&fcpvd1>;
 		};
 
+		lvds_cmn: lvds-cmn@164c0000 {
+			compatible = "simple-mfd", "syscon";
+			reg = <0 0x164c0000 0 0x10000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+
+			lvds0: lvds0-encoder@10 {
+				compatible = "renesas,r9a09g047-lvds";
+				reg = <0x0 0x10 0x0 0x8>;
+				clocks = <&cpg CPG_MOD 0x1a4>,
+					 <&cpg CPG_MOD 0x1a0>,
+					 <&cpg CPG_MOD 0x1a2>;
+				clock-names = "pclk",
+					      "phyclk",
+					      "dotclk";
+				resets = <&cpg 0x11a>;
+				power-domains = <&cpg>;
+				renesas,id = <0>;
+				status = "disabled";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						lvds0_in: endpoint {
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+						lvds_ch0: endpoint {
+						};
+					};
+				};
+			};
+
+			lvds1: lvds1-encoder@18 {
+				compatible = "renesas,r9a09g047-lvds";
+				reg = <0x0 0x18 0x0 0x8>;
+				clocks = <&cpg CPG_MOD 0x1a4>,
+					 <&cpg CPG_MOD 0x1a1>,
+					 <&cpg CPG_MOD 0x1a3>;
+				clock-names = "pclk",
+					      "phyclk",
+					      "dotclk";
+				resets = <&cpg 0x11a>;
+				power-domains = <&cpg>;
+				renesas,id = <1>;
+				status = "disabled";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						lvds1_in: endpoint {
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+						lvds_ch1: endpoint {
+						};
+					};
+				};
+			};
+		};
+
 		tsu: thermal@14002000 {
 			compatible = "renesas,r9a09g047-tsu";
 			reg = <0 0x14002000 0 0x1000>;
