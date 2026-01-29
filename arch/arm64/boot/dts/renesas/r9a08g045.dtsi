@@ -383,6 +383,8 @@
 			clocks = <&cpg CPG_MOD R9A08G045_RSPI0_CLKB>;
 			resets = <&cpg R9A08G045_RSPI0_RST>;
 			power-domains = <&cpg>;
+			dmas = <&dmac 0x2ed9>, <&dmac 0x2eda>;
+			dma-names = "tx", "rx";
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -399,6 +401,8 @@
 			clocks = <&cpg CPG_MOD R9A08G045_RSPI1_CLKB>;
 			resets = <&cpg R9A08G045_RSPI1_RST>;
 			power-domains = <&cpg>;
+			dmas = <&dmac 0x2edd>, <&dmac 0x2ede>;
+			dma-names = "tx", "rx";
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -415,6 +419,8 @@
 			clocks = <&cpg CPG_MOD R9A08G045_RSPI2_CLKB>;
 			resets = <&cpg R9A08G045_RSPI2_RST>;
 			power-domains = <&cpg>;
+			dmas = <&dmac 0x2ee1>, <&dmac 0x2ee2>;
+			dma-names = "tx", "rx";
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -431,6 +437,8 @@
 			clocks = <&cpg CPG_MOD R9A08G045_RSPI3_CLKB>;
 			resets = <&cpg R9A08G045_RSPI3_RST>;
 			power-domains = <&cpg>;
+			dmas = <&dmac 0x2ee5>, <&dmac 0x2ee6>;
+			dma-names = "tx", "rx";
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -447,6 +455,8 @@
 			clocks = <&cpg CPG_MOD R9A08G045_RSPI4_CLKB>;
 			resets = <&cpg R9A08G045_RSPI4_RST>;
 			power-domains = <&cpg>;
+			dmas = <&dmac 0x2ee9>, <&dmac 0x2eea>;
+			dma-names = "tx", "rx";
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
