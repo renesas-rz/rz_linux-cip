@@ -10,6 +10,7 @@
 #include <dt-bindings/pinctrl/renesas,r9a09g057-pinctrl.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/soc/renesas,rsci.h>
 #include "r9a09g057.dtsi"
 
 /*
@@ -53,6 +54,12 @@
  *	RSCI_HEADER
  *	SPDIF_HEADER
  *
+ * RSCI5_SEL, RSCI9_SEL modes:
+ *	RSCI_UART (default)
+ *	RSCI_I2C
+ *	RSCI_SPI (not support for RSCI5)
+ * RSPI2_RSCI9_SEL:
+ *	1 - RSCI9	0 - RSPI2 (default)
  */
 
 /* Switch selection settings */
@@ -61,6 +68,9 @@
 #define RSCI_HEADER		2
 #define SEL_CAN0_HEADER		CAN_HEADER
 #define SEL_CAN1_HEADER		CAN_HEADER
+#define RSCI5_SEL		RSCI_UART
+#define RSPI2_RSCI9_SEL		0
+#define RSCI9_SEL		RSCI_UART
 / {
 	model = "Renesas RZ/V2H EVK Board based on r9a09g057h44";
 	compatible = "renesas,rzv2h-evk", "renesas,r9a09g057h44", "renesas,r9a09g057";
@@ -77,6 +87,15 @@
 		i2c8 = &i2c8;
 		mmc1 = &sdhi1;
 		serial0 = &scif;
+#if (SEL_CAN0_HEADER == RSCI_HEADER)
+		serial1 = &rsci4;
+#endif
+#if (RSCI5_SEL == RSCI_UART)
+		serial2 = &rsci5;
+#endif
+#if ((RSPI2_RSCI9_SEL) && (RSCI9_SEL == RSCI_UART))
+		serial3 = &rsci9;
+#endif
 	};
 
 	chosen {
@@ -907,11 +926,65 @@
 #endif
 	};
 
+#if (!RSPI2_RSCI9_SEL)
 	rspi2_pins: rspi2 {
 		pinmux = <RZV2H_PORT_PINMUX(B, 3, 5)>, /* MISO */
 			 <RZV2H_PORT_PINMUX(B, 4, 5)>, /* MOSI */
 			 <RZV2H_PORT_PINMUX(A, 7, 5)>, /* SSL */
 			 <RZV2H_PORT_PINMUX(B, 5, 5)>; /* RSPCK */
+	};
+#else
+	rsci9_common_pins: rsci9_common {
+		pinmux = <RZV2H_PORT_PINMUX(B, 4, 2)>, /* SCI9_TXD_MOSI_SDA */
+			 <RZV2H_PORT_PINMUX(B, 3, 2)>; /* SCI9_RXD_MISO_SCL */
+#if (RSCI9_SEL == RSCI_UART)
+		bias-pull-up;
+#elif (RSCI9_SEL == RSCI_I2C)
+		drive-open-drain = <1>;
+#else
+	};
+
+	rsci9_sclk_pins: rsci9_sclk {
+		pinmux = <RZV2H_PORT_PINMUX(B, 5, 2)>; /* SCI9_SCLK */
+	};
+
+	rsci9_ssl_pins: rsci9_ssl {
+		pinmux = <RZV2H_PORT_PINMUX(A, 7, 2)>; /* SCI9_SSL */
+#endif
+	};
+#endif
+
+	rsci0_common_pins: rsci0_common {
+		pinmux = <RZV2H_PORT_PINMUX(5, 0, 1)>, /* SCI0_TXD_MOSI_SDA */
+			 <RZV2H_PORT_PINMUX(5, 1, 1)>; /* SCI0_RXD_MISO_SCL */
+	};
+
+	rsci0_sclk_pins: rsci0_sclk {
+		pinmux = <RZV2H_PORT_PINMUX(5, 2, 2)>; /* SCI0_SCLK */
+	};
+
+	rsci0_ssl_pins: rsci0_ssl {
+		pinmux = <RZV2H_PORT_PINMUX(5, 3, 2)>; /* SCI0_SSL */
+	};
+
+#if (SEL_CAN0_HEADER == RSCI_HEADER)
+	rsci4_pins: rsci4 {
+		pinmux = <RZV2H_PORT_PINMUX(8, 4, 6)>, /* SCI4_TXD_MOSI_SDA */
+			 <RZV2H_PORT_PINMUX(8, 5, 6)>, /* SCI4_RXD_MISO_SCL */
+			 <RZV2H_PORT_PINMUX(8, 0, 3)>, /* SCI4_CTS# */
+			 <RZV2H_PORT_PINMUX(8, 1, 1)>; /* SCI4_RTS# */
+		bias-pull-up;
+	};
+#endif
+
+	rsci5_pins: rsci5 {
+		pinmux = <RZV2H_PORT_PINMUX(8, 6, 6)>, /* SCI5_TXD_MOSI_SDA */
+			 <RZV2H_PORT_PINMUX(8, 7, 6)>; /* SCI5_RXD_MISO_SCL */
+#if (RSCI5_SEL == RSCI_UART)
+		bias-pull-up;
+#elif (RSCI5_SEL == RSCI_I2C)
+		drive-open-drain = <1>;
+#endif
 	};
 
 	scif_pins: scif {
@@ -1081,11 +1154,72 @@
 	status = "okay";
 };
 
+#if (!RSPI2_RSCI9_SEL)
 &rspi2 {
 	pinctrl-0 = <&rspi2_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";
+};
+#else
+&rsci9 {
+	status = "okay";
+
+#if (RSCI9_SEL == RSCI_SPI)
+	pinctrl-0 = <&rsci9_common_pins &rsci9_sclk_pins>;
+	pinctrl-1 = <&rsci9_common_pins &rsci9_sclk_pins &rsci9_ssl_pins>;
+	pinctrl-names = "master", "slave";
+
+	renesas,rsci_spi;
+	num-cs = <1>;
+	#size-cells = <0>;
+	#address-cells = <1>;
+	/* Using cs-gpios property when is master mode */
+	cs-gpios = <&pinctrl RZV2H_GPIO(A, 7) GPIO_ACTIVE_HIGH>;
+#else
+	pinctrl-0 = <&rsci9_common_pins>;
+	pinctrl-names = "default";
+
+#if (RSCI9_SEL == RSCI_I2C)
+	renesas,rsci_i2c;
+#endif
+#endif
+};
+#endif
+
+&rsci0 {
+	status = "okay";
+
+	pinctrl-0 = <&rsci0_common_pins &rsci0_sclk_pins>;
+	pinctrl-1 = <&rsci0_common_pins &rsci0_sclk_pins &rsci0_ssl_pins>;
+	pinctrl-names = "master", "slave";
+
+	renesas,rsci_spi;
+	num-cs = <1>;
+	#size-cells = <0>;
+	#address-cells = <1>;
+	/* Using cs-gpios property when is master mode */
+	cs-gpios = <&pinctrl RZV2H_GPIO(5, 3) GPIO_ACTIVE_HIGH>;
+};
+
+#if (SEL_CAN0_HEADER == RSCI_HEADER)
+&rsci4 {
+	pinctrl-0 = <&rsci4_pins>;
+	pinctrl-names = "default";
+
+	uart-has-rtscts;
+	status = "okay";
+};
+#endif
+
+&rsci5 {
+	status = "okay";
+	pinctrl-0 = <&rsci5_pins>;
+	pinctrl-names = "default";
+
+#if (RSCI5_SEL == RSCI_I2C)
+	renesas,rsci_i2c;
+#endif
 };
 
 &cmtw0 {
