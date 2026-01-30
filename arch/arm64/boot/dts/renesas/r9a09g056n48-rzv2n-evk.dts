@@ -99,11 +99,13 @@
 };
 
 &ehci0 {
+	memory-region = <&global_cma>;
 	dr_mode = "otg";
 	status = "okay";
 };
 
 &ohci0 {
+	memory-region = <&global_cma>;
 	dr_mode = "otg";
 	status = "okay";
 };
@@ -390,6 +392,7 @@
 &xhci {
 	pinctrl-0 = <&usb3_pins>;
 	pinctrl-names = "default";
+	memory-region = <&global_cma>;
 	status = "okay";
 };
 
