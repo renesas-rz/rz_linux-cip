@@ -297,6 +297,11 @@
 		pinmux = <RZG2L_PORT_PINMUX(5, 4, 5)>, /* OVC */
 			 <RZG2L_PORT_PINMUX(6, 0, 1)>; /* VBUS */
 	};
+
+	pcie_pins: pcie {
+		pinmux = <RZG2L_PORT_PINMUX(13, 2, 2)>, /* PCIE_RST_OUT_B */
+			 <RZG2L_PORT_PINMUX(13, 3, 2)>; /* PCIE_CLKREQ_B */
+	};
 };
 
 &scif0 {
@@ -403,6 +408,12 @@
 
 &usb2_phy1 {
 	pinctrl-0 = <&usb1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&pcie {
+	pinctrl-0 = <&pcie_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
