@@ -12,6 +12,8 @@
 #define SW_GPIO9_CAN1_STB	0
 #define SW_LCD_EN		0
 #define SW_PDM_EN		0
+#define SW_SER0_PMOD           1
+#define SW_SER2_EN             1
 #define SW_SD0_DEV_SEL		0
 #define SW_SDIO_M2E		0
 
@@ -22,6 +24,13 @@
 #define KEY_1_GPIO		RZG3E_GPIO(3, 1)
 #define KEY_2_GPIO		RZG3E_GPIO(8, 4)
 #define KEY_3_GPIO		RZG3E_GPIO(8, 5)
+
+/*
+ * Mode selection settings RSPI0_RSCI8_SEL:
+ * 1 - RSCI8			0 - RSPI0 (default)
+ */
+
+#define RSPI0_RSCI8_SEL		0
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
@@ -72,6 +81,15 @@
 
 	aliases {
 		i2c0 = &i2c0;
+#if (!SW_LCD_EN) && (SW_SER0_PMOD)
+		serial0 = &rsci4;
+#endif
+#if (!SW_LCD_EN)
+		serial1 = &rsci9;
+#endif
+#if SW_SER0_PMOD && SW_SER2_EN
+		serial2 = &rsci2;
+#endif
 		serial3 = &scif0;
 		mmc1 = &sdhi1;
 	};
@@ -241,6 +259,34 @@
 			 <RZG3E_PORT_PINMUX(3, 3, 1)>; /* SDA1 */
 	};
 
+#if SW_SER0_PMOD && SW_SER2_EN
+	rsci2_pins: rsci2 {
+		pinmux = <RZG3E_PORT_PINMUX(1, 0, 1)>, /* RXD2 */
+			 <RZG3E_PORT_PINMUX(1, 1, 1)>, /* TXD2 */
+			 <RZG3E_PORT_PINMUX(1, 2, 6)>, /* CTS2N */
+			 <RZG3E_PORT_PINMUX(1, 3, 1)>; /* RTS2N */
+		bias-pull-up;
+	};
+#endif
+
+#if (!SW_LCD_EN) && (SW_SER0_PMOD)
+	rsci4_pins: rsci4 {
+		pinmux = <RZG3E_PORT_PINMUX(7, 6, 5)>, /* RXD4 */
+			 <RZG3E_PORT_PINMUX(7, 7, 5)>, /* TXD4 */
+			 <RZG3E_PORT_PINMUX(8, 0, 6)>, /* CTS4N */
+			 <RZG3E_PORT_PINMUX(8, 1, 5)>; /* RTS4N */
+		bias-pull-up;
+	};
+#endif
+
+#if (!SW_LCD_EN)
+	rsci9_pins: rsci9 {
+		pinmux = <RZG3E_PORT_PINMUX(8, 2, 5)>, /* RXD9 */
+			 <RZG3E_PORT_PINMUX(8, 3, 5)>; /* TXD9 */
+		bias-pull-up;
+	};
+#endif
+
 	scif_pins: scif {
 		pins = "SCIF_TXD", "SCIF_RXD";
 		renesas,output-impedance = <1>;
@@ -307,12 +353,20 @@
 		pinmux = <RZG3E_PORT_PINMUX(G, 7, 1)>; /* PCIE_SLOT_RST */
 	};
 
+#if (!RSPI0_RSCI8_SPI_SEL)
 	rspi0_pins: rspi0 {
 		pinmux = <RZG3E_PORT_PINMUX(M, 4, 2)>, /* MISOA */
 			 <RZG3E_PORT_PINMUX(M, 5, 2)>, /* MOSIA */
 			 <RZG3E_PORT_PINMUX(M, 7, 2)>, /* SSLA0 */
 			 <RZG3E_PORT_PINMUX(M, 6, 2)>; /* RSPCKA */
 	};
+#else
+	rsci8_master_pins: rscri8_master {
+		pinmux = <RZG3E_PORT_PINMUX(M, 5, 5)>, /* SCI8_TXD_MOSI_SDA */
+			 <RZG3E_PORT_PINMUX(M, 4, 5)>, /* SCI8_RXD_MISO_SCL */
+			 <RZG3E_PORT_PINMUX(M, 6, 5)>; /* SCI8_SCLK */
+	};
+#endif
 
 	sound_pins: sound {
 		sound_clk_pins: sound_clk {
@@ -342,6 +396,37 @@
 
 #endif
 };
+
+#if SW_SER0_PMOD && SW_SER2_EN
+&rsci2 {
+	pinctrl-0 = <&rsci2_pins>;
+	pinctrl-names = "default";
+
+	uart-has-rtscts;
+
+	status = "okay";
+};
+#endif
+
+#if (!SW_LCD_EN) && (SW_SER0_PMOD)
+&rsci4 {
+	pinctrl-0 = <&rsci4_pins>;
+	pinctrl-names = "default";
+
+	uart-has-rtscts;
+
+	status = "okay";
+};
+#endif
+
+#if (!SW_LCD_EN)
+&rsci9 {
+	pinctrl-0 = <&rsci9_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+#endif
 
 &scif0 {
 	pinctrl-0 = <&scif_pins>;
@@ -398,12 +483,28 @@
 	dma-ranges = <0x42000000 0 0x48000000 0 0x48000000 0x1 0xF8000000>;
 };
 
+#if (!RSPI0_RSCI8_SPI_SEL)
 &rspi0 {
 	pinctrl-0 = <&rspi0_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";
 };
+#else
+&rsci8 {
+	pinctrl-0 = <&rsci8_master_pins>;
+	pinctrl-names = "master";
+
+	status = "okay";
+
+	renesas,rsci_spi;
+	num-cs = <1>;
+	#size-cells = <0>;
+	#address-cells = <1>;
+	/* Using cs-gpios property when is master mode */
+	cs-gpios = <&pinctrl RZG3E_GPIO(M, 7) GPIO_ACTIVE_HIGH>;
+};
+#endif
 
 &rcar_sound {
 	pinctrl-0 = <&sound_pins>;
