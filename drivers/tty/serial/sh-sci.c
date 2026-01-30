@@ -2479,7 +2479,8 @@ int sci_startup(struct uart_port *port)
 	dev_dbg(port->dev, "%s(%d)\n", __func__, port->line);
 
 	s->tx_occurred = false;
-	sci_request_dma(port);
+	if (!sci_is_rsci_type(s->type))
+		sci_request_dma(port);
 
 	ret = sci_request_irq(s);
 	if (unlikely(ret < 0)) {
