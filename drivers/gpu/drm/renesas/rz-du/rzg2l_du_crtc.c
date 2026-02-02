@@ -78,23 +78,21 @@ static void rzg2l_du_crtc_set_display_timing(struct rzg2l_du_crtc *rcrtc)
 	clk_prepare_enable(rcrtc->rzg2l_clocks.dclk);
 
 	if (rzg2l_du_has(rcdu, RG2L_DU_FEATURE_SMUX2_DSI_CLK)) {
-		struct clk_hw *hw_parent, *hw_pparent;
 		struct clk *clk_parent;
 
 		clk_parent = clk_get_parent(rcrtc->rzg2l_clocks.dclk);
-		hw_parent = __clk_get_hw(clk_parent);
 
 		/*
-		 * SMUX2_DSI0_CLK: if LVDS0 is used, be sure to set 0b.
-		 * SMUX2_DSI1_CLK: if LVDS1 is used, be sure to set 0b.
+		 * Request appropriate duty cycle to let clock driver select
+		 * the correct parent:
+		 * - CDIV7_DSIx_CLK (LVDS path) has DUTY H/L=4/3, 4/7 duty cycle.
+		 * - CSDIV_2to16_PLLDSIx (DSI/RGB path) has symmetric 50% duty cycle.
 		 */
 		if (rstate->outputs == BIT(RZG2L_DU_OUTPUT_LVDS0) ||
 		    rstate->outputs == BIT(RZG2L_DU_OUTPUT_LVDS1))
-			hw_pparent = clk_hw_get_parent_by_index(hw_parent, 0);
+			clk_set_duty_cycle(clk_parent, 4, 7);
 		else
-			hw_pparent = clk_hw_get_parent_by_index(hw_parent, 1);
-
-		clk_set_parent(clk_parent, hw_pparent->clk);
+			clk_set_duty_cycle(clk_parent, 1, 2);
 	}
 
 	clk_set_rate(rcrtc->rzg2l_clocks.dclk, mode_clock);
