@@ -1335,15 +1335,25 @@ static int renesas_i3c_probe(struct platform_device *pdev)
 				     RENESAS_I3C_TCLK_IDX, ret);
 	i3c->num_clks = ret;
 
-	i3c->tresetn = devm_reset_control_get_optional_exclusive_deasserted(&pdev->dev, "tresetn");
+	i3c->tresetn = devm_reset_control_get_optional_exclusive(&pdev->dev, "tresetn");
 	if (IS_ERR(i3c->tresetn))
 		return dev_err_probe(&pdev->dev, PTR_ERR(i3c->tresetn),
 				     "Error: missing tresetn ctrl\n");
 
-	i3c->presetn = devm_reset_control_get_optional_exclusive_deasserted(&pdev->dev, "presetn");
+	ret = reset_control_deassert(i3c->tresetn);
+	if (ret) {
+		return ret;
+	}
+
+	i3c->presetn = devm_reset_control_get_optional_exclusive(&pdev->dev, "presetn");
 	if (IS_ERR(i3c->presetn))
 		return dev_err_probe(&pdev->dev, PTR_ERR(i3c->presetn),
 				     "Error: missing presetn ctrl\n");
+
+	ret = reset_control_deassert(i3c->presetn);
+	if (ret) {
+		return ret;
+	}
 
 	spin_lock_init(&i3c->xferqueue.lock);
 	INIT_LIST_HEAD(&i3c->xferqueue.list);
@@ -1377,11 +1387,13 @@ static int renesas_i3c_probe(struct platform_device *pdev)
 	return i3c_master_register(&i3c->base, &pdev->dev, &renesas_i3c_ops, false);
 }
 
-static void renesas_i3c_remove(struct platform_device *pdev)
+static int renesas_i3c_remove(struct platform_device *pdev)
 {
 	struct renesas_i3c *i3c = platform_get_drvdata(pdev);
 
 	i3c_master_unregister(&i3c->base);
+
+	return 0;
 }
 
 static int renesas_i3c_suspend_noirq(struct device *dev)
