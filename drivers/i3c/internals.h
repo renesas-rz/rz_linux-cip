@@ -23,6 +23,8 @@ int i3c_dev_enable_ibi_locked(struct i3c_dev_desc *dev);
 int i3c_dev_request_ibi_locked(struct i3c_dev_desc *dev,
 			       const struct i3c_ibi_setup *req);
 void i3c_dev_free_ibi_locked(struct i3c_dev_desc *dev);
+int i3c_for_each_dev(void *data, int (*fn)(struct device *, void *));
+extern const struct device_type i3c_masterdev_type;
 
 /**
  * i3c_writel_fifo - Write data buffer to 32bit FIFO
