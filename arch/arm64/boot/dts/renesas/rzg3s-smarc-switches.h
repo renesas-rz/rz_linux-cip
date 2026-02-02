@@ -45,4 +45,20 @@
  */
 #define SW_OPT_MUX4	SW_ON
 
+/*
+ * Please set the switch position SW_GPIO_CAN_PMOD on the carrier board and the
+ * corresponding macro SW_GPIO8_CAN0_STB/SW_GPIO8_CAN0_STB on the board DTS:
+ *
+ * SW_GPIO8_CAN0_STB:
+ *	0 - Connect to GPIO8 PMOD (default)
+ *	1 - Connect to CAN0 transceiver STB pin
+ *
+ * SW_GPIO9_CAN1_STB:
+ *	0 - Connect to GPIO9 PMOD (default)
+ *	1 - Connect to CAN1 transceiver STB pin
+ */
+
+#define SW_GPIO8_CAN0_STB	0
+#define SW_GPIO9_CAN1_STB	0
+
 #endif /* __RZG3S_SMARC_SWITCHES_H__ */
