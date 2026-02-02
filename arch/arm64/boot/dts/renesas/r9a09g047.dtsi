@@ -2547,8 +2547,8 @@
 			};
 		};
 
-		du0: du0@16460000 {
-			compatible = "renesas,r9a09g047-du0";
+		du0: display@16460000 {
+			compatible = "renesas,r9a09g047-du";
 			reg = <0 0x16460000 0 0x10000>;
 			interrupts = <GIC_SPI 882 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 0xed>,
@@ -2584,8 +2584,8 @@
 			};
 		};
 
-		du1: du1@16490000 {
-			compatible = "renesas,r9a09g047-du1";
+		du1: display@16490000 {
+			compatible = "renesas,r9a09g047-du";
 			reg = <0 0x16490000 0 0x10000>;
 			interrupts = <GIC_SPI 922 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 0x1a8>,
@@ -2613,8 +2613,8 @@
 					};
 				};
 
-				port@2 {
-					reg = <2>;
+				port@3 {
+					reg = <3>;
 					du1_out_rgb0: endpoint {
 					};
 				};
