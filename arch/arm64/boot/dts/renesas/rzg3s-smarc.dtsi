@@ -119,6 +119,20 @@
 		gpios-states = <1>;
 		states = <3300000 1>, <1800000 0>;
 	};
+
+	can_transceiver0: can-phy0 {
+		compatible = "ti,tcan1042";
+		#phy-cells = <0>;
+		max-bitrate = <8000000>;
+		status = "disabled";
+	};
+
+	can_transceiver1: can-phy1 {
+		compatible = "ti,tcan1042";
+		#phy-cells = <0>;
+		max-bitrate = <8000000>;
+		status = "disabled";
+	};
 };
 
 &audio_clk2 {
@@ -321,12 +335,32 @@
 
 	channel0 {
 		status = "okay";
+#if (SW_GPIO8_CAN0_STB)
+		phys = <&can_transceiver0>;
+#endif
 	};
 
 	channel1 {
 		status = "okay";
+#if (SW_GPIO9_CAN1_STB)
+		phys = <&can_transceiver1>;
+#endif
 	};
 };
+
+#if (SW_GPIO8_CAN0_STB)
+&can_transceiver0 {
+	standby-gpios = <&pinctrl RZG2L_GPIO(13, 0) GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+#endif
+
+#if (SW_GPIO9_CAN1_STB)
+&can_transceiver1 {
+	standby-gpios = <&pinctrl RZG2L_GPIO(13, 1) GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+#endif
 
 &scif0 {
 	pinctrl-names = "default";
