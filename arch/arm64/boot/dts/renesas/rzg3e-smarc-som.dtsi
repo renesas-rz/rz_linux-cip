@@ -320,6 +320,16 @@
 #endif
 };
 
+&i3c {
+	pinctrl-0 = <&i3c_pins>;
+	pinctrl-names = "default";
+	i2c-scl-hz = <1000000>;
+	i3c-scl-hz = <3000000>;
+
+	/* Enable when there is an I3C external device defined here */
+	/* status = "okay"; */
+};
+
 &mdio0 {
 	phy0: ethernet-phy@7 {
 		compatible = "ethernet-phy-id0022.1640",
@@ -430,6 +440,12 @@
 	i2c7_pins: i2c7 {
 		pinmux = <RZG3E_PORT_PINMUX(A, 4, 4)>, /* SCL */
 			 <RZG3E_PORT_PINMUX(A, 5, 4)>; /* SDA */
+	};
+
+	i3c_pins: i3c {
+		pinmux = <RZG3E_PORT_PINMUX(2, 0, 2)>, /* I3C0_SCL */
+			 <RZG3E_PORT_PINMUX(2, 1, 2)>; /* I3C0_SDA */
+		drive-push-pull;
 	};
 
 	rtc_irq_pin: rtc-irq {
