@@ -528,3 +528,7 @@
 &ostm7 {
 	status = "okay";
 };
+
+&adc {
+	status = "okay";
+};
