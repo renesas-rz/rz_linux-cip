@@ -83,6 +83,21 @@ enum scan_mode {
 	STOP_SCAN,
 };
 
+static void rzt2_adc_set_bit(struct rzt2_adc *adc, u32 offset, u16 mask)
+{
+	writew(readw(adc->base + offset) | mask, adc->base + offset);
+}
+
+static void rzt2_adc_clear_bit(struct rzt2_adc *adc, u32 offset, u16 mask)
+{
+	writew(readw(adc->base + offset) & ~mask, adc->base + offset);
+}
+
+static u16 rzt2_adc_get_bit(struct rzt2_adc *adc, u32 offset, u16 mask)
+{
+	return readw(adc->base + offset) & mask;
+}
+
 static int rzt2_adc_get_scan_mode(struct iio_dev *indio_dev,
 					const struct iio_chan_spec *chan)
 {
@@ -189,6 +204,83 @@ disable:
 	return ret;
 }
 
+static int rzt2_adc_read_continuous_per_loop(struct rzt2_adc *adc, unsigned int ch, int *val)
+{
+	int ret;
+
+	mutex_lock(&adc->lock);
+
+	reinit_completion(&adc->completion);
+
+	/* Enable a channel */
+	writew(RZT2_ADANSA0_CH_MASK(ch), adc->base + RZT2_ADANSA0_REG);
+
+	/*Enable scan complete irq*/
+	rzt2_adc_set_bit(adc, RZT2_ADCSR_REG, RZT2_ADCSR_ADIE_MASK);
+	/*
+	 * Datasheet Page 2770, Table 41.1:
+	 * 0.32us per channel when sample-and-hold circuits are not in use.
+	 */
+	ret = wait_for_completion_timeout(&adc->completion, usecs_to_jiffies(1));
+	if (!ret) {
+		ret = -ETIMEDOUT;
+		rzt2_adc_stop(adc);
+
+		mutex_unlock(&adc->lock);
+
+		pm_runtime_put_autosuspend(adc->dev);
+
+		return ret;
+	}
+
+	*val = (readw(adc->base + RZT2_ADDR_REG(ch)));
+	ret = IIO_VAL_INT;
+
+	/*Disable Scan End IRQ*/
+	rzt2_adc_clear_bit(adc, RZT2_ADCSR_REG, RZT2_ADCSR_ADIE_MASK);
+
+	mutex_unlock(&adc->lock);
+
+	return ret;
+}
+
+static int rzt2_adc_read_continuous_loop(struct rzt2_adc *adc, unsigned int ch, int *val)
+{
+	int max_time_out, ret;
+
+	max_time_out = 100;
+
+	ret = pm_runtime_resume_and_get(adc->dev);
+	if (ret)
+		return ret;
+
+	writew(0xff, adc->base + RZT2_ADANSA0_REG);
+	rzt2_adc_start(adc, RZT2_ADCSR_ADCS_CONTINUOUS);
+	do {
+		if (!(max_time_out--)) {
+			// rzt2_adc_stop(adc);
+			pr_err("adc: %s stopping ADC, timed out\n", __func__);
+			return ret;
+		}
+
+		ret = rzt2_adc_read_continuous_per_loop(adc, ch, val);
+
+		pr_info("adc: Channel %d [Iteration %d]: %d\n", ch, max_time_out, *val);
+		mdelay(50);
+	} while (rzt2_adc_get_bit(adc, RZT2_ADCSR_REG, RZT2_ADCSR_ADST_MASK));
+
+	rzt2_adc_stop(adc);
+	// pm_runtime_put_autosuspend(adc->dev);
+	return ret;
+}
+
+static int rzt2_adc_stop_scan(struct rzt2_adc *adc)
+{
+	rzt2_adc_stop(adc);
+	dev_info(adc->dev, "In STOP SCAN mode\n");
+	return -EINVAL;
+}
+
 static void rzt2_adc_set_cal(struct rzt2_adc *adc, bool cal)
 {
 	u16 val;
@@ -239,7 +331,15 @@ static int rzt2_adc_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		return rzt2_adc_read_single(adc, chan->channel, val);
+		if (adc->scan_mode == STOP_SCAN)
+			return rzt2_adc_stop_scan(adc);
+
+		if (adc->scan_mode == SINGLE_SCAN)
+			return rzt2_adc_read_single(adc, chan->channel, val);
+
+		if (adc->scan_mode == CONTINUOUS_SCAN)
+			return rzt2_adc_read_continuous_loop(adc, chan->channel, val);
+		return -EINVAL;
 	case IIO_CHAN_INFO_SCALE:
 		*val = 1800;
 		*val2 = 12;
