@@ -972,6 +972,120 @@
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
+
+		adc0: adc0@90014000 {
+			compatible = "renesas,rzt2-adc";
+			reg = <0 0x90014000 0 0x400>;
+			interrupts = <GIC_SPI 553 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 554 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 555 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 556 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 557 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 661 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 662 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "adi", "gbadi", "gcadi",
+					  "cmpai", "cmpbi", "wcmpm", "wcmpum";
+			clocks = <&cpg CPG_MOD R9A07G076_ADC0_CLK>;
+			power-domains = <&cpg>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#io-channel-cells = <1>;
+			renesas,max-channels = <4>;
+
+			chanel@0 {
+				reg = <0>;
+			};
+			chanel@1 {
+				reg = <1>;
+			};
+			chanel@2 {
+				reg = <2>;
+			};
+			chanel@3 {
+				reg = <3>;
+			};
+		};
+
+		adc1: adc1@90014400 {
+			compatible = "renesas,rzt2-adc";
+			reg = <0 0x90014400 0 0x400>;
+			interrupts = <GIC_SPI 558 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 559 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 560 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 561 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 562 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 663 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 664 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "adi", "gbadi", "gcadi",
+					  "cmpai", "cmpbi", "wcmpm", "wcmpum";
+			clocks = <&cpg CPG_MOD R9A07G076_ADC1_CLK>;
+			power-domains = <&cpg>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#io-channel-cells = <1>;
+			renesas,max-channels = <4>;
+
+			chanel@0 {
+				reg = <0>;
+			};
+			chanel@1 {
+				reg = <1>;
+			};
+			chanel@2 {
+				reg = <2>;
+			};
+			chanel@3 {
+				reg = <3>;
+			};
+		};
+
+		adc2: adc2@80008000 {
+			compatible = "renesas,rzt2-adc";
+			reg = <0 0x80008000 0 0x400>;
+			interrupts = <GIC_SPI 563 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 564 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 565 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 566 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 576 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 665 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 666 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "adi", "gbadi", "gcadi",
+					  "cmpai", "cmpbi", "wcmpm", "wcmpum";
+			clocks = <&cpg CPG_MOD R9A07G076_ADC2_CLK>;
+			power-domains = <&cpg>;
+			status = "disabled";
+			renesas,max-channels = <8>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#io-channel-cells = <1>;
+
+			chanel@0 {
+				reg = <0>;
+			};
+			chanel@1 {
+				reg = <1>;
+			};
+			chanel@2 {
+				reg = <2>;
+			};
+			chanel@3 {
+				reg = <3>;
+			};
+			chanel@4 {
+				reg = <4>;
+			};
+			chanel@5 {
+				reg = <5>;
+			};
+			chanel@6 {
+				reg = <6>;
+			};
+			chanel@7 {
+				reg = <7>;
+			};
+		};
 	};
 
 	thermal-zones {
