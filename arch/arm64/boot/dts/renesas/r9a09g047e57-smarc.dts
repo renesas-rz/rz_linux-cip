@@ -38,9 +38,17 @@
  * 1 - enable display selection support
  * for:
  * - MIPI DSI: RZG3E_SMARC_MIPI_DSI_ENABLE
+ * - LVDS: RZG3E_SMARC_LVDS_ENABLE
+ * - Parallel RGB: SW_LCD_EN from above switch selection settings
  */
 
 #define RZG3E_SMARC_MIPI_DSI_ENABLE	1
+#define RZG3E_SMARC_LVDS_ENABLE 	0
+
+/* Only maximum 2 display selections are enabled at the same time */
+#if (RZG3E_SMARC_MIPI_DSI_ENABLE & RZG3E_SMARC_LVDS_ENABLE & SW_LCD_EN)
+#error "Only maximum 2 display selections are enabled at the same time"
+#endif
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
@@ -48,10 +56,16 @@
 #include "r9a09g047e57.dtsi"
 #include "rzg3e-smarc-som.dtsi"
 #include "renesas-smarc2.dtsi"
-#include "renesas-smarc2-dual-lvds-hdmi.dtsi"
 
 #define OV5645_PARENT_I2C i2c0
 #include "rz-smarc-cru-csi-ov5645.dtsi"
+
+#if (RZG3E_SMARC_LVDS_ENABLE)
+#include "renesas-smarc2-dual-lvds-hdmi.dtsi"
+#endif
+#if (SW_LCD_EN)
+#include "renesas-smarc2-rgb.dtsi"
+#endif
 
 /*
  * SSI-DA7212
