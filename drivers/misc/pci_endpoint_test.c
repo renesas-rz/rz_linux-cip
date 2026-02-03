@@ -44,6 +44,7 @@
 #define COMMAND_READ				BIT(3)
 #define COMMAND_WRITE				BIT(4)
 #define COMMAND_COPY				BIT(5)
+#define COMMAND_RESIZE_BAR			BIT(6)
 
 #define PCI_ENDPOINT_TEST_STATUS		0x8
 #define STATUS_READ_SUCCESS			BIT(0)
@@ -1183,6 +1184,9 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 		dev_err(dev, "Failed to register device\n");
 		goto err_kfree_name;
 	}
+
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_COMMAND,
+					COMMAND_RESIZE_BAR);
 
 	err = pci_endpoint_test_request_dma_chan(test);
 	if (err) {
