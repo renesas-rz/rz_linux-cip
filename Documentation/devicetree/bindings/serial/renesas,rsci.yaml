@@ -15,6 +15,7 @@ properties:
     oneOf:
       - enum:
           - renesas,r9a09g047-rsci # RZ/G3E
+          - renesas,r9a09g056-rsci # RZ/V2N
           - renesas,r9a09g077-rsci # RZ/T2H
 
       - items:
@@ -118,7 +119,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: renesas,r9a09g047-rsci
+            enum:
+              - renesas,r9a09g047-rsci
+              - renesas,r9a09g056-rsci
     then:
       properties:
         interrupts:
