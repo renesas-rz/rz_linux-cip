@@ -212,6 +212,13 @@
 };
 #endif
 
+&i3c {
+	clock-frequency = <1000000>;
+	i2c-scl-hz = <1000000>;
+	i3c-scl-hz = <3000000>;
+	status = "okay";
+};
+
 &pinctrl {
 	eth0_pins: eth0 {
 		txc {
