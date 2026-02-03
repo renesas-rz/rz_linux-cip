@@ -4,7 +4,6 @@
 #include <linux/cleanup.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
-#include <linux/iio/adc-helpers.h>
 #include <linux/iio/iio.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -33,6 +32,14 @@
 #define RZT2_ADCALCTL_CAL_ERR_MASK	BIT(2)
 
 #define RZT2_ADC_MAX_CHANNELS		16
+
+#define FIELD_MODIFY(_mask, _reg_p, _val)						\
+	({										\
+		typecheck_pointer(_reg_p);						\
+		__BF_FIELD_CHECK(_mask, *(_reg_p), _val, "FIELD_MODIFY: ");		\
+		*(_reg_p) &= ~(_mask);							\
+		*(_reg_p) |= (((typeof(_mask))(_val) << __bf_shf(_mask)) & (_mask));	\
+	})
 
 struct rzt2_adc {
 	void __iomem *base;
@@ -208,20 +215,48 @@ static const struct iio_chan_spec rzt2_adc_chan_template = {
 	.type = IIO_VOLTAGE,
 };
 
-static int rzt2_adc_parse_properties(struct rzt2_adc *adc)
+static int rzt2_adc_parse_properties(struct platform_device *pdev, struct rzt2_adc *adc)
 {
-	struct iio_chan_spec *chan_array;
-	unsigned int i;
-	int ret;
+	struct device *dev = &pdev->dev;
+	struct iio_chan_spec *chan_array, *chan;
+	int num_chan, ret;
+	int max_chan_id = RZT2_ADC_MAX_CHANNELS - 1;
+	const struct iio_chan_spec *template = &rzt2_adc_chan_template;
+	unsigned int i, j;
+	struct fwnode_handle *fwnode;
 
-	ret = devm_iio_adc_device_alloc_chaninfo_se(adc->dev,
-						    &rzt2_adc_chan_template,
-						    RZT2_ADC_MAX_CHANNELS - 1,
-						    &chan_array);
-	if (ret < 0)
-		return dev_err_probe(adc->dev, ret, "Failed to read channel info");
+	num_chan = device_get_child_node_count(&pdev->dev);
+	if (num_chan < 0)
+		return dev_err_probe(adc->dev, num_chan, "Failed to read channel info");
 
-	adc->num_channels = ret;
+	if (!num_chan)
+		return -ENOENT;
+
+	chan_array = devm_kcalloc(dev, num_chan, sizeof(*chan_array),
+				  GFP_KERNEL);
+	if (!chan_array)
+		return -ENOMEM;
+
+	chan = &chan_array[0];
+
+	j = 0;
+	device_for_each_child_node(&pdev->dev, fwnode) {
+		u32 ch;
+
+		ret = fwnode_property_read_u32(fwnode, "reg", &ch);
+		if (ret)
+			return ret;
+
+		if (max_chan_id >= 0 && ch > max_chan_id)
+			return -ERANGE;
+
+		*chan = *template;
+		chan->channel = ch;
+		chan++;
+		j++;
+	}
+
+	adc->num_channels = num_chan + 1;
 	adc->channels = chan_array;
 
 	for (i = 0; i < adc->num_channels; i++)
@@ -253,7 +288,7 @@ static int rzt2_adc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, adc);
 
-	ret = rzt2_adc_parse_properties(adc);
+	ret = rzt2_adc_parse_properties(pdev, adc);
 	if (ret)
 		return ret;
 
