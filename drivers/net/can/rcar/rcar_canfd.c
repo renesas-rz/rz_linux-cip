@@ -669,9 +669,10 @@ static const struct rcar_canfd_hw_info r9a08g045_hw_info = {
 	.max_channels = 2,
 	.postdiv = 2,
 	.multi_channel_irqs = 1,
-	.ch_interface_mode = 1,
+	.ch_interface_mode = 0,
 	.shared_can_regs = 1,
 	.external_clk = 1,
+	.classical_can = 0,
 };
 
 static const struct rcar_canfd_hw_info r9a08g046_hw_info = {
@@ -686,9 +687,10 @@ static const struct rcar_canfd_hw_info r9a08g046_hw_info = {
 	.max_channels = 3,
 	.postdiv = 2,
 	.multi_channel_irqs = 1,
-	.ch_interface_mode = 1,
+	.ch_interface_mode = 0,
 	.shared_can_regs = 1,
 	.external_clk = 1,
+	.classical_can = 0,
 };
 
 static const struct rcar_canfd_hw_info r9a09g047_hw_info = {
@@ -834,7 +836,7 @@ static int rcar_canfd_reset_controller(struct rcar_canfd_global *gpriv)
 	rcar_canfd_write(gpriv->base, RCANFD_GERFL, 0x0);
 
 	/* Set the controller into appropriate mode */
-	if (!gpriv->info->ch_interface_mode) {
+	if (!gpriv->info->ch_interface_mode && gpriv->info->classical_can) {
 		if (gpriv->fdmode)
 			rcar_canfd_set_bit(gpriv->base, RCANFD_GRMCFG,
 					   RCANFD_GRMCFG_RCMC);
@@ -862,7 +864,7 @@ static int rcar_canfd_reset_controller(struct rcar_canfd_global *gpriv)
 		}
 
 		/* Set the controller into appropriate mode */
-		if (gpriv->info->ch_interface_mode && gpriv->info->classical_can) {
+		if (gpriv->info->ch_interface_mode) {
 			/* Do not set CLOE and FDOE simultaneously */
 			if (!gpriv->fdmode) {
 				rcar_canfd_clear_bit_reg(&gpriv->fcbase[ch].cfdcfg,
