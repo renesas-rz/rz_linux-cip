@@ -29,6 +29,7 @@
 #define COMMAND_READ			BIT(3)
 #define COMMAND_WRITE			BIT(4)
 #define COMMAND_COPY			BIT(5)
+#define COMMAND_RESIZE_BAR		BIT(6)
 
 #define STATUS_READ_SUCCESS		BIT(0)
 #define STATUS_READ_FAIL		BIT(1)
@@ -642,6 +643,7 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 	struct device *dev = &epf->dev;
 	enum pci_barno test_reg_bar = epf_test->test_reg_bar;
 	struct pci_epf_test_reg *reg = epf_test->reg[test_reg_bar];
+	void __iomem *reg_bar_size;
 
 	command = READ_ONCE(reg->command);
 	if (!command)
@@ -678,6 +680,12 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 	case COMMAND_COPY:
 		pci_epf_test_copy(epf_test, reg);
 		pci_epf_test_raise_irq(epf_test, reg);
+		break;
+	case COMMAND_RESIZE_BAR:
+		reg_bar_size = ioremap(0x921060A0, 0x18);
+		writel(0x1FFFFF, reg_bar_size);
+		writel(0xFFF, reg_bar_size + 0x8);
+		writel(0xFFF, reg_bar_size + 0x10);
 		break;
 	default:
 		dev_err(dev, "Invalid command 0x%x\n", command);
