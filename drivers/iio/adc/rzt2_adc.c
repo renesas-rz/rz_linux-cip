@@ -19,6 +19,7 @@
 #define RZT2_ADCSR_ADIE_MASK		BIT(12)
 #define RZT2_ADCSR_ADCS_MASK		GENMASK(14, 13)
 #define RZT2_ADCSR_ADCS_SINGLE		0b00
+#define RZT2_ADCSR_ADCS_CONTINUOUS	0b10
 #define RZT2_ADCSR_ADST_MASK		BIT(15)
 
 #define RZT2_ADANSA0_REG		0x04
@@ -32,6 +33,11 @@
 #define RZT2_ADCALCTL_CAL_ERR_MASK	BIT(2)
 
 #define RZT2_ADC_MAX_CHANNELS		16
+
+#define SINGLE_SCAN_REG			(0x0 << 13)
+#define GROUP_SCAN_REG			(0x1 << 13)
+#define CONTINUOUS_SCAN_REG		(0x2 << 13)
+#define STOP_SCAN_REG			(0x2 << 13)
 
 #define FIELD_MODIFY(_mask, _reg_p, _val)						\
 	({										\
@@ -53,6 +59,67 @@ struct rzt2_adc {
 	unsigned int num_channels;
 	unsigned int max_channels;
 	bool has_adcalctl;
+	int scan_mode;
+};
+
+static const char *const rzt2_adc_scan_mode[] = {
+	"single",
+	"group",
+	"continuous",
+	"stop",
+};
+
+int scan_mode_reg[] = {
+	SINGLE_SCAN_REG,
+	GROUP_SCAN_REG,
+	CONTINUOUS_SCAN_REG,
+	STOP_SCAN_REG,
+};
+
+enum scan_mode {
+	SINGLE_SCAN,
+	GROUP_SCAN,
+	CONTINUOUS_SCAN,
+	STOP_SCAN,
+};
+
+static int rzt2_adc_get_scan_mode(struct iio_dev *indio_dev,
+					const struct iio_chan_spec *chan)
+{
+	struct rzt2_adc *adc = iio_priv(indio_dev);
+
+	return adc->scan_mode;
+}
+
+static int rzt2_adc_set_scan_mode(struct iio_dev *indio_dev,
+					const struct iio_chan_spec *chan,
+					unsigned int type)
+{
+	struct rzt2_adc *adc = iio_priv(indio_dev);
+
+	adc->scan_mode = type;
+	writew(0x00, adc->base + RZT2_ADANSA0_REG);
+	return 0;
+}
+
+static const struct iio_enum rzt2_adc_scan_mode_en = {
+	.items = rzt2_adc_scan_mode,
+	.num_items = ARRAY_SIZE(rzt2_adc_scan_mode),
+	.get = rzt2_adc_get_scan_mode,
+	.set = rzt2_adc_set_scan_mode,
+};
+
+static const struct iio_chan_spec_ext_info rzt2_adc_cnt_ext_info[] = {
+	IIO_ENUM("scan_mode", IIO_SEPARATE, &rzt2_adc_scan_mode_en),
+	IIO_ENUM_AVAILABLE("scan_mode", IIO_SHARED_BY_TYPE, &rzt2_adc_scan_mode_en),
+	{}
+};
+
+static const struct iio_chan_spec rzt2_adc_cnt_channels = {
+	.type = IIO_COUNT,
+	.channel = 0,
+	.ext_info = rzt2_adc_cnt_ext_info,
+	.indexed = 1,
 };
 
 static void rzt2_adc_start(struct rzt2_adc *adc, unsigned int conversion_type)
@@ -256,6 +323,7 @@ static int rzt2_adc_parse_properties(struct platform_device *pdev, struct rzt2_a
 		j++;
 	}
 
+	memcpy(&chan_array[j], &rzt2_adc_cnt_channels, sizeof(rzt2_adc_cnt_channels));
 	adc->num_channels = num_chan + 1;
 	adc->channels = chan_array;
 
