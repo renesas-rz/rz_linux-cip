@@ -87,6 +87,11 @@ struct rzv2h_cpg_cache {
 /* On RZ/G3E SoC we have two DSI PLLs */
 #define MAX_CPG_DSI_PLL		2
 
+#define CPG_PLLDSI_SMUX_LVDS_DUTY_NUM		4
+#define CPG_PLLDSI_SMUX_LVDS_DUTY_DEN		7
+#define CPG_PLLDSI_SMUX_DSI_RGB_DUTY_NUM	1
+#define CPG_PLLDSI_SMUX_DSI_RGB_DUTY_DEN	2
+
 /**
  * struct rzv2h_pll_dsi_info - PLL DSI information, holds the limits and parameters
  *
@@ -720,7 +725,6 @@ static int rzv2h_cpg_plldsi_smux_determine_rate(struct clk_hw *hw,
 	struct rzv2h_plldsi_mux_clk *dsi_mux = to_plldsi_clk_mux(mux);
 	struct pll_clk *pll_clk = to_pll(clk_hw_get_parent(hw));
 	struct rzv2h_cpg_priv *priv = dsi_mux->priv;
-	int ret;
 
 	/*
 	 * For LVDS output (parent_idx == 0), calculate PLL parameters with
@@ -729,17 +733,65 @@ static int rzv2h_cpg_plldsi_smux_determine_rate(struct clk_hw *hw,
 	 * divider (up one level).
 	 */
 	if (!clk_mux_ops.get_parent(hw))
-		ret = rzv2h_cpg_plldsi_smux_lvds_determine_rate(priv, pll_clk, req);
-	else
-		ret = clk_mux_determine_rate_flags(hw, req, mux->flags);
+		return rzv2h_cpg_plldsi_smux_lvds_determine_rate(priv, pll_clk, req);
 
-	return ret;
+	req->best_parent_rate = req->rate;
+	return 0;
+}
+
+static int rzv2h_cpg_plldsi_smux_get_duty_cycle(struct clk_hw *hw,
+						struct clk_duty *duty)
+{
+	u8 parent = clk_mux_ops.get_parent(hw);
+
+	/*
+	 * CDIV7_DSIx_CLK - LVDS path (div7) - duty 4/7.
+	 * CSDIV_DSIx - DSI/RGB path (csdiv) - duty 1/2.
+	 */
+	if (parent == 0) {
+		duty->num = CPG_PLLDSI_SMUX_LVDS_DUTY_NUM;
+		duty->den = CPG_PLLDSI_SMUX_LVDS_DUTY_DEN;
+	} else {
+		duty->num = CPG_PLLDSI_SMUX_DSI_RGB_DUTY_NUM;
+		duty->den = CPG_PLLDSI_SMUX_DSI_RGB_DUTY_DEN;
+	}
+
+	return 0;
+}
+
+static int rzv2h_cpg_plldsi_smux_set_duty_cycle(struct clk_hw *hw,
+						struct clk_duty *duty)
+{
+	struct clk_hw *parent_hw;
+	u8 parent_idx;
+
+	/*
+	 * Select parent based on requested duty cycle:
+	 * - If duty > 50% (num/den > 1/2), select LVDS path (parent 0)
+	 * - Otherwise, select DSI/RGB path (parent 1)
+	 */
+	if (duty->num * CPG_PLLDSI_SMUX_DSI_RGB_DUTY_DEN >
+	    duty->den * CPG_PLLDSI_SMUX_DSI_RGB_DUTY_NUM)
+		parent_idx = 0;
+	else
+		parent_idx = 1;
+
+	if (parent_idx >= clk_hw_get_num_parents(hw))
+		return -EINVAL;
+
+	parent_hw = clk_hw_get_parent_by_index(hw, parent_idx);
+	if (!parent_hw)
+		return -EINVAL;
+
+	return clk_hw_set_parent(hw, parent_hw);
 }
 
 static const struct clk_ops rzv2h_cpg_plldsi_smux_ops = {
 	.determine_rate = rzv2h_cpg_plldsi_smux_determine_rate,
 	.get_parent = rzv2h_cpg_plldsi_smux_get_parent,
 	.set_parent = rzv2h_cpg_plldsi_smux_set_parent,
+	.get_duty_cycle = rzv2h_cpg_plldsi_smux_get_duty_cycle,
+	.set_duty_cycle = rzv2h_cpg_plldsi_smux_set_duty_cycle,
 };
 
 static struct clk * __init
@@ -750,11 +802,12 @@ rzv2h_cpg_plldsi_smux_clk_register(const struct cpg_core_clk *core,
 	struct clk_init_data init;
 	struct clk_hw *clk_hw;
 	struct smuxed smux;
-	u8 width;
+	u8 width, mask;
 	int ret;
 
 	smux = core->cfg.smux;
-	width = fls(smux.width) - ffs(smux.width) + 1;
+	mask = smux.width;
+	width = fls(mask) - ffs(mask) + 1;
 
 	if (width + smux.width > 16) {
 		dev_err(priv->dev, "mux value exceeds LOWORD field\n");
