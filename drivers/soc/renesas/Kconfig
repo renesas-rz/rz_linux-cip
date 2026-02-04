@@ -350,6 +350,7 @@ config ARCH_R9A09G056
 	bool "ARM64 Platform support for RZ/V2N"
 	default y if ARCH_RENESAS
 	select SYS_R9A09G056
+	select SYS_SUPPORTS_RZ_CMTW
 	help
 	  This enables support for the Renesas RZ/V2N SoC variants.
 
