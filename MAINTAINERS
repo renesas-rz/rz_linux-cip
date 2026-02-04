@@ -19623,6 +19623,13 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/mtd/renesas-nandc.yaml
 F:	drivers/mtd/nand/raw/renesas-nand-controller.c
 
+RENESAS RZ/T2N NAND CONTROLLER DRIVER
+M:	Hung Tran <hung.tran.jy@renesas.com>
+L:	linux-renesas-soc@vger.kernel.org
+S:	Supported
+F:	Documentation/devicetree/bindings/mtd/renesas-nandc-rzt2n.yaml
+F:	drivers/mtd/nand/raw/renesas-nand-controller-rzt2n.c
+
 RENESAS R-CAR GYROADC DRIVER
 M:	Marek Vasut <marek.vasut@gmail.com>
 L:	linux-iio@vger.kernel.org
