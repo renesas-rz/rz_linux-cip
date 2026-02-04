@@ -39,6 +39,13 @@
  */
 #define SEL_PCIE_RC_EP		0
 
+/*
+ * Set marco to 1 to use OTG with J4
+ * SEL_OTG = 1 use OTG with J4
+ * SEL_OTG = 0 use USB host with J2 and USB function with J3 (default)
+ */
+#define SEL_OTG                0
+
 / {
 	model = "Renesas Development EVK based on r9a07g076m48";
 	compatible = "renesas,r9a07g076m48-dev", "renesas,r9a07g076m48", "renesas,r9a07g076";
@@ -409,6 +416,22 @@
 		line-name = "pcie_rstout";
 	};
 #endif
+
+#if (SEL_OTG)
+	usb_exicen_a: usb_exicen_a {
+		gpio-hog;
+		gpios = <RZT2_GPIO(14, 3) GPIO_ACTIVE_HIGH>; /* USB : USB_EXICEN/P14_3 */
+		output-high;
+		line-name = "usb_exicen_a";
+	};
+#endif
+
+	usb_pins: usb_pins {
+		pinmux = <RZT2_PORT_PINMUX(11, 0, 0x17)>, /* USB : USB_VBUSEN/P11_0 */
+			 <RZT2_PORT_PINMUX(11, 6, 0x17)>, /* USB : USB_OVRCUR/P11_6 */
+			 <RZT2_PORT_PINMUX(11, 7, 0x17)>, /* USB : USB_OTG_ID/P11_7 */
+			 <RZT2_PORT_PINMUX(12, 4, 0x17)>; /* USB : USB_VBUSIN/P12_4 */
+	};
 };
 
 &extal {
@@ -885,3 +908,27 @@
 	status = "okay";
 };
 #endif
+
+&ohci {
+	memory-region = <&global_cma>;
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&ehci {
+	memory-region = <&global_cma>;
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&hsusb {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&usb2_phy {
+	pinctrl-0 = <&usb_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
