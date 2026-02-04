@@ -8,7 +8,6 @@
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
-#include <linux/dmaengine.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
@@ -49,6 +48,7 @@
 #define CMDSTATPTR		0x0010	/* Command Status Pointer Register */
 #define CMDSTAT			0x0014	/* Command Status Register */
 #define   CMDSTAT_CMDERR	BIT(0)
+#define   CMDSTAT_FAIL		BIT(14)
 #define   CMDSTAT_COMPLETE	BIT(15)
 #define CMDSTATEXT		0x0018	/* Extended Command Status Register */
 #define INTSTAT			0x0110	/* Interrupt Status Register */
@@ -56,7 +56,6 @@
 #define   INTSTAT_CDMATERR	BIT(17)
 #define   INTSTAT_DDMATERR	BIT(18)
 #define   INTSTAT_CMDIGNORED	BIT(20)
-#define   INTSTAT_DICTXERR	BIT(24)
 #define   INTSTAT_PROTERR	BIT(25)
 #define INTENABLE		0x0114	/* Interrupt Enable Register */
 #define   INTENABLE_INTEN	BIT(31)
@@ -110,8 +109,8 @@
 #define REMAPACCESS		0x0488	/* Remap Access Register */
 #define REMAPLOGADDR		0x048C	/* Remap Logical Address Register */
 #define REMAPPHYSADDR		0x0490	/* Remap Physical Address Register */
-#define CNTRDATACTRL		0x0494	/* Control-Data Control Register */
-#define   CNTRDATACTRL_SIZE	GENMASK(15, 0)
+#define CTRLDATACTRL		0x0494	/* Control-Data Control Register */
+#define   CTRLDATACTRL_SIZE	GENMASK(15, 0)
 
 /* Data Integrity (DI) Registers */
 #define DICTRL			0x0700	/* Data Integrity Control Register */
@@ -128,7 +127,6 @@
 #define   CTRFEAT_CTRLDATA	BIT(10)
 #define   CTRFEAT_DMADWIDTH	BIT(21)
 #define   CTRFEAT_BANK		GENMASK(25, 24)
-#define   CTRFEAT_ASYNCSUP	BIT(26)
 #define MFGID			0x0808	/* Manufacturer ID Register */
 #define   MFGID_MID		GENMASK(7, 0)
 #define   MFGID_DID		GENMASK(23, 16)
@@ -189,33 +187,20 @@
 #define   TIMING2_CSHOLD		GENMASK(13, 8)
 #define   TIMING2_TFEAT			GENMASK(25, 16)
 #define DLLPHYCTRL			0x1034	/* DLL PHY Control Register */
-#define   DLLPHYCTRL_RESYNCIDLECNT	GENMASK(7, 0)
-#define   DLLPHYCTRL_RESYNCWAITCNT	GENMASK(11, 8)
 #define   DLLPHYCTRL_EXTENDRMD		BIT(16)
 #define   DLLPHYCTRL_EXTENDWMD		BIT(17)
-#define   DLLPHYCTRL_DLLRSTN		BIT(24)
 #define PHYCTRLREG			0x2080	/* PHY Control Register */
-#define   PHYCTRLREG_SDRDQS		BIT(14)
 #define   PHYCTRLREG_PHONYDQSTIMING	GENMASK(8, 4)
 
 /* Supplementary Registers */
 #define DDCTRL0			0x000	/* NANDC Device Discovery Control Register 0 */
-#define   DDCTRL0_INHIBIT	BIT(0)
-#define   DDCTRL0_IGNRCRC	BIT(4)
 #define DDCTRL1			0x004	/* NANDC Device Discovery Control Register 1 */
-#define   DDCTRL1_RBVALIDTIME	BIT(0)
 #define DDCTRL2			0x008	/* NANDC Device Discovery Control Register 2 */
-#define   DDCTRL2_LUNNUM	BIT(0)
-#define   DDCTRL2_ROWADDRWIDTH	BIT(8)
 #define DDREQ			0x00C	/* NANDC Device Discovery Request Register */
-#define   DDREQ_REQ		BIT(0)
 #define DDACK			0x010	/* Device Discovery Acknowledge Register */
-#define   DDACK_ACK		BIT(0)
 #define DDIDLOW			0x014	/* NANDC Device Discovery Read ID Register 0 */
 #define DDIDHIGH		0x018	/* NANDC Device Discovery Read ID Register 1 */
 #define DDPAGECTRL		0x01C	/* NANDC Device Discovery Page Control Register */
-#define   DDPAGECTRL_PAGEPERBLK	BIT(0)
-#define   DDPAGECTRL_PAGESZ	BIT(16)
 #define PROTCTRL		0x020	/* NANDC Register Protect Control Register */
 
 #define BCH_MAX_NUM_CORR_CAPS		8
@@ -273,8 +258,6 @@ struct rzt2n_nand_timings {
 	u32 timings2;
 	u32 dll_phy_ctrl;
 	u32 phy_ctrl;
-	u32 phy_dqs_timing;
-	u32 phy_gate_lpbk_ctrl;
 };
 
 /* Command DMA descriptor. */
@@ -1001,10 +984,10 @@ static void rzt2n_nand_prepare_data_size(struct nand_chip *chip,
 	writel_relaxed(reg, cdns_ctrl->reg + TRFCFG1);
 
 	if (cdns_ctrl->caps2.data_control_supp) {
-		reg = readl_relaxed(cdns_ctrl->reg + CNTRDATACTRL);
-		reg &= ~CNTRDATACTRL_SIZE;
-		reg |= FIELD_PREP(CNTRDATACTRL_SIZE, data_ctrl_size);
-		writel_relaxed(reg, cdns_ctrl->reg + CNTRDATACTRL);
+		reg = readl_relaxed(cdns_ctrl->reg + CTRLDATACTRL);
+		reg &= ~CTRLDATACTRL_SIZE;
+		reg |= FIELD_PREP(CTRLDATACTRL_SIZE, data_ctrl_size);
+		writel_relaxed(reg, cdns_ctrl->reg + CTRLDATACTRL);
 	}
 
 	cdns_ctrl->curr_trans_type = transfer_type;
@@ -1796,8 +1779,8 @@ static int rzt2n_nand_cmd_status(struct nand_chip *chip,
 
 	reg = readl_relaxed(cdns_ctrl->reg + CMDSTAT);
 
-	if (reg & BIT(15)) {
-		if (reg & BIT(14))
+	if (reg & CMDSTAT_COMPLETE) {
+		if (reg & CMDSTAT_FAIL)
 			*status_out = NAND_STATUS_FAIL;
 		else
 			*status_out = NAND_STATUS_READY;
@@ -2399,7 +2382,6 @@ static void rzt2n_nand_irq_cleanup(int irqnum, struct cdns_nand_ctrl *cdns_ctrl)
 
 static int rzt2n_nand_init(struct cdns_nand_ctrl *cdns_ctrl)
 {
-	dma_cap_mask_t mask;
 	int ret;
 
 	cdns_ctrl->cdma_desc = dma_alloc_coherent(cdns_ctrl->dev,
@@ -2431,19 +2413,6 @@ static int rzt2n_nand_init(struct cdns_nand_ctrl *cdns_ctrl)
 	if (ret)
 		goto disable_irq;
 
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_MEMCPY, mask);
-
-	if (cdns_ctrl->caps1->has_dma) {
-		cdns_ctrl->dmac = dma_request_channel(mask, NULL, NULL);
-		if (!cdns_ctrl->dmac) {
-			dev_err(cdns_ctrl->dev,
-				"Unable to get a DMA channel\n");
-			ret = -EBUSY;
-			goto disable_irq;
-		}
-	}
-
 	nand_controller_init(&cdns_ctrl->controller);
 	INIT_LIST_HEAD(&cdns_ctrl->chips);
 
@@ -2454,21 +2423,17 @@ static int rzt2n_nand_init(struct cdns_nand_ctrl *cdns_ctrl)
 	if (ret) {
 		dev_err(cdns_ctrl->dev, "Failed to register MTD: %d\n",
 			ret);
-		goto dma_release_chnl;
+		goto disable_irq;
 	}
 
 	kfree(cdns_ctrl->buf);
 	cdns_ctrl->buf = kzalloc(cdns_ctrl->buf_size, GFP_KERNEL);
 	if (!cdns_ctrl->buf) {
 		ret = -ENOMEM;
-		goto dma_release_chnl;
+		goto disable_irq;
 	}
 
 	return 0;
-
-dma_release_chnl:
-	if (cdns_ctrl->dmac)
-		dma_release_channel(cdns_ctrl->dmac);
 
 disable_irq:
 	rzt2n_nand_irq_cleanup(cdns_ctrl->irq, cdns_ctrl);
@@ -2490,9 +2455,6 @@ static void rzt2n_nand_remove(struct cdns_nand_ctrl *cdns_ctrl)
 	kfree(cdns_ctrl->buf);
 	dma_free_coherent(cdns_ctrl->dev, sizeof(struct rzt2n_nand_cdma_desc),
 			  cdns_ctrl->cdma_desc, cdns_ctrl->dma_cdma_desc);
-
-	if (cdns_ctrl->dmac)
-		dma_release_channel(cdns_ctrl->dmac);
 }
 
 struct rzt2n_nand_dt {
