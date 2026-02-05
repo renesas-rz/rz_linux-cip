@@ -21,6 +21,7 @@
 #include <linux/reset.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
+#include <linux/of_platform.h>
 
 #define POEGG		0x0000
 
@@ -32,11 +33,33 @@
 #define IOCE		(1 << 5)
 #define IOCF		(1 << 1)
 
+#define RZT2_POEGG2	0x08
+
+#define OSTPE		BIT(6)
+#define DSMIF_ERR0_EN	GENMASK(9, 0)
+#define DSMIF_ERR1_EN	GENMASK(25, 16)
+
+struct rz_poeg_data_cfg {
+	bool disable_by_oscillation;
+};
+
+static const struct rz_poeg_data_cfg rzg2l_cfg = {
+	.disable_by_oscillation = false,
+};
+
+static const struct rz_poeg_data_cfg rzt2_cfg = {
+	.disable_by_oscillation = true,
+};
+
+void rzg2l_poeg_clear_bit_export(struct platform_device *poeg_dev, u32 data, unsigned int offset);
+
 struct rzg2l_poeg_chip {
 	struct	clk *clk;
 	void	__iomem *mmio_base;
 	struct reset_control *rstc;
 	struct mutex mutex;
+	const struct rz_poeg_data_cfg *cfg;
+	bool disable_by_dsmif_err;
 };
 
 void rzg2l_poeg_clear_bit_export(struct platform_device *poeg_dev, u32 data,
@@ -80,6 +103,15 @@ static void enable_poeg_function(struct rzg2l_poeg_chip *poeg_chip)
 	rzg2l_poeg_set_bit(poeg_chip, PIDE|IOCE, POEGG);
 	/* Enable noise filter */
 	rzg2l_poeg_set_bit(poeg_chip, EN_NFEN, POEGG);
+	if (poeg_chip->cfg == &rzt2_cfg) {
+		/* Permit output-disable by DSMIF error */
+		if (poeg_chip->disable_by_dsmif_err)
+			rzg2l_poeg_set_bit(poeg_chip,
+					DSMIF_ERR0_EN | DSMIF_ERR1_EN, RZT2_POEGG2);
+		/* Permit output-disable by oscillation */
+		if (poeg_chip->cfg->disable_by_oscillation)
+			rzg2l_poeg_set_bit(poeg_chip, OSTPE, POEGG);
+	}
 }
 
 static ssize_t output_disable_store(struct device *dev,
@@ -135,6 +167,15 @@ static int rzg2l_poeg_probe(struct platform_device *pdev)
 	if (poeg_chip == NULL)
 		return -ENOMEM;
 
+	if (poeg_chip->cfg == &rzt2_cfg) {
+		poeg_chip->cfg = of_device_get_match_data(&pdev->dev);
+		if (!of_find_property(pdev->dev.of_node,
+					"llpp,disable-by-DSMIF-error", NULL))
+			poeg_chip->disable_by_dsmif_err = false;
+		else
+			poeg_chip->disable_by_dsmif_err = true;
+	}
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "No memory resource defined\n");
@@ -145,13 +186,15 @@ static int rzg2l_poeg_probe(struct platform_device *pdev)
 	if (IS_ERR(poeg_chip->mmio_base))
 		return PTR_ERR(poeg_chip->mmio_base);
 
-	poeg_chip->rstc = devm_reset_control_get(&pdev->dev, NULL);
-	if (IS_ERR(poeg_chip->rstc)) {
-		dev_err(&pdev->dev, "failed to get cpg reset\n");
-		return PTR_ERR(poeg_chip->rstc);
-	}
+	if (poeg_chip->cfg == &rzg2l_cfg) {
+		poeg_chip->rstc = devm_reset_control_get(&pdev->dev, NULL);
+		if (IS_ERR(poeg_chip->rstc)) {
+			dev_err(&pdev->dev, "failed to get cpg reset\n");
+			return PTR_ERR(poeg_chip->rstc);
+		}
 
-	reset_control_deassert(poeg_chip->rstc);
+		reset_control_deassert(poeg_chip->rstc);
+	}
 
 	poeg_chip->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(poeg_chip->clk)) {
@@ -178,17 +221,16 @@ static int rzg2l_poeg_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rzg2l_poeg_remove(struct platform_device *pdev)
+static void rzg2l_poeg_remove(struct platform_device *pdev)
 {
 	device_remove_file(&pdev->dev, &dev_attr_output_disable);
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id rzg2l_poeg_of_table[] = {
-	{ .compatible = "renesas,poeg-r9a07g044", },
+	{ .compatible = "renesas,poeg-r9a07g044", .data = &rzg2l_cfg, },
+	{ .compatible = "renesas,poeg-r9a07g076", .data = &rzt2_cfg, },
 	{ },
 };
 
