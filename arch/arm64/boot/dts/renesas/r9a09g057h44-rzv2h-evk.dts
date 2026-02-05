@@ -363,6 +363,12 @@
 	mali-supply = <&reg_0p8v>;
 };
 
+&gpt0 {
+	pinctrl-0 = <&gpt0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "default";
@@ -1064,6 +1070,11 @@
 		sd1_cd {
 			pinmux = <RZV2H_PORT_PINMUX(9, 4, 14)>; /* SD1_CD */
 		};
+	};
+
+	gpt0_pins: gpt0 {
+		pinmux = <RZV2H_PORT_PINMUX(7, 2, 9)>, /* GTIOC2A */
+			 <RZV2H_PORT_PINMUX(7, 3, 9)>; /* GTIOC2B */
 	};
 
 	usb20_pins: usb20 {
