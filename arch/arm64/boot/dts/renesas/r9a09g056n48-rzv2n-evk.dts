@@ -321,6 +321,11 @@
 			pinmux = <RZV2N_PORT_PINMUX(9, 5, 14)>; /* VBUS */
 		};
 	};
+
+	usb3_pins: usb3 {
+		pinmux = <RZV2N_PORT_PINMUX(B, 0, 14)>, /* USB30_VBUSEN */
+			 <RZV2N_PORT_PINMUX(B, 1, 14)>; /* USB30_OVRCURN */
+	};
 };
 
 &qextal_clk {
@@ -362,6 +367,16 @@
 	pinctrl-names = "default";
 
 	vbus-supply = <&usb2_phy0_vbus_otg>;
+	status = "okay";
+};
+
+&usb3_phy {
+	status = "okay";
+};
+
+&xhci {
+	pinctrl-0 = <&usb3_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
