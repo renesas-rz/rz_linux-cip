@@ -661,16 +661,6 @@ static int rzg2l_gpt_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	struct rzg2l_gpt_chip *pc = to_rzg2l_gpt_chip(chip);
 	int rc = 0;
 
-	/* Enable GTIOCA pin output */
-	rzg2l_gpt_write_mask(pc,
-	channel_set[CHANNEL_A].phase.polar[pc->channel_polar[CHANNEL_A]],
-	channel_set[CHANNEL_A].phase.mask, GTIOR);
-
-	/* Enable GTIOCB pin output */
-	rzg2l_gpt_write_mask(pc,
-	channel_set[CHANNEL_B].phase.polar[pc->channel_polar[CHANNEL_B]],
-	channel_set[CHANNEL_B].phase.mask, GTIOR);
-
 	/* Start count */
 	rzg2l_gpt_write_mask(pc, 1, GTCR_CST, GTCR);
 
@@ -1297,6 +1287,15 @@ static irqreturn_t rzt2_gpt_isr(int irq, void *data)
 	}
 
 	if (irq_flags & RZT2_INT_CCMPA) {
+		if (pc->gpt_operation != INPUT_CAPTURE && pc->pulse_number >= 0) {
+			if (pc->pulse_number == 1) {
+				/* Retain output at GTCCRA */
+				rzg2l_gpt_write_mask(pc, 0, GTIOA_RETAIN_OUTPUT, GTIOR);
+				/* Disable interrupt GTINTA */
+				rzg2l_gpt_write_mask(pc, 0, GTINTA, GTINTAD);
+			}
+		}
+
 		pc->snapshot[pc->index] = rzg2l_gpt_read(pc, GTCCRA) +
 			(pc->overflow_count) * GTPR_MAX_VALUE;
 		switch (pc->index) {
@@ -1327,6 +1326,15 @@ static irqreturn_t rzt2_gpt_isr(int irq, void *data)
 	}
 
 	if (irq_flags & RZT2_INT_CCMPB) {
+		if (pc->gpt_operation != INPUT_CAPTURE && pc->pulse_number >= 0) {
+			if (pc->pulse_number == 1) {
+				/* Retain output at GTCCRB */
+				rzg2l_gpt_write_mask(pc, 0, GTIOB_RETAIN_OUTPUT, GTIOR);
+				/* Disable interrupt GTINTB */
+				rzg2l_gpt_write_mask(pc, 0, GTINTB, GTINTAD);
+			}
+		}
+
 		pc->snapshot[pc->index] = rzg2l_gpt_read(pc, GTCCRB) +
 			(pc->overflow_count) * GTPR_MAX_VALUE;
 		switch (pc->index) {
