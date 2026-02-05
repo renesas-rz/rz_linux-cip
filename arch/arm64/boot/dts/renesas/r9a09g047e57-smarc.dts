@@ -166,6 +166,14 @@
 };
 #endif
 
+#if (!SW_LCD_EN) && (!SW_GPIO8_CAN0_STB) && (!SW_GPIO9_CAN1_STB)
+&gpt0 {
+	pinctrl-0 = <&gpt0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+#endif
+
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "default";
@@ -247,6 +255,11 @@
 			pinmux = <RZG3E_PORT_PINMUX(5, 2, 3)>, /* RX */
 				 <RZG3E_PORT_PINMUX(5, 3, 3)>; /* TX */
 		};
+	};
+
+	gpt0_pins: gpt0 {
+		pinmux = <RZG3E_PORT_PINMUX(5, 4, 10)>, /* GTIOC4A */
+			 <RZG3E_PORT_PINMUX(5, 5, 10)>; /* GTIOC4B */
 	};
 
 	i2c0_pins: i2c0 {
