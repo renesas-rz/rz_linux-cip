@@ -294,6 +294,13 @@
 			 <RZG2L_PORT_PINMUX(18, 5, 8)>; /* RXD */
 	};
 
+#if (!SW_GPIO8_CAN0_STB && !SW_GPIO9_CAN1_STB)
+	gpt_pins: gpt {
+		pinmux = <RZG2L_PORT_PINMUX(13, 0, 2)>, /* GTIOC0A - GPIO8 */
+			 <RZG2L_PORT_PINMUX(13, 1, 2)>; /* GTIOC0B - GPIO9 */
+	};
+#endif
+
 	mtu3_pins: mtu3 {
 		mtu3-pwm {
 			pinmux = <RZG2L_PORT_PINMUX(8, 2, 6)>, /* MTIOC7C */
@@ -436,6 +443,14 @@
 	pinctrl-0 = <&ssi3_pins>, <&audio_clock_pins>;
 	status = "okay";
 };
+
+#if (!SW_GPIO8_CAN0_STB && !SW_GPIO9_CAN1_STB)
+&gpt {
+	pinctrl-0 = <&gpt_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+#endif
 
 &mtu3 {
 	pinctrl-0 = <&mtu3_pins>;
