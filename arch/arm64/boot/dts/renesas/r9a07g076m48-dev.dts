@@ -68,6 +68,13 @@
  */
 #define SEL_GPT_XSPI1		0
 
+/*
+ * Set the macro SEL_POEG_POE3 to the values below to select the usage of:
+ * - 0: POEG (default)
+ * - 1: POE3
+ */
+#define SEL_POEG_POE3		0
+
 / {
 	model = "Renesas Development EVK based on r9a07g076m48";
 	compatible = "renesas,r9a07g076m48-dev", "renesas,r9a07g076m48", "renesas,r9a07g076";
@@ -466,9 +473,11 @@
 	};
 #endif
 
+#if (SEL_POEG_POE3)
 	poe3_pins: poe3 {
 		pinmux = <RZT2_PORT_PINMUX(11, 5, 0x08)>; /* POE3 : POE0#/P11_5 */
 	};
+#endif
 
 #if (!SEL_PCIE_RC_EP)
 	pcie_rstout {
@@ -513,6 +522,12 @@
 	gpt03_1_pins: gpt03_1 {
 		pinmux = <RZT2_PORT_PINMUX(16, 3, 0x09)>, /* GPT : GTIOC3_1A/P16_3 */
 			 <RZT2_PORT_PINMUX(16, 2, 0x09)>; /* GPT : GTIOC3_1B/P16_2 */
+	};
+#endif
+
+#if (!SEL_POEG_POE3)
+	poeg_pins: gtetrga {
+		pinmux = <RZT2_PORT_PINMUX(11, 5, 0x0C)>; /* POEG : GTETRGA/P11_5 */
 	};
 #endif
 };
@@ -996,6 +1011,7 @@
 };
 #endif
 
+#if (SEL_POEG_POE3)
 &poe3 {
 	pinctrl-0 = <&poe3_pins>;
 	pinctrl-names = "default";
@@ -1012,6 +1028,7 @@
 	};
 #endif
 };
+#endif
 
 #if (!SEL_PCIE_RC_EP)
 &pcie0 {
@@ -1073,6 +1090,29 @@
 	pinctrl-0 = <&gpt03_1_pins>;
 	pinctrl-names = "default";
 	channel = "both_AB";
+#if (!SEL_POEG_POE3)
+	poeg = <&poeg0_a &poeg0_b &poeg0_c &poeg0_d>;
+#endif
+	status = "okay";
+};
+#endif
+
+#if (!SEL_GPT_XSPI1 && !SEL_POEG_POE3)
+&poeg0_a {
+	pinctrl-0 = <&poeg_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&poeg0_b {
+	status = "okay";
+};
+
+&poeg0_c {
+	status = "okay";
+};
+
+&poeg0_d {
 	status = "okay";
 };
 #endif
