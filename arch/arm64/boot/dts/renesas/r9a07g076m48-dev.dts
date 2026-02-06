@@ -75,6 +75,25 @@
  */
 #define SEL_POEG_POE3		0
 
+/*
+ * Set the marco SEL_HPSW to 1 to select the usage of HPSW:
+ */
+#define SEL_HPSW		0
+
+/*
+ * Set the marco SEL_HPSW_MODE to the values below to select the usage of:
+ * - 0: ETHSS mode 0x2 (default)
+ * - 1: ETHSS mode 0x4
+ */
+#define SEL_HPSW_MODE		0
+
+/*
+ * Set the macro SEL_SW_MODE to the values below to select the usage of:
+ * - 0: ETHSS mode 0x0 (default)
+ * - 1: ETHSS mode 0x2
+ */
+#define SEL_SW_MODE		0
+
 / {
 	model = "Renesas Development EVK based on r9a07g076m48";
 	compatible = "renesas,r9a07g076m48-dev", "renesas,r9a07g076m48", "renesas,r9a07g076";
@@ -276,11 +295,24 @@
 		};
 	};
 
+#if (SEL_HPSW)
+	mdio0_pins: gmac_mdio0 {
+#if (!SEL_HPSW_MODE)
+		pinmux = <RZT2_PORT_PINMUX(20, 4, 0x11)>, /* GMAC : GMAC0_MDC/P20_4 */
+			 <RZT2_PORT_PINMUX(20, 5, 0x11)>; /* GMAC : GMAC0_MDIO/P20_5 */
+#else
+		pinmux = <RZT2_PORT_PINMUX(3, 2, 0x11)>, /* GMAC : GMAC0_MDC/P03_2 */
+			 <RZT2_PORT_PINMUX(3, 3, 0x11)>; /* GMAC : GMAC0_MDIO/P03_3 */
+#endif
+	};
+#endif
+
 	mdio1_pins: gmac_mdio1 {
 		pinmux = <RZT2_PORT_PINMUX(3, 2, 0x12)>, /* GMAC : GMAC1_MDC/P3_2 */
 			 <RZT2_PORT_PINMUX(3, 3, 0x12)>; /* GMAC : GMAC1_MDIO/P3_3 */
 	};
 
+#if (!SEL_SW_MODE)
 #if (!SEL_ETHSW_ESWM)
 	ethsw_pins: ethsw_pins {
 		pinmux = <RZT2_PORT_PINMUX(20, 4, 0x14)>, /* ETHSW : ETHSW_MDC/P20_4 */
@@ -290,7 +322,9 @@
 			 <RZT2_PORT_PINMUX(25, 0, 0x14)>; /* ETHSW : ETHSW_PHYLINK2/P25_0 */
 	};
 #endif
+#endif
 
+#if (!SEL_SW_MODE)
 #if (SEL_ETHSW_ESWM)
 #if (!SEL_ETH34_ESWM_MTU3)
 	eswm_pins: eswm_pins {
@@ -303,6 +337,17 @@
 	};
 #endif
 #endif
+#endif
+
+	hpsw_pins: hpsw_pins {
+#if (SEL_HPSW_MODE)
+		pinmux = <RZT2_PORT_PINMUX(1, 5, 0x30)>, /* HPSW: HPSW_PHYLINK0/P01_5 */
+			 <RZT2_PORT_PINMUX(3, 5, 0x30)>; /* HPSW: HPSW_PHYLINK1/P03_5 */
+#else
+		pinmux = <RZT2_PORT_PINMUX(20, 6, 0x30)>, /* HPSW: HPSW_PHYLINK0/P20_6 */
+			 <RZT2_PORT_PINMUX(22, 5, 0x30)>; /* HPSW: HPSW_PHYLINK1/P22_5 */
+#endif
+	};
 
 	pins_refclk: pins_refclk {
 		pinmux = <RZT2_PORT_PINMUX(20, 7, 0x02)>, /* Clock : ETH0_REFCLK/P20_7 */
@@ -634,6 +679,31 @@
 &gmac0 {
 	status = "okay";
 	phy-mode = "rgmii";
+	ethss-handle = <&ethss>;
+#if (SEL_HPSW)
+#if (SEL_HPSW_MODE)
+	phy-reset-gpios = <&pinctrl RZT2_GPIO(16, 1) GPIO_ACTIVE_HIGH>; /* ETH34: RESETOUT/P16_1 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio0_pins>;
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy3: ethernet-phy@3 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <0>;
+		};
+
+		phy4: ethernet-phy@4 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <1>;
+		};
+	};
+#endif
+#endif
 
 	fixed-link {
 		speed = <1000>;
@@ -642,6 +712,44 @@
 };
 #endif
 
+#if (SEL_HPSW)
+#if (!SEL_HPSW_MODE)
+#if (SEL_SW_MODE)
+&gmac0 {
+	status = "okay";
+	phy-reset-gpios = <&pinctrl RZT2_GPIO(7, 0) GPIO_ACTIVE_HIGH>; /* ETH012: RESETOUT/P07_0 */
+	phy-mode = "rgmii";
+	ethss-handle = <&ethss>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio0_pins>;
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <0>;
+		};
+
+		phy1: ethernet-phy@1 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <1>;
+		};
+	};
+};
+#endif
+#endif
+#endif
+
+#if (!SEL_HPSW_MODE)
 #if (!SEL_ETH34_ESWM_MTU3)
 &gmac1 {
 	phy-handle = <&phy3>;
@@ -675,12 +783,19 @@
 	};
 };
 #endif
+#endif
 
 #if (!SEL_ETH34_ESWM_MTU3)
 &gmac2 {
+#if (!SEL_HPSW_MODE)
 	phy-handle = <&phy4>;
 	phy-mode = "rgmii-id";
 	pcs-handle = <&mii_conv4>;
+#else
+	phy-handle = <&phy2>;
+	phy-mode = "rgmii-id";
+	pcs-handle = <&mii_conv2>;
+#endif
 	status = "okay";
 	enable-time-based-scheduling;
 	snps,force_thresh_dma_mode;
@@ -698,11 +813,13 @@
 		    <&eth3_pins>, <&eth4_pins>,
 #endif
 		    <&eth0_pins>;
-#if (!SEL_ETHSW_ESWM)
+#if (!SEL_ETHSW_ESWM || SEL_HPSW)
 	renesas,ethss-switch-portmanagement = <ETHSS_GMAC0_PORT>;
+	ethsw_pulse_gen_timer = <0>;	/* Pulse generator use ETHSW timer 0 */
 #endif
 };
 
+#if (!SEL_SW_MODE)
 #if (!SEL_ETHSW_ESWM)
 &ethsw {
 	status = "okay";
@@ -756,6 +873,7 @@
 	status = "okay";
 };
 
+#if (!SEL_HPSW_MODE)
 &switch_port2 {
 	label = "lan2";
 	phy-mode = "rgmii-id";
@@ -763,12 +881,26 @@
 	phy-handle = <&phy2>;
 	status = "okay";
 };
+#else
+&switch_port2 {
+	label = "lan2";
+	phy-mode = "internal";
+	status = "okay";
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+};
+#endif
 
 &switch_port3 {
 	status = "okay";
 };
 #endif
+#endif
 
+#if (!SEL_HPSW)
 #if (!SEL_ETHSW_ESWM)
 &mii_conv0 {
 	renesas,ethss-port = <ETHSS_SWITCH_PORT0>;
@@ -822,6 +954,7 @@
 	renesas,ethss-port = <ETHSS_GMAC2_PORT>;
 	status = "okay";
 };
+#endif
 #endif
 #endif
 
@@ -1115,4 +1248,107 @@
 &poeg0_d {
 	status = "okay";
 };
+#endif
+
+#if (SEL_HPSW)
+#if (!SEL_HPSW_MODE)
+&hpsw {
+	pinctrl-0 = <&hpsw_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&hpsw_portA {
+	phy-mode = "rgmii-id";
+	pcs-handle = <&mii_conv0>;
+	phy-handle = <&phy0>;
+	status = "okay";
+};
+
+&hpsw_portB {
+	phy-mode = "rgmii-id";
+	pcs-handle = <&mii_conv1>;
+	phy-handle = <&phy1>;
+	status = "okay";
+};
+
+&hpsw_portC {
+	status = "okay";
+};
+
+&mii_conv0 {
+	renesas,ethss-port = <ETHSS_HPSW_PORTA>;
+	renesas,hpsw-phylink = <0>;
+	status = "okay";
+};
+
+&mii_conv1 {
+	renesas,ethss-port = <ETHSS_HPSW_PORTB>;
+	renesas,hpsw-phylink = <0>;
+	status = "okay";
+};
+
+&mii_conv2 {
+	status = "okay";
+};
+
+&mii_conv3 {
+	renesas,ethss-port = <ETHSS_GMAC1_PORT>;
+	status = "okay";
+};
+
+&mii_conv4 {
+	renesas,ethss-port = <ETHSS_GMAC2_PORT>;
+	status = "okay";
+};
+#else
+&hpsw {
+	pinctrl-0 = <&hpsw_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&hpsw_portA {
+	phy-mode = "rgmii-id";
+	pcs-handle = <&mii_conv3>;
+	phy-handle = <&phy3>;
+	status = "okay";
+};
+
+&hpsw_portB {
+	phy-mode = "rgmii-id";
+	pcs-handle = <&mii_conv4>;
+	phy-handle = <&phy4>;
+	status = "okay";
+};
+
+&hpsw_portC {
+	status = "okay";
+};
+
+&mii_conv0 {
+	renesas,ethss-port = <ETHSS_SWITCH_PORT0>;
+	status = "okay";
+};
+
+&mii_conv1 {
+	renesas,ethss-port = <ETHSS_SWITCH_PORT1>;
+	status = "okay";
+};
+
+&mii_conv2 {
+	renesas,ethss-port = <ETHSS_GMAC2_PORT>;
+	status = "okay";
+};
+
+&mii_conv3 {
+	renesas,ethss-port = <ETHSS_HPSW_PORTA>;
+	status = "okay";
+};
+
+&mii_conv4 {
+	renesas,ethss-port = <ETHSS_HPSW_PORTB>;
+	status = "okay";
+};
+#endif
 #endif
