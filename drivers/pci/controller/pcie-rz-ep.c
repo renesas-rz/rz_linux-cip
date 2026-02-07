@@ -20,6 +20,7 @@
 #include <linux/regmap.h>
 #include <linux/of.h>
 #include <linux/container_of.h>
+#include <linux/dma/pcie-rzg3s-dma.h>
 
 #include "../pci.h"
 #include "pcie-rzg3s-regs.h"
@@ -787,7 +788,7 @@ static int rz_pcie_ep_probe(struct platform_device *pdev)
 		goto err_pm_put;
 	}
 
-	err = rzg3s_pcie_dma_probe(pcie);
+	err = rzg3s_pcie_dma_probe(pcie, false);
 	if (err && err != -ENODEV) {
 		dev_err(dev, "Couldn't register DMA for PCIe\n");
 		return err;
