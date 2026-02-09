@@ -2354,8 +2354,10 @@
 		};
 
 		adc: adc@11c00000 {
-			compatible = "renesas,r9a09g057-adc", "renesas,rzv2h-adc";
+			compatible = "renesas,r9a09g057-adc";
 			reg = <0 0x11c00000 0 0x400>;
+			interrupts = <GIC_SPI 918 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "adi";
 			clocks = <&cpg CPG_MOD 263>,
 				 <&cpg CPG_MOD 264>;
 			clock-names = "pclk", "adclk";
