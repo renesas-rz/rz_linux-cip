@@ -604,9 +604,9 @@ static const struct pci_epc_features rz_pcie_epc_features = {
 	/* use 64-bit BARs so mark BAR[1,3,5] as reserved */
 	.reserved_bar = 1 << BAR_1 | 1 << BAR_3 | 1 << BAR_5,
 	.bar_fixed_64bit = 1 << BAR_0 | 1 << BAR_2 | 1 << BAR_4,
-	.bar_fixed_size[0] = SZ_1M,
+	.bar_fixed_size[0] = SZ_32M,
 	.bar_fixed_size[2] = SZ_4K,
-	.bar_fixed_size[4] = SZ_256,
+	.bar_fixed_size[4] = SZ_8K,
 };
 
 static const struct pci_epc_features *rz_pcie_ep_get_features(struct pci_epc *epc,
