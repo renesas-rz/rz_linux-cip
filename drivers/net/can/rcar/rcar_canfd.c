@@ -467,13 +467,13 @@ struct rcar_canfd_global {
 	void __iomem *base;		/* Register base address */
 	struct rcar_canfd_f_c __iomem *fcbase;
 	struct platform_device *pdev;	/* Respective platform device */
+	struct device *dev;
 	struct clk *clkp;		/* Peripheral clock */
 	struct clk *can_clk;		/* fCAN clock */
 	unsigned long channels_mask;	/* Enabled channels mask */
 	bool extclk;			/* CANFD or Ext clock */
 	bool fdmode;			/* CAN FD or Classical CAN only mode */
 	bool fd_only_mode;
-	struct device *dev;
 	struct reset_control *rstc1;
 	struct reset_control *rstc2;
 	const struct rcar_canfd_hw_info *info;
@@ -807,7 +807,7 @@ static int rcar_canfd_reset_controller(struct rcar_canfd_global *gpriv)
 {
 	struct device *dev = &gpriv->pdev->dev;
 	u32 sts, ch;
-	int err = 0;
+	int err;
 
 	/* Check RAMINIT flag as CAN RAM initialization takes place
 	 * after the MCU reset
@@ -1566,7 +1566,7 @@ static int rcar_canfd_open(struct net_device *ndev)
 	err = pm_runtime_resume_and_get(gpriv->dev);
 	if (err) {
 		netdev_err(ndev, "failed to resume pd %pe\n", ERR_PTR(err));
-		return err;
+		goto out_phy;
 	}
 
 	err = open_candev(ndev);
@@ -1585,7 +1585,8 @@ out_close:
 	napi_disable(&priv->napi);
 	close_candev(ndev);
 out_can_clock:
-	pm_runtime_put(gpriv->dev);
+	pm_runtime_put_sync(gpriv->dev);
+out_phy:
 	phy_power_off(priv->transceiver);
 	return err;
 }
@@ -1628,7 +1629,7 @@ static int rcar_canfd_close(struct net_device *ndev)
 	rcar_canfd_stop(ndev);
 	napi_disable(&priv->napi);
 	close_candev(ndev);
-	pm_runtime_put(gpriv->dev);
+	pm_runtime_put_sync(gpriv->dev);
 	phy_power_off(priv->transceiver);
 	return 0;
 }
@@ -1847,7 +1848,8 @@ static int rcar_canfd_get_auto_tdcv(const struct net_device *ndev, u32 *tdcv)
 	tdcr = rcar_canfd_get_tdcr(priv->gpriv, priv->channel) + 1;
 
 	*tdcv = tdcr < tdco ? 0 : tdcr - tdco;
-	pm_runtime_put(gpriv->dev);
+
+	pm_runtime_put_sync(gpriv->dev);
 
 	return 0;
 }
@@ -1886,7 +1888,8 @@ static int rcar_canfd_get_berr_counter(const struct net_device *ndev,
 	val = rcar_canfd_read(priv->base, RCANFD_CSTS(ch));
 	bec->txerr = RCANFD_CSTS_TECCNT(val);
 	bec->rxerr = RCANFD_CSTS_RECCNT(val);
-	pm_runtime_put(gpriv->dev);
+
+	pm_runtime_put_sync(gpriv->dev);
 
 	return 0;
 }
@@ -2040,8 +2043,7 @@ static void rcar_canfd_channel_remove(struct rcar_canfd_global *gpriv, u32 ch)
 
 static int rcar_canfd_global_init(struct rcar_canfd_global *gpriv)
 {
-	struct platform_device *pdev = gpriv->pdev;
-	const struct rcar_canfd_hw_info *info = gpriv->info;
+	struct device *dev = &gpriv->pdev->dev;
 	u32 rule_entry = 0;
 	u32 ch, sts;
 	int err;
@@ -2056,7 +2058,7 @@ static int rcar_canfd_global_init(struct rcar_canfd_global *gpriv)
 
 	err = rcar_canfd_reset_controller(gpriv);
 	if (err) {
-		dev_err(gpriv->dev, "reset controller failed: %pe\n", ERR_PTR(err));
+		dev_err(dev, "reset controller failed: %pe\n", ERR_PTR(err));
 		goto fail_reset2;
 	}
 
@@ -2064,7 +2066,7 @@ static int rcar_canfd_global_init(struct rcar_canfd_global *gpriv)
 	rcar_canfd_configure_controller(gpriv);
 
 	/* Configure per channel attributes */
-	for_each_set_bit(ch, &gpriv->channels_mask, info->max_channels) {
+	for_each_set_bit(ch, &gpriv->channels_mask, gpriv->info->max_channels) {
 		/* Configure Channel's Rx fifo */
 		rcar_canfd_configure_rx(gpriv, ch);
 
@@ -2087,7 +2089,7 @@ static int rcar_canfd_global_init(struct rcar_canfd_global *gpriv)
 	err = readl_poll_timeout((gpriv->base + RCANFD_GSTS), sts,
 				 !(sts & RCANFD_GSTS_GNOPM), 2, 500000);
 	if (err) {
-		dev_err(&pdev->dev, "global operational mode failed\n");
+		dev_err(dev, "global operational mode failed\n");
 		goto fail_mode;
 	}
 
@@ -2294,7 +2296,7 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 			goto fail_channel;
 	}
 
-	pm_runtime_put(gpriv->dev);
+	pm_runtime_put_sync(gpriv->dev);
 
 	dev_info(dev, "global operational state (%s clk, %s mode)\n",
 		 gpriv->extclk ? "ext" : "canfd",
@@ -2307,7 +2309,7 @@ fail_channel:
 		rcar_canfd_channel_remove(gpriv, ch);
 fail_mode:
 	rcar_canfd_global_deinit(gpriv, false);
-	pm_runtime_put(gpriv->dev);
+	pm_runtime_put_sync(gpriv->dev);
 	pm_runtime_disable(&pdev->dev);
 fail_dev:
 	return err;
@@ -2319,18 +2321,18 @@ static void rcar_canfd_remove(struct platform_device *pdev)
 	u32 ch;
 	int err;
 
+	err = pm_runtime_resume_and_get(gpriv->dev);
+	if (err) {
+		dev_err(gpriv->dev, "failed to resume pd %pe\n", ERR_PTR(err));
+	}
+
 	for_each_set_bit(ch, &gpriv->channels_mask, gpriv->info->max_channels) {
 		rcar_canfd_disable_channel_interrupts(gpriv->ch[ch]);
 		rcar_canfd_channel_remove(gpriv, ch);
 	}
 
-	err = pm_runtime_resume_and_get(gpriv->dev);
-	if (!err) {
-		rcar_canfd_global_deinit(gpriv, true);
-		pm_runtime_put(gpriv->dev);
-	} else
-		dev_err(gpriv->dev, "failed to resume pd %pe\n", ERR_PTR(err));
-
+	rcar_canfd_global_deinit(gpriv, true);
+	pm_runtime_put_sync(gpriv->dev);
 	pm_runtime_disable(gpriv->dev);
 }
 
@@ -2367,7 +2369,7 @@ static int rcar_canfd_suspend(struct device *dev)
 
 	/* TODO Skip if wake-up (which is not yet supported) is enabled */
 	rcar_canfd_global_deinit(gpriv, false);
-	pm_runtime_put(gpriv->dev);
+	pm_runtime_put_sync(gpriv->dev);
 
 	return 0;
 }
@@ -2390,7 +2392,7 @@ static int rcar_canfd_resume(struct device *dev)
 		goto fail_mode;
 	}
 
-	pm_runtime_put(gpriv->dev);
+	pm_runtime_put_sync(gpriv->dev);
 
 	for_each_set_bit(ch, &gpriv->channels_mask, gpriv->info->max_channels) {
 		struct rcar_canfd_channel *priv = gpriv->ch[ch];
@@ -2413,7 +2415,7 @@ static int rcar_canfd_resume(struct device *dev)
 
 fail_mode:
 	rcar_canfd_global_deinit(gpriv, false);
-	pm_runtime_put(gpriv->dev);
+	pm_runtime_put_sync(gpriv->dev);
 fail_dev:
 	return err;
 }
