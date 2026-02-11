@@ -3983,16 +3983,19 @@ static int sci_probe(struct platform_device *dev)
 static int sci_suspend(struct device *dev)
 {
 	struct sci_port *sport = dev_get_drvdata(dev);
+	unsigned long flags;
 
 	if (sport) {
 		uart_suspend_port(&sci_uart_driver, &sport->port);
 
 		if (!console_suspend_enabled && uart_console(&sport->port)) {
+			spin_lock_irqsave(&sport->port.lock, flags);
 			if (sport->ops->console_save)
 				sport->ops->console_save(&sport->port);
 
 			/* Setting Receive FIFO Data Trigger to 1 for wakeup early */
 			sport->ops->set_rtrg(&sport->port, 1);
+			spin_unlock_irqrestore(&sport->port.lock, flags);
 		} else
 			return reset_control_assert(sport->rstc);
 	}
@@ -4003,11 +4006,14 @@ static int sci_suspend(struct device *dev)
 static int sci_resume(struct device *dev)
 {
 	struct sci_port *sport = dev_get_drvdata(dev);
+	unsigned long flags;
 
 	if (sport) {
 		if (!console_suspend_enabled && uart_console(&sport->port)) {
+			spin_lock_irqsave(&sport->port.lock, flags);
 			if (sport->ops->console_restore)
 				sport->ops->console_restore(&sport->port);
+			spin_unlock_irqrestore(&sport->port.lock, flags);
 		} else {
 			int ret = reset_control_deassert(sport->rstc);
 
