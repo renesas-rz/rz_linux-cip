@@ -664,6 +664,8 @@
 			resets = <&cpg 0x59>, <&cpg 0x5a>;
 			reset-names = "rst_p", "rst_s";
 			power-domains = <&cpg>;
+			gpt-channel-id = <0>;
+			renesas,icu = <&icu>;
 			status = "disabled";
 		};
 
@@ -757,6 +759,8 @@
 			resets = <&cpg 0x5b>, <&cpg 0x5c>;
 			reset-names = "rst_p", "rst_s";
 			power-domains = <&cpg>;
+			gpt-channel-id = <1>;
+			renesas,icu = <&icu>;
 			status = "disabled";
 		};
 
