@@ -1,0 +1,90 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timer/renesas,cmt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas Compare Match Timer W (CMTW)
+
+maintainers:
+  - Hien Huynh <hien.huynh.px@renesas.com>
+
+description:
+  The CMTW has 8 timer channels (4 channels x 2 units) of the 32-bit compare
+  match timer W (CMTW). The CMTW has a 32-bit counter and can generate
+  interrupts each time a set period elapses.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - renesas,rzg3e-cmtw    # RZ/G3E
+          - renesas,rzv2n-cmtw    # RZ/V2N
+      - const: renesas,rzv2h-cmtw # RZ/V2H
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    minItems: 4
+    maxItems: 4
+
+  clocks:
+    minItems: 4
+    maxItems: 4
+
+  clock-names:
+    items:
+      - const: fck0
+      - const: fck1
+      - const: fck2
+      - const: fck3
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    minItems: 4
+    maxItems: 4
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - power-domains
+
+additionalProperties: false
+
+examples:
+  - |
+    cmtw0: timer@11c01800 {
+            compatible = "renesas,rzv2h-cmtw";
+            reg = <0 0x11c01800 0 0x1000>;
+            interrupts = <GIC_SPI 455 IRQ_TYPE_EDGE_RISING>,
+                         <GIC_SPI 456 IRQ_TYPE_EDGE_RISING>,
+                         <GIC_SPI 457 IRQ_TYPE_EDGE_RISING>,
+                         <GIC_SPI 458 IRQ_TYPE_EDGE_RISING>;
+            clocks = <&cpg CPG_MOD 0x3b>, <&cpg CPG_MOD 0x3c>,
+                     <&cpg CPG_MOD 0x3d>, <&cpg CPG_MOD 0x3e>;
+            clock-names = "fck0", "fck1", "fck2", "fck3";
+            resets = <&cpg 0x65>, <&cpg 0x66>,
+                     <&cpg 0x67>, <&cpg 0x68>;
+            power-domains = <&cpg>;
+    };
+
+    cmtw1: timer@13000c00 {
+            compatible = "renesas,rzv2h-cmtw";
+            reg = <0 0x13000c00 0 0x1000>;
+            interrupts = <GIC_SPI 459 IRQ_TYPE_EDGE_RISING>,
+                         <GIC_SPI 460 IRQ_TYPE_EDGE_RISING>,
+                         <GIC_SPI 461 IRQ_TYPE_EDGE_RISING>,
+                         <GIC_SPI 462 IRQ_TYPE_EDGE_RISING>;
+            clocks = <&cpg CPG_MOD 0x3f>, <&cpg CPG_MOD 0x40>,
+                     <&cpg CPG_MOD 0x41>, <&cpg CPG_MOD 0x42>;
+            clock-names = "fck0", "fck1", "fck2", "fck3";
+            resets = <&cpg 0x69>, <&cpg 0x6a>,
+                     <&cpg 0x6b>, <&cpg 0x6c>;
+            power-domains = <&cpg>;
+    };
