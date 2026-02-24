@@ -397,6 +397,7 @@ struct adv7511 {
 	bool cec_enabled_adap;
 	struct clk *cec_clk;
 	u32 cec_clk_freq;
+	bool suspended;
 };
 
 #ifdef CONFIG_DRM_I2C_ADV7511_CEC

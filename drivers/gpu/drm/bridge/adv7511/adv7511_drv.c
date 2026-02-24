@@ -915,6 +915,25 @@ static void adv7511_bridge_atomic_enable(struct drm_bridge *bridge,
 {
 	struct adv7511 *adv = bridge_to_adv7511(bridge);
 
+	if (adv->i2c_main->irq && adv->suspended) {
+		unsigned int irq;
+
+		/*
+		 * If ADV7511 IRQ is configured as edge triggered interrupt, it
+		 * will miss the IRQ during system resume as the status change
+		 * occurs before IRQ/pincontrol resume. Once the status bit is
+		 * set there won't be any further IRQ unless the status bit is
+		 * cleared. So, clear the IRQ status bit for further delivery
+		 * of HPD IRQ.
+		 */
+		regmap_read(adv->regmap, ADV7511_REG_INT(0), &irq);
+		if (irq & ADV7511_INT0_HPD)
+			regmap_write(adv->regmap, ADV7511_REG_INT(0),
+				     ADV7511_INT0_HPD);
+
+		adv->suspended = false;
+	}
+
 	adv7511_power_on(adv);
 }
 
@@ -1397,6 +1416,16 @@ static void adv7511_remove(struct i2c_client *i2c)
 	i2c_unregister_device(adv7511->i2c_edid);
 }
 
+static int adv7511_suspend(struct device *dev)
+{
+	struct i2c_client *i2c = to_i2c_client(dev);
+	struct adv7511 *adv7511 = i2c_get_clientdata(i2c);
+
+	adv7511->suspended = true;
+
+	return 0;
+}
+
 static const struct adv7511_chip_info adv7511_chip_info = {
 	.type = ADV7511,
 	.supply_names = adv7511_supply_names,
@@ -1424,6 +1453,8 @@ static const struct adv7511_chip_info adv7535_chip_info = {
 	.has_dsi = true,
 	.hpd_override_enable = true,
 };
+
+static DEFINE_SIMPLE_DEV_PM_OPS(adv7511_pm_ops, adv7511_suspend, NULL);
 
 static const struct i2c_device_id adv7511_i2c_ids[] = {
 	{ "adv7511", (kernel_ulong_t)&adv7511_chip_info },
@@ -1453,6 +1484,7 @@ static struct i2c_driver adv7511_driver = {
 	.driver = {
 		.name = "adv7511",
 		.of_match_table = adv7511_of_ids,
+		.pm = pm_sleep_ptr(&adv7511_pm_ops),
 	},
 	.id_table = adv7511_i2c_ids,
 	.probe = adv7511_probe,
