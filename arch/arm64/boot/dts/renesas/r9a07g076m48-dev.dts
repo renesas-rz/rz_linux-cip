@@ -61,6 +61,13 @@
 #define EMMC_ENABLE		1
 #define NAND_ENABLE		(!EMMC_ENABLE)
 
+/*
+ * Set the marco SEL_GPT_XSPI1 to the values below to select the usage of:
+ * SEL_GPT_XSPI1 = 0: GPT (default)
+ * SEL_GPT_XSPI1 = 1: XSPI1
+ */
+#define SEL_GPT_XSPI1		0
+
 / {
 	model = "Renesas Development EVK based on r9a07g076m48";
 	compatible = "renesas,r9a07g076m48-dev", "renesas,r9a07g076m48", "renesas,r9a07g076";
@@ -402,6 +409,7 @@
 			 <RZT2_PORT_PINMUX(16, 4, 0x1E)>; /* SPI : SPI_MISO0/P16_4 */
 	};
 
+#if (SEL_GPT_XSPI1)
 #if (!SEL_SPI_XSPI1)
 	xspi1_pins: xspi1 {
 		xspi1_clk {
@@ -419,6 +427,7 @@
 			pinmux = <RZT2_PORT_PINMUX(15, 7, 0x20)>; /* xSPI : XSPI1_CS0#/P15_7 */
 		};
 	};
+#endif
 #endif
 
 #if (SEL_I2C0_ADC12)
@@ -497,6 +506,13 @@
 
 	adc2_pins: adc2 {
 		pinmux = <RZT2_PORT_PINMUX(15, 5, 0x23)>; /* ADC : ADTRG2#/P15_5 */
+	};
+#endif
+
+#if (!SEL_GPT_XSPI1)
+	gpt03_1_pins: gpt03_1 {
+		pinmux = <RZT2_PORT_PINMUX(16, 3, 0x09)>, /* GPT : GTIOC3_1A/P16_3 */
+			 <RZT2_PORT_PINMUX(16, 2, 0x09)>; /* GPT : GTIOC3_1B/P16_2 */
 	};
 #endif
 };
@@ -845,6 +861,7 @@
 };
 #endif
 
+#if (SEL_GPT_XSPI1)
 #if (!SEL_SPI_XSPI1)
 &xspi1 {
 	pinctrl-0 = <&xspi1_pins>;
@@ -883,6 +900,7 @@
 		};
 	};
 };
+#endif
 #endif
 
 #if (SEL_ETHSW_ESWM)
@@ -1046,6 +1064,15 @@
 &adc2 {
 	pinctrl-0 = <&adc2_pins>;
 	pinctrl-names = "default";
+	status = "okay";
+};
+#endif
+
+#if !(SEL_GPT_XSPI1)
+&gpt03_1 {
+	pinctrl-0 = <&gpt03_1_pins>;
+	pinctrl-names = "default";
+	channel = "both_AB";
 	status = "okay";
 };
 #endif
