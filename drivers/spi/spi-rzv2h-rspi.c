@@ -569,13 +569,8 @@ static int rzv2h_rspi_pio_transfer(struct rzv2h_rspi_priv *rspi,
 					}
 				}
 
-				ret = rzv2h_rspi_receive(rspi, rxbuf,
+				rzv2h_rspi_receive(rspi, rxbuf,
 							count + loop_count * RSPI_FIFO_SIZE);
-				if (ret) {
-					transfer->error = SPI_TRANS_FAIL_IO;
-					return ret;
-				}
-
 			}
 		}
 	}
@@ -599,8 +594,6 @@ static int rzv2h_rspi_transfer_message(struct rzv2h_rspi_priv *rspi,
 		return ret;
 
 	rzv2h_rspi_clear_all_irqs(rspi);
-
-	spi_finalize_current_transfer(rspi->controller);
 
 	return ret;
 }
