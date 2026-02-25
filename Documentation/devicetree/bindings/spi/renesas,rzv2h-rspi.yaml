@@ -14,7 +14,10 @@ allOf:
 
 properties:
   compatible:
-    const: renesas,r9a09g057-rspi # RZ/V2H(P)
+    items:
+      - enum:
+          - renesas,r9a09g056-rspi    # RZ/V2N
+      - const: renesas,r9a09g057-rspi # RZ/V2H(P)
 
   reg:
     maxItems: 1
