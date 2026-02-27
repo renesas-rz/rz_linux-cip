@@ -6,6 +6,25 @@
  */
 
 /*
+ * Switch selection settings for CAN0/1 and SPDIF0/2
+ *
+ * CAN0_SPDIF0_SEL used to select between CAN0 and SPDIF0:
+ * - CAN0	1 (default)
+ * - SPDIF0	0
+ *
+ * CAN1_SPDIF2_SEL used to select between CAN1 and SPDIF2:
+ * - CAN1	1 (default)
+ * - SPDIF2	0
+ */
+#define CAN0_SEL	1
+#define SPDIF0_SEL	0
+#define CAN0_SPDIF0_SEL	CAN0_SEL
+
+#define CAN1_SEL	1
+#define SPDIF2_SEL	0
+#define CAN1_SPDIF2_SEL	CAN1_SEL
+
+/*
  * Enable I2C2 or I3C on pins 20, 21.
  * I2C2_I3C_SEL:
  * - I2C2	0 (default)
@@ -256,6 +275,7 @@
 		};
 	};
 
+#if (!CAN0_SPDIF0_SEL)
 	codec_test0: codec_test0 {
 		compatible = "linux,snd-soc-dummy";
 		#sound-dai-cells = <0>;
@@ -265,7 +285,9 @@
 			};
 		};
 	};
+#endif
 
+#if (!CAN1_SPDIF2_SEL)
 	codec_test2: codec_test2 {
 		compatible = "linux,snd-soc-dummy";
 		#sound-dai-cells = <0>;
@@ -275,6 +297,7 @@
 			};
 		};
 	};
+#endif
 
 	sound_card: sound {
 		compatible = "audio-graph-card";
@@ -283,8 +306,12 @@
 
 		dais = <
 			&rsnd_port0     /* DA7212 */
+#if (!CAN0_SPDIF0_SEL)
 			&spdif_port0
+#endif
+#if (!CAN1_SPDIF2_SEL)
 			&spdif_port2
+#endif
 			>;
 	};
 };
@@ -743,27 +770,35 @@
 				 <RZV2N_PORT_PINMUX(9, 7, 8)>; /* AUDIO_CLKOUT */
 		};
 
+#if (!CAN0_SPDIF0_SEL)
 		spdif0_pins: spdif0 {
 			pinmux = <RZV2N_PORT_PINMUX(8, 0, 8)>, /* SPDIF0_OUT */
 				 <RZV2N_PORT_PINMUX(8, 1, 8)>; /* SPDIF0_IN */
 		};
+#endif
 
+#if (!CAN1_SPDIF2_SEL)
 		spdif2_pins: spdif2 {
 			pinmux = <RZV2N_PORT_PINMUX(8, 2, 8)>, /* SPDIF2_OUT */
 				 <RZV2N_PORT_PINMUX(8, 3, 8)>; /* SPDIF2_IN */
 		};
+#endif
 	};
 
 	can_pins: can {
+#if (CAN0_SPDIF0_SEL)
 		can0_pins: can0 {
 			pinmux = <RZV2N_PORT_PINMUX(8, 0, 5)>, /* TX */
 				 <RZV2N_PORT_PINMUX(8, 1, 5)>; /* RX */
 		};
+#endif
 
+#if (CAN1_SPDIF2_SEL)
 		can1_pins: can1 {
 			pinmux = <RZV2N_PORT_PINMUX(8, 2, 5)>, /* TX */
 				 <RZV2N_PORT_PINMUX(8, 3, 5)>; /* RX */
 		};
+#endif
 
 		can2_pins: can2 {
 			pinmux = <RZV2N_PORT_PINMUX(8, 4, 5)>, /* TX */
@@ -847,13 +882,17 @@
 	pinctrl-names = "default";
 	status = "okay";
 
+#if (CAN0_SPDIF0_SEL)
 	channel0 {
 		status = "okay";
 	};
+#endif
 
+#if (CAN1_SPDIF2_SEL)
 	channel1 {
 		status = "okay";
 	};
+#endif
 
 	channel2 {
 		status = "okay";
@@ -926,6 +965,7 @@
 			};
 		};
 
+#if (!CAN0_SPDIF0_SEL)
 		spdif_port0: port@1 {
 			spdif0_endpoint: endpoint {
 				remote-endpoint = <&dummy_codec0>;
@@ -937,7 +977,9 @@
 				capture  = <&spdif0>;
 			};
 		};
+#endif
 
+#if (!CAN1_SPDIF2_SEL)
 		spdif_port2: port@2 {
 			spdif2_endpoint: endpoint {
 				remote-endpoint = <&dummy_codec2>;
@@ -949,6 +991,7 @@
 				capture  = <&spdif2>;
 			};
 		};
+#endif
 	};
 };
 
