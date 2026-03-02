@@ -54,6 +54,7 @@ enum clk_ids {
 	CLK_PLLDTY_ACPU,
 	CLK_PLLDTY_ACPU_DIV2,
 	CLK_PLLDTY_ACPU_DIV4,
+	CLK_PLLDTY_DIV4,
 	CLK_PLLDTY_DIV8,
 	CLK_PLLDTY_DIV16,
 	CLK_PLLDTY_RCPU,
@@ -61,6 +62,7 @@ enum clk_ids {
 	CLK_PLLVDO_CRU0,
 	CLK_PLLVDO_CRU1,
 	CLK_PLLVDO_ISP,
+	CLK_PLLVDO_ISU,
 	CLK_PLLETH_DIV_250_FIX,
 	CLK_PLLETH_DIV_125_FIX,
 	CLK_CSDIV_PLLETH_GBE0,
@@ -202,6 +204,7 @@ static const struct cpg_core_clk r9a09g056_core_clks[] = {
 	DEF_DDIV(".plldty_acpu", CLK_PLLDTY_ACPU, CLK_PLLDTY, CDDIV0_DIVCTL2, dtable_2_64),
 	DEF_FIXED(".plldty_acpu_div2", CLK_PLLDTY_ACPU_DIV2, CLK_PLLDTY_ACPU, 1, 2),
 	DEF_FIXED(".plldty_acpu_div4", CLK_PLLDTY_ACPU_DIV4, CLK_PLLDTY_ACPU, 1, 4),
+	DEF_FIXED(".plldty_div4", CLK_PLLDTY_DIV4, CLK_PLLDTY, 1, 4),
 	DEF_FIXED(".plldty_div8", CLK_PLLDTY_DIV8, CLK_PLLDTY, 1, 8),
 	DEF_FIXED(".plldty_div16", CLK_PLLDTY_DIV16, CLK_PLLDTY, 1, 16),
 	DEF_DDIV(".plldty_rcpu", CLK_PLLDTY_RCPU, CLK_PLLDTY, CDDIV3_DIVCTL2, dtable_2_64),
@@ -210,6 +213,7 @@ static const struct cpg_core_clk r9a09g056_core_clks[] = {
 	DEF_DDIV(".pllvdo_cru0", CLK_PLLVDO_CRU0, CLK_PLLVDO, CDDIV3_DIVCTL3, dtable_2_4),
 	DEF_DDIV(".pllvdo_cru1", CLK_PLLVDO_CRU1, CLK_PLLVDO, CDDIV4_DIVCTL0, dtable_2_4),
 	DEF_DDIV(".pllvdo_isp",  CLK_PLLVDO_ISP,  CLK_PLLVDO, CDDIV2_DIVCTL3, dtable_2_64),
+	DEF_DDIV(".pllvdo_isu", CLK_PLLVDO_ISU, CLK_PLLVDO, CDDIV3_DIVCTL0, dtable_2_64),
 
 	DEF_FIXED(".plleth_250_fix", CLK_PLLETH_DIV_250_FIX, CLK_PLLETH, 1, 4),
 	DEF_FIXED(".plleth_125_fix", CLK_PLLETH_DIV_125_FIX, CLK_PLLETH_DIV_250_FIX, 1, 2),
@@ -435,6 +439,10 @@ static const struct rzv2h_mod_clk r9a09g056_mod_clks[] = {
 						BUS_MSTOP(9, BIT(9))),
 	DEF_MOD("isp_0_isp_sclk",		CLK_PLLVDO_ISP, 14, 5, 7, 5,
 						BUS_MSTOP(9, BIT(9))),
+	DEF_MOD("isu_0_aclk",			CLK_PLLVDO_ISU, 14, 6, 7, 6,
+						BUS_MSTOP(10, BIT(0))),
+	DEF_MOD("isu_0_pclk",			CLK_PLLDTY_DIV16, 14, 7, 7, 7,
+						BUS_MSTOP(10, BIT(0))),
 	DEF_MOD("dsi_0_pclk",			CLK_PLLDTY_DIV16, 14, 8, 7, 8,
 						BUS_MSTOP(9, BIT(14) | BIT(15))),
 	DEF_MOD("dsi_0_aclk",			CLK_PLLDTY_ACPU_DIV2, 14, 9, 7, 9,
@@ -457,6 +465,10 @@ static const struct rzv2h_mod_clk r9a09g056_mod_clks[] = {
 						BUS_MSTOP(3, BIT(4))),
 	DEF_MOD("gpu_0_ace_clk",		CLK_PLLDTY_ACPU_DIV2, 15, 2, 7, 18,
 						BUS_MSTOP(3, BIT(4))),
+	DEF_MOD("vcd_0_aclk",			CLK_PLLDTY_DIV4, 15, 3, 7, 19,
+						BUS_MSTOP(9, BIT(11) | BIT(12) | BIT(13))),
+	DEF_MOD("vcd_0_pclk",			CLK_PLLDTY_DIV8, 15, 4, 7, 20,
+						BUS_MSTOP(9, BIT(11) | BIT(12) | BIT(13))),
 	DEF_MOD("adc_pclk",			CLK_PLLCM33_ADC_PCLK_DIV2, 16, 7, 8, 7,
 						BUS_MSTOP(3, BIT(9))),
 	DEF_MOD("adc_adclk",			CLK_PLLCM33_ADC_ADCLK, 16, 8, 8, 8,
@@ -532,12 +544,15 @@ static const struct rzv2h_reset r9a09g056_resets[] = {
 	DEF_RST(13, 2, 6, 3),		/* ISP_0_REG_ARESETN */
 	DEF_RST(13, 3, 6, 4),		/* ISP_0_ISP_SRESETN */
 	DEF_RST(13, 4, 6, 5),		/* ISP_0_PRESETN */
+	DEF_RST(13, 5, 6, 6),		/* ISU_0_ARESETN */
+	DEF_RST(13, 6, 6, 7),		/* ISU_0_PRESETN */
 	DEF_RST(13, 7, 6, 8),		/* DSI_0_PRESETN */
 	DEF_RST(13, 8, 6, 9),		/* DSI_0_ARESETN */
 	DEF_RST(13, 12, 6, 13),		/* LCDC_0_RESET_N */
 	DEF_RST(13, 13, 6, 14),		/* GPU_0_RESETN */
 	DEF_RST(13, 14, 6, 15),		/* GPU_0_AXI_RESETN */
 	DEF_RST(13, 15, 6, 16),		/* GPU_0_ACE_RESETN */
+	DEF_RST(14, 0, 6, 17),		/* VCD_0_RESETN */
 	DEF_RST(15, 6, 7, 7),           /* ADC_ADRST_N */
 	DEF_RST(15, 7, 7, 8),		/* TSU_0_PRESETN */
 	DEF_RST(15, 8, 7, 9),           /* TSU_1_PRESETN */
