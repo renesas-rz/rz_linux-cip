@@ -25,6 +25,25 @@
 #define CAN1_SPDIF2_SEL	CAN1_SEL
 
 /*
+ * Switch selection settings for CAN2/3 and SCI4/5
+ *
+ * CAN2_SCI4_SEL used to select between CAN2 and SCI4:
+ * - CAN2	1 (default)
+ * - SCI4	0
+ *
+ * CAN3_SCI5_SEL used to select between CAN3 and SCI5:
+ * - CAN3	1 (default)
+ * - SCI5	0
+ */
+#define CAN2_SEL	1
+#define SCI4_SEL	0
+#define CAN2_SCI4_SEL	CAN2_SEL
+
+#define CAN3_SEL	1
+#define SCI5_SEL	0
+#define CAN3_SCI5_SEL	CAN3_SEL
+
+/*
  * Enable I2C2 or I3C on pins 20, 21.
  * I2C2_I3C_SEL:
  * - I2C2	0 (default)
@@ -815,15 +834,19 @@
 		};
 #endif
 
+#if (CAN2_SCI4_SEL)
 		can2_pins: can2 {
 			pinmux = <RZV2N_PORT_PINMUX(8, 4, 5)>, /* TX */
 				 <RZV2N_PORT_PINMUX(8, 5, 5)>; /* RX */
 		};
+#endif
 
+#if (CAN3_SCI5_SEL)
 		can3_pins: can3 {
 			pinmux = <RZV2N_PORT_PINMUX(8, 6, 5)>, /* TX */
 				 <RZV2N_PORT_PINMUX(8, 7, 5)>; /* RX */
 		};
+#endif
 	};
 
 	/* cam0_pwr_en is used by Google Coral Camera from CSI20 and CSI21 */
@@ -909,13 +932,17 @@
 	};
 #endif
 
+#if (CAN2_SCI4_SEL)
 	channel2 {
 		status = "okay";
 	};
+#endif
 
+#if (CAN3_SCI5_SEL)
 	channel3 {
 		status = "okay";
 	};
+#endif
 };
 
 &gpu {
