@@ -681,7 +681,7 @@ static int rz_pcie_ep_probe(struct platform_device *pdev)
 	const char *devname;
 	int irq, err, channel;
 
-	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 
 	ep = devm_kzalloc(dev, sizeof(*ep), GFP_KERNEL);
 	if (!ep)
