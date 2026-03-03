@@ -954,6 +954,28 @@ static void ethsw_vlan_setup(struct ethsw *ethsw, int port)
 		      ETHSW_VLAN_OUT_MODE_PORT(port), reg);
 }
 
+static void ethsw_map_vlan_priotity_to_queue(struct ethsw *ethsw)
+{
+	int port;
+
+	/* Mapping VLAN priority to each queue.
+	 * When VLAN priority is enabled, corresponding traffic will be routed
+	 * to corresponding queue
+	 */
+
+	for (port = 0; port <= 3; port++) {
+		ethsw_reg_writel(ethsw, ETHSW_PRIORITY_VLAN_PRIORITY(port),
+				 ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY0(0)
+				 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY1(1)
+				 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY2(2)
+				 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY3(3)
+				 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY4(4)
+				 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY5(5)
+				 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY6(6)
+				 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY7(7));
+	}
+}
+
 static int ethsw_setup(struct dsa_switch *ds)
 {
 	struct ethsw *ethsw = ds->priv;
@@ -1038,6 +1060,9 @@ static int ethsw_setup(struct dsa_switch *ds)
 	ethsw_time_init(ethsw->base, 0);
 	ethsw_time_init(ethsw->base, 1);
 
+	/* Mapping VLAN priority to queue */
+	ethsw_map_vlan_priotity_to_queue(ethsw);
+
 	return 0;
 }
 
@@ -1093,31 +1118,6 @@ static int ethsw_tc_taprio_set_schedule(struct ethsw *ethsw, int port,
 	/* Disable TDMA operation */
 	ethsw_reg_rmw(ethsw, ETHSW_TDMA_CONFIG, ETHSW_TDMA_CONFIG_TDMA_ENA, 0);
 
-	/* Enable VLAN Priority, also enable for management port */
-	ethsw_reg_rmw(ethsw, ETHSW_PRIORITY_CFG(port), ETHSW_PRIORITY_CFG_VLANEN, ETHSW_PRIORITY_CFG_VLANEN);
-	ethsw_reg_rmw(ethsw, ETHSW_PRIORITY_CFG(3), ETHSW_PRIORITY_CFG_VLANEN, ETHSW_PRIORITY_CFG_VLANEN);
-
-	/* Map traffic class to queue. Use VLAN priority to map, also for management port */
-	ethsw_reg_writel(ethsw, ETHSW_PRIORITY_VLAN_PRIORITY(port),
-			 ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY0(0)
-			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY1(1)
-			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY2(2)
-			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY3(3)
-			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY4(4)
-			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY5(5)
-			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY6(6)
-			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY7(7));
-
-	ethsw_reg_writel(ethsw, ETHSW_PRIORITY_VLAN_PRIORITY(3),
-			 ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY0(0)
-			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY1(1)
-			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY2(2)
-			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY3(3)
-			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY4(4)
-			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY5(5)
-			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY6(6)
-			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY7(7));
-
 	/* Setting gate control */
 	for (i = 0, time_offset = 0; i < taprio->num_entries; i++) {
 		ethsw_tdma_gcl_set(ethsw, i, &taprio->entries[i], port, time_offset);
@@ -1164,14 +1164,6 @@ static int ethsw_tc_taprio_del_schedule(struct ethsw *ethsw, int port,
 
 	/* Disable TDMA operation */
 	ethsw_reg_rmw(ethsw, ETHSW_TDMA_CONFIG, ETHSW_TDMA_CONFIG_TDMA_ENA, 0);
-
-	/* Remove priority config */
-	ethsw_reg_writel(ethsw, ETHSW_PRIORITY_CFG(port), 0);
-	ethsw_reg_writel(ethsw, ETHSW_PRIORITY_CFG(3), 0);
-
-	/* Remove VLAN priority mapping */
-	ethsw_reg_writel(ethsw, ETHSW_PRIORITY_VLAN_PRIORITY(port), 0);
-	ethsw_reg_writel(ethsw, ETHSW_PRIORITY_VLAN_PRIORITY(3), 0);
 
 	/* Remove gate control */
 	for (i = 0; i < taprio->num_entries; i++)
@@ -2520,6 +2512,166 @@ static ssize_t PTPOUT3_width_ns_show(struct device *dev, struct device_attribute
 	return sprintf(buf, "%u ns\r\n", ret);
 }
 
+static ssize_t VLAN_priority_port0_store(struct device *dev, struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val > 1) {
+		dev_err(ethsw->dev, "Only 0 or 1 is valid value\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	if (val)
+		ethsw_reg_rmw(ethsw, ETHSW_PRIORITY_CFG(0), ETHSW_PRIORITY_CFG_VLANEN, ETHSW_PRIORITY_CFG_VLANEN);
+	else
+		ethsw_reg_rmw(ethsw, ETHSW_PRIORITY_CFG(0), ETHSW_PRIORITY_CFG_VLANEN, 0);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t VLAN_priority_port0_show(struct device *dev, struct device_attribute *attr,
+					char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethsw_reg_readl(ethsw, ETHSW_PRIORITY_CFG(0)) & ETHSW_PRIORITY_CFG_VLANEN;
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
+static ssize_t VLAN_priority_port1_store(struct device *dev, struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val > 1) {
+		dev_err(ethsw->dev, "Only 0 or 1 is valid value\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	if (val)
+		ethsw_reg_rmw(ethsw, ETHSW_PRIORITY_CFG(1), ETHSW_PRIORITY_CFG_VLANEN, ETHSW_PRIORITY_CFG_VLANEN);
+	else
+		ethsw_reg_rmw(ethsw, ETHSW_PRIORITY_CFG(1), ETHSW_PRIORITY_CFG_VLANEN, 0);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t VLAN_priority_port1_show(struct device *dev, struct device_attribute *attr,
+					char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethsw_reg_readl(ethsw, ETHSW_PRIORITY_CFG(1)) & ETHSW_PRIORITY_CFG_VLANEN;
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
+static ssize_t VLAN_priority_port2_store(struct device *dev, struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val > 1) {
+		dev_err(ethsw->dev, "Only 0 or 1 is valid value\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	if (val)
+		ethsw_reg_rmw(ethsw, ETHSW_PRIORITY_CFG(2), ETHSW_PRIORITY_CFG_VLANEN, ETHSW_PRIORITY_CFG_VLANEN);
+	else
+		ethsw_reg_rmw(ethsw, ETHSW_PRIORITY_CFG(2), ETHSW_PRIORITY_CFG_VLANEN, 0);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t VLAN_priority_port2_show(struct device *dev, struct device_attribute *attr,
+					char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethsw_reg_readl(ethsw, ETHSW_PRIORITY_CFG(2)) & ETHSW_PRIORITY_CFG_VLANEN;
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
+static ssize_t VLAN_priority_port3_store(struct device *dev, struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val > 1) {
+		dev_err(ethsw->dev, "Only 0 or 1 is valid value\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	if (val)
+		ethsw_reg_rmw(ethsw, ETHSW_PRIORITY_CFG(3), ETHSW_PRIORITY_CFG_VLANEN, ETHSW_PRIORITY_CFG_VLANEN);
+	else
+		ethsw_reg_rmw(ethsw, ETHSW_PRIORITY_CFG(3), ETHSW_PRIORITY_CFG_VLANEN, 0);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t VLAN_priority_port3_show(struct device *dev, struct device_attribute *attr,
+					char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethsw_reg_readl(ethsw, ETHSW_PRIORITY_CFG(3)) & ETHSW_PRIORITY_CFG_VLANEN;
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
 static DEVICE_ATTR_RW(PTPOUT0_enable);
 static DEVICE_ATTR_RW(PTPOUT0_start_time);
 static DEVICE_ATTR_RW(PTPOUT0_period);
@@ -2536,6 +2688,10 @@ static DEVICE_ATTR_RW(PTPOUT3_enable);
 static DEVICE_ATTR_RW(PTPOUT3_start_time);
 static DEVICE_ATTR_RW(PTPOUT3_period);
 static DEVICE_ATTR_RW(PTPOUT3_width_ns);
+static DEVICE_ATTR_RW(VLAN_priority_port0);
+static DEVICE_ATTR_RW(VLAN_priority_port1);
+static DEVICE_ATTR_RW(VLAN_priority_port2);
+static DEVICE_ATTR_RW(VLAN_priority_port3);
 
 static struct attribute *attrs[] = {
 	&dev_attr_PTPOUT0_enable.attr,
@@ -2554,6 +2710,10 @@ static struct attribute *attrs[] = {
 	&dev_attr_PTPOUT3_start_time.attr,
 	&dev_attr_PTPOUT3_period.attr,
 	&dev_attr_PTPOUT3_width_ns.attr,
+	&dev_attr_VLAN_priority_port0.attr,
+	&dev_attr_VLAN_priority_port1.attr,
+	&dev_attr_VLAN_priority_port2.attr,
+	&dev_attr_VLAN_priority_port3.attr,
 	NULL,
 };
 
