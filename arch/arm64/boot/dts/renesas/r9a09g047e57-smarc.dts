@@ -16,6 +16,7 @@
 #define SW_SER2_EN             1
 #define SW_SD0_DEV_SEL		0
 #define SW_SDIO_M2E		0
+#define SW_HDMI_EN		0
 
 #define PMOD_GPIO4		0
 #define PMOD_GPIO6		0
@@ -145,7 +146,9 @@
 
 		label = "rcar-sound";
 		dais = <&rsnd_port0	/* DA7211 */
+#if ((!SW_LCD_EN) && (RZG3E_SMARC_MIPI_DSI_ENABLE) && (!SW_HDMI_EN))
 			&rsnd_port1	/* HDMI0  */
+#endif
 #if (SW_PDM_EN)
 			&pdm_link
 #endif
@@ -275,16 +278,20 @@
 		};
 #endif
 
+#if (!SW_LCD_EN)
 		can4_pins: can4 {
 			pinmux = <RZG3E_PORT_PINMUX(5, 2, 3)>, /* RX */
 				 <RZG3E_PORT_PINMUX(5, 3, 3)>; /* TX */
 		};
+#endif
 	};
 
+#if (!SW_LCD_EN)
 	gpt0_pins: gpt0 {
 		pinmux = <RZG3E_PORT_PINMUX(5, 4, 10)>, /* GTIOC4A */
 			 <RZG3E_PORT_PINMUX(5, 5, 10)>; /* GTIOC4B */
 	};
+#endif
 
 	i2c0_pins: i2c0 {
 		pinmux = <RZG3E_PORT_PINMUX(D, 4, 4)>, /* SCL0 */
@@ -418,11 +425,13 @@
 				 <RZG3E_PORT_PINMUX(0, 5, 9)>; /* SSI4_SDATA */
 		};
 
+#if (!SW_LCD_EN)
 		ssi0_pins: ssi0 {
 			pinmux = <RZG3E_PORT_PINMUX(7, 1, 9)>, /* SSI0_SCK */
 				 <RZG3E_PORT_PINMUX(7, 2, 9)>, /* SSI0_WS */
 				 <RZG3E_PORT_PINMUX(7, 0, 9)>; /* SSI0_SDATA */
 		};
+#endif
 	};
 
 #if (SW_PDM_EN)
@@ -575,7 +584,7 @@
 			};
 		};
 
-#if (!SW_LCD_EN)
+#if ((!SW_LCD_EN) && (RZG3E_SMARC_MIPI_DSI_ENABLE) && (!SW_HDMI_EN))
 		rsnd_port1: port@1 {
 			reg = <1>;
 			rsnd_endpoint1: endpoint {

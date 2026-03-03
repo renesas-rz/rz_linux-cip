@@ -24,6 +24,10 @@
  * Switch position BOOT.6, Macro SW_PDM_EN:
  *      0 - Select CAN routing
  *      1 - Select PDM
+ *
+ * SW_HDMI_EN when RZG3E_SMARC_MIPI_DSI_ENABLE is set:
+ *	0 - MIPI DSI is connected to Carrier HDMI (default)
+ *	1 - MIPI DSI is connected to Module DSI connector
  */
 
 / {
@@ -249,7 +253,7 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-#if (RZG3E_SMARC_MIPI_DSI_ENABLE)
+#if ((RZG3E_SMARC_MIPI_DSI_ENABLE) && (!SW_HDMI_EN))
 	adv7535: hdmi1@3d {
 		compatible = "adi,adv7535";
 		reg = <0x3d>, <0x4d>, <0x2d>, <0x5d>;
@@ -282,12 +286,14 @@
 				};
 			};
 
+#if (!SW_LCD_EN)
 			port@2 {
 				reg = <2>;
 				adv7535_codec_ep: endpoint {
 					remote-endpoint = <&rsnd_endpoint1>;
 				};
 			};
+#endif
 		};
 	};
 #endif
