@@ -745,6 +745,16 @@ static const struct rzv2h_mod_clk r9a09g047_mod_clks[] = {
 						BUS_MSTOP_NONE),
 	DEF_MOD("ssi_9_clk",			CLK_PLLCLN_DIV8, 24, 10, -1, -1,
 						BUS_MSTOP_NONE),
+	DEF_MOD("lvds_top_clk_ch0",		CLK_PLLDSI0, 26, 0, 10, 22,
+						BUS_MSTOP(13, BIT(0))),
+	DEF_MOD("lvds_top_clk_ch1",		CLK_PLLDSI1, 26, 1, 10, 23,
+						BUS_MSTOP(13, BIT(0))),
+	DEF_MOD("lvds_top_clk_dot_ch0",		CLK_SMUX2_DSI0_CLK, 26, 2, 10, 24,
+						BUS_MSTOP(13, BIT(0))),
+	DEF_MOD("lvds_top_clk_dot_ch1",		CLK_SMUX2_DSI1_CLK, 26, 3, 10, 25,
+						BUS_MSTOP(13, BIT(0))),
+	DEF_MOD("lvds_top_pclk",		CLK_PLLDTY_DIV16, 26, 4, 10, 26,
+						BUS_MSTOP(13, BIT(0))),
 	DEF_MOD("vspi_clk_m",			CLK_PLLDTY_DIV2, 26, 5, 10, 27,
 						BUS_MSTOP(13, BIT(2) | BIT(1))),
 	DEF_MOD("vspi_clk_a",			CLK_PLLDTY_DIV4, 26, 6, 10, 28,
@@ -893,6 +903,7 @@ static const struct rzv2h_reset r9a09g047_resets[] = {
 	DEF_RST(15, 5, 7, 6),		/* PDM1_CRESETN */
 	DEF_RST(15, 6, 7, 7),		/* ADC_ADRST_N */
 	DEF_RST(15, 8, 7, 9),		/* TSU_1_PRESETN */
+	DEF_RST(17, 10, 8, 11),		/* LVDS_TOP_RESET_N */
 	DEF_RST(17, 11, 8, 12),		/* VSPI_SMRESET_VSPISS */
 	DEF_RST(17, 12, 8, 13),		/* VSPI_SRESET_VSP1Z */
 	DEF_RST(17, 13, 8, 14),		/* VSPI_SPRESET_FCPVI0 */
