@@ -2466,6 +2466,7 @@
 				      "tx", "rx", "tx-180", "rx-180";
 			resets = <&cpg 0xb0>;
 			power-domains = <&cpg>;
+			renesas,eth-syscon = <&sys 0>;
 			snps,multicast-filter-bins = <256>;
 			snps,perfect-filter-entries = <128>;
 			rx-fifo-depth = <8192>;
@@ -2567,6 +2568,7 @@
 				      "tx", "rx", "tx-180", "rx-180";
 			resets = <&cpg 0xb1>;
 			power-domains = <&cpg>;
+			renesas,eth-syscon = <&sys 1>;
 			snps,multicast-filter-bins = <256>;
 			snps,perfect-filter-entries = <128>;
 			rx-fifo-depth = <8192>;
