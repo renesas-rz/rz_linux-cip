@@ -34,6 +34,7 @@
 		ethernet1 = &eth1;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
+		i2c7 = &i2c7;
 		mmc0 = &sdhi0;
 		mmc2 = &sdhi2;
 	};
@@ -76,6 +77,12 @@
 		compatible = "renesas,vspm_if";
 	};
 
+	osc1: cec-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <12000000>;
+	};
+
 	reg_1p8v: regulator-1p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-1.8V";
@@ -116,6 +123,19 @@
 		#clock-cells = <0>;
 		clock-frequency = <32768>;
 	};
+
+#if (RZG3E_SMARC_MIPI_DSI_ENABLE)
+	dsi-to-hdmi-out {
+		compatible = "hdmi-connector";
+		type = "d";
+
+		port {
+			dsi_to_hdmi_out: endpoint {
+				remote-endpoint = <&adv7535_out>;
+			};
+		};
+	};
+#endif
 };
 
 &audio_extal_clk {
@@ -139,6 +159,39 @@
 	pinctrl-names = "default";
 	status = "okay";
 };
+
+#if (RZG3E_SMARC_MIPI_DSI_ENABLE)
+&dsi {
+	status = "okay";
+
+	ports {
+		port@1 {
+			dsi_in1: endpoint {
+				remote-endpoint = <&du1_out_dsi0>;
+			};
+		};
+
+		port@2 {
+			dsi_out: endpoint {
+				remote-endpoint = <&adv7535_in>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&du1 {
+	status = "okay";
+
+	ports {
+		port@0 {
+			du1_out_dsi0: endpoint {
+				remote-endpoint = <&dsi_in1>;
+			};
+		};
+	};
+};
+#endif
 
 &gpu {
 	status = "okay";
@@ -188,6 +241,56 @@
 
 	/* Enable when there is an I3C external device defined here */
 	/* status = "okay"; */
+};
+
+&i2c7 {
+	pinctrl-0 = <&i2c7_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+	clock-frequency = <400000>;
+
+#if (RZG3E_SMARC_MIPI_DSI_ENABLE)
+	adv7535: hdmi1@3d {
+		compatible = "adi,adv7535";
+		reg = <0x3d>, <0x4d>, <0x2d>, <0x5d>;
+		reg-names = "main", "edid", "cec", "packet";
+		clocks = <&osc1>;
+		clock-names = "cec";
+		avdd-supply = <&reg_1p8v>;
+		dvdd-supply = <&reg_1p8v>;
+		pvdd-supply = <&reg_1p8v>;
+		a2vdd-supply = <&reg_1p8v>;
+		v3p3-supply = <&reg_3p3v>;
+		v1p2-supply = <&reg_1p8v>;
+		adi,dsi-lanes = <4>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				adv7535_in: endpoint {
+					remote-endpoint = <&dsi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				adv7535_out: endpoint {
+					remote-endpoint = <&dsi_to_hdmi_out>;
+				};
+			};
+
+			port@2 {
+				reg = <2>;
+				adv7535_codec_ep: endpoint {
+					remote-endpoint = <&rsnd_endpoint1>;
+				};
+			};
+		};
+	};
+#endif
 };
 
 &mdio0 {
@@ -285,6 +388,11 @@
 	i2c2_pins: i2c2 {
 		pinmux = <RZG3E_PORT_PINMUX(3, 4, 1)>, /* SCL2 */
 			 <RZG3E_PORT_PINMUX(3, 5, 1)>; /* SDA2 */
+	};
+
+	i2c7_pins: i2c7 {
+		pinmux = <RZG3E_PORT_PINMUX(A, 4, 4)>, /* SCL */
+			 <RZG3E_PORT_PINMUX(A, 5, 4)>; /* SDA */
 	};
 
 	i3c_pins: i3c {
