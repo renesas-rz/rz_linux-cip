@@ -1901,9 +1901,9 @@ static int rzv2h_cpg_pm_resume(struct device *dev)
 		case CLK_TYPE_PLLDSI:
 		case CLK_TYPE_PLL:
 			writel(priv->cache[i].pll_clk1, priv->base +
-			       CPG_PLL_CLK1(info->core_clks[i].cfg.conf));
+			       CPG_PLL_CLK1(info->core_clks[i].cfg.pll.offset));
 			writel(priv->cache[i].pll_clk2, priv->base +
-			       CPG_PLL_CLK2(info->core_clks[i].cfg.conf));
+			       CPG_PLL_CLK2(info->core_clks[i].cfg.pll.offset));
 			break;
 		case CLK_TYPE_PLLDSI_SMUX:
 		case CLK_TYPE_SMUX:
