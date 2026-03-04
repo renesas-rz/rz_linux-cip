@@ -46,8 +46,13 @@
 #define RZG2L_GTIOR(ch)		(0x34 + RZG2L_GET_CH_OFFS(ch))
 #define RZG2L_GTBER(ch)		(0x40 + RZG2L_GET_CH_OFFS(ch))
 #define RZG2L_GTCNT(ch)		(0x48 + RZG2L_GET_CH_OFFS(ch))
-#define RZG2L_GTCCR(ch, sub_ch)	(0x4c + RZG2L_GET_CH_OFFS(ch) + 4 * (sub_ch))
+#define RZG2L_GTCCRAB(ch, sub_ch)	(0x4c + RZG2L_GET_CH_OFFS(ch) + 4 * (sub_ch))
+#define RZG2L_GTCCRCE(ch, sub_ch)	(0x54 + RZG2L_GET_CH_OFFS(ch) + 4 * (sub_ch))
+#define RZG2L_GTCCRDF(ch, sub_ch)	(0x5c + RZG2L_GET_CH_OFFS(ch) + 4 * (sub_ch))
 #define RZG2L_GTPR(ch)		(0x64 + RZG2L_GET_CH_OFFS(ch))
+
+#define RZG2L_GTCCRx_BUFFER_MASK(sub_ch)	((sub_ch) ? GENMASK(19, 18) : GENMASK(17, 16))
+#define RZG2L_GTCCRx_SINGLE_BUFFER(sub_ch)	((sub_ch) ? BIT(18) : BIT(16))
 
 #define RZG2L_GTCR_CST		BIT(0)
 #define RZG2L_GTCR_MD		GENMASK(18, 16)
@@ -294,7 +299,7 @@ static int rzg2l_gpt_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		val = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTPR(ch));
 		state->period = rzg2l_gpt_calculate_period_or_duty(rzg2l_gpt, val, prescale);
 
-		val = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTCCR(ch, sub_ch));
+		val = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTCCRAB(ch, sub_ch));
 		state->duty_cycle = rzg2l_gpt_calculate_period_or_duty(rzg2l_gpt, val, prescale);
 		if (state->duty_cycle > state->period)
 			state->duty_cycle = state->period;
@@ -371,6 +376,17 @@ static int rzg2l_gpt_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	rzg2l_gpt->period_ticks[ch] = period_ticks;
 
 	/*
+	 * Use single-buffer mode for runtime duty updates. Write the new duty cycle to
+	 * GTCCRCE (buffer register) so the value is latched safely and does not cause
+	 * output glitches.
+	 */
+	if (pwm->state.enabled && rzg2l_gpt_is_ch_enabled(rzg2l_gpt, pwm->hwpwm)) {
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRCE(ch, sub_ch), dc);
+
+		return 0;
+	}
+
+	/*
 	 * Counter must be stopped before modifying mode, prescaler, timer
 	 * counter and buffer enable registers. These registers are shared
 	 * between both channels. So allow updating these registers only for the
@@ -395,22 +411,21 @@ static int rzg2l_gpt_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	/* Set duty cycle */
-	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCR(ch, sub_ch), dc);
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRCE(ch, sub_ch), dc);
 
 	if (rzg2l_gpt->channel_enable_count[ch] <= 1) {
 		/* Set initial value for counter */
 		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCNT(ch), 0);
 
-		/* Set no buffer operation */
-		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTBER(ch), 0);
+		/* Set single buffer operation */
+		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTBER(ch),
+				RZG2L_GTCCRx_BUFFER_MASK(sub_ch),
+				RZG2L_GTCCRx_SINGLE_BUFFER(sub_ch));
 
 		/* Restart the counter after updating the registers */
 		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch),
 				 RZG2L_GTCR_CST, RZG2L_GTCR_CST);
 	}
-
-	/* Enable pin output */
-	rzg2l_gpt_set_polarity(rzg2l_gpt, pwm, state->polarity);
 
 	return 0;
 }
@@ -433,6 +448,9 @@ static int rzg2l_gpt_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	ret = rzg2l_gpt_config(chip, pwm, state);
 	if (!ret && !enabled)
 		rzg2l_gpt_enable(rzg2l_gpt, pwm);
+
+	/* Set polarity output */
+	rzg2l_gpt_set_polarity(rzg2l_gpt, pwm, state->polarity);
 
 	return ret;
 }
