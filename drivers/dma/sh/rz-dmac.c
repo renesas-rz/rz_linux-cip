@@ -193,6 +193,8 @@ struct rz_dmac {
 static const struct soc_device_attribute rzg3s_match[] = {
 	{ .family = "RZ/G3S" },
 	{ .family = "RZ/G2L" },
+	{ .family = "RZ/V2L" },
+	{ .family = "RZ/G2UL" },
 	{ /* Sentinel*/ }
 };
 /*
