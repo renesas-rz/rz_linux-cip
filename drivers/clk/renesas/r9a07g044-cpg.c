@@ -501,12 +501,12 @@ static struct rzg2l_reset r9a07g044_resets[] = {
 static const unsigned int r9a07g044_crit_mod_clks[] = {
 	MOD_CLK_BASE + R9A07G044_GIC600_GICCLK,
 	MOD_CLK_BASE + R9A07G044_IA55_CLK,
-	MOD_CLK_BASE + R9A07G044_DMAC_ACLK,
 };
 
 static const unsigned int r9a07g044_no_pm_mod_clks[] = {
 	MOD_CLK_BASE + R9A07G044_CRU_SYSCLK,
 	MOD_CLK_BASE + R9A07G044_CRU_VCLK,
+	MOD_CLK_BASE + R9A07G044_DMAC_ACLK,
 };
 
 #ifdef CONFIG_CLK_R9A07G044
