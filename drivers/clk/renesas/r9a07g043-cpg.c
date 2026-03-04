@@ -385,13 +385,13 @@ static const unsigned int r9a07g043_crit_mod_clks[] = {
 	MOD_CLK_BASE + R9A07G043_IAX45_CLK,
 	MOD_CLK_BASE + R9A07G043_NCEPLIC_ACLK,
 #endif
-	MOD_CLK_BASE + R9A07G043_DMAC_ACLK,
 };
 
 #ifdef CONFIG_ARM64
 static const unsigned int r9a07g043_no_pm_mod_clks[] = {
 	MOD_CLK_BASE + R9A07G043_CRU_SYSCLK,
 	MOD_CLK_BASE + R9A07G043_CRU_VCLK,
+	MOD_CLK_BASE + R9A07G043_DMAC_ACLK,
 };
 #endif
 
