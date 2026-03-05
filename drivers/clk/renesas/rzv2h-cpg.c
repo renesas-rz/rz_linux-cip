@@ -1443,6 +1443,46 @@ static const struct clk_ops rzv2h_mod_clock_ops = {
 	.is_enabled = rzv2h_mod_clock_is_enabled,
 };
 
+static void rzv2h_cpg_enable_clock_mstop(const struct rzv2h_mod_clk *mod,
+                                        struct mod_clock *clock)
+{
+	struct rzv2h_cpg_priv *priv = clock->priv;
+       /*
+        * Ensure the module clocks and MSTOP bits are synchronized when they are
+        * turned ON by the bootloader. Enable MSTOP bits for module clocks that were
+        * turned ON in an earlier boot stage.
+        */
+
+	if (clock->mstop_data != BUS_MSTOP_NONE &&
+	    !mod->critical && rzv2h_mod_clock_is_enabled(&clock->hw)) {
+		rzv2h_mod_clock_mstop_enable(priv, clock->mstop_data);
+	} else if (clock->mstop_data != BUS_MSTOP_NONE && mod->critical) {
+		unsigned long mstop_mask = FIELD_GET(BUS_MSTOP_BITS_MASK, clock->mstop_data);
+		u16 mstop_index = FIELD_GET(BUS_MSTOP_IDX_MASK, clock->mstop_data);
+		atomic_t *mstop = &priv->mstop_count[mstop_index * 16];
+		unsigned long flags;
+		unsigned int i;
+		u32 val = 0;
+
+               /*
+                * Critical clocks are turned ON immediately upon registration, and the
+                * MSTOP counter is updated through the rzv2h_mod_clock_enable() path.
+                * However, if the critical clocks were already turned ON by the initial
+                * bootloader, synchronize the atomic counter here and clear the MSTOP bit.
+                */
+		spin_lock_irqsave(&priv->rmw_lock, flags);
+		for_each_set_bit(i, &mstop_mask, 16) {
+			if (atomic_read(&mstop[i]))
+				continue;
+			val |= BIT(i) << 16;
+			atomic_inc(&mstop[i]);
+		}
+		if (val)
+			writel(val, priv->base + CPG_BUS_MSTOP(mstop_index));
+		spin_unlock_irqrestore(&priv->rmw_lock, flags);
+       }
+}
+
 static void __init
 rzv2h_cpg_register_mod_clk(const struct rzv2h_mod_clk *mod,
 			   struct rzv2h_cpg_priv *priv)
@@ -1500,39 +1540,7 @@ rzv2h_cpg_register_mod_clk(const struct rzv2h_mod_clk *mod,
 
 	priv->clks[id] = clock->hw.clk;
 
-	/*
-	 * Ensure the module clocks and MSTOP bits are synchronized when they are
-	 * turned ON by the bootloader. Enable MSTOP bits for module clocks that were
-	 * turned ON in an earlier boot stage.
-	 */
-	if (clock->mstop_data != BUS_MSTOP_NONE &&
-	    !mod->critical && rzv2h_mod_clock_is_enabled(&clock->hw)) {
-		rzv2h_mod_clock_mstop_enable(priv, clock->mstop_data);
-	} else if (clock->mstop_data != BUS_MSTOP_NONE && mod->critical) {
-		unsigned long mstop_mask = FIELD_GET(BUS_MSTOP_BITS_MASK, clock->mstop_data);
-		u16 mstop_index = FIELD_GET(BUS_MSTOP_IDX_MASK, clock->mstop_data);
-		atomic_t *mstop = &priv->mstop_count[mstop_index * 16];
-		unsigned long flags;
-		unsigned int i;
-		u32 val = 0;
-
-		/*
-		 * Critical clocks are turned ON immediately upon registration, and the
-		 * MSTOP counter is updated through the rzv2h_mod_clock_enable() path.
-		 * However, if the critical clocks were already turned ON by the initial
-		 * bootloader, synchronize the atomic counter here and clear the MSTOP bit.
-		 */
-		spin_lock_irqsave(&priv->rmw_lock, flags);
-		for_each_set_bit(i, &mstop_mask, 16) {
-			if (atomic_read(&mstop[i]))
-				continue;
-			val |= BIT(i) << 16;
-			atomic_inc(&mstop[i]);
-		}
-		if (val)
-			writel(val, priv->base + CPG_BUS_MSTOP(mstop_index));
-		spin_unlock_irqrestore(&priv->rmw_lock, flags);
-	}
+	rzv2h_cpg_enable_clock_mstop(mod, clock);
 
 	return;
 
@@ -1916,6 +1924,13 @@ static int rzv2h_cpg_pm_resume(struct device *dev)
 			       info->core_clks[i].cfg.ddiv.offset);
 			break;
 		}
+	}
+
+	for (i = 0; i < info->num_mod_clks; i++) {
+		const struct rzv2h_mod_clk *mod = &info->mod_clks[i];
+		int id = GET_MOD_CLK_ID(priv->num_core_clks, mod->on_index, mod->on_bit);
+		struct mod_clock *clock = to_mod_clock(__clk_get_hw(priv->clks[id]));
+		rzv2h_cpg_enable_clock_mstop(mod, clock);
 	}
 
 	return 0;
