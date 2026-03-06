@@ -366,7 +366,7 @@
 		pinmux = <RZG3E_PORT_PINMUX(G, 7, 1)>; /* PCIE_SLOT_RST */
 	};
 
-#if (!RSPI0_RSCI8_SPI_SEL)
+#if (!RSPI0_RSCI8_SEL)
 	rspi0_pins: rspi0 {
 		pinmux = <RZG3E_PORT_PINMUX(M, 4, 2)>, /* MISOA */
 			 <RZG3E_PORT_PINMUX(M, 5, 2)>, /* MOSIA */
@@ -496,7 +496,7 @@
 	dma-ranges = <0x42000000 0 0x48000000 0 0x48000000 0x1 0xF8000000>;
 };
 
-#if (!RSPI0_RSCI8_SPI_SEL)
+#if (!RSPI0_RSCI8_SEL)
 &rspi0 {
 	pinctrl-0 = <&rspi0_pins>;
 	pinctrl-names = "default";
