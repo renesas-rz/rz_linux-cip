@@ -292,10 +292,11 @@
 		};
 
 		sys: system-controller@10430000 {
-			compatible = "renesas,r9a09g056-sys";
+			compatible = "renesas,r9a09g056-sys", "syscon";
 			reg = <0 0x10430000 0 0x10000>;
 			clocks = <&cpg CPG_CORE R9A09G056_SYS_0_PCLK>;
 			resets = <&cpg 0x30>;
+			#renesas,sysc-signal-cells = <2>;
 		};
 
 		ostm0: timer@11800000 {
@@ -1319,6 +1320,129 @@
 			power-domains = <&cpg>;
 			resets = <&cpg 0xdc>;
 			renesas,fcp = <&fcpvd>;
+		};
+
+		adc0: adc@11c00000 {
+			compatible = "renesas,r9a09g057-adc", "renesas,rzv2h-adc";
+			reg = <0 0x11C00000 0 0x400>;
+			interrupts = <GIC_SPI 918 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "adi";
+			clocks = <&cpg CPG_MOD 0x108>,
+				 <&cpg CPG_MOD 0x107>;
+			clock-names = "adclk", "pclk";
+			resets =  <&cpg 0xf6>;
+			reset-names = "adrst-n";
+			power-domains = <&cpg>;
+			renesas,sysc-signal = <&sys 0x1600 0x1>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			channel@0 {
+				reg = <0>;
+			};
+			channel@1 {
+				reg = <1>;
+			};
+			channel@2 {
+				reg = <2>;
+			};
+			channel@3 {
+				reg = <3>;
+			};
+			channel@4 {
+				reg = <4>;
+			};
+			channel@5 {
+				reg = <5>;
+			};
+			channel@6 {
+				reg = <6>;
+			};
+			channel@7 {
+				reg = <7>;
+			};
+		};
+
+		adc1: adc@11c02800 {
+			compatible = "renesas,r9a09g057-adc", "renesas,rzv2h-adc";
+			reg = <0 0x11c02800 0 0x400>;
+			interrupts = <GIC_SPI 926 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "adi";
+			clocks = <&cpg CPG_MOD 0x108>,
+				 <&cpg CPG_MOD 0x107>;
+			clock-names = "adclk", "pclk";
+			resets =  <&cpg 0xf6>;
+			reset-names = "adrst-n";
+			power-domains = <&cpg>;
+			renesas,sysc-signal = <&sys 0x1600 0x1>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			channel@0 {
+				reg = <0>;
+			};
+			channel@1 {
+				reg = <1>;
+			};
+			channel@2 {
+				reg = <2>;
+			};
+			channel@3 {
+				reg = <3>;
+			};
+			channel@4 {
+				reg = <4>;
+			};
+			channel@5 {
+				reg = <5>;
+			};
+			channel@6 {
+				reg = <6>;
+			};
+			channel@7 {
+				reg = <7>;
+			};
+		};
+
+		adc2: adc@11c02c00 {
+			compatible = "renesas,r9a09g057-adc", "renesas,rzv2h-adc";
+			reg = <0 0x11c02c00 0 0x400>;
+			interrupts = <GIC_SPI 931 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "adi";
+			clocks = <&cpg CPG_MOD 0x108>,
+				 <&cpg CPG_MOD 0x107>;
+			clock-names = "adclk", "pclk";
+			resets =  <&cpg 0xf6>;
+			reset-names = "adrst-n";
+			power-domains = <&cpg>;
+			renesas,sysc-signal = <&sys 0x1600 0x1>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			channel@0 {
+				reg = <0>;
+			};
+			channel@1 {
+				reg = <1>;
+			};
+			channel@2 {
+				reg = <2>;
+			};
+			channel@3 {
+				reg = <3>;
+			};
+			channel@4 {
+				reg = <4>;
+			};
+			channel@5 {
+				reg = <5>;
+			};
+			channel@6 {
+				reg = <6>;
+			};
+			channel@7 {
+				reg = <7>;
+			};
 		};
 	};
 
