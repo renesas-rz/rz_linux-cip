@@ -475,6 +475,7 @@ struct rcar_canfd_global {
 	bool extclk;			/* CANFD or Ext clock */
 	bool fdmode;			/* CAN FD or Classical CAN only mode */
 	bool fd_only_mode;		/* FD-Only mode for CAN-FD */
+	bool auto_recovery;
 	struct reset_control *rstc1;
 	struct reset_control *rstc2;
 	const struct rcar_canfd_hw_info *info;
@@ -897,9 +898,10 @@ static void rcar_canfd_configure_controller(struct rcar_canfd_global *gpriv)
 	for_each_set_bit(ch, &gpriv->channels_mask, gpriv->info->max_channels) {
 		rcar_canfd_set_bit(gpriv->base, RCANFD_CCTR(ch),
 				   RCANFD_CCTR_ERRD);
-		rcar_canfd_update_bit(gpriv->base, RCANFD_CCTR(ch),
-				      RCANFD_CCTR_BOM_MASK,
-				      RCANFD_CCTR_BOM_BENTRY);
+		if (!gpriv->auto_recovery)
+			rcar_canfd_update_bit(gpriv->base, RCANFD_CCTR(ch),
+					      RCANFD_CCTR_BOM_MASK,
+					      RCANFD_CCTR_BOM_BENTRY);
 	}
 }
 
@@ -1099,6 +1101,7 @@ static void rcar_canfd_error(struct net_device *ndev, u32 cerfl,
 			     u16 txerr, u16 rxerr)
 {
 	struct rcar_canfd_channel *priv = netdev_priv(ndev);
+	struct rcar_canfd_global *gpriv = priv->gpriv;
 	struct net_device_stats *stats = &ndev->stats;
 	struct can_frame *cf;
 	struct sk_buff *skb;
@@ -1194,6 +1197,10 @@ static void rcar_canfd_error(struct net_device *ndev, u32 cerfl,
 		priv->can.can_stats.bus_off++;
 		can_bus_off(ndev);
 		cf->can_id |= CAN_ERR_BUSOFF;
+	}
+	if (gpriv->auto_recovery && (cerfl & RCANFD_CERFL_BORF)) {
+		netdev_dbg(ndev, "Bus-Off Recovery interrupt\n");
+		priv->can.state = CAN_STATE_ERROR_ACTIVE;
 	}
 	if (cerfl & RCANFD_CERFL_OVLF) {
 		netdev_dbg(ndev,
@@ -2114,6 +2121,7 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	int err, ch_irq, g_irq;
 	int g_err_irq, g_recc_irq;
 	bool fdmode = true;			/* CAN FD only mode - default */
+	bool auto_recovery = false;
 	char name[9] = "channelX";
 	u32 ch, fcan_freq;
 	int i;
@@ -2171,10 +2179,14 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	gpriv->dev = dev;
 	gpriv->channels_mask = channels_mask;
 	gpriv->fdmode = fdmode;
+	gpriv->auto_recovery = auto_recovery;
 	gpriv->info = info;
 
 	if (of_property_read_bool(dev->of_node, "renesas,fd-only"))
 		gpriv->fd_only_mode = true; /* FD-Only mode for CAN-FD */
+
+	if (of_property_read_bool(dev->of_node, "renesas,auto-recovery"))
+                gpriv->auto_recovery = true; /* ISO11898-1 compliant */
 
 	gpriv->rstc1 = devm_reset_control_get_optional_exclusive(dev, "rstp_n");
 	if (IS_ERR(gpriv->rstc1))
