@@ -697,6 +697,8 @@ static int rzt2_pcie_ep_probe(struct platform_device *pdev)
 	int err;
 	u32 value;
 
+	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
+
 	ep = devm_kzalloc(dev, sizeof(*ep), GFP_KERNEL);
 	if (!ep)
 		return -ENOMEM;
