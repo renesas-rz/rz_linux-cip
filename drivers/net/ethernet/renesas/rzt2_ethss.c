@@ -27,7 +27,7 @@
 #define ETHSS_PHYLINK_SWLINK_MASK(x)	BIT(x)
 #define ETHSS_PHYLINK_ESWMLINK_HIGH(x)  (BIT(x) << 8)
 #define ETHSS_PHYLINK_ESWMLINK_MASK(x)  (BIT(x) << 8)
-#define ETHSS_PHYLINK_HPSWLINK_HIGH(x)  (BIT(x) << 12)
+#define ETHSS_PHYLINK_HPSWLINK_HIGH	GENMASK(13, 12)
 #define ETHSS_PHYLINK_HPSWLINK_MASK(x)  (BIT(x) << 12)
 
 #define ETHSS_CONVCTRL(port)		(0x100 + (port) * 4)
@@ -621,9 +621,7 @@ static void ethss_parse_hpswlink(struct ethss *ethss, struct device *dev)
 			continue;
 
 		/* HPSW_PHYLINK active high */
-		val = 0;
-		if (hpswlink == 0)
-			val = ETHSS_PHYLINK_HPSWLINK_HIGH(port);
+		val = ETHSS_PHYLINK_HPSWLINK_HIGH;
 
 		ethss_reg_rmw(ethss, ETHSS_PHYLINK,
 			      ETHSS_PHYLINK_HPSWLINK_MASK(port), val);
