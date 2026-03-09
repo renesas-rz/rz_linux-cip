@@ -361,16 +361,6 @@
 #endif
 #endif
 
-	hpsw_pins: hpsw_pins {
-#if (SEL_HPSW_MODE)
-		pinmux = <RZT2_PORT_PINMUX(1, 5, 0x30)>, /* HPSW: HPSW_PHYLINK0/P01_5 */
-			 <RZT2_PORT_PINMUX(3, 5, 0x30)>; /* HPSW: HPSW_PHYLINK1/P03_5 */
-#else
-		pinmux = <RZT2_PORT_PINMUX(20, 6, 0x30)>, /* HPSW: HPSW_PHYLINK0/P20_6 */
-			 <RZT2_PORT_PINMUX(22, 5, 0x30)>; /* HPSW: HPSW_PHYLINK1/P22_5 */
-#endif
-	};
-
 	pins_refclk: pins_refclk {
 		pinmux = <RZT2_PORT_PINMUX(20, 7, 0x02)>, /* Clock : ETH0_REFCLK/P20_7 */
 			 <RZT2_PORT_PINMUX(22, 6, 0x02)>, /* Clock : ETH1_REFCLK/P22_6 */
@@ -1275,8 +1265,6 @@
 #if (SEL_HPSW)
 #if (!SEL_HPSW_MODE)
 &hpsw {
-	pinctrl-0 = <&hpsw_pins>;
-	pinctrl-names = "default";
 	status = "okay";
 };
 
@@ -1325,8 +1313,6 @@
 };
 #else
 &hpsw {
-	pinctrl-0 = <&hpsw_pins>;
-	pinctrl-names = "default";
 	status = "okay";
 };
 
@@ -1365,11 +1351,13 @@
 
 &mii_conv3 {
 	renesas,ethss-port = <ETHSS_HPSW_PORTA>;
+	renesas,hpsw-phylink = <0>;
 	status = "okay";
 };
 
 &mii_conv4 {
 	renesas,ethss-port = <ETHSS_HPSW_PORTB>;
+	renesas,hpsw-phylink = <0>;
 	status = "okay";
 };
 #endif
