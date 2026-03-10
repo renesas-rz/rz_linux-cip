@@ -2778,6 +2778,7 @@
 			clock-names = "video", "apb";
 			resets = <&cpg 0xC5>, <&cpg 0xC7>;
 			reset-names ="presetn", "cmn-rstb";
+			power-domains = <&cpg>;
 			status = "disabled";
 
 			ports {
@@ -2804,6 +2805,7 @@
 			clock-names = "video", "apb";
 			resets = <&cpg 0xC8>, <&cpg 0xCA>;
 			reset-names = "presetn", "cmn-rstb";
+			power-domains = <&cpg>;
 			status = "disabled";
 
 			ports {
@@ -2830,6 +2832,7 @@
 			clock-names = "video", "apb";
 			resets = <&cpg 0xCB>, <&cpg 0xCD>;
 			reset-names = "presetn", "cmn-rstb";
+			power-domains = <&cpg>;
 			status = "disabled";
 
 			ports {
@@ -2856,6 +2859,7 @@
 			clock-names = "video", "apb";
 			resets = <&cpg 0xCE>, <&cpg 0xD0>;
 			reset-names ="presetn", "cmn-rstb";
+			power-domains = <&cpg>;
 			status = "disabled";
 
 			ports {
