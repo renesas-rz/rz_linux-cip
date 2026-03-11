@@ -1922,11 +1922,12 @@
 			reg = <0 0x16000400 0 0xc00>;
 			interrupts = <GIC_SPI 837 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 0xd3>,
-				 <&cpg CPG_MOD 0xde>;
-			clock-names = "video", "system";
+				 <&cpg CPG_MOD 0xd4>;
+			clock-names = "video", "apb";
 			resets = <&cpg 0xc5>,
 				 <&cpg 0xc7>;
 			reset-names = "presetn", "cmn-rstb";
+			power-domains = <&cpg>;
 			status = "disabled";
 
 			ports {
@@ -1949,11 +1950,12 @@
 			reg = <0 0x16010400 0 0xc00>;
 			interrupts = <GIC_SPI 843 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 0xd6>,
-				 <&cpg CPG_MOD 0xdf>;
-			clock-names = "video", "system";
+				 <&cpg CPG_MOD 0xd7>;
+			clock-names = "video", "apb";
 			resets = <&cpg 0xc8>,
 				 <&cpg 0xca>;
 			reset-names = "presetn", "cmn-rstb";
+			power-domains = <&cpg>;
 			status = "disabled";
 
 			ports {
