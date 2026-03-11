@@ -840,14 +840,13 @@ static int rzg2l_cru_suspend(struct device *dev)
 		return 0;
 
 	rzg2l_cru_suspend_stop_streaming(cru);
-	if (!(reset_control_status(cru->presetn)))
-		reset_control_assert(cru->presetn);
+
+	reset_control_assert(cru->presetn);
 
 	clk_disable_unprepare(cru->vclk);
 	pm_runtime_put_sync(dev);
 
 	return 0;
-
 }
 
 static int rzg2l_cru_resume(struct device *dev)
@@ -859,8 +858,7 @@ static int rzg2l_cru_resume(struct device *dev)
 		return 0;
 
 	reset_control_deassert(cru->aresetn);
-	if (reset_control_status(cru->presetn) > 0)
-		reset_control_deassert(cru->presetn);
+	reset_control_deassert(cru->presetn);
 
 	pm_runtime_resume_and_get(dev);
 	clk_prepare_enable(cru->vclk);
@@ -868,7 +866,6 @@ static int rzg2l_cru_resume(struct device *dev)
 	queue_delayed_work_on(0, cru->work_queue, &cru->rzg2l_cru_resume,
 				msecs_to_jiffies(CONNECTION_TIME));
 	return 0;
-
 }
 
 static const struct dev_pm_ops rzg2l_cru_pm_ops = {
