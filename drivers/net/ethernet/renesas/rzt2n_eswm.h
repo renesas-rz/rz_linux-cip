@@ -19,6 +19,7 @@
 #define ESWM_NUM_HW		3
 #define ESWM_NUM_PORTS		2
 #define ESWM_NUM_TC		8
+
 #define eswm_for_each_enabled_port(priv, i)		\
 		for (i = 0; i < ESWM_NUM_PORTS; i++)		\
 			if (priv->rdev[i]->disabled)		\
@@ -220,7 +221,7 @@ enum eswm_reg {
 	FWMACTL1	= FWRO + 0x4634,
 	FWMACTL2	= FWRO + 0x4638,
 	FWMACTL3	= FWRO + 0x463c,
-	FWMACTL4	= FWRO + 0x4640,
+	FWMACTL40	= FWRO + 0x4640,
 	FWMACTL5	= FWRO + 0x4650,
 	FWMACTLR	= FWRO + 0x4654,
 	FWMACTIM	= FWRO + 0x4660,
@@ -295,7 +296,7 @@ enum eswm_reg {
 	FWPGFRIM	= FWRO + 0x5520,
 	FWPMTRFC0	= FWRO + 0x5600,
 	FWPMTRCBSC0	= FWRO + 0x5604,
-	FWPMTRC0RC0	= FWRO + 0x5608,
+	FWPMTRCIRC0	= FWRO + 0x5608,
 	FWPMTREBSC0	= FWRO + 0x560c,
 	FWPMTREIRC0	= FWRO + 0x5610,
 	FWPMTRFM0	= FWRO + 0x5614,
@@ -1042,6 +1043,8 @@ struct eswm_device {
 	u8 tas_num_tc;
 	ktime_t base_time;
 	ktime_t cycle_time;
+
+	spinlock_t lock;
 };
 
 struct eswm_mfwd_mac_table_entry {
@@ -1104,5 +1107,107 @@ int eswm_ptp_gettime(struct ptp_clock_info *ptp,
 
 #define EATASRIRM_TASRIOG	BIT(0)
 #define EATASRIRM_TASRR		BIT(1)
+
+/* PSFP (Per Stream Filtering and Policing) [802.1Qci] */
+#define ESWM_MAX_SID		31
+#define ESWM_MAX_MEID		31
+#define ESWM_CLK_FREQ		200000
+#define MAX_ETH_FRAME		2048
+
+#define FWPMFGC(i)		(FWPMFGC0 + (i) * 0x4)
+#define FWPMFGC_MFM		BIT(31)
+#define FWPMFGC_MSDUV_MASK	GENMASK(15, 0)
+
+#define FWPMTRFC(i)		(FWPMTRFC0 + (i) * 0x20)
+#define FWPMTRFC_MTRFE		BIT(0)
+#define FWPMTRFC_MTR_MASK	GENMASK(3, 0)
+#define FWPMTRFC_MTRFM_MASK	GENMASK(2, 1)
+#define FWPMTRFC_MTRFM_NORMAL	FIELD_PREP(FWPMTRFC_MTRFM_MASK, 0x0)
+#define FWPMTRFC_MTRFM_THROTTLE	FIELD_PREP(FWPMTRFC_MTRFM_MASK, 0x1)
+#define FWPMTRFC_MTRFRFD	BIT(3)
+#define FWPMTRFC_MTRCF		BIT(4)
+#define FWPMTRFC_MTRCM_MASK	GENMASK(31, 16)
+
+#define FWPMTRCBSC(i)		(FWPMTRCBSC0 + (i) * 0x20)
+#define FWPMTRCBSC_CBS_MASK	GENMASK(17, 0)
+
+#define FWPMTRCIRC(i)		(FWPMTRCIRC0 + (i) * 0x20)
+#define FWPMTRCIRC_CIR_MASK	GENMASK(19, 0)
+
+#define FWPMTREBSC(i)		(FWPMTREBSC0 + (i) * 0x20)
+#define FWPMTREBSC_EBS_MASK	GENMASK(17, 0)
+
+#define FWPMTREIRC(i)		(FWPMTREIRC0 + (i) * 0x20)
+#define FWPMTREIRC_EIR_MASK	GENMASK(19, 0)
+
+#define FWPMTRFM(i)		(FWPMTRFM0 + (i) * 0x20)
+#define FWPMTRFM_MTRARDN	GENMASK(4, 0)
+#define FWPMTRFM_MTRARDNMN	GENMASK(20, 16)
+
+/* Layer 2 Stream Configuration */
+#define FWL2SC_MASK		GENMASK(7, 0)
+#define FWL2SC_L2IMDS		BIT(0)
+#define FWL2SC_L2IMSS		BIT(1)
+#define FWL2SC_L2ISVS		BIT(3)
+#define FWL2SC_L2ISDS		BIT(4)
+#define FWL2SC_L2ICVS		BIT(5)
+#define FWL2SC_L2ICPS		BIT(6)
+#define FWL2SC_L2ICDS		BIT(7)
+#define FWL2SC_CTAG_MASK	GENMASK(7, 5)
+
+/* Layer 3 forwarding */
+#define FWLTHHEC_HMUE		GENMASK(24, 16)
+
+#define FWLTHTIM_LTHTIOG	BIT(0)
+#define FWLTHTIM_LTHTR		BIT(1)
+
+#define FWLTHTL0_LTHSLP0	GENMASK(2, 0)
+#define FWLTHTL0_LTHSLL		BIT(8)
+#define FWLTHTL0_LTHED		BIT(16)
+
+#define FWLTHTL5_MSDUV		BIT(31)
+#define FWLTHTL5_MSDUN		GENMASK(19, 16)
+
+#define FWLTHTL6_MTRV		BIT(31)
+#define FWLTHTL6_MTRN		GENMASK(20, 16)
+#define FWLTHTL6_FRERV		BIT(15)
+#define FWLTHTL6_FRERN		GENMASK(6, 0)
+
+#define FWLTHTL7_RN		GENMASK(7, 0)
+#define FWLTHTL7_RV		BIT(15)
+#define FWLTHTL7_SLV		GENMASK(18, 16)
+
+#define FWLTHTL9_CME		BIT(21)
+#define FWLTHTL9_EME		BIT(20)
+#define FWLTHTL9_IPU		BIT(19)
+#define FWLTHTL9_IPV		GENMASK(18, 16)
+#define FWLTHTL9_DV		GENMASK(2, 0)
+
+#define FWLTHTLR_LTHTL		BIT(31)
+#define FWLTHTLR_LCN		GENMASK(23, 16)
+#define FWLTHTLR_LTHLO		BIT(3)
+#define FWLTHTLR_LTHLSF		BIT(1)
+#define FWLTHTLR_LTHLF		BIT(0)
+
+enum eswm_vlan_mode {
+	ESWM_NO_VLAN_MODE = 0,
+	ESWM_CTAG_MODE = 1,
+	ESWM_STAG_MODE = 2,
+};
+
+struct eswm_qci_stream_filter {
+	u8 qmac[6];
+	u8 qmam[6];
+	enum eswm_vlan_mode tagmd;
+	u16 vlanid;
+	u8 dei;
+	u8 pcp;
+};
+
+struct eswm_flow_meter {
+	u8  meid;
+	u32 cbs;
+	u32 cir;
+};
 
 #endif	/* #ifndef __ESWM_H__ */
