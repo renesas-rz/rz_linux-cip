@@ -2277,12 +2277,409 @@ static int eswm_setup_taprio(struct net_device *ndev, void *type_data)
 	return err;
 }
 
+static int eswm_tc_flower_action_police_check(struct net_device *ndev,
+					      struct flow_action *action,
+					      struct flow_action_entry *act,
+					      struct netlink_ext_ack *extack)
+{
+	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
+		NL_SET_ERR_MSG_MOD(extack,
+				"Offload not supported when exceed action is not drop");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
+	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+		NL_SET_ERR_MSG_MOD(extack,
+				"Offload not supported when conform action is not pipe or ok");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	    !flow_action_is_last_entry(action, act)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				"Offload not supported when conform action is ok, but police action is not last");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.peakrate_bytes_ps ||
+	    act->police.avrate || act->police.overhead) {
+		NL_SET_ERR_MSG_MOD(extack,
+				"Offload not supported when peakrate/avrate/overhead is configured");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.rate_pkt_ps) {
+		NL_SET_ERR_MSG_MOD(extack,
+				"Offload does not support packets per second");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int eswm_tc_flower_parse_keys(struct netlink_ext_ack *extack,
+				     struct flow_cls_offload *fco,
+				     struct eswm_qci_stream_filter *filter)
+{
+	struct flow_rule *frule = flow_cls_offload_flow_rule(fco);
+	struct flow_dissector *dissector = frule->match.dissector;
+	int i;
+
+	if (dissector->used_keys &
+	   ~(BIT_ULL(FLOW_DISSECTOR_KEY_BASIC) |
+	   BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL) |
+	   BIT_ULL(FLOW_DISSECTOR_KEY_VLAN) |
+	   BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS))) {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported keys used");
+		return -EOPNOTSUPP;
+	}
+
+	if (flow_rule_match_has_control_flags(frule, extack))
+		return -EOPNOTSUPP;
+
+	if (flow_rule_match_key(frule, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_match_basic match;
+
+		flow_rule_match_basic(frule, &match);
+
+		if (match.key->n_proto) {
+			NL_SET_ERR_MSG_MOD(extack,
+					"Matching on protocol not supported");
+			return -EOPNOTSUPP;
+		}
+	}
+
+	if (flow_rule_match_key(frule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
+		struct flow_match_eth_addrs match;
+
+		flow_rule_match_eth_addrs(frule, &match);
+
+		if (!is_zero_ether_addr(match.mask->dst) &&
+		   !is_zero_ether_addr(match.mask->src)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					"Cannot match on both source and destination MAC");
+			return -EINVAL;
+		}
+
+		if (!is_zero_ether_addr(match.mask->dst)) {
+			ether_addr_copy(filter->qmac, match.key->dst);
+			ether_addr_copy(filter->qmam, match.mask->dst);
+			for (i = 0; i < 6; i++)
+				filter->qmam[i] = ~filter->qmam[i];
+		}
+
+		if (!is_zero_ether_addr(match.mask->src)) {
+			ether_addr_copy(filter->qmac, match.key->src);
+			ether_addr_copy(filter->qmam, match.mask->src);
+			for (i = 0; i < 6; i++)
+				filter->qmam[i] = ~filter->qmam[i];
+		}
+	}
+
+	if (flow_rule_match_key(frule, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_match_vlan match;
+
+		flow_rule_match_vlan(frule, &match);
+
+		filter->tagmd	= ESWM_CTAG_MODE;
+		filter->vlanid	= match.key->vlan_id;
+		filter->dei	= match.key->vlan_dei;
+		filter->pcp	= match.key->vlan_priority;
+	}
+
+	return 0;
+}
+
+static int eswm_tc_flower_init(struct eswm_private *priv)
+{
+	/* Allow entire stream table to be used for "unsecure" entries */
+	eswm_modify(priv->addr, FWLTHHEC, 0, FWLTHHEC_HMUE);
+
+	/* Set Layer 2 stream for Source MAC address and C-TAG */
+	iowrite32(FWL2SC_L2IMSS | FWL2SC_CTAG_MASK, priv->addr + FWL2SC);
+
+	/* Reset/Init L3 table hash (LTHT) */
+	iowrite32(FWLTHTIM_LTHTIOG, priv->addr + FWLTHTIM);
+	return eswm_reg_wait(priv->addr, FWLTHTIM, FWLTHTIM_LTHTR, FWLTHTIM_LTHTR);
+}
+
+static int eswm_tc_flower_psfp_setup(struct eswm_private *priv,
+				     struct netlink_ext_ack *extack,
+				     int sid,
+				     struct eswm_flow_meter *p_meter)
+{
+	int err;
+	u32 val;
+
+	if (sid > ESWM_MAX_SID) {
+		NL_SET_ERR_MSG_MOD(extack, "Can only metering 31 stream");
+		return -EINVAL;
+	}
+
+	if (p_meter->meid > ESWM_MAX_MEID) {
+		NL_SET_ERR_MSG_MOD(extack, "Can only metering 31 stream");
+		return -EINVAL;
+	}
+
+	/* Disable PSFP Meter Filter */
+	iowrite32(0, priv->addr + FWPMTRFC(sid));
+
+	/* Check FWPMTRFMi.MTRARDN */
+	err = eswm_reg_wait(priv->addr, FWPMTRFM(sid), FWPMTRFM_MTRARDN, 0);
+	if (err)
+		return -EBUSY;
+
+	/* Program Green bucket (CBS/CIR) */
+	iowrite32(p_meter->cbs, priv->addr + FWPMTRCBSC(sid));
+	iowrite32(p_meter->cir, priv->addr + FWPMTRCIRC(sid));
+
+	/* Drop on Yellow is not available in PSFP */
+	iowrite32(0, priv->addr + FWPMTREBSC(sid));
+	iowrite32(0, priv->addr + FWPMTREIRC(sid));
+
+	/* Enable PSFP Meter filter */
+	val = FWPMTRFC_MTRFRFD | FWPMTRFC_MTRFM_NORMAL | FWPMTRFC_MTRFE;
+	iowrite32(val, priv->addr + FWPMTRFC(sid));
+
+	return 0;
+}
+
+static int eswm_tc_flower_parse_act_police(struct net_device *ndev,
+					   struct netlink_ext_ack *extack, u8 meid,
+					   u64 rate_bytes_per_sec,
+					   u32 burst,
+					   struct eswm_flow_meter *p_meter)
+{
+	struct eswm_device *rdev = netdev_priv(ndev);
+	u64 rate_bytes_per_sec_max, cir;
+
+	if (burst < MAX_ETH_FRAME) {
+		NL_SET_ERR_MSG_MOD(extack,
+				"Burst must greater than Maximum frame size of an Ethernet Frame 2Kb");
+		return -EINVAL;
+	}
+
+	/* Calculate byte per second */
+	rate_bytes_per_sec_max = ((u64)rdev->etha->speed * 1000 * 1000) / 8;
+	if (rate_bytes_per_sec > rate_bytes_per_sec_max) {
+		NL_SET_ERR_MSG_MOD(extack,
+				"Police rate must smaller than port speed");
+		return -EINVAL;
+	}
+
+	p_meter->cbs = burst;
+	p_meter->meid = meid;
+
+	/* Calculate the Information Rate */
+	cir = (rate_bytes_per_sec * U16_MAX) / (ESWM_CLK_FREQ * 1000);
+	p_meter->cir = cir;
+
+	return 0;
+}
+
+static int eswm_tc_flower_psfp_stream_set(struct eswm_private *priv, int index,
+					  struct eswm_qci_stream_filter *flt_entry)
+{
+	struct eswm_device *rdev = priv->rdev[index];
+	unsigned long flags;
+	u32 val, st;
+	int err;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	/*
+	 *	Stream Identification entry bit fields (L2 Stream, total 131 bits)
+	 *
+	 * Bit idx: 130 128 | 127        96 | 95         64 | 63       32 | 31          0
+	 *            [F]   [S0  S1  C0  C1 ] [B0 B1 B2 B3] [B4 B5 B6 B7] [B8 B9 B10 B11]
+	 *                    |__|   |___|     |_________________|  |_________________|
+	 *                   |S-TAG||C-TAG|          |DMAC|               |SMAC|
+	 */
+
+	/* Set L2 frame format code */
+	iowrite32(FWLTHTL0_LTHSLP0, priv->addr + FWLTHTL0);
+
+	/* Set VLAN */
+	iowrite32(flt_entry->tagmd, priv->addr + FWGC);
+	iowrite32((flt_entry->pcp << 5U) |
+		  (flt_entry->dei << 4U) |
+		  (flt_entry->vlanid >> 8 & 0x0F) |
+		  (flt_entry->vlanid & 0xFF), priv->addr + FWLTHTL1);
+
+	/* Set Destination MAC address (DMAC) */
+	iowrite32(0, priv->addr + FWLTHTL2);
+
+	/* Set Source MAC address (SMAC) */
+	iowrite32(((u32)flt_entry->qmac[0] << 8U) |
+		  ((u32)flt_entry->qmac[1]), priv->addr + FWLTHTL3);
+
+	iowrite32(((u32)flt_entry->qmac[2] << 24U) |
+		  ((u32)flt_entry->qmac[3] << 16U) |
+		  ((u32)flt_entry->qmac[4] << 8U) |
+		  ((u32)flt_entry->qmac[5]), priv->addr + FWLTHTL4);
+
+	/* Set MSDU valid learn */
+	iowrite32(0, priv->addr + FWLTHTL5);
+
+	/* Set Meter valid learn */
+	iowrite32(FWLTHTL6_MTRV, priv->addr + FWLTHTL6);
+
+	/* Set source lock/routing information  */
+	iowrite32(FWLTHTL7_SLV, priv->addr + FWLTHTL7);
+
+	/* Set CPU sub-destinations*/
+	val = ioread32(priv->addr + FWPBFCSDC(GWCA_INDEX, rdev->port));
+	iowrite32(val, priv->addr + FWLTHTL80);
+
+	/* Set forwarding information */
+	iowrite32(BIT(priv->gwca.index), priv->addr + FWLTHTL9);
+
+	/* Table entry write starts after writing to FWLTHTL9 */
+	err = eswm_reg_wait(priv->addr, FWLTHTLR, FWLTHTLR_LTHTL, 0);
+	st = ioread32(priv->addr + FWLTHTLR);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+	if (err)
+		return err;
+
+	if (st & (FWLTHTLR_LTHLSF | FWLTHTLR_LTHLF))
+		return -EIO;
+
+	return 0;
+}
+
+static int eswm_tc_flower_replace(struct net_device *ndev,
+				  struct flow_cls_offload *fco,
+				  bool ingress)
+{
+	struct eswm_device *rdev = netdev_priv(ndev);
+	struct flow_action *action = &fco->rule->action;
+	struct eswm_private *priv = rdev->priv;
+	struct flow_rule *frule = flow_cls_offload_flow_rule(fco);
+	struct netlink_ext_ack *extack = fco->common.extack;
+	struct flow_action_entry *act;
+	struct eswm_qci_stream_filter filter;
+	int err, idx;
+
+	err = eswm_tc_flower_init(priv);
+	if (err)
+		return err;
+
+	err = eswm_tc_flower_parse_keys(extack, fco, &filter);
+	if (err)
+		return err;
+
+	flow_action_for_each(idx, act, &frule->action) {
+		switch (act->id) {
+		case FLOW_ACTION_POLICE: {
+			struct eswm_flow_meter p_meter;
+
+			err = eswm_tc_flower_action_police_check(ndev, action, act, extack);
+			if (err)
+				return err;
+
+			err = eswm_tc_flower_parse_act_police(ndev, extack, idx,
+							      act->police.rate_bytes_ps,
+							      act->police.burst, &p_meter);
+			if (err)
+				return err;
+
+			/* Setup PSFP Meter filter */
+			err = eswm_tc_flower_psfp_setup(priv, extack, idx, &p_meter);
+			if (err)
+				return err;
+
+			break;
+		}
+		case FLOW_ACTION_GATE:
+			NL_SET_ERR_MSG_MOD(extack,
+					"Gate action is not supported");
+			return -EOPNOTSUPP;
+		default:
+			NL_SET_ERR_MSG_MOD(fco->common.extack,
+					"Unsupported TC action");
+			return -EOPNOTSUPP;
+		}
+	}
+
+	/* L2 stream ID creation */
+	err = eswm_tc_flower_psfp_stream_set(priv, rdev->port, &filter);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static int eswm_tc_flower_delete(struct net_device *ndev,
+				 struct flow_cls_offload *fco, bool ingress)
+{
+	struct eswm_device *rdev = netdev_priv(ndev);
+	struct eswm_private *priv = rdev->priv;
+	int i;
+
+	/* Clear Layer 2 stream configuration */
+	iowrite32(0, priv->addr + FWL2SC);
+
+	/* Disable PSFP Meter filter*/
+	for (i = 0; i <= ESWM_MAX_SID; i++)
+		iowrite32(0, priv->addr + FWPMTRFC(i));
+
+	return 0;
+}
+
+static int eswm_tc_flower(struct net_device *ndev,
+			  struct flow_cls_offload *fco,
+			  bool ingress)
+{
+	switch (fco->command) {
+	case FLOW_CLS_REPLACE:
+		return eswm_tc_flower_replace(ndev, fco, ingress);
+	case FLOW_CLS_DESTROY:
+		return eswm_tc_flower_delete(ndev, fco, ingress);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int eswm_tc_block_cb(enum tc_setup_type type,
+			    void *type_data,
+			    void *cb_priv)
+{
+	struct net_device *ndev = cb_priv;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return eswm_tc_flower(ndev, type_data, true);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static LIST_HEAD(eswm_block_cb_list);
+
+static int eswm_setup_tc_block(struct net_device *ndev,
+			       struct flow_block_offload *fbo)
+{
+	flow_setup_cb_t *cb;
+
+	if (fbo->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+		cb = eswm_tc_block_cb;
+	else
+		return -EOPNOTSUPP;
+
+	return flow_block_cb_setup_simple(fbo, &eswm_block_cb_list, cb,
+						ndev, ndev, false);
+}
+
 static int eswm_setup_tc(struct net_device *ndev,
 			 enum tc_setup_type type, void *data)
 {
 	switch (type) {
 	case TC_SETUP_QDISC_TAPRIO:
 		return eswm_setup_taprio(ndev, data);
+	case TC_SETUP_BLOCK:
+		return eswm_setup_tc_block(ndev, data);
 	default:
 		return -EOPNOTSUPP;
 	}
