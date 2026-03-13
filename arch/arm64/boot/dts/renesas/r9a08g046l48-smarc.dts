@@ -48,6 +48,13 @@
  */
 #define SPDIF_SEL		0
 
+/*
+ * RS485_SUPPORT - Select pin function of RSCI2 between DE and CTS_RTS
+ * 0 - RSCI2_SS_CTS_RTS is selected
+ * 1 - RSCI2_DE is selected to support RS485 feature
+ */
+#define RS485_SUPPORT		1
+
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/renesas,r9a08g046-pinctrl.h>
 
@@ -441,7 +448,11 @@
 		pinmux = <RZG3L_PORT_PINMUX(7, 6, 5)>, /* RSCI2_RXD_MISO_SCL */
 			 <RZG3L_PORT_PINMUX(7, 7, 5)>, /* RSCI2_TXD_MOSI_SDA */
 			 <RZG3L_PORT_PINMUX(8, 0, 6)>, /* RSCI2_CTS */
+#if (!RS485_SUPPORT)
 			 <RZG3L_PORT_PINMUX(8, 1, 5)>; /* RSCI2_SS_CTS_RTS */
+#else
+			 <RZG3L_PORT_PINMUX(8, 1, 6)>; /* RSCI2_DE */
+#endif
 		bias-pull-up;
 		drive-strength-microamp = <9000>;
 		renesas,sys_sel_clonech = <13>;
@@ -832,7 +843,12 @@
 	compatible = "renesas,rz-rscif";
 	pinctrl-0 = <&rsci2_rtscts_pins>;
 	pinctrl-names = "default";
+#if (!RS485_SUPPORT)
 	uart-has-rtscts;
+#else
+	linux,rs485-enabled-at-boot-time;
+	rs485-rts-delay = <1 1>;
+#endif
 	status = "okay";
 };
 #elif (RSCI2_MODE_SEL == 2 && !SW_DPI_EN)
