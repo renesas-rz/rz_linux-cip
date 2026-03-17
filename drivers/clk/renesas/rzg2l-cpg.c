@@ -2054,6 +2054,11 @@ static int rzg2l_cpg_assert(struct reset_controller_dev *rcdev,
 
 	dev_dbg(rcdev->dev, "assert id:%ld offset:0x%x\n", id, CLK_RST_R(reg));
 
+	for (unsigned int i = 0; i < priv->info->num_crit_resets; i++) {
+		if (id == priv->info->crit_resets[i])
+			return 0;
+	}
+
 	writel(value, priv->base + CLK_RST_R(reg));
 
 	if (info->has_clk_mon_regs) {
@@ -2099,6 +2104,20 @@ static int rzg2l_cpg_deassert(struct reset_controller_dev *rcdev,
 
 	return readl_poll_timeout_atomic(priv->base + reg, value,
 					 !(value & mask), 10, 200);
+}
+
+static int rzg2l_cpg_deassert_crit_resets(struct reset_controller_dev *rcdev,
+					  const struct rzg2l_cpg_info *info)
+{
+	int ret;
+
+	for (unsigned int i = 0; i < info->num_crit_resets; i++) {
+		ret = rzg2l_cpg_deassert(rcdev, info->crit_resets[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int rzg2l_cpg_reset(struct reset_controller_dev *rcdev,
@@ -2360,6 +2379,10 @@ static int __init rzg2l_cpg_probe(struct platform_device *pdev)
 	if (error)
 		return error;
 
+	error = rzg2l_cpg_deassert_crit_resets(&priv->rcdev, info);
+	if (error)
+		return error;
+
 	debugfs_create_file("mstop", 0444, NULL, priv, &rzg2l_mod_clock_mstop_fops);
 	return 0;
 }
@@ -2407,6 +2430,11 @@ static int rzg2l_cpg_resume(struct device *dev)
 	const struct rzg2l_cpg_info *info = priv->info;
 	u32 wen_mask = GENMASK(31, 16);
 	int i, id;
+	int ret;
+
+	ret = rzg2l_cpg_deassert_crit_resets(&priv->rcdev, priv->info);
+	if (ret)
+		return ret;
 
 	rzg2l_mod_clock_init_mstop(priv);
 
