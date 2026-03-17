@@ -109,6 +109,8 @@
  *	amixer -q cset name='Mixout Right DAC Right Switch' on
  *	amixer -q cset name='DAC Left Source MUX' 'DAI Input Left'
  *	amixer -q cset name='DAC Right Source MUX' 'DAI Input Right'
+ *	amixer -q sset 'ADC' 100%
+ *	amixer -q sset 'ADC HPF' off
  *	amixer -q sset 'Mic 1 Amp Source MUX' 'MIC_P'
  *	amixer -q sset 'Mic 2 Amp Source MUX' 'MIC_P'
  *	amixer -q sset 'Mixin Left Mic 1' on
