@@ -1075,6 +1075,12 @@ static void ethsw_tdma_gcl_set(struct ethsw *ethsw, const u32 gcl_ix,
 	if (gcl_ix == 0)
 		tcv_seq_ctrl |= ETHSW_TCV_SEQ_CTRL_START;
 
+	/* sets CQF TCV sequence */
+	if ((entry->gate_mask & BIT(ethsw->cqf_port_config[port].base_queue)) && ethsw->cqf_port_config[port].enable)
+		tcv_seq_ctrl |= ETHSW_TCV_SEQ_CTRL_GPIO(0);
+	else
+		tcv_seq_ctrl &= ~ETHSW_TCV_SEQ_CTRL_GPIO(0);
+
 	tcv_seq_ctrl |= ETHSW_TCV_SEQ_CTRL_D_INDEX(gcl_ix);
 
 	ethsw_reg_writel(ethsw, ETHSW_TCV_SEQ_ADDR, ETHSW_TCV_SEQ_ADDR_S_ADDR(gcl_ix));
@@ -2672,6 +2678,470 @@ static ssize_t VLAN_priority_port3_show(struct device *dev, struct device_attrib
 	return sprintf(buf, "%u\r\n", ret);
 }
 
+static ssize_t CQF_port0_enable_store(struct device *dev, struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val > 1) {
+		dev_err(ethsw->dev, "Only 0 or 1 is valid value\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	if (val)
+		ethsw->cqf_port_config[0].enable = 1;
+	else
+		ethsw->cqf_port_config[0].enable = 0;
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t CQF_port0_enable_show(struct device *dev, struct device_attribute *attr,
+				     char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret =  ethsw->cqf_port_config[0].enable;
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
+static ssize_t CQF_priority_port0_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val > 7) {
+		dev_err(ethsw->dev, "ETHSW only have 8 (0-7) priorities\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethsw->cqf_port_config[0].priority = val;
+	ethsw_reg_rmw(ethsw, ETHSW_MMCTL_CQF_CTRL(0), ETHSW_MMCTL_CQF_PRIO_MASK, BIT(val));
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t CQF_priority_port0_show(struct device *dev, struct device_attribute *attr,
+				       char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethsw->cqf_port_config[0].priority;
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
+static ssize_t CQF_base_queue_port0_store(struct device *dev, struct device_attribute *attr,
+					  const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val > 7) {
+		dev_err(ethsw->dev, "ETHSW only have 8 (0-7) queues\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethsw->cqf_port_config[0].base_queue = val;
+	ethsw_reg_rmw(ethsw, ETHSW_MMCTL_CQF_CTRL(0), ETHSW_MMCTL_CQF_QUEUE_MASK, val << 8);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t CQF_base_queue_port0_show(struct device *dev, struct device_attribute *attr,
+					 char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethsw->cqf_port_config[0].base_queue;
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
+static ssize_t CQF_port1_enable_store(struct device *dev, struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val > 1) {
+		dev_err(ethsw->dev, "Only 0 or 1 is valid value\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	if (val)
+		ethsw->cqf_port_config[1].enable = 1;
+	else
+		ethsw->cqf_port_config[1].enable = 0;
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t CQF_port1_enable_show(struct device *dev, struct device_attribute *attr,
+				     char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret =  ethsw->cqf_port_config[1].enable;
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
+static ssize_t CQF_priority_port1_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val > 7) {
+		dev_err(ethsw->dev, "ETHSW only have 8 (0-7) priorities\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethsw->cqf_port_config[1].priority = val;
+	ethsw_reg_rmw(ethsw, ETHSW_MMCTL_CQF_CTRL(1), ETHSW_MMCTL_CQF_PRIO_MASK, BIT(val));
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t CQF_priority_port1_show(struct device *dev, struct device_attribute *attr,
+				       char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethsw->cqf_port_config[1].priority;
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
+static ssize_t CQF_base_queue_port1_store(struct device *dev, struct device_attribute *attr,
+					  const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val > 7) {
+		dev_err(ethsw->dev, "ETHSW only have 8 (0-7) queues\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethsw->cqf_port_config[1].base_queue = val;
+	ethsw_reg_rmw(ethsw, ETHSW_MMCTL_CQF_CTRL(1), ETHSW_MMCTL_CQF_QUEUE_MASK, val << 8);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t CQF_base_queue_port1_show(struct device *dev, struct device_attribute *attr,
+					 char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethsw->cqf_port_config[1].base_queue;
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
+static ssize_t CQF_port2_enable_store(struct device *dev, struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val > 1) {
+		dev_err(ethsw->dev, "Only 0 or 1 is valid value\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	if (val)
+		ethsw->cqf_port_config[2].enable = 1;
+	else
+		ethsw->cqf_port_config[2].enable = 0;
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t CQF_port2_enable_show(struct device *dev, struct device_attribute *attr,
+				     char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret =  ethsw->cqf_port_config[2].enable;
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
+static ssize_t CQF_priority_port2_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val > 7) {
+		dev_err(ethsw->dev, "ETHSW only have 8 (0-7) priorities\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethsw->cqf_port_config[2].priority = val;
+	ethsw_reg_rmw(ethsw, ETHSW_MMCTL_CQF_CTRL(2), ETHSW_MMCTL_CQF_PRIO_MASK, BIT(val));
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t CQF_priority_port2_show(struct device *dev, struct device_attribute *attr,
+				       char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethsw->cqf_port_config[2].priority;
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
+static ssize_t CQF_base_queue_port2_store(struct device *dev, struct device_attribute *attr,
+					  const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val > 7) {
+		dev_err(ethsw->dev, "ETHSW only have 8 (0-7) queues\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethsw->cqf_port_config[2].base_queue = val;
+	ethsw_reg_rmw(ethsw, ETHSW_MMCTL_CQF_CTRL(2), ETHSW_MMCTL_CQF_QUEUE_MASK, val << 8);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t CQF_base_queue_port2_show(struct device *dev, struct device_attribute *attr,
+					 char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethsw->cqf_port_config[2].base_queue;
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
+static ssize_t CQF_port3_enable_store(struct device *dev, struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val > 1) {
+		dev_err(ethsw->dev, "Only 0 or 1 is valid value\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	if (val)
+		ethsw->cqf_port_config[3].enable = 1;
+	else
+		ethsw->cqf_port_config[3].enable = 0;
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t CQF_port3_enable_show(struct device *dev, struct device_attribute *attr,
+				     char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret =  ethsw->cqf_port_config[3].enable;
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
+static ssize_t CQF_priority_port3_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val > 7) {
+		dev_err(ethsw->dev, "ETHSW only have 8 (0-7) priorities\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethsw->cqf_port_config[3].priority = val;
+	ethsw_reg_rmw(ethsw, ETHSW_MMCTL_CQF_CTRL(3), ETHSW_MMCTL_CQF_PRIO_MASK, BIT(val));
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t CQF_priority_port3_show(struct device *dev, struct device_attribute *attr,
+				       char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethsw->cqf_port_config[3].priority;
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
+static ssize_t CQF_base_queue_port3_store(struct device *dev, struct device_attribute *attr,
+					  const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	int val, ret;
+
+	ret = kstrtouint(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val > 7) {
+		dev_err(ethsw->dev, "ETHSW only have 8 (0-7) queues\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ethsw->sysfs_lock);
+
+	ethsw->cqf_port_config[3].base_queue = val;
+	ethsw_reg_rmw(ethsw, ETHSW_MMCTL_CQF_CTRL(3), ETHSW_MMCTL_CQF_QUEUE_MASK, val << 8);
+
+	mutex_unlock(&ethsw->sysfs_lock);
+
+	return ret ? : count;
+}
+
+static ssize_t CQF_base_queue_port3_show(struct device *dev, struct device_attribute *attr,
+					 char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ethsw *ethsw = platform_get_drvdata(pdev);
+	u32 ret;
+
+	ret = ethsw->cqf_port_config[3].base_queue;
+
+	return sprintf(buf, "%u\r\n", ret);
+}
+
 static DEVICE_ATTR_RW(PTPOUT0_enable);
 static DEVICE_ATTR_RW(PTPOUT0_start_time);
 static DEVICE_ATTR_RW(PTPOUT0_period);
@@ -2692,6 +3162,18 @@ static DEVICE_ATTR_RW(VLAN_priority_port0);
 static DEVICE_ATTR_RW(VLAN_priority_port1);
 static DEVICE_ATTR_RW(VLAN_priority_port2);
 static DEVICE_ATTR_RW(VLAN_priority_port3);
+static DEVICE_ATTR_RW(CQF_port0_enable);
+static DEVICE_ATTR_RW(CQF_priority_port0);
+static DEVICE_ATTR_RW(CQF_base_queue_port0);
+static DEVICE_ATTR_RW(CQF_port1_enable);
+static DEVICE_ATTR_RW(CQF_priority_port1);
+static DEVICE_ATTR_RW(CQF_base_queue_port1);
+static DEVICE_ATTR_RW(CQF_port2_enable);
+static DEVICE_ATTR_RW(CQF_priority_port2);
+static DEVICE_ATTR_RW(CQF_base_queue_port2);
+static DEVICE_ATTR_RW(CQF_port3_enable);
+static DEVICE_ATTR_RW(CQF_priority_port3);
+static DEVICE_ATTR_RW(CQF_base_queue_port3);
 
 static struct attribute *attrs[] = {
 	&dev_attr_PTPOUT0_enable.attr,
@@ -2714,6 +3196,18 @@ static struct attribute *attrs[] = {
 	&dev_attr_VLAN_priority_port1.attr,
 	&dev_attr_VLAN_priority_port2.attr,
 	&dev_attr_VLAN_priority_port3.attr,
+	&dev_attr_CQF_port0_enable.attr,
+	&dev_attr_CQF_priority_port0.attr,
+	&dev_attr_CQF_base_queue_port0.attr,
+	&dev_attr_CQF_port1_enable.attr,
+	&dev_attr_CQF_priority_port1.attr,
+	&dev_attr_CQF_base_queue_port1.attr,
+	&dev_attr_CQF_port2_enable.attr,
+	&dev_attr_CQF_priority_port2.attr,
+	&dev_attr_CQF_base_queue_port2.attr,
+	&dev_attr_CQF_port3_enable.attr,
+	&dev_attr_CQF_priority_port3.attr,
+	&dev_attr_CQF_base_queue_port3.attr,
 	NULL,
 };
 

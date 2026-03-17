@@ -345,6 +345,11 @@
 
 #define MAX_ETH_FRAME				2000
 
+/* Qch */
+#define ETHSW_MMCTL_CQF_CTRL(port)		(0x3BC0 + 0x004 * (port))
+#define ETHSW_MMCTL_CQF_PRIO_MASK		GENMASK(7, 0)
+#define ETHSW_MMCTL_CQF_QUEUE_MASK		GENMASK(10, 8)
+
 struct fdb_entry {
 	u8 mac[ETH_ALEN];
 	u16 valid:1;
@@ -378,6 +383,13 @@ struct ethsw_port_hwtstamp {
 
 	/* Current timestamp configuration */
 	struct hwtstamp_config tstamp_config;
+};
+
+/* A structure to hold CQF information per port */
+struct ethsw_cqf_port_config {
+	bool enable;
+	u8 priority;
+	u8 base_queue;
 };
 
 /**
@@ -421,6 +433,8 @@ struct ethsw {
 	/* Per-port timestamping resources */
 	struct ethsw_port_hwtstamp port_hwtstamp[ETHSW_PORTS_NUM - 1];
 	int num_tx_queues;
+	/* CQF ports configurations */
+	struct ethsw_cqf_port_config cqf_port_config[ETHSW_PORTS_NUM];
 };
 
 /* State flags for ethsw_port_hwtstamp::state */
