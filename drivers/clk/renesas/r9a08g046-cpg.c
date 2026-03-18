@@ -814,6 +814,12 @@ static const unsigned int r9a08g046_crit_mod_clks[] __initconst = {
 	MOD_CLK_BASE + R9A08G046_VBAT_BCLK,
 	MOD_CLK_BASE + R9A08G046_GPIO_HCLK,
 	MOD_CLK_BASE + R9A08G046_WDT0_PCLK,
+	MOD_CLK_BASE + R9A08G046_DMAC_ACLK,
+};
+
+static const unsigned int r9a08g046_critical_resets[] = {
+	R9A08G046_DMAC_ARESETN,
+	R9A08G046_DMAC_RST_ASYNC,
 };
 
 const struct rzg2l_cpg_info r9a08g046_cpg_info = {
@@ -835,6 +841,10 @@ const struct rzg2l_cpg_info r9a08g046_cpg_info = {
 	/* Resets */
 	.resets = r9a08g046_resets,
 	.num_resets = R9A08G046_VBAT_BRESETN + 1, /* Last reset ID + 1 */
+
+	/* Critical Resets */
+	.crit_resets = r9a08g046_critical_resets,
+	.num_crit_resets = ARRAY_SIZE(r9a08g046_critical_resets),
 
 	.has_clk_mon_regs = true,
 
