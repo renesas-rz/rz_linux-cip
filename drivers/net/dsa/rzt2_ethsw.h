@@ -13,6 +13,7 @@
 #include <linux/net/renesas/rzt2-ethss.h>
 #include <linux/ptp_clock_kernel.h>
 #include <net/dsa.h>
+#include <net/pkt_sched.h>
 
 #define ETHSW_REVISION			0x0
 #define ETHSW_PORT_OFFSET(port)		(0x400 * (port))
@@ -218,6 +219,7 @@
 
 #define ETHSW_VLAN_TAG(prio, id)	(((prio) << 12) | (id))
 #define ETHSW_PORTS_NUM			4
+#define ETHSW_NUM_TC			8
 #define ETHSW_CPU_PORT			(ETHSW_PORTS_NUM - 1)
 #define ETHSW_MDIO_DEF_FREQ		2500000
 #define ETHSW_MDIO_TIMEOUT		100
@@ -242,6 +244,56 @@
 #define ETHSW_SWTMPSEC(n)		(0x400 + 0x40C + 0x100 * (n))
 #define ETHSW_SWTMPNS(n)		(0x400 + 0x410 + 0x100 * (n))
 #define ETHSW_SWTMWTH(n)		(0x400 + 0x414 + 0x100 * (n))
+
+/* Priority class traffic */
+#define ETHSW_PRIORITY_CFG(port)	(0x180 + 4 * (port))
+#define ETHSW_PRIORITY_CFG_VLANEN	BIT(0)
+#define ETHSW_PRIORITY_CFG_DEFAULTPRI	GENMASK(6, 4)
+
+#define ETHSW_PRIORITY_VLAN_PRIORITY(port)		(0x100 + 4 * (port))
+#define ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY0(x)	((x) & GENMASK(2, 0))
+#define ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY1(x)	(((x) << 3) & GENMASK(5, 3))
+#define ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY2(x)	(((x) << 6) & GENMASK(8, 6))
+#define ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY3(x)	(((x) << 9) & GENMASK(11, 9))
+#define ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY4(x)	(((x) << 12) & GENMASK(14, 12))
+#define ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY5(x)	(((x) << 15) & GENMASK(17, 15))
+#define ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY6(x)	(((x) << 18) & GENMASK(20, 18))
+#define ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY7(x)	(((x) << 21) & GENMASK(23, 21))
+
+/* TDMA Scheduler*/
+#define ETHSW_MMCTL_QGATE			0x3B6C
+#define ETHSW_MMCTL_QGATE_QUEUE_GATE(x)		(((x) << 16) & GENMASK(31, 16))
+#define ETHSW_MMCTL_QGATE_NOT_CHANGE		0
+#define ETHSW_MMCTL_QGATE_TOGGLE		1
+#define ETHSW_MMCTL_QGATE_CLOSE			2
+#define ETHSW_MMCTL_QGATE_OPEN			3
+
+#define ETHSW_TDMA_CONFIG			0x3E80
+#define ETHSW_TDMA_CONFIG_TDMA_ENA		BIT(0)
+#define ETHSW_TDMA_CONFIG_TIMER_SEL		BIT(2)
+#define ETHSW_TDMA_ENA_CTRL			0x3E84
+#define ETHSW_TDMA_START			0x3E88
+#define ETHSW_TDMA_MODULO			0x3E8C
+#define ETHSW_TDMA_CYCLE			0x3E90
+#define ETHSW_TCV_SEQ_ADDR			0x3E94
+#define ETHSW_TCV_SEQ_ADDR_S_ADDR(x)		((x) & GENMASK(11, 0))
+#define ETHSW_TCV_SEQ_CTRL			0x3E98
+#define ETHSW_TCV_SEQ_CTRL_START		BIT(0)
+#define ETHSW_TCV_SEQ_CTRL_D_INDEX(x)		(((x) << 2) & GENMASK(10, 2))
+#define ETHSW_TCV_D_ADDR			0x3EA0
+#define ETHSW_TCV_D_ADDR_ADDR(x)		((x) & GENMASK(8, 0))
+#define ETHSW_TCV_D_OFFSET			0x3EA4
+#define ETHSW_TCV_D_CTRL			0x3EA8
+#define ETHSW_TCV_D_CTRL_INC_CTR0		BIT(0)
+#define ETHSW_TCV_D_CTRL_OUT_CT_ENA		BIT(3)
+#define ETHSW_TCV_D_CTRL_IN_CT_ENA		BIT(4)
+#define ETHSW_TCV_D_CTRL_GATE_MODE		BIT(6)
+#define ETHSW_TCV_D_CTRL_QGATE(x)		(((x) << 8) & GENMASK(15, 8))
+#define ETHSW_TCV_D_CTRL_PMASK(x)		(((x) << 16) & GENMASK(19, 16))
+#define ETHSW_TDMA_TCV_START			0x3EB4
+#define ETHSW_TCV_SEQ_LAST			0x3E9C
+#define ETHSW_TCV_SEQ_LAST_LAST(x)		((x) & GENMASK(11, 0))
+#define ETHSW_TDMA_CTR0				0x3EAC
 
 struct fdb_entry {
 	u8 mac[ETH_ALEN];
@@ -318,6 +370,7 @@ struct ethsw {
 	u32 clk_ptp_rate;
 	/* Per-port timestamping resources */
 	struct ethsw_port_hwtstamp port_hwtstamp[ETHSW_PORTS_NUM - 1];
+	int num_tx_queues;
 };
 
 /* State flags for ethsw_port_hwtstamp::state */
