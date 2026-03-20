@@ -14,6 +14,8 @@
 #include <linux/gpio/consumer.h>
 #include <linux/reset.h>
 #include <net/dsa.h>
+#include <net/tc_act/tc_gate.h>
+#include <net/pkt_sched.h>
 #include <linux/net/renesas/rzt2-ethss.h>
 #include <linux/net/renesas/rzt2_timer_hwtstamp.h>
 
@@ -1039,6 +1041,204 @@ static int ethsw_setup(struct dsa_switch *ds)
 	return 0;
 }
 
+static void ethsw_tdma_gcl_set(struct ethsw *ethsw, const u32 gcl_ix,
+			       struct tc_taprio_sched_entry *entry, int port, u32 time_offset)
+{
+	u32 tcv_seq_ctrl = 0, tcv_d_ctrl = 0;
+
+	/* sets TCV sequence */
+	if (gcl_ix == 0)
+		tcv_seq_ctrl |= ETHSW_TCV_SEQ_CTRL_START;
+
+	tcv_seq_ctrl |= ETHSW_TCV_SEQ_CTRL_D_INDEX(gcl_ix);
+
+	ethsw_reg_writel(ethsw, ETHSW_TCV_SEQ_ADDR, ETHSW_TCV_SEQ_ADDR_S_ADDR(gcl_ix));
+	ethsw_reg_writel(ethsw, ETHSW_TCV_SEQ_CTRL, tcv_seq_ctrl);
+
+	/* sets TCV data */
+	ethsw_reg_writel(ethsw, ETHSW_TCV_D_ADDR, ETHSW_TCV_D_ADDR_ADDR(gcl_ix));
+	ethsw_reg_writel(ethsw, ETHSW_TCV_D_OFFSET, time_offset);
+
+	tcv_d_ctrl = ETHSW_TCV_D_CTRL_QGATE(entry->gate_mask)
+			| ETHSW_TCV_D_CTRL_PMASK(BIT(port))
+			| ETHSW_TCV_D_CTRL_GATE_MODE
+			| ETHSW_TCV_D_CTRL_IN_CT_ENA
+			| ETHSW_TCV_D_CTRL_OUT_CT_ENA
+			| ETHSW_TCV_D_CTRL_INC_CTR0;
+
+	ethsw_reg_writel(ethsw, ETHSW_TCV_D_CTRL, tcv_d_ctrl);
+}
+
+static void ethsw_tdma_start_time(struct ethsw *ethsw, u32 base_time,
+				  u32 *tdma_start, u32 *tdma_ctr)
+{
+	u64 now, start_time;
+	struct timespec64 ts;
+
+	ethsw_time_get(ethsw->base, &now, ethsw->ethsw_ptp_timer);
+	ts = ns_to_timespec64(now);
+	*tdma_ctr = ts.tv_nsec;
+
+	start_time = now + base_time;
+	ts = ns_to_timespec64(start_time);
+	*tdma_start = ts.tv_nsec;
+}
+
+static int ethsw_tc_taprio_set_schedule(struct ethsw *ethsw, int port,
+					struct tc_taprio_qopt_offload *taprio)
+{
+	int i, time_offset, queue_gate, mmctl_qgate;
+	u32 tdma_start, tdma_ctr;
+
+	/* Disable TDMA operation */
+	ethsw_reg_rmw(ethsw, ETHSW_TDMA_CONFIG, ETHSW_TDMA_CONFIG_TDMA_ENA, 0);
+
+	/* Enable VLAN Priority, also enable for management port */
+	ethsw_reg_rmw(ethsw, ETHSW_PRIORITY_CFG(port), ETHSW_PRIORITY_CFG_VLANEN, ETHSW_PRIORITY_CFG_VLANEN);
+	ethsw_reg_rmw(ethsw, ETHSW_PRIORITY_CFG(3), ETHSW_PRIORITY_CFG_VLANEN, ETHSW_PRIORITY_CFG_VLANEN);
+
+	/* Map traffic class to queue. Use VLAN priority to map, also for management port */
+	ethsw_reg_writel(ethsw, ETHSW_PRIORITY_VLAN_PRIORITY(port),
+			 ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY0(0)
+			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY1(1)
+			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY2(2)
+			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY3(3)
+			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY4(4)
+			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY5(5)
+			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY6(6)
+			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY7(7));
+
+	ethsw_reg_writel(ethsw, ETHSW_PRIORITY_VLAN_PRIORITY(3),
+			 ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY0(0)
+			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY1(1)
+			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY2(2)
+			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY3(3)
+			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY4(4)
+			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY5(5)
+			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY6(6)
+			 | ETHSW_PRIORITY_VLAN_PRIORITY_PRIORITY7(7));
+
+	/* Setting gate control */
+	for (i = 0, time_offset = 0; i < taprio->num_entries; i++) {
+		ethsw_tdma_gcl_set(ethsw, i, &taprio->entries[i], port, time_offset);
+		time_offset += taprio->entries[i].interval;
+	}
+
+	ethsw_reg_writel(ethsw, ETHSW_TDMA_TCV_START, 0);
+	ethsw_reg_writel(ethsw, ETHSW_TCV_SEQ_LAST, ETHSW_TCV_SEQ_LAST_LAST(taprio->num_entries - 1));
+
+	/* Set base time, cycle */
+	ethsw_tdma_start_time(ethsw, taprio->base_time, &tdma_start, &tdma_ctr);
+	ethsw_reg_writel(ethsw, ETHSW_TDMA_START, tdma_start);
+	ethsw_reg_writel(ethsw, ETHSW_TDMA_MODULO, 1000*1000*1000);
+	ethsw_reg_writel(ethsw, ETHSW_TDMA_CYCLE, taprio->cycle_time);
+
+	ethsw_reg_rmw(ethsw, ETHSW_TDMA_ENA_CTRL, BIT(port), BIT(port));
+
+	/* Select timer 0 */
+	ethsw_reg_rmw(ethsw, ETHSW_TDMA_CONFIG, ETHSW_TDMA_CONFIG_TIMER_SEL, 0);
+
+	/* Set timer 0 */
+	ethsw_reg_writel(ethsw, ETHSW_TDMA_CTR0, tdma_ctr);
+
+	/* Enable TDMA */
+	ethsw_reg_rmw(ethsw, ETHSW_TDMA_CONFIG, ETHSW_TDMA_CONFIG_TDMA_ENA, ETHSW_TDMA_CONFIG_TDMA_ENA);
+
+	/* Close all queue gate to wait for TDMA control */
+	queue_gate = 0;
+	for (i = 0; i < ETHSW_NUM_TC; i++)
+		queue_gate |= (ETHSW_MMCTL_QGATE_CLOSE & 0x3) << (i * 2);
+
+	mmctl_qgate  = BIT(port);
+	mmctl_qgate |= ETHSW_MMCTL_QGATE_QUEUE_GATE(queue_gate);
+
+	ethsw_reg_writel(ethsw, ETHSW_MMCTL_QGATE, mmctl_qgate);
+
+	return 0;
+}
+
+static int ethsw_tc_taprio_del_schedule(struct ethsw *ethsw, int port,
+					struct tc_taprio_qopt_offload *taprio)
+{
+	int i, queue_gate, mmctl_qgate;
+
+	/* Disable TDMA operation */
+	ethsw_reg_rmw(ethsw, ETHSW_TDMA_CONFIG, ETHSW_TDMA_CONFIG_TDMA_ENA, 0);
+
+	/* Remove priority config */
+	ethsw_reg_writel(ethsw, ETHSW_PRIORITY_CFG(port), 0);
+	ethsw_reg_writel(ethsw, ETHSW_PRIORITY_CFG(3), 0);
+
+	/* Remove VLAN priority mapping */
+	ethsw_reg_writel(ethsw, ETHSW_PRIORITY_VLAN_PRIORITY(port), 0);
+	ethsw_reg_writel(ethsw, ETHSW_PRIORITY_VLAN_PRIORITY(3), 0);
+
+	/* Remove gate control */
+	for (i = 0; i < taprio->num_entries; i++)
+		ethsw_tdma_gcl_set(ethsw, i, &taprio->entries[i], port, 0);
+
+	ethsw_reg_writel(ethsw, ETHSW_TDMA_TCV_START, 0);
+	ethsw_reg_writel(ethsw, ETHSW_TCV_SEQ_LAST, 0);
+
+	/* Reset base time, cycle */
+	ethsw_reg_writel(ethsw, ETHSW_TDMA_START, 0);
+	ethsw_reg_writel(ethsw, ETHSW_TDMA_MODULO, 0);
+	ethsw_reg_writel(ethsw, ETHSW_TDMA_CYCLE, 0);
+
+	ethsw_reg_writel(ethsw, ETHSW_TDMA_ENA_CTRL, 0);
+
+	ethsw_reg_writel(ethsw, ETHSW_TDMA_CTR0, 0);
+
+	/* Disable TDMA */
+	ethsw_reg_writel(ethsw, ETHSW_TDMA_CONFIG, 0);
+
+	/* Open all queue gate for normal operation */
+	queue_gate = 0;
+	for (i = 0; i < ETHSW_NUM_TC; i++)
+		queue_gate |= (ETHSW_MMCTL_QGATE_OPEN & 0x3) << (i * 2);
+
+	mmctl_qgate  = BIT(port);
+	mmctl_qgate |= ETHSW_MMCTL_QGATE_QUEUE_GATE(queue_gate);
+
+	ethsw_reg_writel(ethsw, ETHSW_MMCTL_QGATE, mmctl_qgate);
+
+	return 0;
+}
+
+static int ethsw_setup_tc_taprio(struct ethsw *ethsw, int port,
+				 struct tc_taprio_qopt_offload *taprio)
+{
+	int err = 0;
+
+	switch (taprio->cmd) {
+	case TAPRIO_CMD_REPLACE:
+		err = ethsw_tc_taprio_set_schedule(ethsw, port, taprio);
+		break;
+	case TAPRIO_CMD_DESTROY:
+		err = ethsw_tc_taprio_del_schedule(ethsw, port, taprio);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+	}
+
+	return err;
+}
+
+static int ethsw_port_setup_tc(struct dsa_switch *ds, int port,
+			       enum tc_setup_type type,
+			       void *type_data)
+{
+	struct ethsw *ethsw = ds->priv;
+
+	switch (type) {
+	case TC_SETUP_QDISC_TAPRIO:
+		return ethsw_setup_tc_taprio(ethsw, port, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+
 static const struct phylink_mac_ops ethsw_phylink_mac_ops = {
 	.mac_select_pcs = ethsw_phylink_mac_select_pcs,
 	.mac_config = ethsw_phylink_mac_config,
@@ -1078,6 +1278,7 @@ static const struct dsa_switch_ops ethsw_switch_ops = {
 	.port_hwtstamp_get = ethsw_port_hwtstamp_get,
 	.port_rxtstamp = ethsw_port_rxtstamp,
 	.port_txtstamp = ethsw_port_txtstamp,
+	.port_setup_tc = ethsw_port_setup_tc,
 };
 
 static int ethsw_mdio_wait_busy(struct ethsw *ethsw)
@@ -2041,6 +2242,7 @@ static int ethsw_probe(struct platform_device *pdev)
 	ds = &ethsw->ds;
 	ds->dev = dev;
 	ds->num_ports = ETHSW_PORTS_NUM;
+	ds->num_tx_queues = ETHSW_NUM_TC;
 	ds->ops = &ethsw_switch_ops;
 	ds->phylink_mac_ops = &ethsw_phylink_mac_ops;
 	ds->priv = ethsw;
