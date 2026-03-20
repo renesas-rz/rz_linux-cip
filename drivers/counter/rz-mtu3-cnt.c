@@ -498,10 +498,12 @@ static int rz_mtu3_count_enable_read(struct counter_device *counter,
 	if (ret)
 		return ret;
 
+	pm_runtime_get_sync(counter->parent);
 	if (count->id == RZ_MTU3_32_BIT_CH)
 		*enable = rz_mtu3_is_enabled(ch1) && rz_mtu3_is_enabled(ch2);
 	else
 		*enable = rz_mtu3_is_enabled(ch);
+	pm_runtime_put(counter->parent);
 
 	mutex_unlock(&priv->lock);
 
