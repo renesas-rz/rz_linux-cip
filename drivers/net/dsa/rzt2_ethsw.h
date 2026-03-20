@@ -155,6 +155,7 @@
 
 #define ETHSW_CMD_CFG(port)		(0x808 + ETHSW_PORT_OFFSET(port))
 #define ETHSW_CMD_CFG_TIMER_SEL		BIT(30)
+#define ETHSW_CMD_CFG_EFPI_SELECT	BIT(26)
 #define ETHSW_CMD_CFG_CNTL_FRM_ENA	BIT(23)
 #define ETHSW_CMD_CFG_SW_RESET		BIT(13)
 #define ETHSW_CMD_CFG_TX_CRC_APPEND	BIT(11)
@@ -280,6 +281,7 @@
 #define ETHSW_TCV_SEQ_CTRL			0x3E98
 #define ETHSW_TCV_SEQ_CTRL_START		BIT(0)
 #define ETHSW_TCV_SEQ_CTRL_D_INDEX(x)		(((x) << 2) & GENMASK(10, 2))
+#define ETHSW_TCV_SEQ_CTRL_GPIO(x)		((BIT(x) << 22) & GENMASK(29, 22))
 #define ETHSW_TCV_D_ADDR			0x3EA0
 #define ETHSW_TCV_D_ADDR_ADDR(x)		((x) & GENMASK(8, 0))
 #define ETHSW_TCV_D_OFFSET			0x3EA4
@@ -294,6 +296,54 @@
 #define ETHSW_TCV_SEQ_LAST			0x3E9C
 #define ETHSW_TCV_SEQ_LAST_LAST(x)		((x) & GENMASK(11, 0))
 #define ETHSW_TDMA_CTR0				0x3EAC
+
+/* Qci */
+#define ETHSW_ASI_MEM_WDATA(port)		(0x23CC + 0x004 * (port))
+#define ETHSW_EFP_ASI_ADDR_NUM			128
+#define ETHSW_ASI_MEM_ADDR			0x23DC
+#define ETHSW_MEM_WEN_ENABLE			BIT(7)
+
+#define ETHSW_CHANNEL_STATE			0x23C0
+#define ETHSW_CHANNEL_ENABLE			0x23C4
+#define ETHSW_CHANNEL_DISABLE			0x23C8
+
+#define ETHSW_MAX_SID				7
+
+#define ETHSW_QSFTBL(port, sid)			(0x2018 + 0x400 * (port) + 0x028 * (sid))
+#define ETHSW_QSFTBL_QSTE			BIT(0)
+#define ETHSW_QSFTBL_MEID_MASK			GENMASK(10, 8)
+#define ETHSW_QSFTBL_MEID_POS			8
+#define ETHSW_MAX_MEID				7
+#define ETHSW_QSFTBL_MEIDV_POS			12
+#define ETHSW_QSFTBL_GAID_MASK			GENMASK(6, 4)
+#define ETHSW_QSFTBL_GAIDV			BIT(7)
+
+#define ETHSW_QSTMACU(port, sid)		(0x2000 + 0x400 * (port) + 0x028 * (sid))
+#define ETHSW_QSTMACU_DASA			16
+#define ETHSW_QSTMACU_MACA_MASK			GENMASK(15, 0)
+#define ETHSW_QSTMACD(port, sid)		(0x2004 + 0x400 * (port) + 0x028 * (sid))
+#define ETHSW_QSTMAMU(port, sid)		(0x2008 + 0x400 * (port) + 0x028 * (sid))
+#define ETHSW_QSTMAMD(port, sid)		(0x200C + 0x400 * (port) + 0x028 * (sid))
+
+#define ETHSW_QSFTVL(port, sid)			(0x2010 + 0x400 * (port) + 0x028 * (sid))
+#define ETHSW_QSFTVL_TAGMD(tagmd)		(((tagmd) << 16) & GENMASK(17, 16))
+#define ETHSW_QSFTVL_PCP(pcp)			(((pcp) << 13) & GENMASK(15, 13))
+#define ETHSW_QSFTVL_DEI(dei)			(((dei) << 12) & BIT(12))
+#define ETHSW_QSFTVL_VLANID(vlanid)		((vlanid) & GENMASK(11, 0))
+
+#define ETHSW_QSFTVLM(port, sid)		(0x2014 + 0x400 * (port) + 0x028 * (sid))
+#define ETHSW_QSFTVLM_PCPM(pcpm)		(((pcpm) << 13) & GENMASK(15, 13))
+#define ETHSW_QSFTVLM_DEIM(deim)		(((deim) << 12) & BIT(12))
+#define ETHSW_QSFTVLM_VLANIDM(vlanidm)		((vlanidm) & GENMASK(11, 0))
+
+#define ETHSW_QMDESC(port, meid)		(0x2250 + 0x400 * (port) + 0x014 * (meid))
+#define ETHSW_QMDESC_RFD			BIT(0)
+
+#define ETHSW_QMCBSC(port, meid)		(0x2254 + 0x400 * (port) + 0x014 * (meid))
+#define ETHSW_QMCIRC(port, meid)		(0x2258 + 0x400 * (port) + 0x014 * (meid))
+#define ETHSW_QMEC(port)			(0x22F0 + 0x400 * (port))
+
+#define MAX_ETH_FRAME				2000
 
 struct fdb_entry {
 	u8 mac[ETH_ALEN];
@@ -394,6 +444,31 @@ enum {
 #define EGRESS_DELAY_10M		(3565 - 12)
 #define EGRESS_DELAY_100M		(374 - 12)
 #define EGRESS_DELAY_1G			(76 - 12)
+
+enum ethsw_vlan_tag_mode {
+	ETHSW_VLAN_TAG_MODE_UN_TAGGED = 0,
+	ETHSW_VLAN_TAG_MODE_C_TAGGED,
+	ETHSW_VLAN_TAG_MODE_DO_NOT_CHECK_VLAN_TAG = 3,
+};
+
+struct ethsw_qci_stream_filter {
+	u8 qdasa;				/* MAC address (MACA) select */
+	u8 qmac[6];				/* Qci stream filter table MAC address */
+	u8 qmam[6];				/* Qci stream filter table MAC address bit mask */
+	enum ethsw_vlan_tag_mode tagmd;		/* Qci stream filter table VLAN Tag Mode */
+	u16 vlanid;				/* Qci stream filter table VLAN ID[11:0] */
+	u8 dei;					/* Qci stream filter table VLAN DEI */
+	u8 pcp;					/* Qci stream filter table VLAN PCP[2:0] */
+	u16 vlanidm;				/* Qci stream filter table VLAN ID[11:0] bit mask */
+	u8 deim;				/* Qci stream filter table VLAN DEI bit mask */
+	u8 pcpm;				/* Qci stream filter table VLAN PCP[2:0] bit mask */
+};
+
+struct ethsw_flow_meter {
+	u8  meid;	/* Qci stream filter table Meter ID */
+	u32 cbs;	/* CBS (Committed Burst Size) */
+	u32 cir;	/* CIR (Committed Information Rate) */
+};
 
 int ethsw_get_ts_info(struct dsa_switch *ds, int port,
 		      struct kernel_ethtool_ts_info *info);

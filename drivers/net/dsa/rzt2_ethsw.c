@@ -1060,11 +1060,11 @@ static void ethsw_tdma_gcl_set(struct ethsw *ethsw, const u32 gcl_ix,
 	ethsw_reg_writel(ethsw, ETHSW_TCV_D_OFFSET, time_offset);
 
 	tcv_d_ctrl = ETHSW_TCV_D_CTRL_QGATE(entry->gate_mask)
-			| ETHSW_TCV_D_CTRL_PMASK(BIT(port))
-			| ETHSW_TCV_D_CTRL_GATE_MODE
-			| ETHSW_TCV_D_CTRL_IN_CT_ENA
-			| ETHSW_TCV_D_CTRL_OUT_CT_ENA
-			| ETHSW_TCV_D_CTRL_INC_CTR0;
+		   | ETHSW_TCV_D_CTRL_PMASK(BIT(port))
+		   | ETHSW_TCV_D_CTRL_GATE_MODE
+		   | ETHSW_TCV_D_CTRL_IN_CT_ENA
+		   | ETHSW_TCV_D_CTRL_OUT_CT_ENA
+		   | ETHSW_TCV_D_CTRL_INC_CTR0;
 
 	ethsw_reg_writel(ethsw, ETHSW_TCV_D_CTRL, tcv_d_ctrl);
 }
@@ -1238,6 +1238,431 @@ static int ethsw_port_setup_tc(struct dsa_switch *ds, int port,
 	}
 }
 
+static int ethsw_filter_table_set(struct ethsw *ethsw, int port, int sid,
+				  struct ethsw_qci_stream_filter *flt_entry)
+{
+	if (sid > ETHSW_MAX_SID)
+		return -EINVAL;
+
+	/* Disable stream filter table */
+	ethsw_reg_rmw(ethsw, ETHSW_QSFTBL(port, sid), ETHSW_QSFTBL_QSTE, 0);
+
+	/* Set MAC address */
+	ethsw_reg_rmw(ethsw, ETHSW_QSTMACU(port, sid), BIT(ETHSW_QSTMACU_DASA),
+		      flt_entry->qdasa << ETHSW_QSTMACU_DASA);
+	ethsw_reg_rmw(ethsw, ETHSW_QSTMACU(port, sid), ETHSW_QSTMACU_MACA_MASK,
+		      flt_entry->qmac[0] << 8 | flt_entry->qmac[1]);
+	ethsw_reg_writel(ethsw, ETHSW_QSTMACD(port, sid),
+			 ((u32)flt_entry->qmac[2] << 24U) |
+			 ((u32)flt_entry->qmac[3] << 16U) |
+			 ((u32)flt_entry->qmac[4] << 8U) |
+			 ((u32)flt_entry->qmac[5]));
+
+	/* Set MAC address mask*/
+	ethsw_reg_writel(ethsw, ETHSW_QSTMAMU(port, sid),
+			 flt_entry->qmam[0] << 8 | flt_entry->qmam[1]);
+	ethsw_reg_writel(ethsw, ETHSW_QSTMAMD(port, sid),
+			 ((u32)flt_entry->qmam[2] << 24U) |
+			 ((u32)flt_entry->qmam[3] << 16U) |
+			 ((u32)flt_entry->qmam[4] << 8U) |
+			 ((u32)flt_entry->qmam[5]));
+
+	/* Set VLAN */
+	ethsw_reg_writel(ethsw, ETHSW_QSFTVL(port, sid),
+			 ETHSW_QSFTVL_TAGMD(flt_entry->tagmd) |
+			 ETHSW_QSFTVL_PCP(flt_entry->pcp) |
+			 ETHSW_QSFTVL_DEI(flt_entry->dei) |
+			 ETHSW_QSFTVL_VLANID(flt_entry->vlanid));
+
+	/* Set VLAN Mask*/
+	ethsw_reg_writel(ethsw, ETHSW_QSFTVLM(port, sid),
+			 ETHSW_QSFTVLM_PCPM(flt_entry->pcpm) |
+			 ETHSW_QSFTVLM_DEIM(flt_entry->deim) |
+			 ETHSW_QSFTVLM_VLANIDM(flt_entry->vlanidm));
+
+	return 0;
+}
+
+static void ethsw_filter_table_enable(struct ethsw *ethsw, int port, int sid, bool enable)
+{
+	if (enable)
+		ethsw_reg_rmw(ethsw, ETHSW_QSFTBL(port, sid), ETHSW_QSFTBL_QSTE, ETHSW_QSFTBL_QSTE);
+	else
+		ethsw_reg_writel(ethsw, ETHSW_QSFTBL(port, sid), 0);
+}
+
+static int ethsw_flow_metering_set(struct ethsw *ethsw, int port,
+				   struct netlink_ext_ack *extack,
+				   int sid,
+				   struct ethsw_flow_meter *p_meter)
+{
+	if (sid > ETHSW_MAX_SID) {
+		NL_SET_ERR_MSG_MOD(extack, "Can only metering 7 stream");
+		return -EINVAL;
+	}
+
+	if (p_meter->meid > ETHSW_MAX_MEID) {
+		NL_SET_ERR_MSG_MOD(extack, "Can only metering 7 stream");
+		return -EINVAL;
+	}
+
+	/* Set meid */
+	ethsw_reg_rmw(ethsw, ETHSW_QSFTBL(port, sid), ETHSW_QSFTBL_MEID_MASK,
+		      p_meter->meid << ETHSW_QSFTBL_MEID_POS);
+	/* Enable Meter check */
+	ethsw_reg_rmw(ethsw, ETHSW_QSFTBL(port, sid),
+		      BIT(ETHSW_QSFTBL_MEIDV_POS), BIT(ETHSW_QSFTBL_MEIDV_POS));
+
+	/* Red frame drop */
+	ethsw_reg_rmw(ethsw, ETHSW_QMDESC(port, p_meter->meid), ETHSW_QMDESC_RFD, ETHSW_QMDESC_RFD);
+
+	/* Set CBS, CIR */
+	ethsw_reg_writel(ethsw, ETHSW_QMCBSC(port, p_meter->meid), p_meter->cbs);
+	ethsw_reg_writel(ethsw, ETHSW_QMCIRC(port, p_meter->meid), p_meter->cir);
+
+	/* Enable meter */
+	ethsw_reg_rmw(ethsw, ETHSW_QMEC(port), BIT(p_meter->meid), BIT(p_meter->meid));
+
+	return 0;
+}
+
+static int ethsw_flower_parse_filter(struct netlink_ext_ack *extack,
+				     struct flow_cls_offload *cls,
+				     struct ethsw_qci_stream_filter *filter)
+{
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
+	struct flow_dissector *dissector = rule->match.dissector;
+	int i;
+
+	if (dissector->used_keys &
+	    ~(BIT_ULL(FLOW_DISSECTOR_KEY_BASIC) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_VLAN) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS))) {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported keys used");
+		return -EOPNOTSUPP;
+	}
+
+	if (flow_rule_match_has_control_flags(rule, extack))
+		return -EOPNOTSUPP;
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_match_basic match;
+
+		flow_rule_match_basic(rule, &match);
+		if (match.key->n_proto) {
+			NL_SET_ERR_MSG_MOD(extack,
+					"Matching on protocol not supported");
+			return -EOPNOTSUPP;
+		}
+	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
+		struct flow_match_eth_addrs match;
+
+		flow_rule_match_eth_addrs(rule, &match);
+
+		if (!is_zero_ether_addr(match.mask->dst) &&
+		    !is_zero_ether_addr(match.mask->src)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Cannot match on both source and destination MAC");
+			return -EINVAL;
+		}
+
+		if (!is_zero_ether_addr(match.mask->dst)) {
+			ether_addr_copy(filter->qmac, match.key->dst);
+			ether_addr_copy(filter->qmam, match.mask->dst);
+			for (i = 0; i < 6; i++)
+				filter->qmam[i] = ~filter->qmam[i];
+			filter->qdasa = 1;
+		}
+
+		if (!is_zero_ether_addr(match.mask->src)) {
+			ether_addr_copy(filter->qmac, match.key->src);
+			ether_addr_copy(filter->qmam, match.mask->src);
+			for (i = 0; i < 6; i++)
+				filter->qmam[i] = ~filter->qmam[i];
+			filter->qdasa = 0;
+		}
+	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_match_vlan match;
+
+		flow_rule_match_vlan(rule, &match);
+		filter->tagmd   = ETHSW_VLAN_TAG_MODE_C_TAGGED;
+		filter->vlanid  = match.key->vlan_id;
+		filter->dei     = match.key->vlan_dei;
+		filter->pcp     = match.key->vlan_priority;
+	}
+
+	return 0;
+}
+
+static int ethsw_policer_validate(const struct flow_action *action,
+				  const struct flow_action_entry *act,
+				  struct netlink_ext_ack *extack)
+{
+	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when exceed action is not drop");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
+	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is not pipe or ok");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	    !flow_action_is_last_entry(action, act)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is ok, but action is not last");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.peakrate_bytes_ps ||
+	    act->police.avrate || act->police.overhead) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when peakrate/avrate/overhead is configured");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.rate_pkt_ps) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "QoS offload not support packets per second");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static void ethsw_efp_table_enable(struct ethsw *ethsw, int port, bool enable)
+{
+	u8 addr;
+
+	ethsw_reg_writel(ethsw, ETHSW_ASI_MEM_WDATA(0), 0);
+	ethsw_reg_writel(ethsw, ETHSW_ASI_MEM_WDATA(1), 0);
+	ethsw_reg_writel(ethsw, ETHSW_ASI_MEM_WDATA(2), 0);
+	ethsw_reg_writel(ethsw, ETHSW_ASI_MEM_WDATA(3), 0);
+
+	if (enable) {
+		for (addr = 0; addr < ETHSW_EFP_ASI_ADDR_NUM; addr++)
+			ethsw_reg_writel(ethsw, ETHSW_ASI_MEM_ADDR, (BIT(port) << 8) | ETHSW_MEM_WEN_ENABLE | addr);
+		/* Enable EFP port */
+		ethsw_reg_rmw(ethsw, ETHSW_CMD_CFG(port), ETHSW_CMD_CFG_EFPI_SELECT, ETHSW_CMD_CFG_EFPI_SELECT);
+	} else {
+		for (addr = 0; addr < ETHSW_EFP_ASI_ADDR_NUM; addr++)
+			ethsw_reg_writel(ethsw, ETHSW_ASI_MEM_ADDR, (BIT(port) << 8) | addr);
+		/* Disable EFP port */
+		ethsw_reg_rmw(ethsw, ETHSW_CMD_CFG(port), ETHSW_CMD_CFG_EFPI_SELECT, 0);
+	}
+}
+
+static void ethsw_efp_channel_enable(struct ethsw *ethsw, int port, bool enable)
+{
+	if (enable) {
+		ethsw_reg_rmw(ethsw, ETHSW_CHANNEL_ENABLE, BIT(port), BIT(port));
+		while (!((ethsw_reg_readl(ethsw, ETHSW_CHANNEL_STATE) >> port) & 0x1U))
+			;
+	} else {
+		ethsw_reg_rmw(ethsw, ETHSW_CHANNEL_DISABLE, BIT(port), BIT(port));
+		while ((ethsw_reg_readl(ethsw, ETHSW_CHANNEL_STATE) >> port) & 0x1U)
+			;
+	}
+}
+
+static int ethsw_flower_parse_meter(struct ethsw *ethsw, int port,
+				    struct netlink_ext_ack *extack, u8 meid,
+				    u64 rate_bytes_per_sec,
+				    u32 burst,
+				    struct ethsw_flow_meter *p_meter)
+{
+	struct phylink_pcs *pcs = ethsw->pcs[port];
+	struct ethss_port *ethss_port = phylink_pcs_to_ethss_port(pcs);
+	u64 rate_bytes_per_sec_max, cir;
+
+	if (burst < MAX_ETH_FRAME) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Burst must greater than Maximum frame size of an Ethernet Frame 2000");
+		return -EINVAL;
+	}
+
+	p_meter->cbs = burst;
+	p_meter->meid = meid;
+
+	/* Calculate byte per second */
+	rate_bytes_per_sec_max = (ethss_port->speed * 1000 * 1000) / 8;
+	if (rate_bytes_per_sec > rate_bytes_per_sec_max) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Police rate must smaller than port speed");
+		return -EINVAL;
+	}
+
+	/* Calculate fractional part, replenisher at 200MHz */
+	cir = (rate_bytes_per_sec * U16_MAX) / 200000000;
+	p_meter->cir = cir;
+
+	return 0;
+}
+
+static void ethsw_tdma_gpio_gate_set(struct ethsw *ethsw, const u32 gcl_ix,
+				     struct action_gate_entry *entry,
+				     int port, u32 time_offset)
+{
+	u32 tcv_seq_ctrl = 0, tcv_d_ctrl = 0;
+
+	/* sets TCV sequence */
+	if (gcl_ix == 0)
+		tcv_seq_ctrl |= ETHSW_TCV_SEQ_CTRL_START;
+
+	tcv_seq_ctrl |= ETHSW_TCV_SEQ_CTRL_D_INDEX(gcl_ix);
+
+	/* Use tdma_gpio0 for flow gate control */
+	if (entry->gate_state)
+		tcv_seq_ctrl |= ETHSW_TCV_SEQ_CTRL_GPIO(0);
+
+	ethsw_reg_writel(ethsw, ETHSW_TCV_SEQ_ADDR, ETHSW_TCV_SEQ_ADDR_S_ADDR(gcl_ix));
+	ethsw_reg_writel(ethsw, ETHSW_TCV_SEQ_CTRL, tcv_seq_ctrl);
+
+	/* sets TCV data */
+	ethsw_reg_writel(ethsw, ETHSW_TCV_D_ADDR, ETHSW_TCV_D_ADDR_ADDR(gcl_ix));
+	ethsw_reg_writel(ethsw, ETHSW_TCV_D_OFFSET, time_offset);
+
+	/* Use timer 0 for flow gate control */
+	tcv_d_ctrl = ETHSW_TCV_D_CTRL_INC_CTR0;
+
+	ethsw_reg_writel(ethsw, ETHSW_TCV_D_CTRL, tcv_d_ctrl);
+}
+
+static int ethsw_flow_gate_schedule(struct ethsw *ethsw, int port, int sid,
+				    const struct flow_action_entry *act)
+{
+	int i, time_offset;
+	u32 tdma_start, tdma_ctr;
+
+	/* Disable TDMA operation */
+	ethsw_reg_rmw(ethsw, ETHSW_TDMA_CONFIG, ETHSW_TDMA_CONFIG_TDMA_ENA, 0);
+
+	/* Setting flow gate control */
+	for (i = 0, time_offset = 0; i < act->gate.num_entries; i++) {
+		ethsw_tdma_gpio_gate_set(ethsw, i, &act->gate.entries[i], port, time_offset);
+		time_offset += act->gate.entries[i].interval;
+	}
+
+	ethsw_reg_writel(ethsw, ETHSW_TDMA_TCV_START, 0);
+	ethsw_reg_writel(ethsw, ETHSW_TCV_SEQ_LAST, ETHSW_TCV_SEQ_LAST_LAST(act->gate.num_entries - 1));
+
+	/* Set base time, cycle */
+	ethsw_tdma_start_time(ethsw, act->gate.basetime, &tdma_start, &tdma_ctr);
+	ethsw_reg_writel(ethsw, ETHSW_TDMA_START, tdma_start);
+	ethsw_reg_writel(ethsw, ETHSW_TDMA_MODULO, 1000*1000*1000);
+	ethsw_reg_writel(ethsw, ETHSW_TDMA_CYCLE, act->gate.cycletime);
+
+	ethsw_reg_rmw(ethsw, ETHSW_TDMA_ENA_CTRL, BIT(port), BIT(port));
+
+	/* Select timer 0 */
+	ethsw_reg_rmw(ethsw, ETHSW_TDMA_CONFIG, ETHSW_TDMA_CONFIG_TIMER_SEL, 0);
+
+	/* Set timer 0 */
+	ethsw_reg_writel(ethsw, ETHSW_TDMA_CTR0, tdma_ctr);
+
+	/* Enable TDMA */
+	ethsw_reg_rmw(ethsw, ETHSW_TDMA_CONFIG, ETHSW_TDMA_CONFIG_TDMA_ENA, ETHSW_TDMA_CONFIG_TDMA_ENA);
+
+	/* Set Gating Check */
+	ethsw_reg_rmw(ethsw, ETHSW_QSFTBL(port, sid), ETHSW_QSFTBL_GAIDV, ETHSW_QSFTBL_GAIDV);
+	/* Use tdma_gpio0 for Gating Check */
+	ethsw_reg_rmw(ethsw, ETHSW_QSFTBL(port, sid), ETHSW_QSFTBL_GAID_MASK, 0);
+
+	return 0;
+}
+
+static int ethsw_cls_flower_add(struct dsa_switch *ds, int port,
+				struct flow_cls_offload *cls, bool ingress)
+{
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
+	struct netlink_ext_ack *extack = cls->common.extack;
+	struct ethsw *ethsw = ds->priv;
+	const struct flow_action_entry *act;
+	struct ethsw_qci_stream_filter filter;
+	int ret, i;
+
+	ethsw_efp_table_enable(ethsw, port, 1);
+	ethsw_efp_channel_enable(ethsw, port, 1);
+
+	ret = ethsw_flower_parse_filter(extack, cls, &filter);
+	if (ret)
+		return ret;
+
+	flow_action_for_each(i, act, &rule->action) {
+		switch (act->id) {
+		case FLOW_ACTION_POLICE:
+			struct ethsw_flow_meter p_meter;
+
+			ret = ethsw_policer_validate(&rule->action, act, extack);
+			if (ret)
+				break;
+
+			ret = ethsw_filter_table_set(ethsw, port, i, &filter);
+			if (ret)
+				break;
+
+			/* Mapping meid and sid */
+			ret = ethsw_flower_parse_meter(ethsw, port, extack, i,
+						       act->police.rate_bytes_ps,
+						       act->police.burst, &p_meter);
+			if (ret)
+				break;
+
+			ret = ethsw_flow_metering_set(ethsw, port, extack, i,
+						      &p_meter);
+			if (ret)
+				break;
+
+			ethsw_filter_table_enable(ethsw, port, i, 1);
+
+			break;
+		case FLOW_ACTION_GATE:
+			ret = ethsw_filter_table_set(ethsw, port, i, &filter);
+			if (ret)
+				break;
+
+			ret = ethsw_flow_gate_schedule(ethsw, port, i, act);
+			if (ret)
+				break;
+
+			ethsw_filter_table_enable(ethsw, port, i, 1);
+
+			break;
+		default:
+			NL_SET_ERR_MSG_MOD(extack, "Action not supported");
+			ret = -EOPNOTSUPP;
+		}
+	}
+
+	return ret;
+}
+
+static int ethsw_cls_flower_del(struct dsa_switch *ds, int port,
+				struct flow_cls_offload *cls, bool ingress)
+{
+	struct ethsw *ethsw = ds->priv;
+	int i;
+
+	ethsw_efp_table_enable(ethsw, port, 0);
+	ethsw_efp_channel_enable(ethsw, port, 0);
+
+	for (i = 0; i <= ETHSW_MAX_SID; i++)
+		ethsw_filter_table_enable(ethsw, port, i, 0);
+
+	/* Disable TDMA */
+	ethsw_reg_writel(ethsw, ETHSW_TDMA_CONFIG, 0);
+
+	return 0;
+}
 
 static const struct phylink_mac_ops ethsw_phylink_mac_ops = {
 	.mac_select_pcs = ethsw_phylink_mac_select_pcs,
@@ -1279,6 +1704,8 @@ static const struct dsa_switch_ops ethsw_switch_ops = {
 	.port_rxtstamp = ethsw_port_rxtstamp,
 	.port_txtstamp = ethsw_port_txtstamp,
 	.port_setup_tc = ethsw_port_setup_tc,
+	.cls_flower_add	= ethsw_cls_flower_add,
+	.cls_flower_del	= ethsw_cls_flower_del,
 };
 
 static int ethsw_mdio_wait_busy(struct ethsw *ethsw)
