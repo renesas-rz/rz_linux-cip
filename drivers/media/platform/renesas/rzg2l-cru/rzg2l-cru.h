@@ -277,6 +277,7 @@ enum rzg2l_cru_dma_state {
 	RZG2L_CRU_DMA_STARTING,
 	RZG2L_CRU_DMA_RUNNING,
 	RZG2L_CRU_DMA_STOPPING,
+	RZG2L_CRU_DMA_SUSPEND,
 };
 
 struct rzg2l_cru_csi {
@@ -435,7 +436,6 @@ struct rzg2l_cru_dev {
 	struct workqueue_struct *work_queue;
 	struct delayed_work rzg2l_cru_resume;
 	wait_queue_head_t setup_wait;
-	bool suspend;
 };
 
 int rzg2l_cru_start_image_processing(struct rzg2l_cru_dev *cru);
