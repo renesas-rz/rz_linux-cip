@@ -1319,6 +1319,13 @@ static int rzg2l_cru_s_fmt_vid_cap(struct file *file, void *priv,
 		return -EBUSY;
 
 	rzg2l_cru_try_format(cru, &f->fmt.pix);
+	if (cru->format.pixelformat == V4L2_PIX_FMT_NV16) {
+		if (!IS_ALIGNED(cru->format.width * cru->format.height, 0x200)) {
+			dev_err(cru->dev,
+				"sizes must be aligned to 512 bytes\n");
+			return -EINVAL;
+		}
+	}
 
 	cru->format = f->fmt.pix;
 
