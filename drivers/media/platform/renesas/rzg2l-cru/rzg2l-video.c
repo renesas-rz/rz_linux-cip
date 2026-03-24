@@ -39,7 +39,6 @@ struct rzg2l_cru_buffer {
 	struct list_head list;
 };
 
-static int prev_slot[RZG2L_CRU_MAX];
 static void rzg2l_cru_initialize_axi(struct rzg2l_cru_dev *cru);
 
 #define to_buf_list(vb2_buffer) \
@@ -333,6 +332,13 @@ static void rzg2l_cru_initialize_axi(struct rzg2l_cru_dev *cru)
 	amnaxiattr = rzg2l_cru_read(cru, AMnAXIATTR) & ~AMnAXIATTR_AXILEN_MASK;
 	amnaxiattr |= AMnAXIATTR_AXILEN;
 	rzg2l_cru_write(cru, AMnAXIATTR, amnaxiattr);
+
+       /*
+        * AXI-Bus congestion maybe occurred.
+        * Set auto recovery mode to clear all FIFOs
+        * and resume transmission.
+        */
+	rzg2l_cru_write(cru, AMnFIFO, 0);
 }
 
 void rzg3e_cru_csi2_setup(struct rzg2l_cru_dev *cru,
@@ -903,23 +909,6 @@ irqreturn_t rzg2l_cru_irq(int irq, void *data)
 		cru->state = RZG2L_CRU_DMA_RUNNING;
 	}
 
-	if ((cru->num_buf == 1) || (slot != prev_slot[cru->id])) {
-		/* Update value of previous memory bank slot */
-		prev_slot[cru->id] = slot;
-	} else {
-		/*
-		 * AXI-Bus congestion maybe occurred.
-		 * Set auto recovery mode to clear all FIFOs
-		 * and resume transmission.
-		 */
-		rzg2l_cru_write(cru, AMnFIFO, 0);
-		prev_slot[cru->id] = -1;
-
-		dev_dbg(cru->dev, "Dropping frame %u with CRU channel %d\n",
-			cru->sequence, cru->id);
-		goto done;
-	}
-
 	/* Capture frame */
 	if (cru->queue_buf[slot]) {
 		cru->queue_buf[slot]->field = cru->format.field;
@@ -1032,23 +1021,6 @@ irqreturn_t rzg3e_cru_irq(int irq, void *data)
 			cru->state = RZG2L_CRU_DMA_RUNNING;
 		}
 
-		if ((cru->num_buf == 1) || (slot != prev_slot[cru->id])) {
-			/* Update value of previous memory bank slot */
-			prev_slot[cru->id] = slot;
-		} else {
-			/*
-			 * AXI-Bus congestion maybe occurred.
-			 * Set auto recovery mode to clear all FIFOs
-			 * and resume transmission.
-			 */
-			rzg2l_cru_write(cru, AMnFIFO, 0);
-			prev_slot[cru->id] = -1;
-
-			dev_dbg(cru->dev, "Dropping frame %u with CRU channel %d\n",
-				cru->sequence, cru->id);
-			return IRQ_HANDLED;
-		}
-
 		/* Capture frame */
 		if (cru->queue_buf[slot]) {
 			struct vb2_v4l2_buffer *buf = cru->queue_buf[slot];
@@ -1122,9 +1094,6 @@ static int rzg2l_cru_start_streaming_vq(struct vb2_queue *vq, unsigned int count
 	}
 
 	cru->state = RZG2L_CRU_DMA_STARTING;
-
-	/* Initialize value of previous memory bank slot before streaming */
-	prev_slot[cru->id] = -1;
 
 	dev_dbg(cru->dev, "Starting to capture\n");
 	return 0;
