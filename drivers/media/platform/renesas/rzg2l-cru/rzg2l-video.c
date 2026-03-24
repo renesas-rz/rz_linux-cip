@@ -1064,7 +1064,6 @@ irqreturn_t rzg3e_cru_irq(int irq, void *data)
 		}
 
 		cru->sequence++;
-		cru->buf_addr[slot] = 0;
 
 		/* Prepare for next frame */
 		rzg2l_cru_fill_hw_slot(cru, slot);
