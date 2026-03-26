@@ -199,7 +199,8 @@ static int irqc_probe(struct platform_device *pdev)
 	/* request interrupts one by one */
 	for (k = 0; k < p->number_of_irqs; k++) {
 		if (devm_request_irq(dev, p->irq[k].requested_irq,
-				     irqc_irq_handler, 0, name, &p->irq[k])) {
+				     irqc_irq_handler, IRQF_NO_THREAD,
+				     name, &p->irq[k])) {
 			dev_err(dev, "failed to request IRQ\n");
 			ret = -ENOENT;
 			goto err_remove_domain;
