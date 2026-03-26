@@ -370,6 +370,41 @@
 			status = "disabled";
 		};
 
+		i3c: i3c@100e0000 {
+			compatible = "renesas,r9a08g045-i3c";
+			reg = <0 0x100e0000 0 0x1000>;
+			clocks = <&cpg CPG_MOD R9A08G046_I3C_PCLK>,
+				 <&cpg CPG_MOD R9A08G046_I3C_TCLK>;
+			clock-names = "pclk", "tclk";
+			interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 359 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 360 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 361 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 362 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 363 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 364 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 369 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 370 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 372 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 373 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 374 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 376 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "ierr", "terr", "abort", "resp", "cmd",
+					  "ibi", "rx", "tx", "rcv","st", "sp",
+					  "tend", "nack", "al", "tmo", "wu", "exit";
+			resets = <&cpg R9A08G046_I3C_PRESETN>,
+				 <&cpg R9A08G046_I3C_TRESETN>;
+			reset-names = "presetn", "tresetn";
+			power-domains = <&cpg>;
+			#address-cells = <3>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		scif0: serial@100ac000 {
 			compatible = "renesas,scif-r9a08g046", "renesas,scif-r9a07g044";
 			reg = <0 0x100ac000 0 0x400>;
