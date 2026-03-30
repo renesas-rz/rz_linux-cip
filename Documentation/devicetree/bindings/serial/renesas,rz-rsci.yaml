@@ -97,6 +97,12 @@ required:
   - power-domains
   - status
 
+optional properties:
+  linux,rs485-enabled-at-boot-time, rs485-rts-delay, rs485-rx-during-tx: see rs485.yaml
+  rs485-rx-during-tx:
+    - Enable full-duplex mode in RS485.
+    - If not set, operate in half-duplex.
+
 unevaluatedProperties: false
 
 examples:
