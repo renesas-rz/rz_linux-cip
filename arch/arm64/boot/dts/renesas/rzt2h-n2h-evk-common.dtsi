@@ -205,12 +205,28 @@
 				 <RZT2H_PORT_PINMUX(12, 7, 0x29)>, /* SD0_DATA5 */
 				 <RZT2H_PORT_PINMUX(13, 0, 0x29)>, /* SD0_DATA6 */
 				 <RZT2H_PORT_PINMUX(13, 1, 0x29)>; /* SD0_DATA7 */
+			drive-strength-microamp = <9000>;
+			slew-rate = <1>;
+			input-schmitt-disable;
 		};
 
-		ctrl-pins {
-			pinmux = <RZT2H_PORT_PINMUX(12, 0, 0x29)>, /* SD0_CLK */
-				 <RZT2H_PORT_PINMUX(12, 1, 0x29)>, /* SD0_CMD */
-				 <RZT2H_PORT_PINMUX(13, 2, 0x29)>; /* SD0_RST# */
+		clk-pins {
+			pinmux = <RZT2H_PORT_PINMUX(12, 0, 0x29)>; /* SD0_CLK */
+			drive-strength-microamp = <11800>;
+			slew-rate = <1>;
+		};
+
+		cmd-pins {
+			pinmux = <RZT2H_PORT_PINMUX(12, 1, 0x29)>; /* SD0_CMD */
+			drive-strength-microamp = <9000>;
+			slew-rate = <1>;
+			input-schmitt-disable;
+		};
+
+		rst-pins {
+			pinmux = <RZT2H_PORT_PINMUX(13, 2, 0x29)>; /* SD0_RST# */
+			drive-strength-microamp = <9000>;
+			slew-rate = <1>;
 		};
 	};
 
@@ -229,12 +245,23 @@
 				 <RZT2H_PORT_PINMUX(12, 3, 0x29)>, /* SD0_DATA1 */
 				 <RZT2H_PORT_PINMUX(12, 4, 0x29)>, /* SD0_DATA2 */
 				 <RZT2H_PORT_PINMUX(12, 5, 0x29)>; /* SD0_DATA3 */
+			drive-strength-microamp = <9000>;
+			slew-rate = <1>;
+			input-schmitt-disable;
+		};
+
+		clk-pins {
+			pinmux = <RZT2H_PORT_PINMUX(12, 0, 0x29)>; /* SD0_CLK */
+			drive-strength-microamp = <11800>;
+			slew-rate = <1>;
 		};
 
 		ctrl-pins {
-			pinmux = <RZT2H_PORT_PINMUX(12, 0, 0x29)>, /* SD0_CLK */
-				 <RZT2H_PORT_PINMUX(12, 1, 0x29)>, /* SD0_CMD */
+			pinmux = <RZT2H_PORT_PINMUX(12, 1, 0x29)>, /* SD0_CMD */
 				 <RZT2H_PORT_PINMUX(22, 5, 0x29)>; /* SD0_CD */
+			drive-strength-microamp = <9000>;
+			slew-rate = <1>;
+			input-schmitt-disable;
 		};
 	};
 
@@ -253,12 +280,23 @@
 				 <RZT2H_PORT_PINMUX(17, 0, 0x29)>, /* SD1_DATA1 */
 				 <RZT2H_PORT_PINMUX(17, 1, 0x29)>, /* SD1_DATA2 */
 				 <RZT2H_PORT_PINMUX(17, 2, 0x29)>; /* SD1_DATA3 */
+			drive-strength-microamp = <9000>;
+			slew-rate = <1>;
+			input-schmitt-disable;
+		};
+
+		clk-pins {
+			pinmux = <RZT2H_PORT_PINMUX(16, 5, 0x29)>; /* SD1_CLK */
+			drive-strength-microamp = <11800>;
+			slew-rate = <1>;
 		};
 
 		ctrl-pins {
-			pinmux = <RZT2H_PORT_PINMUX(16, 5, 0x29)>, /* SD1_CLK */
-				 <RZT2H_PORT_PINMUX(16, 6, 0x29)>, /* SD1_CMD */
+			pinmux = <RZT2H_PORT_PINMUX(16, 6, 0x29)>, /* SD1_CMD */
 				 <RZT2H_PORT_PINMUX(17, 4, 0x29)>; /* SD1_CD */
+			drive-strength-microamp = <9000>;
+			slew-rate = <1>;
+			input-schmitt-disable;
 		};
 	};
 };
