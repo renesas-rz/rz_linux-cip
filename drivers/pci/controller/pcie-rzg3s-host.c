@@ -304,6 +304,7 @@ struct rzg3s_pcie_port {
  * @intx_irqs: INTx interrupts
  * @max_link_speed: maximum supported link speed
  * @channel: channel of PCIe
+ * @num_lanes: number of lanes of PCIe
  */
 struct rzg3s_pcie_host {
 	void __iomem *axi;
@@ -320,6 +321,7 @@ struct rzg3s_pcie_host {
 	int intx_irqs[PCI_NUM_INTX];
 	int max_link_speed;
 	int channel;
+	int num_lanes;
 };
 
 #define rzg3s_msi_to_host(_msi)	container_of(_msi, struct rzg3s_pcie_host, msi)
@@ -1295,9 +1297,9 @@ static int rzg3s_pcie_resets_prepare_and_get(struct rzg3s_pcie_host *host)
 	for (i = 0; i < data->num_cfg_resets; i++)
 		host->cfg_resets[i].id = data->cfg_resets[i];
 
-	ret = devm_reset_control_bulk_get_exclusive(host->dev,
-						    data->num_power_resets,
-						    host->power_resets);
+	ret = devm_reset_control_bulk_get_shared(host->dev,
+						 data->num_power_resets,
+						 host->power_resets);
 	if (ret)
 		return ret;
 
@@ -1705,7 +1707,7 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 		of_parse_phandle(np, "renesas,sysc", 0);
 	struct rzg3s_pcie_host *host;
 	struct rzg3s_sysc *sysc;
-	int ret, channel;
+	int ret, channel, num_lanes;
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*host));
 	if (!bridge)
@@ -1744,6 +1746,14 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 				np, host->channel);
 			return -EINVAL;
 		}
+
+		ret = device_property_read_u32(dev, "num-lanes", &num_lanes);
+		if (ret) {
+			dev_info(dev, "num-lanes not set, default to 1\n");
+			num_lanes = 1;
+		}
+		host->num_lanes = num_lanes;
+		dev_info(dev, "Configuring PCIe with %u lane(s)\n", host->num_lanes);
 	}
 
 	ret = rzg3s_pcie_host_parse_port(host);
@@ -1756,9 +1766,14 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 		goto port_refclk_put;
 	}
 
-	/* Put controller in 4 lanes mode */
-	ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_LANES_MODE, 1,
-				     host->channel);
+	if (host->num_lanes == 4)
+		/* Put controller in 4 lanes mode x 1 channel */
+		ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_LANES_MODE,
+					     1, host->channel);
+	else
+		/* Put controller in 2 lanes mode x 2 channels */
+		ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_LANES_MODE,
+					     3, host->channel);
 	if (ret)
 		goto port_refclk_put;
 
