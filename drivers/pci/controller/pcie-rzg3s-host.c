@@ -1070,7 +1070,8 @@ static int rzg3s_pcie_init_msi(struct rzg3s_pcie_host *host)
 	 * Don't use devm_request_irq() as the driver uses non-devm helpers
 	 * to control clocks. Mixing them may lead to subtle bugs.
 	 */
-	ret = request_irq(msi->irq, rzg3s_pcie_msi_irq, 0, devname, host);
+	ret = request_irq(msi->irq, rzg3s_pcie_msi_irq, IRQF_NO_THREAD,
+			  devname, host);
 	if (ret) {
 		dev_err_probe(dev, ret, "Failed to request IRQ: %d\n", ret);
 		goto free_domains;
