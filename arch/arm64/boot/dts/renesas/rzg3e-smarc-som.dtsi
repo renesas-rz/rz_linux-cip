@@ -289,6 +289,7 @@
 		v3p3-supply = <&reg_3p3v>;
 		v1p2-supply = <&reg_1p8v>;
 		adi,dsi-lanes = <4>;
+		interrupts-extended = <&pinctrl RZG3E_GPIO(L, 4) IRQ_TYPE_EDGE_FALLING>;
 
 		ports {
 			#address-cells = <1>;
