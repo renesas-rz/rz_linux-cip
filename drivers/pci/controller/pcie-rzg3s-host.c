@@ -902,8 +902,10 @@ static int rzg3s_pcie_msi_allocate_domains(struct rzg3s_pcie_msi *msi)
 static int rzg3s_pcie_msi_hw_setup(struct rzg3s_pcie_host *host)
 {
 	u8 regs = RZG3S_PCI_MSI_INT_NR / RZG3S_PCI_MSI_INT_PER_REG;
+	u32 val[RZG3S_PCI_MSI_INT_NR / RZG3S_PCI_MSI_INT_PER_REG];
 	struct rzg3s_pcie_msi *msi = &host->msi;
 
+	bitmap_to_arr32(val, host->msi.map, RZG3S_PCI_MSI_INT_NR);
 	/*
 	 * Set MSI window size. HW will set the window to
 	 * RZG3S_PCI_MSI_INT_NR * 4 bytes.
@@ -920,10 +922,12 @@ static int rzg3s_pcie_msi_hw_setup(struct rzg3s_pcie_host *host)
 		       RZG3S_PCI_MSIRCVWADRL_MSG_DATA_ENA,
 		       host->axi + RZG3S_PCI_MSIRCVWADRL);
 
-	/* Set MSI receive enable */
+	/* Set MSI receive enable and mask */
 	for (u8 reg_id = 0; reg_id < regs; reg_id++) {
 		writel_relaxed(RZG3S_PCI_MSIRE_ENA,
 			       host->axi + RZG3S_PCI_MSIRE(reg_id));
+		writel_relaxed(~val[reg_id],
+			       host->axi + RZG3S_PCI_MSIRM(reg_id));
 	}
 
 	/* Enable message receive interrupts */
