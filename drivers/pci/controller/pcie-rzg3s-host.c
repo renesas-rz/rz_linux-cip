@@ -106,6 +106,7 @@
 #define RZG3S_PCI_PCSTAT2			0x414
 #define RZG3S_PCI_PCSTAT2_LS_CHG_DONE		BIT(28)
 #define RZG3S_PCI_PCSTAT2_SDRIRE		GENMASK(7, 1)
+#define RZG3S_PCI_PCSTAT2_STATE_RX_DETECT	GENMASK(15, 8)
 
 #define RZG3S_PCI_PERM				0x300
 #define RZG3S_PCI_PERM_CFG_HWINIT_EN		BIT(2)
@@ -182,10 +183,12 @@
 /**
  * struct rzg3s_sysc_function - System Controller function descriptor
  * @offset: Register offset from the System Controller base address
+ * @stride: Distance in bytes between consecutive registers for this function
  * @mask: Bit mask for the function within the register
  */
 struct rzg3s_sysc_function {
 	u32 offset;
+	u32 stride;
 	u32 mask;
 };
 
@@ -194,12 +197,14 @@ struct rzg3s_sysc_function {
  * @RZG3S_SYSC_FUNC_ID_RST_RSM_B: RST_RSM_B SYSC function ID
  * @RZG3S_SYSC_FUNC_ID_L1_ALLOW: L1 allow SYSC function ID
  * @RZG3S_SYSC_FUNC_ID_MODE: Mode SYSC function ID
+ * @RZG3S_SYSC_FUNC_LANES_MODE: Link selection SYSC function ID
  * @RZG3S_SYSC_FUNC_ID_MAX: Max SYSC function ID
  */
 enum rzg3s_sysc_func_id {
 	RZG3S_SYSC_FUNC_ID_RST_RSM_B,
 	RZG3S_SYSC_FUNC_ID_L1_ALLOW,
 	RZG3S_SYSC_FUNC_ID_MODE,
+	RZG3S_SYSC_FUNC_LANES_MODE,
 	RZG3S_SYSC_FUNC_ID_MAX,
 };
 
@@ -254,6 +259,7 @@ struct rzg3s_pcie_host;
  * @cfg_resets: array with the resets that need to be de-asserted after
  *              configuration
  * @sysc_info: SYSC info
+ * @max_channels: max channel of PCIe
  * @num_power_resets: number of power resets
  * @num_cfg_resets: number of configuration resets
  */
@@ -265,6 +271,7 @@ struct rzg3s_pcie_soc_data {
 	const char * const *power_resets;
 	const char * const *cfg_resets;
 	struct rzg3s_sysc_info sysc_info;
+	u8 max_channels;
 	u8 num_power_resets;
 	u8 num_cfg_resets;
 };
@@ -296,6 +303,7 @@ struct rzg3s_pcie_port {
  * @hw_lock: lock for access to the HW resources
  * @intx_irqs: INTx interrupts
  * @max_link_speed: maximum supported link speed
+ * @channel: channel of PCIe
  */
 struct rzg3s_pcie_host {
 	void __iomem *axi;
@@ -311,15 +319,25 @@ struct rzg3s_pcie_host {
 	raw_spinlock_t hw_lock;
 	int intx_irqs[PCI_NUM_INTX];
 	int max_link_speed;
+	int channel;
 };
 
 #define rzg3s_msi_to_host(_msi)	container_of(_msi, struct rzg3s_pcie_host, msi)
 
+
+static inline u32 rzg3s_sysc_func_offset(
+		const struct rzg3s_sysc_function *func, u32 channel)
+{
+	return func->offset + (channel ? func->stride : 0);
+}
+
 static int rzg3s_sysc_config_func(struct rzg3s_sysc *sysc,
-				  enum rzg3s_sysc_func_id fid, u32 val)
+				  enum rzg3s_sysc_func_id fid, u32 val,
+				  u32 channel)
 {
 	const struct rzg3s_sysc_info *info = sysc->info;
 	const struct rzg3s_sysc_function *functions = info->functions;
+	u32 offset;
 
 	if (fid >= RZG3S_SYSC_FUNC_ID_MAX)
 		return -EINVAL;
@@ -327,8 +345,9 @@ static int rzg3s_sysc_config_func(struct rzg3s_sysc *sysc,
 	if (!functions[fid].mask)
 		return 0;
 
-	return regmap_update_bits(sysc->regmap, functions[fid].offset,
-				  functions[fid].mask,
+	offset = rzg3s_sysc_func_offset(&functions[fid], channel);
+
+	return regmap_update_bits(sysc->regmap, offset, functions[fid].mask,
 				  field_prep(functions[fid].mask, val));
 }
 
@@ -1366,7 +1385,8 @@ static int rzg3s_pcie_host_init(struct rzg3s_pcie_host *host)
 
 	/* Enable ASPM L1 transition for SoCs that use it */
 	ret = rzg3s_sysc_config_func(host->sysc,
-				     RZG3S_SYSC_FUNC_ID_L1_ALLOW, 1);
+				     RZG3S_SYSC_FUNC_ID_L1_ALLOW, 1,
+				     host->channel);
 	if (ret)
 		goto config_deinit_and_refclk;
 
@@ -1389,6 +1409,9 @@ static int rzg3s_pcie_host_init(struct rzg3s_pcie_host *host)
 
 	val = readl_relaxed(host->axi + RZG3S_PCI_PCSTAT2);
 	dev_info(host->dev, "PCIe link status [0x%x]\n", val);
+
+	val = FIELD_GET(RZG3S_PCI_PCSTAT2_STATE_RX_DETECT, val);
+	dev_info(host->dev, "PCIe x%d: link up\n", hweight32(val));
 
 	return 0;
 
@@ -1682,7 +1705,7 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 		of_parse_phandle(np, "renesas,sysc", 0);
 	struct rzg3s_pcie_host *host;
 	struct rzg3s_sysc *sysc;
-	int ret;
+	int ret, channel;
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*host));
 	if (!bridge)
@@ -1707,6 +1730,22 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 
 	host->max_link_speed = of_pci_get_max_link_speed(np);
 
+	if (host->data->max_channels > 1) {
+		ret = of_property_read_u32(np, "pcie,channel", &channel);
+		if (ret) {
+			dev_err(dev, "%pOF: No pcie,channel property found\n",
+				np);
+			return -EINVAL;
+		}
+
+		host->channel = channel;
+		if (host->channel >= host->data->max_channels) {
+			dev_err(dev, "%pOF: Invalid pcie,channel '%u'\n",
+				np, host->channel);
+			return -EINVAL;
+		}
+	}
+
 	ret = rzg3s_pcie_host_parse_port(host);
 	if (ret)
 		return ret;
@@ -1717,12 +1756,20 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 		goto port_refclk_put;
 	}
 
-	/* Put controller in RC mode */
-	ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_ID_MODE, 1);
+	/* Put controller in 4 lanes mode */
+	ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_LANES_MODE, 1,
+				     host->channel);
 	if (ret)
 		goto port_refclk_put;
 
-	ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_ID_RST_RSM_B, 1);
+	/* Put controller in RC mode */
+	ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_ID_MODE, 1,
+				     host->channel);
+	if (ret)
+		goto port_refclk_put;
+
+	ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_ID_RST_RSM_B, 1,
+				     host->channel);
 	if (ret)
 		goto port_refclk_put;
 
@@ -1774,7 +1821,8 @@ sysc_signal_restore:
 	 * SYSC RST_RSM_B signal need to be asserted before turning off the
 	 * power to the PHY.
 	 */
-	rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_ID_RST_RSM_B, 0);
+	rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_ID_RST_RSM_B, 0,
+			       host->channel);
 port_refclk_put:
 	clk_put(host->port.refclk);
 
@@ -1805,7 +1853,8 @@ static int rzg3s_pcie_suspend_noirq(struct device *dev)
 	if (ret)
 		goto config_reinit;
 
-	ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_ID_RST_RSM_B, 0);
+	ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_ID_RST_RSM_B, 0,
+				     host->channel);
 	if (ret)
 		goto power_resets_restore;
 
@@ -1832,11 +1881,13 @@ static int rzg3s_pcie_resume_noirq(struct device *dev)
 	struct rzg3s_sysc *sysc = host->sysc;
 	int ret;
 
-	ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_ID_MODE, 1);
+	ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_ID_MODE, 1,
+				     host->channel);
 	if (ret)
 		return ret;
 
-	ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_ID_RST_RSM_B, 1);
+	ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_ID_RST_RSM_B, 1,
+				     host->channel);
 	if (ret)
 		return ret;
 
@@ -1865,7 +1916,8 @@ assert_power_resets:
 	reset_control_bulk_assert(data->num_power_resets,
 				  host->power_resets);
 assert_rst_rsm_b:
-	rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_ID_RST_RSM_B, 0);
+	rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_ID_RST_RSM_B, 0,
+			       host->channel);
 	return ret;
 }
 
@@ -1890,6 +1942,7 @@ static const struct rzg3s_pcie_soc_data rzg3s_soc_data = {
 	.config_post_init = rzg3s_pcie_config_post_init,
 	.config_deinit = rzg3s_pcie_config_deinit,
 	.init_phy = rzg3s_soc_pcie_init_phy,
+	.max_channels = 1,
 	.sysc_info = {
 		.functions = {
 			[RZG3S_SYSC_FUNC_ID_RST_RSM_B] = {
@@ -1908,6 +1961,7 @@ static const struct rzg3s_pcie_soc_data rzg3e_soc_data = {
 	.config_pre_init = rzg3e_pcie_config_pre_init,
 	.config_post_init = rzg3e_pcie_config_post_init,
 	.config_deinit = rzg3e_pcie_config_deinit,
+	.max_channels = 1,
 	.sysc_info = {
 		.functions = {
 			[RZG3S_SYSC_FUNC_ID_L1_ALLOW] = {
@@ -1922,6 +1976,33 @@ static const struct rzg3s_pcie_soc_data rzg3e_soc_data = {
 	},
 };
 
+static const struct rzg3s_pcie_soc_data rzv2h_soc_data = {
+	.power_resets = rzg3e_soc_power_resets,
+	.num_power_resets = ARRAY_SIZE(rzg3e_soc_power_resets),
+	.config_pre_init = rzg3e_pcie_config_pre_init,
+	.config_post_init = rzg3e_pcie_config_post_init,
+	.config_deinit = rzg3e_pcie_config_deinit,
+	.max_channels = 2,
+	.sysc_info = {
+		.functions = {
+			[RZG3S_SYSC_FUNC_ID_L1_ALLOW] = {
+				.offset = 0x1020,
+				.stride = 0x30,
+				.mask = BIT(0),
+			},
+			[RZG3S_SYSC_FUNC_ID_MODE] = {
+				.offset = 0x1024,
+				.stride = 0x30,
+				.mask = BIT(0),
+			},
+			[RZG3S_SYSC_FUNC_LANES_MODE] = {
+				.offset = 0x1060,
+				.mask = GENMASK(9, 8),
+			},
+		},
+	},
+};
+
 static const struct of_device_id rzg3s_pcie_of_match[] = {
 	{
 		.compatible = "renesas,r9a08g045-pcie",
@@ -1930,6 +2011,10 @@ static const struct of_device_id rzg3s_pcie_of_match[] = {
 	{
 		.compatible = "renesas,r9a09g047-pcie",
 		.data = &rzg3e_soc_data,
+	},
+	{
+		.compatible = "renesas,r9a09g057-pcie",
+		.data = &rzv2h_soc_data,
 	},
 	{}
 };
