@@ -20,12 +20,15 @@
 #include <linux/spinlock.h>
 #include <linux/syscore_ops.h>
 
+#define IRQC_NMI			0
 #define IRQC_IRQ_START			1
 #define IRQC_IRQ_COUNT			8
 #define IRQC_TINT_START			(IRQC_IRQ_START + IRQC_IRQ_COUNT)
 #define IRQC_TINT_COUNT			32
 #define IRQC_NUM_IRQ			(IRQC_TINT_START + IRQC_TINT_COUNT)
 
+#define NSCR				0x0
+#define NITSR				0x4
 #define ISCR				0x10
 #define IITSR				0x14
 #define TSCR				0x20
@@ -42,6 +45,10 @@
 
 #define TSSR_OFFSET(n)			((n) % 4)
 #define TSSR_INDEX(n)			((n) / 4)
+
+#define NSCR_NSTAT			0
+#define NITSR_NTSEL_EDGE_FALLING	0
+#define NITSR_NTSEL_EDGE_RISING		1
 
 #define TITSR_TITSEL_EDGE_RISING	0
 #define TITSR_TITSEL_EDGE_FALLING	1
@@ -60,10 +67,12 @@
 
 /**
  * struct rzg2l_irqc_reg_cache - registers cache (necessary for suspend/resume)
- * @iitsr: IITSR register
- * @titsr: TITSR registers
+ * @nitsr:	NITSR register
+ * @iitsr:	IITSR register
+ * @titsr:	TITSR registers
  */
 struct rzg2l_irqc_reg_cache {
+	u32	nitsr;
 	u32	iitsr;
 	u32	titsr[2];
 };
@@ -89,6 +98,28 @@ static struct rzg2l_irqc_priv {
 static struct rzg2l_irqc_priv *irq_data_to_priv(struct irq_data *data)
 {
 	return data->domain->host_data;
+}
+
+static void rzg2l_clear_nmi_int(struct rzg2l_irqc_priv *priv)
+{
+	u32 bit = BIT(NSCR_NSTAT);
+	u32 reg;
+
+	/*
+	 * No locking required as the register is not shared
+	 * with other interrupts.
+	 *
+	 * Writing is allowed only when NSTAT is 1
+	 */
+	reg = readl_relaxed(priv->base + NSCR);
+	if (reg & bit) {
+		writel_relaxed(reg & ~bit, priv->base + NSCR);
+		/*
+		 * Enforce that the posted write is flushed to prevent that the
+		 * just handled interrupt is raised again.
+		 */
+		readl_relaxed(priv->base + NSCR);
+	}
 }
 
 static void rzg2l_clear_irq_int(struct rzg2l_irqc_priv *priv, unsigned int hwirq)
@@ -128,6 +159,14 @@ static void rzg2l_clear_tint_int(struct rzg2l_irqc_priv *priv, unsigned int hwir
 		 */
 		readl_relaxed(priv->base + TSCR);
 	}
+}
+
+static void rzg2l_irqc_nmi_eoi(struct irq_data *d)
+{
+	struct rzg2l_irqc_priv *priv = irq_data_to_priv(d);
+
+	rzg2l_clear_nmi_int(priv);
+	irq_chip_eoi_parent(d);
 }
 
 static void rzg2l_irqc_irq_eoi(struct irq_data *d)
@@ -316,6 +355,26 @@ static void rzg2l_irqc_tint_enable(struct irq_data *d)
 	irq_chip_enable_parent(d);
 }
 
+static int rzg2l_nmi_set_type(struct irq_data *d, unsigned int type)
+{
+	struct rzg2l_irqc_priv *priv = irq_data_to_priv(d);
+	u32 sense;
+
+	switch (type & IRQ_TYPE_SENSE_MASK) {
+	case IRQ_TYPE_EDGE_FALLING:
+		sense = NITSR_NTSEL_EDGE_FALLING;
+		break;
+	case IRQ_TYPE_EDGE_RISING:
+		sense = NITSR_NTSEL_EDGE_RISING;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	writel_relaxed(sense, priv->base + NITSR);
+	return 0;
+}
+
 static int rzg2l_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	struct rzg2l_irqc_priv *priv = irq_data_to_priv(d);
@@ -437,11 +496,23 @@ static int rzg2l_irqc_tint_set_type(struct irq_data *d, unsigned int type)
 	return irq_chip_set_type_parent(d, IRQ_TYPE_LEVEL_HIGH);
 }
 
+static int rzg2l_irqc_nmi_set_type(struct irq_data *d, unsigned int type)
+{
+	int ret;
+
+	ret = rzg2l_nmi_set_type(d, type);
+	if (ret)
+		return ret;
+
+	return irq_chip_set_type_parent(d, IRQ_TYPE_LEVEL_HIGH);
+}
+
 static int rzg2l_irqc_irq_suspend(void)
 {
 	struct rzg2l_irqc_reg_cache *cache = &rzg2l_irqc_data->cache;
 	void __iomem *base = rzg2l_irqc_data->base;
 
+	cache->nitsr = readl_relaxed(base + NITSR);
 	cache->iitsr = readl_relaxed(base + IITSR);
 	for (u8 i = 0; i < 2; i++)
 		cache->titsr[i] = readl_relaxed(base + TITSR(i));
@@ -462,11 +533,29 @@ static void rzg2l_irqc_irq_resume(void)
 	for (u8 i = 0; i < 2; i++)
 		writel_relaxed(cache->titsr[i], base + TITSR(i));
 	writel_relaxed(cache->iitsr, base + IITSR);
+	writel_relaxed(cache->nitsr, base + NITSR);
 }
 
 static struct syscore_ops rzg2l_irqc_syscore_ops = {
 	.suspend	= rzg2l_irqc_irq_suspend,
 	.resume		= rzg2l_irqc_irq_resume,
+};
+
+static const struct irq_chip rzg2l_irqc_nmi_chip = {
+	.name			= "rzg2l-irqc",
+	.irq_eoi		= rzg2l_irqc_nmi_eoi,
+	.irq_mask		= irq_chip_mask_parent,
+	.irq_unmask		= irq_chip_unmask_parent,
+	.irq_disable		= irq_chip_disable_parent,
+	.irq_enable		= irq_chip_enable_parent,
+	.irq_get_irqchip_state	= irq_chip_get_parent_state,
+	.irq_set_irqchip_state	= irq_chip_set_parent_state,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
+	.irq_set_type		= rzg2l_irqc_nmi_set_type,
+	.irq_set_affinity	= irq_chip_set_affinity_parent,
+	.flags			= IRQCHIP_MASK_ON_SUSPEND |
+				  IRQCHIP_SET_TYPE_MASKED |
+				  IRQCHIP_SKIP_SET_WAKE,
 };
 
 static const struct irq_chip rzg2l_irqc_irq_chip = {
@@ -558,7 +647,9 @@ static int rzg2l_irqc_alloc(struct irq_domain *domain, unsigned int virq,
 	 * from 16-31 bits. TINT from the pinctrl driver needs to be programmed
 	 * in IRQC registers to enable a given gpio pin as interrupt.
 	 */
-	if (hwirq > IRQC_IRQ_COUNT) {
+	if (hwirq == IRQC_NMI) {
+		chip = &rzg2l_irqc_nmi_chip;
+	} else if (hwirq > IRQC_IRQ_COUNT) {
 		tint = TINT_EXTRACT_GPIOINT(hwirq);
 		hwirq = TINT_EXTRACT_HWIRQ(hwirq);
 		chip = priv->tint_chip;
