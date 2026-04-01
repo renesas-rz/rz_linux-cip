@@ -45,6 +45,12 @@
 		reg = <0x2 0x40000000 0x2 0x00000000>;
 	};
 
+	pcie_refclk: clock-pcie-ref {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
+	};
+
 	reg_1p8v: regulator-1p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-1.8V";
@@ -242,6 +248,11 @@
 
 &ostm7 {
 	status = "okay";
+};
+
+&pcie_port0 {
+	clocks = <&pcie_refclk>;
+	clock-names = "ref";
 };
 
 &pinctrl {
@@ -448,4 +459,8 @@
 			};
 		};
 	};
+};
+
+&pcie0 {
+	status = "okay";
 };
