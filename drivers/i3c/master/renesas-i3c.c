@@ -756,7 +756,6 @@ static int renesas_i3c_send_ccc_cmd(struct i3c_master_controller *m,
 					   struct i3c_ccc_cmd *ccc)
 {
 	struct renesas_i3c *i3c = to_renesas_i3c(m);
-	struct renesas_i3c_xfer *xfer;
 	struct renesas_i3c_cmd *cmd;
 	int ret, pos = 0;
 
@@ -766,7 +765,7 @@ static int renesas_i3c_send_ccc_cmd(struct i3c_master_controller *m,
 			return pos;
 	}
 
-	xfer = renesas_i3c_alloc_xfer(i3c, 1);
+	struct renesas_i3c_xfer *xfer __free(kfree) = renesas_i3c_alloc_xfer(i3c, 1);
 	if (!xfer)
 		return -ENOMEM;
 
@@ -814,8 +813,6 @@ static int renesas_i3c_send_ccc_cmd(struct i3c_master_controller *m,
 	ret = xfer->ret;
 	if (ret)
 		ccc->err = I3C_ERROR_M2;
-
-	kfree(xfer);
 
 	return ret;
 }
