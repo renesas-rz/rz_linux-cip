@@ -1935,6 +1935,7 @@
 			clock-names = "fck";
 			resets = <&cpg R9A08G046_POE3_RST_M_REG>;
 			power-domains = <&cpg>;
+			status = "disabled";
 		};
 
 		ssi0: ssi@100e4000 {
