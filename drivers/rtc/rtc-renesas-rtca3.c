@@ -75,6 +75,8 @@
 #define RTCA3_RSR_AF			BIT(0)
 #define RTCA3_RSR_CF			BIT(1)
 #define RTCA3_RSR_PF			BIT(2)
+#define RTCA3_RCR3			0x26
+#define RTCA3_RCR3_RTCEN		BIT(0)
 #define RTCA3_RADJ			0x2e
 #define RTCA3_RADJ_ADJ			GENMASK(5, 0)
 #define RTCA3_RADJ_ADJ_MAX		0x3f
@@ -82,6 +84,16 @@
 #define RTCA3_RADJ_PMADJ_NONE		0
 #define RTCA3_RADJ_PMADJ_ADD		1
 #define RTCA3_RADJ_PMADJ_SUB		2
+
+/* Time Capture Control registers. */
+#define RTCA3_RTCCR0			0x40
+#define RTCA3_RTCCR0_TCCT		GENMASK(1, 0)
+#define RTCA3_RTCCR0_TCCT_RISING	1
+#define RTCA3_RTCCR0_TCCT_FALLING	2
+#define RTCA3_RTCCR0_TCST		BIT(3)
+#define RTCA3_RTCCR0_TCNF		GENMASK(5, 4)
+#define RTCA3_RTCCR0_TCNF_OFF		0
+#define RTCA3_RTCCR0_TCEN		BIT(7)
 
 /* Polling operation timeouts. */
 #define RTCA3_DEFAULT_TIMEOUT_US	150
@@ -554,6 +566,35 @@ static int rtca3_set_offset(struct device *dev, long offset)
 					 10, RTCA3_DEFAULT_TIMEOUT_US);
 }
 
+static int rtca3_time_capture(struct device *dev)
+{
+	struct rtca3_priv *priv = dev_get_drvdata(dev);
+	u8 tmp;
+	int ret;
+
+	guard(spinlock_irqsave)(&priv->lock);
+
+	tmp = readb(priv->base + RTCA3_RTCCR0);
+	/* Enable Time Capture Event  */
+	rtca3_byte_update_bits(priv, RTCA3_RTCCR0, RTCA3_RTCCR0_TCEN, RTCA3_RTCCR0_TCEN);
+	ret = readb_poll_timeout_atomic(priv->base + RTCA3_RTCCR0, tmp, (tmp & RTCA3_RTCCR0_TCEN),
+					10, RTCA3_DEFAULT_TIMEOUT_US);
+	if (ret)
+		return ret;
+
+	/* Set Time Capture Control and Status to no event */
+	tmp &= ~(RTCA3_RTCCR0_TCST | RTCA3_RTCCR0_TCCT);
+	writeb(tmp, priv->base + RTCA3_RTCCR0);
+	/* Time Capture Noise Filter Control is off */
+	rtca3_byte_update_bits(priv, RTCA3_RTCCR0, RTCA3_RTCCR0_TCNF, RTCA3_RTCCR0_TCNF_OFF);
+	/* Set Time Capture Control detect Rising edge */
+	rtca3_byte_update_bits(priv, RTCA3_RTCCR0, RTCA3_RTCCR0_TCCT, RTCA3_RTCCR0_TCCT_RISING);
+	/* Enable RCR3 */
+	rtca3_byte_update_bits(priv, RTCA3_RCR3, RTCA3_RCR3_RTCEN, RTCA3_RCR3_RTCEN);
+
+	return 0;
+}
+
 static const struct rtc_class_ops rtca3_ops = {
 	.read_time = rtca3_read_time,
 	.set_time = rtca3_set_time,
@@ -770,6 +811,8 @@ static int rtca3_probe(struct platform_device *pdev)
 	priv->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(priv->rtc_dev))
 		return PTR_ERR(priv->rtc_dev);
+
+	rtca3_time_capture(dev);
 
 	priv->rtc_dev->ops = &rtca3_ops;
 	priv->rtc_dev->max_user_freq = 256;
