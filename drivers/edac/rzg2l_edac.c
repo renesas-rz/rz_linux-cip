@@ -40,95 +40,134 @@
 #define ECC_MODE_ED			0x2
 #define ECC_MODE_SECDED			0x3
 
-#define ECC_MODE_REG			0
-#define ECC_SIG_UE_ADDR1_REG		1
-#define ECC_SIG_UE_ADDR2_REG		2
-#define ECC_SIG_UE_SYND_REG		3
-#define ECC_SIG_UE_DATA1_REG		4
-#define ECC_SIG_UE_DATA2_REG		5
-#define ECC_SIG_UE_ID_REG		6
-#define ECC_SIG_CE_ADDR1_REG		7
-#define ECC_SIG_CE_ADDR2_REG		8
-#define ECC_SIG_CE_SYND_REG		9
-#define ECC_SIG_CE_DATA1_REG		10
-#define ECC_SIG_CE_DATA2_REG		11
-#define ECC_SIG_CE_ID_REG		12
-#define ECC_INT_MSK_MASTER_REG		13
-#define ECC_INT_MSK_ECC_REG		14
-#define ECC_INT_STS_ECC_REG		15
-#define ECC_INT_ACK_ECC_REG		16
-#define DDR_CTRL_BUSY_REG		17
-#define ECC_FRC_ERR_REG			18
+#define SIG_ERROR			(SIGRTMIN + 2)
+#define MAX_BUF				(10)
+#define MBIT_CNT_MAX			(0x7)
+#define SBIT_CNT_MAX			(0x1f)
 
-unsigned long g2l_ddrmc_regs[] = {
-	0x174, /* ECC Mode Registers */
-	0x184, /*ECC_SIG_UE_ADDR1_REG*/
-	0x188, /*ECC_SIG_UE_ADDR2_REG*/
-	0x188, /*ECC_SIG_UE_SYND_REG*/
-	0x18c, /*ECC_SIG_UE_DATA1_REG*/
-	0x190, /*ECC_SIG_UE_DATA2_REG*/
-	0x1a4, /*ECC_SIG_UE_ID_REG*/
-	0x194, /*ECC_SIG_CE_ADDR1_REG*/
-	0x198, /*ECC_SIG_CE_ADDR2_REG*/
-	0x198, /*ECC_SIG_CE_SYND_REG*/
-	0x19c, /*ECC_SIG_CE_DATA1_REG*/
-	0x1a0, /*ECC_SIG_CE_DATA2_REG*/
-	0x1a8, /*ECC_SIG_CE_ID_REG*/
-	0x22c, /*ECC_INT_MSK_MASTER_REG*/
-	0x274, /*ECC_INT_MSK_ECC_REG*/
-	0x234, /*ECC_INT_STS_ECC_REG*/
-	0x254, /*ECC_INT_ACK_ECC_REG*/
-	0x218, /*DDR_CTRL_BUSY_REG*/
-	0x178, /*ECC_FRC_ERR_REG*/
+struct rz_platform_data {
+	const struct rz_mc_regs *reg;
+	const struct rz_mc_mask *mask;
 };
 
-unsigned long v2l_ddrmc_regs[] = {
-	0x18c, /* ECC Mode Registers */
-	0x19c, /*ECC_SIG_UE_ADDR1_REG*/
-	0x1a0, /*ECC_SIG_UE_ADDR2_REG*/
-	0x1a0, /*ECC_SIG_UE_SYND_REG*/
-	0x1a4, /*ECC_SIG_UE_DATA1_REG*/
-	0x1a8, /*ECC_SIG_UE_DATA2_REG*/
-	0x1bc, /*ECC_SIG_UE_ID_REG*/
-	0x1ac, /*ECC_SIG_CE_ADDR1_REG*/
-	0x1b0, /*ECC_SIG_CE_ADDR2_REG*/
-	0x1b0, /*ECC_SIG_CE_SYND_REG*/
-	0x1b4, /*ECC_SIG_CE_DATA1_REG*/
-	0x1b8, /*ECC_SIG_CE_DATA2_REG*/
-	0x1c0, /*ECC_SIG_CE_ID_REG*/
-	0x244, /*ECC_INT_MSK_MASTER_REG*/
-	0x28c, /*ECC_INT_MSK_ECC_REG*/
-	0x24c, /*ECC_INT_STS_ECC_REG*/
-	0x26c, /*ECC_INT_ACK_ECC_REG*/
-	0x230, /*DDR_CTRL_BUSY_REG*/
-	0x190, /*ECC_FRC_ERR_REG*/
+struct rz_mc_regs {
+	/* memory controller registers */
+	u32 ctl_ecc_en;
+	u32 ctl_ue_addr_l;
+	u32 ctl_ue_addr_h;
+	u32 ctl_ue_synd;
+	u32 ctl_ue_data_l;
+	u32 ctl_ue_data_h;
+	u32 ctl_ecc_u_id;
+	u32 ctl_ce_addr_l;
+	u32 ctl_ce_addr_h;
+	u32 ctl_ce_synd;
+	u32 ctl_ce_data_l;
+	u32 ctl_ce_data_h;
+	u32 ctl_ecc_c_id;
+	u32 ctl_int_mask_master;
+	u32 ctl_int_mask_ecc;
+	u32 ctl_int_status;
+	u32 ctl_int_ack;
+	u32 ctl_controller_busy;
+	u32 ctl_xor_check_bits;
 };
 
-/* ECC IRQ Macros */
-#define ECC_INT_MSK_MASTER_ECC_OFF	1
-#define ECC_INT_MSK_MASTER_GLB_OFF	31
-#define ECC_INT_MSK_MASTER_ECC		BIT(ECC_INT_MSK_MASTER_ECC_OFF)
-#define ECC_INT_MSK_MASTER_GLB		BIT(ECC_INT_MSK_MASTER_GLB_OFF)
-#define ECC_INT_MSK_ECC			(0xffff)
-#define ECC_INT_MSK_ALL			GENMASK(31, 0)
-#define ECC_INT_STS_ECC_MSK		(ECC_INT_MSK_ECC)
-#define ECC_INT_STS_CE_MSK		0x103
-#define ECC_INT_STS_UE_MSK		0xC
-#define ECC_INT_STS_SCRB_MSK		0x80
+struct rz_mc_mask {
+	/* masks and shifts */
+	u32 int_status_ecc_mask;
+	u32 int_status_ce_mask;
+	u32 int_status_ue_mask;
+	u32 int_status_scrb_mask;
+	u32 int_mask_master;
+	u32 ce_addr_h_mask;
+	u32 ce_synd_mask;
+	u32 ce_synd_shift;
+	u32 ue_addr_h_mask;
+	u32 ue_synd_mask;
+	u32 ue_synd_shift;
+	u32 ecc_id_mask;
+	u32 int_mask_master_glb_mask;
+	u32 int_mask_master_ecc_mask;
+};
 
-/* ECC signature  Macros */
-#define ECC_SIG_SYND_OFF		8
-#define ECC_SIG_SYND_MSK		(0xff << ECC_SIG_SYND_OFF)
-#define ECC_SIG_ID_MSK			(0x3ffff)
+static const struct rz_mc_regs rzg2l_regs = {
+	/* memory controller registers */
+	.ctl_ecc_en			= 0x174, /* ECC_MODE_REG */
+	.ctl_ue_addr_l			= 0x184, /* ECC_SIG_UE_ADDR1_REG */
+	.ctl_ue_addr_h			= 0x188, /* ECC_SIG_UE_ADDR2_REG */
+	.ctl_ue_synd			= 0x188, /* ECC_SIG_UE_SYND_REG */
+	.ctl_ue_data_l			= 0x18c, /* ECC_SIG_UE_DATA1_REG */
+	.ctl_ue_data_h			= 0x190, /* ECC_SIG_UE_DATA2_REG */
+	.ctl_ecc_u_id			= 0x1a4, /* ECC_SIG_UE_ID_REG */
+	.ctl_ce_addr_l			= 0x194, /* ECC_SIG_CE_ADDR1_REG */
+	.ctl_ce_addr_h			= 0x198, /* ECC_SIG_CE_ADDR2_REG */
+	.ctl_ce_synd			= 0x198, /* ECC_SIG_CE_SYND_REG */
+	.ctl_ce_data_l			= 0x19c, /* ECC_SIG_CE_DATA1_REG */
+	.ctl_ce_data_h			= 0x1a0, /* ECC_SIG_CE_DATA2_REG */
+	.ctl_ecc_c_id			= 0x1a8, /* ECC_SIG_CE_ID_REG */
+	.ctl_int_mask_master		= 0x22c, /* ECC_INT_MSK_MASTER_REG */
+	.ctl_int_mask_ecc		= 0x274, /* ECC_INT_MSK_ECC_REG */
+	.ctl_int_status			= 0x234, /* ECC_INT_STS_ECC_REG */
+	.ctl_int_ack			= 0x254, /* ECC_INT_ACK_ECC_REG */
+	.ctl_controller_busy		= 0x218, /* DDR_CTRL_BUSY_REG */
+	.ctl_xor_check_bits		= 0x178, /* ECC_FRC_ERR_REG */
+};
 
-#define SIG_ERROR		(SIGRTMIN + 2)
-#define MAX_BUF			(10)
-#define MBIT_CNT_MAX		(0x7)
-#define SBIT_CNT_MAX		(0x1f)
+static const struct rz_mc_regs rzv2l_regs = {
+	/* memory controller registers */
+	.ctl_ecc_en			= 0x18c,
+	.ctl_ue_addr_l			= 0x19c,
+	.ctl_ue_addr_h			= 0x1a0,
+	.ctl_ue_synd			= 0x1a0,
+	.ctl_ue_data_l			= 0x1a4,
+	.ctl_ue_data_h			= 0x1a8,
+	.ctl_ecc_u_id			= 0x1bc,
+	.ctl_ce_addr_l			= 0x1ac,
+	.ctl_ce_addr_h			= 0x1b0,
+	.ctl_ce_synd			= 0x1b0,
+	.ctl_ce_data_l			= 0x1b4,
+	.ctl_ce_data_h			= 0x1b8,
+	.ctl_ecc_c_id			= 0x1c0,
+	.ctl_int_mask_master		= 0x244,
+	.ctl_int_mask_ecc		= 0x28c,
+	.ctl_int_status			= 0x24c,
+	.ctl_int_ack			= 0x26c,
+	.ctl_controller_busy		= 0x230,
+	.ctl_xor_check_bits		= 0x190,
+};
 
-struct rzg2l_edac_priv_data {
+static const struct rz_mc_mask rzg2l_mask = {
+	/* masks and shifts */
+	.int_status_ecc_mask		= GENMASK(15, 0),	/* ECC_INT_MSK_ECC */
+	.int_status_ce_mask		= BIT(0) | BIT(1) | BIT(8), /* ECC_INT_STS_CE_MSK */
+	.int_status_ue_mask		= BIT(2) | BIT(3),	/* ECC_INT_STS_UE_MSK */
+	.int_status_scrb_mask		= BIT(7),		/* ECC_INT_STS_SCRB_MSK */
+	.int_mask_master		= GENMASK(31, 0),	/* ECC_INT_MSK_ALL */
+	.ce_addr_h_mask			= GENMASK(1, 0),
+	.ce_synd_mask			= GENMASK(15, 8),
+	.ce_synd_shift			= 8,
+	.ue_addr_h_mask			= GENMASK(1, 0),
+	.ue_synd_mask			= GENMASK(15, 8),
+	.ue_synd_shift			= 8,
+	.ecc_id_mask			= GENMASK(17, 0),
+	.int_mask_master_glb_mask	= BIT(31),		/* ECC_INT_MSK_MASTER_GLB_OFF */
+	.int_mask_master_ecc_mask	= BIT(1),		/* ECC_INT_MSK_MASTER_ECC_OFF */
+};
+
+static const struct rz_platform_data rzg2l_edac = {
+	.reg =	&rzg2l_regs,
+	.mask = &rzg2l_mask,
+};
+
+static const struct rz_platform_data rzv2l_edac = {
+	.reg =	&rzv2l_regs,
+	.mask = &rzg2l_mask,
+};
+
+struct rz_edac_priv_data {
 	void __iomem *base;
-	const unsigned long *regs;
+	const struct rz_platform_data *pdata;
 
 	/* debugfs entries */
 	struct dentry *dir;
@@ -347,9 +386,11 @@ static const struct file_operations mbit_err_fops = {
 	.read = read_mbit_err_count,
 	.write = write_mbit_err_count,
 };
+
 static void init_mem_layout(struct mem_ctl_info *mci)
 {
-	struct rzg2l_edac_priv_data *priv = mci->pvt_info;
+	struct rz_edac_priv_data *priv = mci->pvt_info;
+	const struct rz_platform_data *pdata = priv->pdata;
 	struct dimm_info *dimm;
 	struct sysinfo inf;
 	u32 val;
@@ -358,7 +399,7 @@ static void init_mem_layout(struct mem_ctl_info *mci)
 	dimm = edac_get_dimm(mci, 0, 0, 0);
 
 	/* 1. set the dimm edac_mode */
-	val = readl(priv->base + priv->regs[ECC_MODE_REG]) & ECC_MODE_MSK;
+	val = readl(priv->base + pdata->reg->ctl_ecc_en) & ECC_MODE_MSK;
 	val >>= ECC_MODE_OFF;
 	switch (val) {
 	case ECC_MODE_ENABLE:
@@ -397,80 +438,83 @@ static void init_mem_layout(struct mem_ctl_info *mci)
 static irqreturn_t edac_ecc_isr(int irq, void *dev_id)
 {
 	struct mem_ctl_info *mci = dev_id;
-	struct rzg2l_edac_priv_data *priv;
+	struct rz_edac_priv_data *priv = mci->pvt_info;
+	const struct rz_platform_data *pdata = priv->pdata;
 	u32 int_status;
 	u32 err_id;
 	u32 err_synd;
 	u64 err_addr = 0x0;
 	u64 err_data = 0x0;
+	u32 val_h = 0, val_l = 0;
 
 	priv = mci->pvt_info;
 
 	/* Check the intr status and confirm ECC error intr */
-	int_status = readl(priv->base + priv->regs[ECC_INT_STS_ECC_REG]) & \
-		     ECC_INT_STS_ECC_MSK;
+	int_status = readl(priv->base + pdata->reg->ctl_int_status);
+	int_status &= pdata->mask->int_status_ecc_mask;
 
-	if (!(int_status & ECC_INT_MSK_ECC))
+	if (!int_status)
 		return IRQ_NONE;
 
-	if (int_status & ECC_INT_STS_CE_MSK) {
-		err_addr = (u64)readl(priv->base + priv->regs[ECC_SIG_CE_ADDR2_REG]);
-		err_addr = ((err_addr & 0x3) << 32) | \
-				readl(priv->base + priv->regs[ECC_SIG_CE_ADDR1_REG]);
+	if (int_status & pdata->mask->int_status_ce_mask) {
+		val_h = readl(priv->base + pdata->reg->ctl_ce_addr_h);
+		val_h &= pdata->mask->ce_addr_h_mask;
+		val_l = readl(priv->base + pdata->reg->ctl_ce_addr_l);
+		err_addr = ((u64)val_h << 32) | val_l;
 
-		err_data = (u64)readl(priv->base + priv->regs[ECC_SIG_CE_DATA2_REG]);
-		err_data = (err_data << 32) | \
-			   readl(priv->base + priv->regs[ECC_SIG_CE_DATA1_REG]);
+		val_h = readl(priv->base + pdata->reg->ctl_ce_data_h);
+		val_l = readl(priv->base + pdata->reg->ctl_ce_data_l);
+		err_data = ((u64)val_h << 32) | val_l;
 
-		err_id = readl(priv->base + priv->regs[ECC_SIG_CE_ID_REG]) & ECC_SIG_ID_MSK;
+		err_id = readl(priv->base + pdata->reg->ctl_ecc_c_id) & pdata->mask->ecc_id_mask;
 
-		err_synd = readl(priv->base + priv->regs[ECC_SIG_CE_SYND_REG]) & \
-			   ECC_SIG_SYND_MSK;
-		err_synd >>= ECC_SIG_SYND_OFF;
+		err_synd = readl(priv->base + pdata->reg->ctl_ce_synd);
+		err_synd = (err_synd & pdata->mask->ce_synd_mask) >> pdata->mask->ce_synd_shift;
 
 		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
-			     1,
-			     err_addr >> PAGE_SHIFT,
-			     err_addr & ~PAGE_MASK,
-			     err_synd, 0, 0, -1,
-			     mci->ctl_name, "");
+				     1,
+				     err_addr >> PAGE_SHIFT,
+				     err_addr & ~PAGE_MASK,
+				     err_synd, 0, 0, -1,
+				     mci->ctl_name, "");
 	}
 
-	if (int_status & ECC_INT_STS_UE_MSK) {
-		err_addr = (u64)readl(priv->base + priv->regs[ECC_SIG_UE_ADDR2_REG]);
-		err_addr = ((err_addr & 0x3) << 32) | \
-				readl(priv->base + priv->regs[ECC_SIG_UE_ADDR1_REG]);
+	if (int_status & pdata->mask->int_status_ue_mask) {
+		val_h = readl(priv->base + pdata->reg->ctl_ue_addr_h);
+		val_h &= pdata->mask->ue_addr_h_mask;
+		val_l = readl(priv->base + pdata->reg->ctl_ue_addr_l);
+		err_addr = ((u64)val_h << 32) | val_l;
 
-		err_data = (u64)readl(priv->base + priv->regs[ECC_SIG_UE_DATA2_REG]);
-		err_data = (err_data << 32) | \
-			   readl(priv->base + priv->regs[ECC_SIG_UE_DATA1_REG]);
+		val_h = readl(priv->base + pdata->reg->ctl_ue_data_h);
+		val_l = readl(priv->base + pdata->reg->ctl_ue_data_l);
+		err_data = ((u64)val_h << 32) | val_l;
 
-		err_id = readl(priv->base + priv->regs[ECC_SIG_UE_ID_REG]) & ECC_SIG_ID_MSK;
+		err_id = readl(priv->base + pdata->reg->ctl_ecc_u_id) & pdata->mask->ecc_id_mask;
 
-		err_synd = readl(priv->base + priv->regs[ECC_SIG_UE_SYND_REG]) & \
-			   ECC_SIG_SYND_MSK;
-		err_synd >>= ECC_SIG_SYND_OFF;
+		err_synd = readl(priv->base + pdata->reg->ctl_ue_synd);
+		err_synd = (err_synd & pdata->mask->ue_synd_mask) >> pdata->mask->ue_synd_shift;
 
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
-			     1,
-			     err_addr >> PAGE_SHIFT,
-			     err_addr & ~PAGE_MASK,
-			     err_synd, 0, 0, -1,
-			     mci->ctl_name, "");
+				     1,
+				     err_addr >> PAGE_SHIFT,
+				     err_addr & ~PAGE_MASK,
+				     err_synd, 0, 0, -1,
+				     mci->ctl_name, "");
 	}
 
-	if (int_status & ECC_INT_STS_SCRB_MSK)
+	if (int_status & pdata->mask->int_status_scrb_mask)
 		edac_printk(KERN_ERR, EDAC_MC,
 			"The scrub operation has completed.\n");
 
 	/* For ecc scrub start complete and ECC writeback command not be
 	 * executed.
 	 * */
-	if (int_status & ~(ECC_INT_STS_CE_MSK | ECC_INT_STS_UE_MSK))
+	if (int_status & ~(pdata->mask->int_status_ce_mask |
+			   pdata->mask->int_status_ue_mask))
 		edac_printk(KERN_ERR, EDAC_MC,
 			"Scrubbing and writeback failed IRQ cleared\n");
 
-	writel(int_status, priv->base + priv->regs[ECC_INT_ACK_ECC_REG]);
+	writel(int_status, priv->base + pdata->reg->ctl_int_ack);
 
 	if (t != NULL)
 		send_sig_info(signal_id, &info, t);
@@ -479,10 +523,10 @@ static irqreturn_t edac_ecc_isr(int irq, void *dev_id)
 }
 
 static const struct of_device_id rzg2l_edac_of_match[] = {
-	{ .compatible = "renesas,r9a07g044-edac", .data = g2l_ddrmc_regs},
-	{ .compatible = "renesas,r9a07g043-edac", .data = g2l_ddrmc_regs},
-	{ .compatible = "renesas,r9a07g043f-edac", .data = g2l_ddrmc_regs},
-	{ .compatible = "renesas,r9a07g054-edac", .data = v2l_ddrmc_regs},
+	{ .compatible = "renesas,r9a07g044-edac", .data = &rzg2l_edac},
+	{ .compatible = "renesas,r9a07g043-edac", .data = &rzg2l_edac},
+	{ .compatible = "renesas,r9a07g043f-edac", .data = &rzg2l_edac},
+	{ .compatible = "renesas,r9a07g054-edac", .data = &rzv2l_edac},
 	{},
 };
 MODULE_DEVICE_TABLE(of, rzg2l_edac_of_match);
@@ -492,11 +536,11 @@ static int rzg2l_edac_mc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	void __iomem *base;
-	const unsigned long *regs;
+	const struct rz_platform_data *pdata;
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer layers[1];
 	const struct of_device_id *id;
-	struct rzg2l_edac_priv_data *priv;
+	struct rz_edac_priv_data *priv;
 	int irq, ret = -ENODEV;
 	u32 val;
 
@@ -511,8 +555,8 @@ static int rzg2l_edac_mc_probe(struct platform_device *pdev)
 			    "rzg2l DDR4 mc base are not defined.\n");
 		return PTR_ERR(base);
 	}
-	regs = of_device_get_match_data(&pdev->dev);
-	if (!regs) {
+	pdata = of_device_get_match_data(&pdev->dev);
+	if (!pdata) {
 		edac_printk(KERN_ERR, RZG2L_EDAC_MOD_NAME,
 			    "rzg2l DDR4 mc regs are not found.\n");
 		return -EINVAL;
@@ -525,7 +569,7 @@ static int rzg2l_edac_mc_probe(struct platform_device *pdev)
 	layers[0].is_virt_csrow = true;
 
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers,
-			    sizeof(struct rzg2l_edac_priv_data));
+			    sizeof(struct rz_edac_priv_data));
 	if (!mci) {
 		edac_printk(KERN_ERR, RZG2L_EDAC_MOD_NAME,
 			    "Failed memory allocation for mc instance\n");
@@ -535,8 +579,9 @@ static int rzg2l_edac_mc_probe(struct platform_device *pdev)
 	mci->pdev = &pdev->dev;
 	priv = mci->pvt_info;
 	priv->base = base;
-	priv->regs = regs;
+	priv->pdata = pdata;
 	platform_set_drvdata(pdev, mci);
+
 	/* Initialize controller capabilities */
 	mci->mtype_cap = MEM_FLAG_DDR4;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
@@ -553,12 +598,12 @@ static int rzg2l_edac_mc_probe(struct platform_device *pdev)
 	init_mem_layout(mci);
 
 	/* mask all the interrupts in master */
-	val = ECC_INT_MSK_ALL;
-	writel(val, priv->base + priv->regs[ECC_INT_MSK_MASTER_REG]);
+	val = pdata->mask->int_mask_master;
+	writel(val, priv->base + pdata->reg->ctl_int_mask_master);
 
 	/* Setup Interrupt handler for ECC */
 	irq = platform_get_irq_byname(pdev, "ecc_irq");
-	if (!irq) {
+	if (irq < 0) {
 		edac_printk(KERN_ERR, RZG2L_EDAC_MOD_NAME,
 			    "irq number not defined for ecc.\n");
 		goto err;
@@ -605,19 +650,20 @@ static int rzg2l_edac_mc_probe(struct platform_device *pdev)
 	}
 
 	/* Unmask all ECC interrupt */
-	val = readl(priv->base + priv->regs[ECC_INT_MSK_ECC_REG]);
-	val &= ~(ECC_INT_MSK_ECC);
-	writel(val, priv->base + priv->regs[ECC_INT_MSK_ECC_REG]);
+	val = readl(priv->base + pdata->reg->ctl_int_mask_ecc);
+	val &= ~(pdata->mask->int_status_ecc_mask);
+	writel(val, priv->base + pdata->reg->ctl_int_mask_ecc);
 
 	/* Enable the ECC interrupt in master */
-	val = readl(priv->base + priv->regs[ECC_INT_MSK_MASTER_REG]);
-	val &= ~(ECC_INT_MSK_MASTER_ECC | ECC_INT_MSK_MASTER_GLB);
-	writel(val, priv->base + priv->regs[ECC_INT_MSK_MASTER_REG]);
+	val = readl(priv->base + pdata->reg->ctl_int_mask_master);
+	val &= ~(pdata->mask->int_mask_master_ecc_mask |
+		 pdata->mask->int_mask_master_glb_mask);
+	writel(val, priv->base + pdata->reg->ctl_int_mask_master);
 
 	/* Ack all ECC interrupt in advance */
-	val = readl(priv->base + priv->regs[ECC_INT_ACK_ECC_REG]);
-	val &= ~ECC_INT_MSK_ECC;
-	writel(val, priv->base + priv->regs[ECC_INT_ACK_ECC_REG]);
+	val = readl(priv->base + pdata->reg->ctl_int_ack);
+	val &= ~(pdata->mask->int_status_ecc_mask);
+	writel(val, priv->base + pdata->reg->ctl_int_ack);
 
 	return 0;
 err_create_debug_fs:
@@ -632,17 +678,18 @@ static void rzg2l_edac_mc_remove(struct platform_device *pdev)
 {
 	u32 val;
 	struct mem_ctl_info *mci = platform_get_drvdata(pdev);
-	struct rzg2l_edac_priv_data *priv = mci->pvt_info;
+	struct rz_edac_priv_data *priv = mci->pvt_info;
+	const struct rz_platform_data *pdata = priv->pdata;
 
 	/* Mask all interrupt from DDR controller in int_mask_master */
-	val = readl(priv->base + priv->regs[ECC_INT_MSK_MASTER_REG]);
-	val |= ECC_INT_MSK_ALL;
-	writel(val, priv->base + priv->regs[ECC_INT_MSK_MASTER_REG]);
+	val = readl(priv->base + pdata->reg->ctl_int_mask_master);
+	val |= pdata->mask->int_mask_master;
+	writel(val, priv->base + pdata->reg->ctl_int_mask_master);
 
 	/* Mask all ECC interrupt */
-	val = readl(priv->base + priv->regs[ECC_INT_MSK_ECC_REG]);
-	val |= ECC_INT_MSK_ECC;
-	writel(val, priv->base + priv->regs[ECC_INT_MSK_ECC_REG]);
+	val = readl(priv->base + pdata->reg->ctl_int_mask_ecc);
+	val |= pdata->mask->int_status_ecc_mask;
+	writel(val, priv->base + pdata->reg->ctl_int_mask_ecc);
 
 	debugfs_remove(priv->pid_file);
 	debugfs_remove(priv->sig_file);
