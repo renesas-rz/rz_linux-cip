@@ -16,6 +16,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 
 #include <dt-bindings/clock/renesas,r9a08g045-vbattb.h>
 
@@ -168,6 +169,22 @@ static void vbattb_tamper_detector(struct vbattb_clk *vbclk)
 	writel_relaxed(val | VBATTB_TCECR_TCE0S, vbclk->base + VBATTB_TCECR);
 }
 
+static irqreturn_t tamper_irq_handler(int irq, void *dev_id)
+{
+	struct vbattb_clk *vbclk = dev_id;
+	u32 status;
+
+	status = readl_relaxed(vbclk->base + VBATTB_TAMPSR);
+	if (status & VBATTB_TAMPSR_TAMP0F) {
+		writel_relaxed(status & ~VBATTB_TAMPSR_TAMP0F, vbclk->base + VBATTB_TAMPSR);
+		/* Wait to clear the tamper event */
+		udelay(160);
+		return IRQ_HANDLED;
+	}
+
+	return IRQ_NONE;
+}
+
 static int vbattb_clk_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -181,7 +198,7 @@ static int vbattb_clk_probe(struct platform_device *pdev)
 	struct clk_hw *hw;
 	/* 4 clocks are exported: VBATTB_XC, VBATTB_XBYP, VBATTB_MUX, VBATTB_VBATTCLK. */
 	u8 num_clks = 4;
-	int ret;
+	int ret, irq;
 
 	/* Default to 4pF as this is not needed if external clock device is connected. */
 	of_lc = 4000;
@@ -203,6 +220,17 @@ static int vbattb_clk_probe(struct platform_device *pdev)
 	vbclk->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(vbclk->base))
 		return PTR_ERR(vbclk->base);
+
+	irq = platform_get_irq_optional(pdev, 0);
+	if (irq < 0)
+	     return dev_err_probe(dev, irq, "Failed to get tamper IRQ\n");
+
+	if (irq > 0) {
+		ret = devm_request_irq(dev, irq, tamper_irq_handler,
+				       0, "tampdi", vbclk);
+		if (ret)
+			return dev_err_probe(dev, ret, "Failed to request tamper IRQ\n");
+	}
 
 	ret = devm_pm_runtime_enable(dev);
 	if (ret)
