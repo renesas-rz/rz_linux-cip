@@ -892,6 +892,20 @@
 };
 #endif
 
+#if (SW_SD2_DEV_SEL)
+&sdhi2 {
+	pinctrl-0 = <&sdhi2_pins>;
+	pinctrl-1 = <&sdhi2_pins_uhs>;
+	pinctrl-names = "default", "state_uhs";
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&vqmmc_sd2_pvdd>;
+	bus-width = <4>;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	max-frequency = <300000000>;
+	status = "okay";
+};
+#else
 &ssi0 {
 	clocks = <&cpg CPG_MOD R9A08G046_SSI0_PCLK2>,
 		 <&cpg CPG_MOD R9A08G046_SSI0_PCLK_SFR>,
@@ -901,6 +915,7 @@
 
 	status = "okay";
 };
+#endif
 
 #if (!SW_DPI_EN && RZG3L_SMARC_MIPI_DSI_ENABLE)
 &ssi2 {
