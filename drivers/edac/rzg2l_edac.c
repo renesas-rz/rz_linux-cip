@@ -45,7 +45,14 @@
 #define MBIT_CNT_MAX			(0x7)
 #define SBIT_CNT_MAX			(0x1f)
 
+enum rz_edac_chip {
+	RZ_EDAC_G2L,
+	RZ_EDAC_V2L,
+	RZ_EDAC_T2N,
+};
+
 struct rz_platform_data {
+	enum rz_edac_chip chip;
 	const struct rz_mc_regs *reg;
 	const struct rz_mc_mask *mask;
 };
@@ -137,6 +144,25 @@ static const struct rz_mc_regs rzv2l_regs = {
 	.ctl_xor_check_bits		= 0x190,
 };
 
+static const struct rz_mc_regs rzt2n_regs = {
+	/* memory controller registers */
+	.ctl_ecc_en			= 0x370,
+	.ctl_ue_addr_l			= 0x380,
+	.ctl_ue_synd			= 0x384,
+	.ctl_ue_data_l			= 0x388,
+	.ctl_ue_data_h			= 0x38c,
+	.ctl_ce_addr_l			= 0x390,
+	.ctl_ce_synd			= 0x394,
+	.ctl_ce_data_l			= 0x398,
+	.ctl_ce_data_h			= 0x39c,
+	.ctl_int_mask_master		= 0x4e8,
+	.ctl_int_mask_ecc		= 0x538,
+	.ctl_int_status			= 0x4f0,
+	.ctl_int_ack			= 0x514,
+	.ctl_controller_busy		= 0x4d0,
+	.ctl_xor_check_bits		= 0x374,
+};
+
 static const struct rz_mc_mask rzg2l_mask = {
 	/* masks and shifts */
 	.int_status_ecc_mask		= GENMASK(15, 0),	/* ECC_INT_MSK_ECC */
@@ -155,14 +181,37 @@ static const struct rz_mc_mask rzg2l_mask = {
 	.int_mask_master_ecc_mask	= BIT(1),		/* ECC_INT_MSK_MASTER_ECC_OFF */
 };
 
+static const struct rz_mc_mask rzt2n_mask = {
+	/* masks and shifts */
+	.int_status_ecc_mask		= GENMASK(31, 0),
+	.int_status_ce_mask		= BIT(0) | BIT(1) | BIT(8),
+	.int_status_ue_mask		= BIT(2) | BIT(3),
+	.int_status_scrb_mask		= BIT(7),
+	.int_mask_master		= GENMASK(31, 0),
+	.ce_synd_mask			= GENMASK(7, 0),
+	.ce_synd_shift			= 0,
+	.ue_synd_mask			= GENMASK(7, 0),
+	.ue_synd_shift			= 0,
+	.int_mask_master_glb_mask	= BIT(31),
+	.int_mask_master_ecc_mask	= BIT(1),
+};
+
 static const struct rz_platform_data rzg2l_edac = {
+	.chip = RZ_EDAC_G2L,
 	.reg =	&rzg2l_regs,
 	.mask = &rzg2l_mask,
 };
 
 static const struct rz_platform_data rzv2l_edac = {
+	.chip = RZ_EDAC_V2L,
 	.reg =	&rzv2l_regs,
 	.mask = &rzg2l_mask,
+};
+
+static const struct rz_platform_data rzt2n_edac = {
+	.chip = RZ_EDAC_T2N,
+	.reg =	&rzt2n_regs,
+	.mask = &rzt2n_mask,
 };
 
 struct rz_edac_priv_data {
@@ -457,16 +506,19 @@ static irqreturn_t edac_ecc_isr(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	if (int_status & pdata->mask->int_status_ce_mask) {
-		val_h = readl(priv->base + pdata->reg->ctl_ce_addr_h);
-		val_h &= pdata->mask->ce_addr_h_mask;
+		if (pdata->chip != RZ_EDAC_T2N) {
+			err_id = readl(priv->base + pdata->reg->ctl_ecc_c_id) &
+				 pdata->mask->ecc_id_mask;
+
+			val_h = readl(priv->base + pdata->reg->ctl_ce_addr_h);
+			val_h &= pdata->mask->ce_addr_h_mask;
+		}
 		val_l = readl(priv->base + pdata->reg->ctl_ce_addr_l);
 		err_addr = ((u64)val_h << 32) | val_l;
 
 		val_h = readl(priv->base + pdata->reg->ctl_ce_data_h);
 		val_l = readl(priv->base + pdata->reg->ctl_ce_data_l);
 		err_data = ((u64)val_h << 32) | val_l;
-
-		err_id = readl(priv->base + pdata->reg->ctl_ecc_c_id) & pdata->mask->ecc_id_mask;
 
 		err_synd = readl(priv->base + pdata->reg->ctl_ce_synd);
 		err_synd = (err_synd & pdata->mask->ce_synd_mask) >> pdata->mask->ce_synd_shift;
@@ -480,16 +532,19 @@ static irqreturn_t edac_ecc_isr(int irq, void *dev_id)
 	}
 
 	if (int_status & pdata->mask->int_status_ue_mask) {
-		val_h = readl(priv->base + pdata->reg->ctl_ue_addr_h);
-		val_h &= pdata->mask->ue_addr_h_mask;
+		if (pdata->chip != RZ_EDAC_T2N) {
+			err_id = readl(priv->base + pdata->reg->ctl_ecc_u_id) &
+				 pdata->mask->ecc_id_mask;
+
+			val_h = readl(priv->base + pdata->reg->ctl_ue_addr_h);
+			val_h &= pdata->mask->ue_addr_h_mask;
+		}
 		val_l = readl(priv->base + pdata->reg->ctl_ue_addr_l);
 		err_addr = ((u64)val_h << 32) | val_l;
 
 		val_h = readl(priv->base + pdata->reg->ctl_ue_data_h);
 		val_l = readl(priv->base + pdata->reg->ctl_ue_data_l);
 		err_data = ((u64)val_h << 32) | val_l;
-
-		err_id = readl(priv->base + pdata->reg->ctl_ecc_u_id) & pdata->mask->ecc_id_mask;
 
 		err_synd = readl(priv->base + pdata->reg->ctl_ue_synd);
 		err_synd = (err_synd & pdata->mask->ue_synd_mask) >> pdata->mask->ue_synd_shift;
@@ -527,6 +582,7 @@ static const struct of_device_id rzg2l_edac_of_match[] = {
 	{ .compatible = "renesas,r9a07g043-edac", .data = &rzg2l_edac},
 	{ .compatible = "renesas,r9a07g043f-edac", .data = &rzg2l_edac},
 	{ .compatible = "renesas,r9a07g054-edac", .data = &rzv2l_edac},
+	{ .compatible = "renesas,r9a07g076-edac", .data = &rzt2n_edac},
 	{},
 };
 MODULE_DEVICE_TABLE(of, rzg2l_edac_of_match);
