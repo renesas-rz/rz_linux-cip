@@ -461,14 +461,6 @@
 	status = "okay";
 };
 
-&vspb {
-	status = "okay";
-};
-
-&vspi0 {
-	status = "okay";
-};
-
 &rpc {
 	status = "okay";
 	num-cs = <1>;
