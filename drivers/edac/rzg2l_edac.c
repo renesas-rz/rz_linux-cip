@@ -19,6 +19,7 @@
 #include <linux/edac.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <asm/cacheflush.h>
 #include "edac_module.h"
 
@@ -45,10 +46,31 @@
 #define MBIT_CNT_MAX			(0x7)
 #define SBIT_CNT_MAX			(0x1f)
 
+/* Physical address in reserved DDR region used for ECC injection testing */
+#define INJECT_PHYS_ADDR		0x270000000ULL
+
 enum rz_edac_chip {
 	RZ_EDAC_G2L,
 	RZ_EDAC_V2L,
 	RZ_EDAC_T2N,
+};
+
+#define ERROR_TYPE_CORRECTABLE		0
+#define ERROR_TYPE_UNCORRECTABLE	1
+#define ERROR_LOCATION_DATA		0
+#define ERROR_LOCATION_CHECKCODE	1
+#define ERROR_BIT_DATA_MAX		63
+#define ERROR_BIT_CHECKCODE_MAX		7
+
+static char data_synd[] = {
+	0xf4, 0xf1, 0xec, 0xea, 0xe9, 0xe6, 0xe5, 0xe3,
+	0xdc, 0xda, 0xd9, 0xd6, 0xd5, 0xd3, 0xce, 0xcb,
+	0xb5, 0xb0, 0xad, 0xab, 0xa8, 0xa7, 0xa4, 0xa2,
+	0x9d, 0x9b, 0x98, 0x97, 0x94, 0x92, 0x8f, 0x8a,
+	0x75, 0x70, 0x6d, 0x6b, 0x68, 0x67, 0x64, 0x62,
+	0x5e, 0x5b, 0x58, 0x57, 0x54, 0x52, 0x4f, 0x4a,
+	0x34, 0x31, 0x2c, 0x2a, 0x29, 0x26, 0x25, 0x23,
+	0x1c, 0x1a, 0x19, 0x16, 0x15, 0x13, 0x0e, 0x0b
 };
 
 struct rz_platform_data {
@@ -96,6 +118,11 @@ struct rz_mc_mask {
 	u32 ecc_id_mask;
 	u32 int_mask_master_glb_mask;
 	u32 int_mask_master_ecc_mask;
+	u32 ecc_writeback_en;
+	u32 xor_check_bits;
+	u32 xor_check_bits_shift;
+	u32 fwc;
+	u32 controller_busy;
 };
 
 static const struct rz_mc_regs rzg2l_regs = {
@@ -194,6 +221,11 @@ static const struct rz_mc_mask rzt2n_mask = {
 	.ue_synd_shift			= 0,
 	.int_mask_master_glb_mask	= BIT(31),
 	.int_mask_master_ecc_mask	= BIT(1),
+	.ecc_writeback_en               = BIT(24),
+	.xor_check_bits			= GENMASK(15, 8),
+	.xor_check_bits_shift		= 8,
+	.fwc				= BIT(0),
+	.controller_busy		= BIT(24),
 };
 
 static const struct rz_platform_data rzg2l_edac = {
@@ -224,6 +256,12 @@ struct rz_edac_priv_data {
 	struct dentry *sig_file;
 	struct dentry *sbit_file;
 	struct dentry *mbit_file;
+
+	/* error injection */
+	struct dentry *debugfs;
+	u8 error_type;
+	u8 location;
+	u8 bit;
 };
 
 static unsigned int pid;
@@ -577,6 +615,145 @@ static irqreturn_t edac_ecc_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static ssize_t force_ecc_error(struct file *file, const char __user *data,
+			       size_t count, loff_t *ppos)
+{
+	struct device *dev = file->private_data;
+	struct mem_ctl_info *mci = to_mci(dev);
+	struct rz_edac_priv_data *priv = mci->pvt_info;
+	const struct rz_platform_data *pdata = priv->pdata;
+	void __iomem *inject_buf;
+	phys_addr_t inject_phys = INJECT_PHYS_ADDR;
+	u32 val, syndrome, mode;
+	int ret;
+
+	/* ECC must be in detection mode */
+	val = readl(priv->base + pdata->reg->ctl_ecc_en);
+	mode = (val & ECC_MODE_MSK) >> ECC_MODE_OFF;
+	if (mode != ECC_MODE_ED && mode != ECC_MODE_SECDED) {
+		edac_printk(KERN_ERR, RZG2L_EDAC_MOD_NAME,
+			    "ECC detection is not enabled\n");
+		return -EPERM;
+	}
+
+	if (priv->error_type == ERROR_TYPE_CORRECTABLE) {
+		if (priv->location == ERROR_LOCATION_DATA &&
+		    priv->bit > ERROR_BIT_DATA_MAX) {
+			edac_printk(KERN_INFO, RZG2L_EDAC_MOD_NAME,
+				    "data bit should not exceed %d (%d)\n",
+				    ERROR_BIT_DATA_MAX, priv->bit);
+			return -EINVAL;
+		}
+
+		if (priv->location == ERROR_LOCATION_CHECKCODE &&
+		    priv->bit > ERROR_BIT_CHECKCODE_MAX) {
+			edac_printk(KERN_INFO, RZG2L_EDAC_MOD_NAME,
+				    "checkcode bit should not exceed %d (%d)\n",
+				    ERROR_BIT_CHECKCODE_MAX, priv->bit);
+			return -EINVAL;
+		}
+		syndrome = priv->location ? (1 << priv->bit) : data_synd[priv->bit];
+	} else if (priv->error_type == ERROR_TYPE_UNCORRECTABLE) {
+		syndrome = 0x03;
+	} else {
+		edac_printk(KERN_INFO, RZG2L_EDAC_MOD_NAME,
+			    "invalid error type %d\n", priv->error_type);
+		return -EINVAL;
+	}
+
+	edac_printk(KERN_INFO, RZG2L_EDAC_MOD_NAME,
+		    "force an ECC error, type=%d, location=%d, bit=%d\n",
+		    priv->error_type, priv->location, priv->bit);
+
+	/* Map one aligned 64-bit DDR test word for ECC injection. */
+	if (!IS_ALIGNED(inject_phys, sizeof(u64))) {
+		edac_printk(KERN_ERR, RZG2L_EDAC_MOD_NAME,
+			    "inject phys addr is not 64-bit aligned\n");
+		return -EINVAL;
+	}
+
+	inject_buf = ioremap(inject_phys, sizeof(u64));
+	if (!inject_buf) {
+		edac_printk(KERN_ERR, RZG2L_EDAC_MOD_NAME,
+			    "failed to map inject buffer at %pa\n",
+			    &inject_phys);
+		return -ENOMEM;
+	}
+
+	/* Ensure no writes are pending */
+	ret = readl_poll_timeout(priv->base + pdata->reg->ctl_controller_busy,
+				 val, !(val & pdata->mask->controller_busy),
+				 1000, 10000);
+	if (ret) {
+		edac_printk(KERN_INFO, RZG2L_EDAC_MOD_NAME,
+			    "wait pending writes timeout\n");
+		iounmap(inject_buf);
+		return ret;
+	}
+
+	/* Write a value to the xor_check_bits */
+	val = readl(priv->base + pdata->reg->ctl_xor_check_bits);
+	val &= ~pdata->mask->xor_check_bits;
+
+	if (priv->error_type == ERROR_TYPE_CORRECTABLE) {
+		val |= (syndrome << pdata->mask->xor_check_bits_shift) |
+		       pdata->mask->ecc_writeback_en;
+	} else
+		val |= (syndrome <<  pdata->mask->xor_check_bits_shift);
+
+	writel(val, priv->base + pdata->reg->ctl_xor_check_bits);
+
+	/* Assert the fwc */
+	val = readl(priv->base + pdata->reg->ctl_xor_check_bits);
+	val |= pdata->mask->fwc;
+	writel(val, priv->base + pdata->reg->ctl_xor_check_bits);
+
+	/* Write one aligned 64-bit word */
+	writeq(0x5a5a5a5a5a5a5a5aULL, inject_buf);
+	/* Ensure write complete */
+	wmb();
+
+	ret = readl_poll_timeout(priv->base + pdata->reg->ctl_controller_busy,
+				 val, !(val & pdata->mask->controller_busy),
+				 1000, 10000);
+
+	if (ret) {
+		edac_printk(KERN_INFO, RZG2L_EDAC_MOD_NAME,
+			    "wait write completion timeout\n");
+		iounmap(inject_buf);
+		return ret;
+	}
+
+	/* Read same address to trigger ECC event */
+	readq(inject_buf);
+	/* Ensure read complete */
+	rmb();
+
+	iounmap(inject_buf);
+	return count;
+}
+
+static const struct file_operations force_ecc_error_fops = {
+	.open = simple_open,
+	.write = force_ecc_error,
+	.llseek = generic_file_llseek,
+};
+
+static void setup_ecc_inject_debugfs(struct mem_ctl_info *mci)
+{
+	struct rz_edac_priv_data *priv = mci->pvt_info;
+
+	priv->debugfs = edac_debugfs_create_dir(mci->mod_name);
+	if (!priv->debugfs)
+		return;
+
+	edac_debugfs_create_x8("error_type", 0644, priv->debugfs, &priv->error_type);
+	edac_debugfs_create_x8("location", 0644, priv->debugfs, &priv->location);
+	edac_debugfs_create_x8("bit", 0644, priv->debugfs, &priv->bit);
+	edac_debugfs_create_file("force_ecc_error", 0200, priv->debugfs,
+				 &mci->dev, &force_ecc_error_fops);
+}
+
 static const struct of_device_id rzg2l_edac_of_match[] = {
 	{ .compatible = "renesas,r9a07g044-edac", .data = &rzg2l_edac},
 	{ .compatible = "renesas,r9a07g043-edac", .data = &rzg2l_edac},
@@ -721,6 +898,9 @@ static int rzg2l_edac_mc_probe(struct platform_device *pdev)
 	val &= ~(pdata->mask->int_status_ecc_mask);
 	writel(val, priv->base + pdata->reg->ctl_int_ack);
 
+	if (IS_ENABLED(CONFIG_EDAC_DEBUG) && pdata->chip == RZ_EDAC_T2N)
+		setup_ecc_inject_debugfs(mci);
+
 	return 0;
 err_create_debug_fs:
 	debugfs_remove_recursive(priv->dir);
@@ -752,6 +932,9 @@ static void rzg2l_edac_mc_remove(struct platform_device *pdev)
 	debugfs_remove(priv->sbit_file);
 	debugfs_remove(priv->mbit_file);
 	debugfs_remove_recursive(priv->dir);
+
+	if (IS_ENABLED(CONFIG_EDAC_DEBUG) && pdata->chip == RZ_EDAC_T2N)
+		debugfs_remove_recursive(priv->debugfs);
 
 	edac_mc_del_mc(&pdev->dev);
 	edac_mc_free(mci);
