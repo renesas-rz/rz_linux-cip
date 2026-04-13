@@ -84,9 +84,6 @@ MODULE_PARM_DESC(phyaddr, "Physical device address");
 #define STMMAC_RX_FILL_BATCH		16
 
 #define STMMAC_XDP_PASS		0
-#define STMMAC_XDP_CONSUMED	BIT(0)
-#define STMMAC_XDP_TX		BIT(1)
-#define STMMAC_XDP_REDIRECT	BIT(2)
 
 static int flow_ctrl = FLOW_AUTO;
 module_param(flow_ctrl, int, 0644);
@@ -5500,6 +5497,28 @@ read_again:
 }
 
 /**
+ * stmmac_dsa_xdp_run - Run DSA XDP callback pre-SKB (True Native mode)
+ *
+ * Returns XDP action. Caller must check: if != XDP_PASS, skip SKB build.
+ */
+static u32 stmmac_dsa_xdp_run(struct stmmac_priv *priv,
+			      struct xdp_buff *xdp,
+			      struct page *page,
+			      struct page_pool *pool)
+{
+	struct stmmac_dsa_xdp_ops *dsa_ops;
+	u32 act = XDP_PASS;
+
+	rcu_read_lock();
+	dsa_ops = rcu_dereference(priv->dsa_xdp_ops);
+	if (dsa_ops && dsa_ops->xdp_dispatch)
+		act = dsa_ops->xdp_dispatch(dsa_ops->priv, xdp, page, pool);
+	rcu_read_unlock();
+
+	return act;
+}
+
+/**
  * stmmac_rx - manage the receive process
  * @priv: driver private structure
  * @limit: napi bugget
@@ -5649,6 +5668,36 @@ read_again:
 			ctx.priv = priv;
 			ctx.desc = p;
 			ctx.ndesc = np;
+
+			/* DSA XDP callback — True Native, pre-skb */
+			if (rcu_access_pointer(priv->dsa_xdp_ops)) {
+				u32 act;
+
+				act = stmmac_dsa_xdp_run(priv, &ctx.xdp,
+							 buf->page,
+							 rx_q->page_pool);
+
+				if (act != XDP_PASS) {
+					switch (act) {
+					case XDP_TX:
+						xdp_status |= STMMAC_XDP_TX;
+						break;
+					case XDP_REDIRECT:
+						xdp_status |= STMMAC_XDP_REDIRECT;
+						break;
+					case XDP_DROP:
+						break;
+					case XDP_ABORTED:
+					default:
+						trace_xdp_exception(priv->dev, NULL, act);
+						break;
+					}
+					buf->page = NULL;
+					skb = NULL;
+					count++;
+					continue;
+				}
+			}
 
 			skb = stmmac_xdp_run_prog(priv, &ctx.xdp);
 			/* Due xdp_adjust_tail: DMA sync for_device
@@ -8219,6 +8268,50 @@ static void __exit stmmac_exit(void)
 	debugfs_remove_recursive(stmmac_fs_dir);
 #endif
 }
+
+struct page_pool *stmmac_get_rx_page_pool(struct net_device *ndev, int q)
+{
+	struct stmmac_priv *priv = netdev_priv(ndev);
+
+	if (!priv->plat || q >= priv->plat->rx_queues_to_use)
+		return NULL;
+
+	return priv->dma_conf.rx_queue[q].page_pool;
+}
+EXPORT_SYMBOL_GPL(stmmac_get_rx_page_pool);
+
+int stmmac_register_dsa_xdp_cb(struct net_device *ndev,
+			       struct stmmac_dsa_xdp_ops *ops)
+{
+	struct stmmac_priv *priv = netdev_priv(ndev);
+
+	if (!priv)
+		return -ENODEV;
+
+	ops->stmmac = priv;   /* inject stmmac_priv */
+	rcu_assign_pointer(priv->dsa_xdp_ops, ops);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(stmmac_register_dsa_xdp_cb);
+
+void stmmac_unregister_dsa_xdp_cb(struct net_device *ndev)
+{
+	struct stmmac_priv *priv = netdev_priv(ndev);
+
+	if (!priv)
+		return;
+
+	rcu_assign_pointer(priv->dsa_xdp_ops, NULL);
+	synchronize_rcu();
+}
+EXPORT_SYMBOL_GPL(stmmac_unregister_dsa_xdp_cb);
+
+int stmmac_xdp_xmit_back_for_dsa(struct stmmac_priv *priv,
+				 struct xdp_buff *xdp)
+{
+	return stmmac_xdp_xmit_back(priv, xdp);
+}
+EXPORT_SYMBOL_GPL(stmmac_xdp_xmit_back_for_dsa);
 
 module_init(stmmac_init)
 module_exit(stmmac_exit)
