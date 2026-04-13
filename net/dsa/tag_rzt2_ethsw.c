@@ -11,6 +11,11 @@
 
 #include "tag.h"
 
+/* BIT(31) of skb->mark: set by XDP redirect path to skip TSM
+ * timestamping, cleared after reading in ethsw_tag_xmit().
+ */
+#define ETHSW_SKB_MARK_XDP_REDIRECT  BIT(31)
+
 /* To define the outgoing port and to discover the incoming port a TAG is
  * inserted after Src MAC :
  *
@@ -65,11 +70,17 @@ static struct sk_buff *ethsw_tag_xmit(struct sk_buff *skb, struct net_device *de
 	etype = *(__be16 *)(skb->data + 2 * ETH_ALEN + 8);
 	/* Insert transmit timestamping data if Ethernet type field is PTP type
 	 * or IPv4 type.
+	 * XDP redirect packets: skip timestamping to avoid TSM interrupt storm
 	 */
-	if (ntohs(etype) == 0x88F7 || ntohs(etype) == 0x0800)
-		ptag->ctrl_data = htons(ETHSW_CTRL_DATA_FORCE_FORWARD | ETHSW_CTRLBIT_TIMESTAMPING);
-	else
+	if (skb->mark & ETHSW_SKB_MARK_XDP_REDIRECT) {
+		skb->mark &= ~ETHSW_SKB_MARK_XDP_REDIRECT;  /* clear marker */
 		ptag->ctrl_data = htons(ETHSW_CTRL_DATA_FORCE_FORWARD);
+	} else if (ntohs(etype) == ETH_P_1588  || ntohs(etype) == ETH_P_IP) {
+		ptag->ctrl_data = htons(ETHSW_CTRL_DATA_FORCE_FORWARD |
+					ETHSW_CTRLBIT_TIMESTAMPING);
+	} else {
+		ptag->ctrl_data = htons(ETHSW_CTRL_DATA_FORCE_FORWARD);
+	}
 
 	data2_val = FIELD_PREP(ETHSW_CTRL_DATA_PORT, BIT(dp->index));
 	ptag->ctrl_tag = htons(ETH_P_DSA_ETHSW);
