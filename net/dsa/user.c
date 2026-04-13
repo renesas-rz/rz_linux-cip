@@ -22,6 +22,7 @@
 #include <net/dcbnl.h>
 #include <linux/netpoll.h>
 #include <linux/string.h>
+#include <linux/stmmac_dsa_xdp.h>
 
 #include "conduit.h"
 #include "dsa.h"
@@ -30,6 +31,8 @@
 #include "switch.h"
 #include "tag.h"
 #include "user.h"
+
+#define ETHSW_TAG_LEN 8  /* A5PSW/ETHSW management tag size */
 
 struct dsa_switchdev_event_work {
 	struct net_device *dev;
@@ -2525,6 +2528,128 @@ static int dsa_user_fill_forward_path(struct net_device_path_ctx *ctx,
 	return 0;
 }
 
+extern u32 dsa_user_xdp_run_skb(struct dsa_port *dp, struct sk_buff *skb)
+{
+	struct bpf_prog *prog;
+	u32 act;
+
+	prog = rcu_dereference(dp->xdp_prog);
+	if (!prog)
+		return XDP_PASS;
+
+	act = bpf_prog_run(prog, skb);  /* skb-based BPF run */
+	return act;
+}
+
+static int dsa_user_ndo_bpf(struct net_device *dev, struct netdev_bpf *bpf)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct bpf_prog *old;
+
+	switch (bpf->command) {
+	case XDP_SETUP_PROG:
+		/* Guard: switch driver must implement XDP ops */
+		if (!dp->ds->ops->port_xdp_setup) {
+			NL_SET_ERR_MSG_MOD(bpf->extack,
+					   "Switch driver does not support XDP");
+			return -EOPNOTSUPP;
+		}
+
+		/* Guard: conduit must not have its own XDP program */
+		if (bpf->prog && dsa_conduit_has_dsa_xdp(dp->conduit)) {
+			NL_SET_ERR_MSG_MOD(bpf->extack,
+					   "Conduit already has XDP program");
+			return -EBUSY;
+		}
+
+		/* Lazy init if not yet registered */
+		if (!dp->xdp_rxq_registered) {
+			int err = dsa_port_xdp_setup(dp);
+
+			if (err)
+				return err;
+		}
+
+		/* Lazy upgrade to MEM_TYPE_PAGE_POOL once stmmac page_pool is ready */
+		if (bpf->prog && !dp->rx_pp) {
+			struct dsa_port *cpu_dp;
+			struct page_pool *pool;
+
+			dsa_switch_for_each_cpu_port(cpu_dp, dp->ds)
+				break;
+
+			if (cpu_dp && cpu_dp->conduit) {
+				pool = stmmac_get_rx_page_pool(cpu_dp->conduit, 0);
+
+				if (pool) {
+					xdp_rxq_info_unreg_mem_model(&dp->xdp_rxq);
+					xdp_rxq_info_reg_mem_model(&dp->xdp_rxq,
+								   MEM_TYPE_PAGE_POOL,
+								   pool);
+					dp->rx_pp = pool;
+				}
+			}
+		}
+
+		old = rcu_replace_pointer(dp->xdp_prog, bpf->prog,
+					  lockdep_rtnl_is_held());
+		if (old)
+			bpf_prog_put(old);
+
+		dp->xdp_prog_attached = !!bpf->prog;
+
+		return 0;
+
+	default:
+		return -EINVAL;
+	}
+}
+
+static int dsa_user_xdp_xmit(struct net_device *dev,
+			     int n, struct xdp_frame **frames,
+			     u32 flags)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	int i, nxmit = 0;
+
+	for (i = 0; i < n; i++) {
+		struct xdp_frame *xdpf = frames[i];
+		struct sk_buff *skb;
+
+		/* Build skb from the original frame (tag still present) */
+		skb = xdp_build_skb_from_frame(xdpf, dev);
+		if (!skb) {
+			xdp_return_frame_rx_napi(xdpf);
+			continue;
+		}
+
+		/* Suppress TSM timestamping to avoid interrupt storm at high redirect rate */
+		/* Allow switch driver to set TX metadata (e.g. suppress timestamping) */
+		if (dp->ds->ops->port_xdp_xmit_prepare)
+			dp->ds->ops->port_xdp_xmit_prepare(dp->ds, dp->index, skb);
+
+		/* eth_type_trans() called by xdp_build_skb_from_frame pulls ETH_HLEN;
+		 * push it back so we can see the full Ethernet frame
+		 */
+		skb_push(skb, ETH_HLEN);
+
+		/* Strip the 8-byte ETHSW management tag: shift DA+SA forward */
+		memmove(skb->data + ETHSW_TAG_LEN,
+			skb->data,
+			ETH_ALEN * 2);
+		skb_pull(skb, ETHSW_TAG_LEN);
+
+		/* Restore Ethernet header for dsa_user_xmit() */
+		skb->protocol = eth_type_trans(skb, dev);
+		skb_push(skb, ETH_HLEN);
+
+		skb->dev = dev;
+		dev_queue_xmit(skb);
+		nxmit++;
+	}
+	return nxmit;
+}
+
 static const struct net_device_ops dsa_user_netdev_ops = {
 	.ndo_open		= dsa_user_open,
 	.ndo_stop		= dsa_user_close,
@@ -2546,6 +2671,8 @@ static const struct net_device_ops dsa_user_netdev_ops = {
 	.ndo_vlan_rx_kill_vid	= dsa_user_vlan_rx_kill_vid,
 	.ndo_change_mtu		= dsa_user_change_mtu,
 	.ndo_fill_forward_path	= dsa_user_fill_forward_path,
+	.ndo_bpf		= dsa_user_ndo_bpf,
+	.ndo_xdp_xmit		= dsa_user_xdp_xmit,
 };
 
 static const struct device_type dsa_type = {
@@ -2743,6 +2870,12 @@ int dsa_user_create(struct dsa_port *port)
 	SET_NETDEV_DEVLINK_PORT(user_dev, &port->devlink_port);
 	user_dev->dev.of_node = port->dn;
 	user_dev->vlan_features = conduit->vlan_features;
+
+	 /* Advertise XDP feature flags including redirect support */
+	user_dev->xdp_features = NETDEV_XDP_ACT_BASIC		|
+				  NETDEV_XDP_ACT_REDIRECT	|
+				  NETDEV_XDP_ACT_NDO_XMIT	|
+				  NETDEV_XDP_ACT_NDO_XMIT_SG;
 
 	p = netdev_priv(user_dev);
 	user_dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
