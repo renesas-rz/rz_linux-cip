@@ -68,4 +68,5 @@ dsa_user_to_conduit(const struct net_device *dev)
 	return dsa_port_to_conduit(dp);
 }
 
+u32 dsa_user_xdp_run_skb(struct dsa_port *dp, struct sk_buff *skb);
 #endif
