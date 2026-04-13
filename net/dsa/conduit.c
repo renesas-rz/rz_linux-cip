@@ -16,6 +16,27 @@
 #include "port.h"
 #include "tag.h"
 
+/* Guard: prevent conduit from attaching XDP while DSA ports have XDP active */
+bool dsa_conduit_has_dsa_xdp(struct net_device *dev)
+{
+	struct dsa_port *cpu_dp = dev->dsa_ptr;
+	struct dsa_switch *ds;
+	struct dsa_port *dp;
+
+	if (!cpu_dp)
+		return false;
+
+	ds = cpu_dp->ds;
+	if (!ds)
+		return false;
+
+	dsa_switch_for_each_user_port(dp, ds) {
+		if (dp->xdp_prog_attached)
+			return true;
+	}
+	return false;
+}
+
 static int dsa_conduit_get_regs_len(struct net_device *dev)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
