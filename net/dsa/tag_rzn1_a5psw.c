@@ -91,6 +91,7 @@ static struct sk_buff *a5psw_tag_rcv(struct sk_buff *skb,
 	port = FIELD_GET(A5PSW_CTRL_DATA_PORT, ntohs(tag->ctrl_data));
 
 	skb->dev = dsa_conduit_find_user(dev, 0, port);
+	struct dsa_port *dp = dsa_user_to_port(skb->dev);
 	if (!skb->dev)
 		return NULL;
 
@@ -98,6 +99,27 @@ static struct sk_buff *a5psw_tag_rcv(struct sk_buff *skb,
 	dsa_strip_etype_header(skb, A5PSW_TAG_LEN);
 
 	dsa_default_offload_fwd_mark(skb);
+
+	/* If a BPF program is attached to this port, run it before handing
+	 * the packet up to the network stack. We check xdp_prog_attached
+	 * first as a quick guard to avoid taking the RCU lock on every
+	 * packet when no program is attached.
+	 *
+	 * This is the SKB fallback path, so only XDP_PASS is fully
+	 * supported. XDP_TX and XDP_REDIRECT cannot be handled here, so
+	 * any action other than XDP_PASS means "drop this packet" and we
+	 * return NULL to signal that to the caller.
+	 */
+	if (unlikely(dp->xdp_prog_attached) && dp->ds->ops->port_xdp_run) {
+		u32 xdp_act;
+
+		rcu_read_lock();
+		xdp_act = dp->ds->ops->port_xdp_run(dp->ds,
+						     dp->index, skb);
+		rcu_read_unlock();
+		if (xdp_act != XDP_PASS)
+			return NULL;
+	}
 
 	return skb;
 }

@@ -18,8 +18,12 @@
 #include <net/pkt_sched.h>
 #include <linux/net/renesas/rzt2-ethss.h>
 #include <linux/net/renesas/rzt2_timer_hwtstamp.h>
+#include <linux/stmmac_dsa_xdp.h>
+#include <net/page_pool/helpers.h>
 
 #include "rzt2_ethsw.h"
+
+extern u32 dsa_user_xdp_run_skb(struct dsa_port *dp, struct sk_buff *skb);
 
 struct ethsw_stats {
 	u16 offset;
@@ -30,6 +34,8 @@ struct ethsw_stats {
 	.offset = ETHSW_##_offset,	\
 	.name = __stringify(_offset),	\
 }
+
+#define ETHSW_A5PSW_PORT_MASK  GENMASK(3, 0)
 
 static const struct ethsw_stats ethsw_stats[] = {
 	STAT_DESC(aFramesTransmittedOK),
@@ -976,6 +982,10 @@ static void ethsw_map_vlan_priotity_to_queue(struct ethsw *ethsw)
 	}
 }
 
+static int ethsw_register_xdp_callback(struct ethsw *ethsw);
+
+static void ethsw_unregister_xdp_callback(struct ethsw *ethsw);
+
 static int ethsw_setup(struct dsa_switch *ds)
 {
 	struct ethsw *ethsw = ds->priv;
@@ -1060,10 +1070,206 @@ static int ethsw_setup(struct dsa_switch *ds)
 	ethsw_time_init(ethsw->base, 0);
 	ethsw_time_init(ethsw->base, 1);
 
+	/* Register XDP callback with stmmac — ignore error if conduit not ready */
+	ret = ethsw_register_xdp_callback(ethsw);
+	if (ret && ret != -ENODEV)
+		dev_warn(ethsw->dev, "XDP callback registration failed: %d\n", ret);
+
 	/* Mapping VLAN priority to queue */
 	ethsw_map_vlan_priotity_to_queue(ethsw);
 
 	return 0;
+}
+
+static int ethsw_port_xdp_setup(struct dsa_switch *ds, int port)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+	int err;
+
+	if (!dp || !dp->user)
+		return -ENODEV;
+
+	err = xdp_rxq_info_reg(&dp->xdp_rxq, dp->user, 0, 0);
+	if (err)
+		return err;
+
+	/* Use PAGE_SHARED initially; upgrade to PAGE_POOL lazily on first attach */
+	err = xdp_rxq_info_reg_mem_model(&dp->xdp_rxq,
+					 MEM_TYPE_PAGE_SHARED, NULL);
+	if (err) {
+		xdp_rxq_info_unreg(&dp->xdp_rxq);
+		return err;
+	}
+
+	RCU_INIT_POINTER(dp->xdp_prog, NULL);
+	dp->xdp_prog_attached = false;
+	dp->rx_pp = NULL;
+
+	netdev_info(dp->user, "ETHSW XDP: port %d rxq registered OK\n", port);
+	return 0;
+}
+
+static void ethsw_port_xdp_teardown(struct dsa_switch *ds, int port)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+
+	if (!dp)
+		return;
+
+	xdp_rxq_info_unreg(&dp->xdp_rxq);
+	dp->rx_pp = NULL;
+	dp->xdp_prog_attached = false;
+}
+
+static u32 ethsw_port_xdp_run(struct dsa_switch *ds, int port,
+			      struct sk_buff *skb)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+
+	if (!dp)
+		return XDP_PASS;
+
+	return dsa_user_xdp_run_skb(dp, skb);
+}
+
+/* A5PSW tag helpers in ethsw context */
+static inline int ethsw_a5psw_get_port(const struct xdp_buff *xdp)
+{
+	const u8 *frame = xdp->data;
+	const u8 *data_end = xdp->data_end;
+	__be16 ctrl_data;
+
+	/* [DA:6][SA:6][ctrl_tag:2][ctrl_data:2] = 16 bytes minimum */
+	if (unlikely((data_end - frame) < (ETH_ALEN * 2 + 4)))
+		return -EINVAL;
+
+	/* Port number is in ctrl_data bits[3:0], at offset ETH_ALEN*2+2 = 14 */
+	ctrl_data = get_unaligned_be16(frame + ETH_ALEN * 2 + 2);
+	return (int)(ctrl_data & ETHSW_A5PSW_PORT_MASK);
+}
+
+static u32 ethsw_dp_dispatch(struct ethsw *ethsw,
+			     struct xdp_buff *xdp,
+			     struct page *page,
+			     struct page_pool *pool)
+{
+	struct dsa_switch *ds = &ethsw->ds;
+	struct bpf_prog *prog;
+	struct dsa_port *dp;
+	int port_num;
+	u32 act;
+	int res;
+
+	port_num = ethsw_a5psw_get_port(xdp);
+	if (port_num < 0)
+		return XDP_PASS;
+
+	dp = dsa_to_port(ds, port_num);
+	if (!dp)
+		return XDP_PASS;
+
+	/* Hold RCU read lock for the entire dispatch to prevent
+	 * dp->xdp_prog from being set to NULL during detach while
+	 * we are still using it. Without this, Ctrl+C on xdp-bench
+	 * causes a NULL pointer dereference in bpf_prog_run_xdp().
+	 */
+	rcu_read_lock();
+
+	prog = rcu_dereference(dp->xdp_prog);
+	if (!prog || !dp->xdp_prog_attached) {
+		rcu_read_unlock();
+		return XDP_PASS;
+	}
+
+	xdp->rxq = &dp->xdp_rxq;
+	act = bpf_prog_run_xdp(prog, xdp);
+
+	switch (act) {
+	case XDP_DROP:
+		rcu_read_unlock();
+		page_pool_recycle_direct(pool, page);
+		return XDP_DROP;
+	case XDP_PASS:
+		xdp->rxq = NULL;
+		rcu_read_unlock();
+		return XDP_PASS;
+	case XDP_TX:
+		rcu_read_unlock();
+		res = stmmac_xdp_xmit_back_for_dsa(ethsw->stmmac, xdp);
+		if (res == STMMAC_XDP_TX)
+			return XDP_TX;
+		page_pool_recycle_direct(pool, page);
+		return XDP_DROP;
+	case XDP_REDIRECT:
+		res = xdp_do_redirect(dp->user, xdp, prog);
+		rcu_read_unlock();
+		if (!res)
+			return XDP_REDIRECT;
+		page_pool_recycle_direct(pool, page);
+		return XDP_DROP;
+	default:
+		bpf_warn_invalid_xdp_action(dp->user, prog, act);
+		rcu_read_unlock();
+		page_pool_recycle_direct(pool, page);
+		return XDP_DROP;
+	}
+}
+
+static u32 ethsw_xdp_dispatch_cb(void *priv,
+				 struct xdp_buff *xdp,
+				 struct page *page,
+				 struct page_pool *pool)
+{
+	return ethsw_dp_dispatch((struct ethsw *)priv, xdp, page, pool);
+}
+
+static struct stmmac_dsa_xdp_ops ethsw_xdp_ops = {
+	.xdp_dispatch = ethsw_xdp_dispatch_cb,
+};
+
+static int ethsw_register_xdp_callback(struct ethsw *ethsw)
+{
+	struct dsa_port *cpu_dp;
+	struct net_device *conduit;
+
+	dsa_switch_for_each_cpu_port(cpu_dp, &ethsw->ds)
+		break;
+
+	if (!cpu_dp || !cpu_dp->conduit) {
+		pr_warn("ETHSW XDP: conduit not ready, skip callback\n");
+		return -ENODEV;
+	}
+
+	conduit = cpu_dp->conduit;
+	ethsw->stmmac = netdev_priv(conduit);
+	ethsw_xdp_ops.priv = ethsw;
+	return stmmac_register_dsa_xdp_cb(conduit, &ethsw_xdp_ops);
+}
+
+static void ethsw_unregister_xdp_callback(struct ethsw *ethsw)
+{
+	struct dsa_port *cpu_dp;
+	struct net_device *conduit;
+
+	dsa_switch_for_each_cpu_port(cpu_dp, &ethsw->ds)
+		break;
+
+	if (!cpu_dp || !cpu_dp->conduit)
+		return;
+
+	conduit = cpu_dp->conduit;
+	stmmac_unregister_dsa_xdp_cb(conduit);
+}
+
+static void ethsw_port_xdp_xmit_prepare(struct dsa_switch *ds,
+					int port,
+					struct sk_buff *skb)
+{
+	/* Use skb->mark instead of skb->cb since dsa_user_xmit()
+	 * calls memset(skb->cb, 0) before ethsw_tag_xmit() is called,
+	 * which would clear any flag set in skb->cb.
+	 */
+	 skb->mark |= BIT(31);  /* XDP redirect marker — high bit */
 }
 
 static void ethsw_tdma_gcl_set(struct ethsw *ethsw, const u32 gcl_ix,
@@ -1704,6 +1910,10 @@ static const struct dsa_switch_ops ethsw_switch_ops = {
 	.port_setup_tc = ethsw_port_setup_tc,
 	.cls_flower_add	= ethsw_cls_flower_add,
 	.cls_flower_del	= ethsw_cls_flower_del,
+	.port_xdp_setup    = ethsw_port_xdp_setup,
+	.port_xdp_teardown = ethsw_port_xdp_teardown,
+	.port_xdp_run      = ethsw_port_xdp_run,
+	.port_xdp_xmit_prepare = ethsw_port_xdp_xmit_prepare,
 };
 
 static int ethsw_mdio_wait_busy(struct ethsw *ethsw)
@@ -3218,18 +3428,29 @@ static const struct attribute_group attr_group = {
 static irqreturn_t ethsw_intr_irq_handler(int irq, void *data)
 {
 	struct ethsw *ethsw = data;
-	int ret = IRQ_HANDLED;
 	u32 stat_ack;
 
 	stat_ack = ethsw_reg_readl(ethsw, ETHSW_INT_STAT_ACK);
-	/* Clear IRQ_LINK Interrupt */
+
+	/* Always claim the interrupt even when stat_ack is zero.
+	 * At high XDP redirect rates (~110k pps), TSM fires per-packet.
+	 * Returning IRQ_NONE would accumulate unhandled count rapidly,
+	 * triggering kernel "nobody cared" and disabling IRQ #85.
+	 * IRQ_HANDLED prevents this without affecting PTP/gPTP since
+	 * ethsw_isr_tsm() is only called when TSM_INT bit is set.
+	 */
+
+	if (!stat_ack)
+		return IRQ_HANDLED;
+
+	/* Clear interrupt status */
 	ethsw_reg_writel(ethsw, ETHSW_INT_STAT_ACK, stat_ack);
 
 	/* TSM Interrupt */
 	if (stat_ack & ETHSW_INT_STAT_ACK_TSM_INT)
-		ret = ethsw_isr_tsm(ethsw);
+		return ethsw_isr_tsm(ethsw);
 
-	return ret;
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t ethsw_intr_irq_handler_thread(int irq, void *data)
@@ -3403,6 +3624,7 @@ static void ethsw_remove(struct platform_device *pdev)
 
 	ethsw_hwtstamp_free(ethsw);
 	ethsw_ptp_unregister(ethsw);
+	ethsw_unregister_xdp_callback(ethsw);
 	dsa_unregister_switch(&ethsw->ds);
 	sysfs_remove_group(&pdev->dev.kobj, &attr_group);
 	ethsw_pcs_free(ethsw);

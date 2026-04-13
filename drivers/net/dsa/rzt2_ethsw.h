@@ -435,6 +435,7 @@ struct ethsw {
 	int num_tx_queues;
 	/* CQF ports configurations */
 	struct ethsw_cqf_port_config cqf_port_config[ETHSW_PORTS_NUM];
+	struct stmmac_priv      *stmmac; /* borrowed — for XDP_TX back path */
 };
 
 /* State flags for ethsw_port_hwtstamp::state */
