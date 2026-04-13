@@ -350,6 +350,8 @@
 #define ETHSW_MMCTL_CQF_PRIO_MASK		GENMASK(7, 0)
 #define ETHSW_MMCTL_CQF_QUEUE_MASK		GENMASK(10, 8)
 
+#define ETHSW_SKB_MARK_XDP_REDIRECT		BIT(31)
+
 struct fdb_entry {
 	u8 mac[ETH_ALEN];
 	u16 valid:1;

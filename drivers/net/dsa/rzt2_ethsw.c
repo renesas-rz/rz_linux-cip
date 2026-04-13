@@ -1269,7 +1269,7 @@ static void ethsw_port_xdp_xmit_prepare(struct dsa_switch *ds,
 	 * calls memset(skb->cb, 0) before ethsw_tag_xmit() is called,
 	 * which would clear any flag set in skb->cb.
 	 */
-	 skb->mark |= BIT(31);  /* XDP redirect marker — high bit */
+	 skb->mark |= ETHSW_SKB_MARK_XDP_REDIRECT;  /* XDP redirect marker — high bit */
 }
 
 static void ethsw_tdma_gcl_set(struct ethsw *ethsw, const u32 gcl_ix,
