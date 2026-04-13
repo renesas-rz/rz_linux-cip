@@ -1994,3 +1994,45 @@ void dsa_port_tag_8021q_vlan_del(struct dsa_port *dp, u16 vid, bool broadcast)
 			"port %d failed to notify tag_8021q VLAN %d deletion: %pe\n",
 			dp->index, vid, ERR_PTR(err));
 }
+
+int dsa_port_xdp_setup(struct dsa_port *dp)
+{
+	struct dsa_switch *ds = dp->ds;
+	int err;
+
+	if (dp->xdp_rxq_registered)
+		return 0;
+
+	if (!ds->ops->port_xdp_setup)
+		return -EOPNOTSUPP;
+
+	err = ds->ops->port_xdp_setup(ds, dp->index);
+	if (err)
+		return err;
+
+	dp->xdp_rxq_registered = true;
+	return 0;
+}
+
+void dsa_port_xdp_teardown(struct dsa_port *dp)
+{
+	struct dsa_switch *ds = dp->ds;
+	struct bpf_prog *old;
+
+	if (!dp->xdp_rxq_registered)
+		return;
+
+	old = rcu_replace_pointer(dp->xdp_prog, NULL,
+				  lockdep_rtnl_is_held());
+	if (old)
+		bpf_prog_put(old);
+
+	synchronize_rcu();
+
+	if (ds->ops->port_xdp_teardown)
+		ds->ops->port_xdp_teardown(ds, dp->index);
+
+	dp->rx_pp             = NULL;
+	dp->xdp_prog_attached = false;
+	dp->xdp_rxq_registered = false;
+}

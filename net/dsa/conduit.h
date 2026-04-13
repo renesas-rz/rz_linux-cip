@@ -8,6 +8,7 @@ struct net_device;
 struct netdev_lag_upper_info;
 struct netlink_ext_ack;
 
+bool dsa_conduit_has_dsa_xdp(struct net_device *dev);
 int dsa_conduit_setup(struct net_device *dev, struct dsa_port *cpu_dp);
 void dsa_conduit_teardown(struct net_device *dev);
 int dsa_conduit_lag_setup(struct net_device *lag_dev, struct dsa_port *cpu_dp,

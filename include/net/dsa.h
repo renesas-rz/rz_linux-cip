@@ -21,6 +21,7 @@
 #include <linux/phylink.h>
 #include <net/devlink.h>
 #include <net/switchdev.h>
+#include <net/xdp.h>
 
 struct dsa_8021q_context;
 struct tc_action;
@@ -326,6 +327,15 @@ struct dsa_port {
 		 */
 		struct list_head	user_vlans;
 	};
+
+	/* XDP native mode state per DSA user port */
+	struct bpf_prog __rcu   *xdp_prog;
+	struct xdp_rxq_info      xdp_rxq;
+
+	/* page_pool borrowed from stmmac conduit */
+	struct page_pool        *rx_pp;
+	bool                     xdp_prog_attached;
+	bool                     xdp_rxq_registered;
 };
 
 static inline struct dsa_port *
@@ -1254,6 +1264,17 @@ struct dsa_switch_ops {
 	void	(*conduit_state_change)(struct dsa_switch *ds,
 					const struct net_device *conduit,
 					bool operational);
+
+	/* XDP native mode ops */
+	int  (*port_xdp_setup)(struct dsa_switch *ds, int port);
+	void (*port_xdp_teardown)(struct dsa_switch *ds, int port);
+	u32  (*port_xdp_run)(struct dsa_switch *ds, int port,
+			     struct sk_buff *skb);
+	/* Called before dev_queue_xmit() in XDP redirect TX path.
+	 * Switch driver uses this to set any per-packet TX metadata.
+	 */
+	void (*port_xdp_xmit_prepare)(struct dsa_switch *ds, int port,
+				       struct sk_buff *skb);
 };
 
 #define DSA_DEVLINK_PARAM_DRIVER(_id, _name, _type, _cmodes)		\

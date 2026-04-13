@@ -517,6 +517,12 @@ static int dsa_port_setup(struct dsa_port *dp)
 	case DSA_PORT_TYPE_USER:
 		of_get_mac_address(dp->dn, dp->mac);
 		err = dsa_user_create(dp);
+		if (err)
+			break;
+		/* XDP rxq setup — ignore EOPNOTSUPP (switch not support XDP) */
+		err = dsa_port_xdp_setup(dp);
+		if (err == -EOPNOTSUPP)
+			err = 0;
 		break;
 	}
 
@@ -553,6 +559,7 @@ static void dsa_port_teardown(struct dsa_port *dp)
 			dsa_shared_port_link_unregister_of(dp);
 		break;
 	case DSA_PORT_TYPE_USER:
+		dsa_port_xdp_teardown(dp);
 		if (dp->user) {
 			dsa_user_destroy(dp->user);
 			dp->user = NULL;
