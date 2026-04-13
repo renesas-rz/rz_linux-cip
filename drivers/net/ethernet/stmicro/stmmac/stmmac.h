@@ -24,6 +24,7 @@
 #include <net/page_pool/types.h>
 #include <net/xdp.h>
 #include <uapi/linux/bpf.h>
+#include <linux/stmmac_dsa_xdp.h>
 
 struct stmmac_resources {
 	void __iomem *addr;
@@ -388,6 +389,9 @@ struct stmmac_priv {
 	/* XDP BPF Program */
 	unsigned long *af_xdp_zc_qps;
 	struct bpf_prog *xdp_prog;
+
+	/* DSA XDP callback ops, RCU-protected */
+	struct stmmac_dsa_xdp_ops __rcu *dsa_xdp_ops;
 };
 
 enum stmmac_state {
@@ -433,7 +437,9 @@ static inline unsigned int stmmac_rx_offset(struct stmmac_priv *priv)
 {
 	if (stmmac_xdp_is_enabled(priv))
 		return XDP_PACKET_HEADROOM;
-
+	/* DSA XDP also needs headroom for xdp_frame conversion */
+	if (rcu_access_pointer(priv->dsa_xdp_ops))
+		return XDP_PACKET_HEADROOM;
 	return 0;
 }
 
@@ -468,4 +474,10 @@ static inline int stmmac_selftest_get_count(struct stmmac_priv *priv)
 }
 #endif /* CONFIG_STMMAC_SELFTESTS */
 
+struct page_pool *stmmac_get_rx_page_pool(struct net_device *ndev, int q);
+int  stmmac_register_dsa_xdp_cb(struct net_device *ndev,
+				struct stmmac_dsa_xdp_ops *ops);
+void stmmac_unregister_dsa_xdp_cb(struct net_device *ndev);
+int stmmac_xdp_xmit_back_for_dsa(struct stmmac_priv *priv,
+				 struct xdp_buff *xdp);
 #endif /* __STMMAC_H__ */
