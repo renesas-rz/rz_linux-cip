@@ -1235,7 +1235,7 @@ static struct platform_driver rz_dmac_driver = {
 		.pm	= &rz_dmac_pm,
 	},
 	.probe		= rz_dmac_probe,
-	.remove_new	= rz_dmac_remove,
+	.remove		= rz_dmac_remove,
 };
 
 module_platform_driver(rz_dmac_driver);
