@@ -154,7 +154,7 @@ static const char * const smux2_gbe1_txclk[] = { ".plleth_gbe1", "et1_txclk" };
 static const char * const smux2_xspi_clk0[] = { ".pllcm33_div3", ".pllcm33_div4" };
 static const char * const smux2_xspi_clk1[] = { ".smux2_xspi_clk0", ".pllcm33_div5" };
 
-static const struct cpg_core_clk r9a09g047_core_clks[] __initconst = {
+static const struct cpg_core_clk r9a09g047_core_clks[]  = {
 	/* External Clock Inputs */
 	DEF_INPUT("audio_extal", CLK_AUDIO_EXTAL),
 	DEF_INPUT("rtxin", CLK_RTXIN),
@@ -249,7 +249,7 @@ static const struct cpg_core_clk r9a09g047_core_clks[] __initconst = {
 	DEF_FIXED("usb3_0_core_clk", R9A09G047_USB3_0_CLKCORE, CLK_QEXTAL, 1, 1),
 };
 
-static const struct rzv2h_mod_clk r9a09g047_mod_clks[] __initconst = {
+static const struct rzv2h_mod_clk r9a09g047_mod_clks[] = {
 	DEF_MOD("dmac_0_aclk",			CLK_PLLCM33_GEAR, 0, 0, 0, 0,
 						BUS_MSTOP(5, BIT(9))),
 	DEF_MOD("dmac_1_aclk",			CLK_PLLDTY_ACPU_DIV2, 0, 1, 0, 1,
@@ -524,7 +524,7 @@ static const struct rzv2h_mod_clk r9a09g047_mod_clks[] __initconst = {
 						BUS_MSTOP(13, BIT(5) | BIT(4) | BIT(3))),
 };
 
-static const struct rzv2h_reset r9a09g047_resets[] __initconst = {
+static const struct rzv2h_reset r9a09g047_resets[] = {
 	DEF_RST(3, 0, 1, 1),		/* SYS_0_PRESETN */
 	DEF_RST(3, 1, 1, 2),		/* DMAC_0_ARESETN */
 	DEF_RST(3, 2, 1, 3),		/* DMAC_1_ARESETN */
@@ -601,7 +601,7 @@ static const struct rzv2h_reset r9a09g047_resets[] __initconst = {
 	DEF_RST(17, 14, 8, 15),		/* LCDC_1_RESET_N */
 };
 
-const struct rzv2h_cpg_info r9a09g047_cpg_info __initconst = {
+const struct rzv2h_cpg_info r9a09g047_cpg_info = {
 	/* Core Clocks */
 	.core_clks = r9a09g047_core_clks,
 	.num_core_clks = ARRAY_SIZE(r9a09g047_core_clks),
