@@ -126,6 +126,7 @@ static int renesas_gbeth_probe(struct platform_device *pdev)
 
 static const struct of_device_id renesas_gbeth_match[] = {
 	{ .compatible = "renesas,rzv2h-gbeth", },
+	{ .compatible = "renesas,r9a08g046-gbeth", },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, renesas_gbeth_match);
