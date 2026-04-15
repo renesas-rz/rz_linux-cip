@@ -462,7 +462,11 @@
 
 &vbattb {
 	assigned-clocks = <&vbattb VBATTB_MUX>;
+#if (SOSEL_XC)
 	assigned-clock-parents = <&vbattb VBATTB_XC>;
+#else
+	assigned-clock-parents = <&vbattb VBATTB_XBYP>;
+#endif
 	quartz-load-femtofarads = <12500>;
 	status = "okay";
 };

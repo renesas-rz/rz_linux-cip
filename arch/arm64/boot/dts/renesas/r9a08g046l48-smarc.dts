@@ -55,6 +55,13 @@
  */
 #define RS485_SUPPORT		1
 
+/*
+ * SOSEL_XC - Select the output of the 32kHz-clock oscillator is XC or XBYP
+ * 0 - The 32kHz-clock oscillator XC output is selected
+ * 1 - The 32kHz-clock oscillator XBYP output is selected (when using external clock)
+ */
+#define SOSEL_XC		1
+
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/renesas,r9a08g046-pinctrl.h>
 
