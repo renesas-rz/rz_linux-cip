@@ -87,6 +87,46 @@ static void vbattb_clk_action(void *data)
 	of_clk_del_provider(dev->of_node);
 }
 
+/*
+ * On RZ/G3L, the 32kHz oscillator is stopped by default
+ * (VBATTB_SOSCCR.SOSTP = 1).
+ *
+ * The current implementation only updates SOSCCR2.SOSTP2
+ * for the XC clock.
+ * However, the hardware requires SOSCCR.SOSTP to be cleard
+ * as well for the 32kHz oscillator to run.
+ *
+ * According to hardware requirements, both:
+ *   - SOSCCR.SOSTP
+ *   - SOSCCR2.SOSTP2
+ * must be cleared to enable the oscillator clock (XC).
+ *
+ * Update SOSTP based on the currently selected parent XC or XBYP.
+ */
+static void vbattb_set_sostp_with_parent(struct device_node *node, struct vbattb_clk *vbclk)
+{
+	struct of_phandle_args clkspec;
+	int ret;
+	u32 val;
+
+	val = readl_relaxed(vbclk->base + VBATTB_SOSCCR);
+
+	ret = of_parse_phandle_with_args(node, "assigned-clock-parents",
+					       "#clock-cells", 0, &clkspec);
+
+	if (ret)
+		return;
+
+	if (clkspec.args[0] == VBATTB_XC)
+		val &= ~BIT(VBATTB_SOSCCR_SOSTP);
+	else if (clkspec.args[0] == VBATTB_XBYP)
+		val |= BIT(VBATTB_SOSCCR_SOSTP);
+
+	writel_relaxed(val, vbclk->base + VBATTB_SOSCCR);
+
+	of_node_put(clkspec.np);
+}
+
 static int vbattb_clk_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -153,16 +193,15 @@ static int vbattb_clk_probe(struct platform_device *pdev)
 	spin_lock_init(&vbclk->lock);
 
 	parent_data.fw_name = "rtx";
-	if (vbclk->devtype == VBATTB_RZG3S)
-		hw = devm_clk_hw_register_gate_parent_data(dev, "xc", &parent_data, 0,
-							   vbclk->base + VBATTB_SOSCCR2,
-							   VBATTB_SOSCCR2_SOSTP2,
-							   CLK_GATE_SET_TO_DISABLE, &vbclk->lock);
+
+	hw = devm_clk_hw_register_gate_parent_data(dev, "xc", &parent_data, 0,
+						   vbclk->base + VBATTB_SOSCCR2,
+						   VBATTB_SOSCCR2_SOSTP2,
+						   CLK_GATE_SET_TO_DISABLE, &vbclk->lock);
+	/* Update SOSTP bit on RZ/G3L */
 	if (vbclk->devtype == VBATTB_RZG3L)
-		hw = devm_clk_hw_register_gate_parent_data(dev, "xc", &parent_data, 0,
-							   vbclk->base + VBATTB_SOSCCR,
-							   VBATTB_SOSCCR_SOSTP,
-							   CLK_GATE_SET_TO_DISABLE, &vbclk->lock);
+		vbattb_set_sostp_with_parent(np, vbclk);
+
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	clk_data->hws[VBATTB_XC] = hw;
