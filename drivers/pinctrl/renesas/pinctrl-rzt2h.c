@@ -1055,7 +1055,7 @@ static void rzt2h_gpio_irq_domain_free(struct irq_domain *domain, unsigned int v
 		return;
 
 	if (test_and_clear_bit(parent_irq - RZT2H_INTERRUPTS_START, pctrl->used_irqs))
-		rzt2h_pinctrl_set_gpio_en(pctrl, port, pin, false);
+		rzt2h_pinctrl_set_gpio_en(pctrl, port, pin, true);
 
 	irq_domain_free_irqs_common(domain, virq, nr_irqs);
 }
