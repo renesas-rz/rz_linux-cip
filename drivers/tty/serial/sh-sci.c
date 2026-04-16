@@ -89,6 +89,7 @@ enum {
 	HSRTRGR,	/* Rx FIFO Data Count Trigger Register */
 	HSTTRGR,	/* Tx FIFO Data Count Trigger Register */
 	SEMR,		/* Serial extended mode register */
+	MDDR,		/* Modulation Duty Register */
 };
 
 /* SCSMR (Serial Mode Register) */
@@ -214,6 +215,10 @@ enum {
  */
 #define SCCKS_CKS	BIT(15)	/* Select (H)SCK (1) or divided SC_CLK (0) */
 #define SCCKS_XIN	BIT(14)	/* SC_CLK uses bus clock (1) or SCIF_CLK (0) */
+
+/* Serial Extended Mode Register, RZ/G2L SCIFA only bits */
+#define SEMR_BRME	BIT(5)	/* Bit Rate Modulation Enable */
+#define SEMR_MDDRS	BIT(4)	/* Modulation Duty Register Select */
 
 #define SCxSR_TEND(port)	(((port)->type == PORT_SCI) ? SCI_TEND   : SCIF_TEND)
 #define SCxSR_RDxF(port)	(((port)->type == PORT_SCI) ? SCI_RDRF   : SCIF_DR | SCIF_RDF)
@@ -432,6 +437,7 @@ static const struct sci_port_params sci_port_params[SCIx_NR_REGTYPES] = {
 		.regs = {
 			[SCSMR]		= { 0x00, 16 },
 			[SCBRR]		= { 0x02,  8 },
+			[MDDR]          = { 0x02,  8 },
 			[SCSCR]		= { 0x04, 16 },
 			[SCxTDR]	= { 0x06,  8 },
 			[SCxSR]		= { 0x08, 16 },
@@ -2838,6 +2844,28 @@ done:
 		sci_serial_out(port, SCSCR, scr_val | s->hscif_tot);
 		sci_serial_out(port, SCSMR, smr_val);
 		sci_serial_out(port, SCBRR, brr);
+
+		/* Enable Serial Extended Mode Register (SEMR) */
+		if ((sci_getreg(port, MDDR)->size) && (sci_getreg(port, SEMR)->size)
+				&& baud == 921600) {
+			unsigned int mddr, prediv;
+			unsigned long freq = s->port.type != PORT_HSCIF ?
+				s->clk_rates[SCI_FCK]*2 : s->clk_rates[SCI_FCK];
+
+			sci_serial_out(port, SEMR,
+					sci_serial_in(port, SEMR) | (SEMR_BRME | SEMR_MDDRS));
+			sci_serial_out(port, SCSCR,
+					sci_serial_in(port, SCSCR) & (~(SCSCR_TE | SCSCR_RE)));
+
+			prediv = (srr + 1) * (1 << (2 * cks + 1));
+			mddr = DIV_ROUND_CLOSEST((long)prediv * baud * 256 * (brr + 1), freq);
+			mddr = clamp(mddr, 128U, 256U);
+
+			sci_serial_out(port, MDDR, mddr);
+			sci_serial_out(port, SCSCR,
+					sci_serial_in(port, SCSCR) | (SCSCR_TE | SCSCR_RE));
+		}
+
 		if (sci_getreg(port, HSSRR)->size) {
 			unsigned int hssrr = srr | HSCIF_SRE;
 			/* Calculate deviation from intended rate at the
