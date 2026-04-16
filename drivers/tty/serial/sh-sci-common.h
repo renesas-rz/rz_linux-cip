@@ -64,7 +64,7 @@ struct sci_common_regs {
 };
 
 /* The actual number of needed registers. This is used by sci only */
-#define SCI_NR_REGS 20
+#define SCI_NR_REGS 21
 
 struct sci_port_params {
 	const struct plat_sci_reg regs[SCI_NR_REGS];
