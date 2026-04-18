@@ -144,8 +144,10 @@ enum clk_ids {
 
 	/* External Input Clocks */
 	CLK_EXTAL,
-	CLK_ET0_TXC_TX_CLK_IN,
-	CLK_ET0_RXC_RX_CLK_IN,
+	CLK_ETH0_TXC_TX_CLK_IN,
+	CLK_ETH0_RXC_RX_CLK_IN,
+	CLK_ETH1_TXC_TX_CLK_IN,
+	CLK_ETH1_RXC_RX_CLK_IN,
 
 	/* Internal Core Clocks */
 	CLK_OSC_DIV1000,
@@ -285,12 +287,12 @@ static const struct clk_div_table dtable_16_128[] = {
 };
 
 /* Mux clock names tables. */
-static const char * const sel_eth0_tx[] = { ".eth0_tr", "et0_txc_tx_clk_in" };
-static const char * const sel_eth0_rx[] = { ".eth0_tr", "et0_rxc_rx_clk_in" };
-static const char * const sel_eth0_rm[] = { ".pll6_div10", "et0_rxc_rx_clk_in" };
-static const char * const sel_eth1_tx[] = { ".eth1_tr", "et0_txc_tx_clk_in" };
-static const char * const sel_eth1_rx[] = { ".eth1_tr", "et0_rxc_rx_clk_in" };
-static const char * const sel_eth1_rm[] = { ".pll6_div10", "et0_rxc_rx_clk_in" };
+static const char * const sel_eth0_tx[] = { ".eth0_tr", "eth0_txc_tx_clk_in" };
+static const char * const sel_eth0_rx[] = { ".eth0_tr", "eth0_rxc_rx_clk_in" };
+static const char * const sel_eth0_rm[] = { ".pll6_div10", "eth0_rxc_rx_clk_in" };
+static const char * const sel_eth1_tx[] = { ".eth1_tr", "eth1_txc_tx_clk_in" };
+static const char * const sel_eth1_rx[] = { ".eth1_tr", "eth1_rxc_rx_clk_in" };
+static const char * const sel_eth1_rm[] = { ".pll6_div10", "eth1_rxc_rx_clk_in" };
 static const char * const sel_eth0_clk_tx_i[] = { ".sel_eth0_tx", ".eth0_rm" };
 static const char * const sel_eth0_clk_rx_i[] = { ".sel_eth0_rx", ".eth0_rm" };
 static const char * const sel_eth1_clk_tx_i[] = { ".sel_eth1_tx", ".eth1_rm" };
@@ -310,8 +312,10 @@ static const u32 mtable_pll4[] = { 0, 1 };
 static const struct cpg_core_clk r9a08g046_core_clks[] = {
 	/* External Clock Inputs */
 	DEF_INPUT("extal", CLK_EXTAL),
-	DEF_INPUT("et0_txc_tx_clk_in", CLK_ET0_TXC_TX_CLK_IN),
-	DEF_INPUT("et0_rxc_rx_clk_in", CLK_ET0_RXC_RX_CLK_IN),
+	DEF_INPUT("eth0_txc_tx_clk_in", CLK_ETH0_TXC_TX_CLK_IN),
+	DEF_INPUT("eth0_rxc_rx_clk_in", CLK_ETH0_RXC_RX_CLK_IN),
+	DEF_INPUT("eth1_txc_tx_clk_in", CLK_ETH1_TXC_TX_CLK_IN),
+	DEF_INPUT("eth1_rxc_rx_clk_in", CLK_ETH1_RXC_RX_CLK_IN),
 
 	/* Internal Core Clocks */
 	DEF_FIXED(".osc_div1000", CLK_OSC_DIV1000, CLK_EXTAL, 1, 1000),
