@@ -21,16 +21,32 @@
 		clock-frequency = <0>;
 	};
 
-	/* et0_txc_tx_clk clock input */
-	et0_txc_tx_clk: et0_txc_tx_clk {
+	/* eth0_txc_tx_clk clock input */
+	eth0_txc_tx_clk: eth0_txc_tx_clk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		/* This value must be overridden by the board */
 		clock-frequency = <0>;
 	};
 
-	/* et0_rxc_rx_clk clock input */
-	et0_rxc_rx_clk: et0_rxc_rx_clk {
+	/* eth0_rxc_rx_clk clock input */
+	eth0_rxc_rx_clk: eth0_rxc_rx_clk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		/* This value must be overridden by the board */
+		clock-frequency = <0>;
+	};
+
+	/* eth1_txc_tx_clk clock input */
+	eth1_txc_tx_clk: eth1_txc_tx_clk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		/* This value must be overridden by the board */
+		clock-frequency = <0>;
+	};
+
+	/* eth1_rxc_rx_clk clock input */
+	eth1_rxc_rx_clk: eth1_rxc_rx_clk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		/* This value must be overridden by the board */
@@ -609,10 +625,12 @@
 			compatible = "renesas,r9a08g046-cpg";
 			reg = <0 0x11010000 0 0x10000>;
 			clocks = <&extal_clk>,
-				 <&et0_txc_tx_clk>, <&et0_rxc_rx_clk>,
+				 <&eth0_txc_tx_clk>, <&eth0_rxc_rx_clk>,
+				 <&eth1_txc_tx_clk>, <&eth1_rxc_rx_clk>,
 				 <&audio_clk1>, <&audio_clk2>;
 			clock-names = "extal",
-				"et0_txc_tx_clk_in", "et0_rxc_rx_clk_in",
+				"eth0_txc_tx_clk_in", "eth0_rxc_rx_clk_in",
+				"eth1_txc_tx_clk_in", "eth1_rxc_rx_clk_in",
 				"audio_clk1", "audio_clk2";
 			#clock-cells = <2>;
 			#reset-cells = <1>;
