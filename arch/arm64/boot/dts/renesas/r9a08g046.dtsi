@@ -921,6 +921,7 @@
 				      "rmii", "rmii_tx", "rmii_rx";
 			resets = <&cpg R9A08G046_ETH0_ARESET_N>;
 			power-domains = <&cpg>;
+			renesas,eth-syscon = <&sysc 0>;
 			enable-time-based-scheduling;
 			snps,multicast-filter-bins = <256>;
 			snps,perfect-filter-entries = <128>;
@@ -1040,6 +1041,7 @@
 				      "rmii", "rmii_tx", "rmii_rx";
 			resets = <&cpg R9A08G046_ETH1_ARESET_N>;
 			power-domains = <&cpg>;
+			renesas,eth-syscon = <&sysc 1>;
 			enable-time-based-scheduling;
 			snps,multicast-filter-bins = <256>;
 			snps,perfect-filter-entries = <128>;
