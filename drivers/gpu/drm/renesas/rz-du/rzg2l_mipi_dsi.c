@@ -1287,6 +1287,7 @@ static const struct rzg2l_mipi_dsi_hw_info rzg3l_mipi_dsi_info = {
 	.min_dclk = 5440,
 	.max_dclk = 187500,
 	.activation_dly = 100,
+	.features = RZ_MIPI_DSI_FEATURE_16BPP,
 };
 
 static const struct of_device_id rzg2l_mipi_dsi_of_table[] = {
