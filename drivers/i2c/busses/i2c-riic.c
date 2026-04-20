@@ -313,7 +313,7 @@ static int riic_xfer_atomic(struct i2c_adapter *adap, struct i2c_msg msgs[],
 				val = *riic->buf;
 				riic->buf++;
 				riic->bytes_left--;
-				riic_readb(riic, RIIC_ICDRT);
+				riic_writeb(riic, val, RIIC_ICDRT);
 			}
 
 
