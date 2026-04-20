@@ -15,9 +15,22 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
+#include <linux/delay.h>
 
 #include <dt-bindings/clock/renesas,r9a08g045-vbattb.h>
 
+#define VBATTB_TAMPSR			0x04
+#define VBATTB_TAMPSR_TAMP0F		BIT(0)
+#define VBATTB_TAMPCR			0x08
+#define VBATTB_TAMPCR_P0IE		BIT(0)
+#define VBATTB_TAMPCR_P0EE		BIT(4)
+#define VBATTB_TCECR			0x0C
+#define VBATTB_TCECR_TCE0S		BIT(0)
+#define VBATTB_TAMPICR1			0x10
+#define VBATTB_TAMPICR1_CH0EN		BIT(0)
+#define VBATTB_TAMPICR2			0x14
+#define VBATTB_TAMPICR2_CH0NFE		BIT(0)
+#define VBATTB_TAMPICR2_CH0TRG		BIT(4)
 #define VBATTB_BKSCCR			0x1c
 #define VBATTB_BKSCCR_SOSEL		6
 #define VBATTB_SOSCCR			0x20
@@ -125,6 +138,34 @@ static void vbattb_set_sostp_with_parent(struct device_node *node, struct vbattb
 	writel_relaxed(val, vbclk->base + VBATTB_SOSCCR);
 
 	of_node_put(clkspec.np);
+}
+
+static void vbattb_tamper_detector(struct vbattb_clk *vbclk)
+{
+	u32 val;
+
+	/* Setting for Tamper Detector */
+	writel_relaxed(0x00, vbclk->base + VBATTB_TAMPCR);
+	writel_relaxed(0x00, vbclk->base + VBATTB_TCECR);
+
+	val = readl_relaxed(vbclk->base + VBATTB_TAMPICR2);
+	val = (val & ~VBATTB_TAMPICR2_CH0NFE) | VBATTB_TAMPICR2_CH0TRG;
+	writel_relaxed(val, vbclk->base + VBATTB_TAMPICR2);
+
+	val = readl_relaxed(vbclk->base + VBATTB_TAMPICR1);
+	writel_relaxed(val | VBATTB_TAMPICR1_CH0EN, vbclk->base + VBATTB_TAMPICR1);
+
+	val = readl_relaxed(vbclk->base + VBATTB_TAMPSR);
+	writel_relaxed(val & ~VBATTB_TAMPSR_TAMP0F, vbclk->base + VBATTB_TAMPSR);
+	/* Wait to clear the tamper event */
+	udelay(160);
+
+	val = readl_relaxed(vbclk->base + VBATTB_TAMPCR);
+	val |= VBATTB_TAMPCR_P0IE | VBATTB_TAMPCR_P0EE;
+	writel_relaxed(val, vbclk->base + VBATTB_TAMPCR);
+
+	val = readl_relaxed(vbclk->base + VBATTB_TCECR);
+	writel_relaxed(val | VBATTB_TCECR_TCE0S, vbclk->base + VBATTB_TCECR);
 }
 
 static int vbattb_clk_probe(struct platform_device *pdev)
@@ -239,6 +280,8 @@ static int vbattb_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	clk_data->hws[VBATTB_VBATTCLK] = hw;
+
+	vbattb_tamper_detector(vbclk);
 
 	return of_clk_add_hw_provider(np, of_clk_hw_onecell_get, clk_data);
 }
