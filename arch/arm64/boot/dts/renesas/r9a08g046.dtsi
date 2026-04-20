@@ -530,6 +530,7 @@
 				 <&cpg R9A08G046_MIPI_DSI_PRESET_N>;
 			reset-names = "rst", "arst", "prst";
 			power-domains = <&cpg>;
+			renesas,sysc-pwrrdy = <&sysc 0xd70 0x2>;
 			status = "disabled";
 
 			ports {
