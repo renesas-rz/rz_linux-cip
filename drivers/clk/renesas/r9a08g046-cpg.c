@@ -257,7 +257,7 @@ static const struct clk_div_table dtable_3_5[] = {
 
 static const struct clk_div_table dtable_4_128[] = {
 	{ 0, 4 },
-	{ 1, 2 },
+	{ 1, 8 },
 	{ 2, 16 },
 	{ 3, 128 },
 	{ 0, 0 },
