@@ -13,11 +13,13 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/math.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/units.h>
@@ -48,6 +50,7 @@ struct rzg2l_mipi_dsi_hw_info {
 			      u64 *hsfreq_millihz);
 	unsigned int (*dphy_mode_clk_check)(struct rzg2l_mipi_dsi *dsi,
 					    unsigned long mode_freq);
+	const struct reg_field *syscon_field;
 	u32 phy_reg_offset;
 	u32 link_reg_offset;
 	unsigned long min_dclk;
@@ -71,6 +74,8 @@ struct rzg2l_mipi_dsi {
 
 	struct clk *vclk;
 	struct clk *lpclk;
+
+	struct regmap_field *pwrrdy;
 
 	enum mipi_dsi_pixel_format format;
 	unsigned int num_data_lanes;
@@ -1077,6 +1082,53 @@ static const struct dev_pm_ops rzg2l_mipi_pm_ops = {
  * Probe & Remove
  */
 
+static int rzg2l_mipi_dsi_set_pwrrdy(struct rzg2l_mipi_dsi *dsi, bool power_on)
+{
+	u32 val, mask;
+
+	mask = BIT(dsi->info->syscon_field->msb);
+	val = power_on ? 0 : mask;
+
+	return regmap_field_update_bits(dsi->pwrrdy, mask, val);
+}
+
+static void rzg2l_mipi_dsi_pwrrdy_off(void *data)
+{
+	rzg2l_mipi_dsi_set_pwrrdy(data, false);
+}
+
+static int rzg2l_mipi_dsi_pwrrdy_init(struct rzg2l_mipi_dsi *dsi)
+{
+	struct regmap *regmap;
+	u32 args[2];
+	int ret;
+
+	if (!dsi->info->syscon_field)
+		return 0;
+
+	regmap = syscon_regmap_lookup_by_phandle_args(dsi->dev->of_node,
+						      "renesas,sysc-pwrrdy",
+						     ARRAY_SIZE(args), args);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	if (args[0] != dsi->info->syscon_field->reg)
+		return -EINVAL;
+
+	if (args[1] != BIT(dsi->info->syscon_field->msb))
+		return -EINVAL;
+
+	dsi->pwrrdy = devm_regmap_field_alloc(dsi->dev, regmap, *dsi->info->syscon_field);
+	if (IS_ERR(dsi->pwrrdy))
+		return PTR_ERR(dsi->pwrrdy);
+
+	ret = rzg2l_mipi_dsi_set_pwrrdy(dsi, true);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(dsi->dev, rzg2l_mipi_dsi_pwrrdy_off, dsi);
+}
+
 static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 {
 	unsigned int num_data_lanes;
@@ -1103,6 +1155,10 @@ static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 	dsi->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dsi->mmio))
 		return PTR_ERR(dsi->mmio);
+
+	ret = rzg2l_mipi_dsi_pwrrdy_init(dsi);
+	if (ret)
+		return ret;
 
 	dsi->vclk = devm_clk_get(dsi->dev, "vclk");
 	if (IS_ERR(dsi->vclk))
@@ -1196,10 +1252,17 @@ static const struct rzg2l_mipi_dsi_hw_info rzg2l_mipi_dsi_info = {
 	.max_dclk = 148500,
 };
 
+static const struct reg_field rzg3l_pwrrdy_reg_field = {
+	.reg = 0xd70,
+	.lsb = 0,
+	.msb = 1,
+};
+
 static const struct rzg2l_mipi_dsi_hw_info rzg3l_mipi_dsi_info = {
 	.dphy_init = rzg2l_mipi_dsi_dphy_init,
 	.dphy_exit = rzg2l_mipi_dsi_dphy_exit,
 	.dphy_conf_clks = rzg2l_dphy_conf_clks,
+	.syscon_field = &rzg3l_pwrrdy_reg_field,
 	.link_reg_offset = 0x10000,
 	.min_dclk = 5440,
 	.max_dclk = 187500,
