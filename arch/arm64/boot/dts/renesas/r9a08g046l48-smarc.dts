@@ -338,7 +338,6 @@
 			 <RZG3L_PORT_PINMUX(6, 2, 2)>, /* SCK */
 			 <RZG3L_PORT_PINMUX(6, 3, 2)>; /* SSLA */
 			 power-source = <1800>;
-			 renesas,sys_sel_clonech = <9>;
 	};
 #endif
 
@@ -346,7 +345,6 @@
 	i2c3_pins: i2c3 {
 		pinmux = <RZG3L_PORT_PINMUX(2, 0, 4)>, /* SCL */
 			 <RZG3L_PORT_PINMUX(2, 1, 4)>; /* SDA */
-		renesas,sys_sel_clonech = <1>;
 	};
 #endif
 
@@ -450,7 +448,6 @@
 			 <RZG3L_PORT_PINMUX(7, 7, 5)>; /* RSCI2_TXD_MOSI_SDA */
 		bias-pull-up;
 		drive-strength-microamp = <9000>;
-		renesas,sys_sel_clonech = <13>;
 	};
 
 	rsci2_rtscts_pins: rsci2_ctsrts {
@@ -464,7 +461,6 @@
 #endif
 		bias-pull-up;
 		drive-strength-microamp = <9000>;
-		renesas,sys_sel_clonech = <13>;
 	};
 
 	rsci2_i2c_pins: rsci2_i2c {
@@ -472,7 +468,6 @@
 			 <RZG3L_PORT_PINMUX(6, 6, 5)>; /* RSCI2_TXD_MOSI_SDA */
 		bias-pull-up;
 		drive-strength-microamp = <9000>;
-		renesas,sys_sel_clonech = <13>;
 	};
 #endif
 
@@ -482,7 +477,6 @@
 			 <RZG3L_PORT_PINMUX(8, 3, 5)>; /* RSCI3_TXD_MOSI_SDA */
 		bias-pull-up;
 		drive-strength-microamp = <9000>;
-		renesas,sys_sel_clonech = <14>;
 	};
 #endif
 
