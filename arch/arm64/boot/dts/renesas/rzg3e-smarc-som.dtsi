@@ -545,6 +545,10 @@
 	clock-frequency = <32768>;
 };
 
+&adc {
+	status = "okay";
+};
+
 #if (SW_SD0_DEV_SEL)
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_usd_pins>;
