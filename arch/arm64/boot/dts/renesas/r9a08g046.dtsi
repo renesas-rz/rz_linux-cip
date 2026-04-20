@@ -650,7 +650,6 @@
 
 		pinctrl: pinctrl@11030000 {
 			compatible = "renesas,r9a08g046-pinctrl";
-			syscon = <&sysc>;
 			reg = <0 0x11030000 0 0x10000>;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -663,6 +662,7 @@
 			resets = <&cpg R9A08G046_GPIO_RSTN>,
 				 <&cpg R9A08G046_GPIO_PORT_RESETN>,
 				 <&cpg R9A08G046_GPIO_SPARE_RESETN>;
+			renesas,clonech = <&sysc 0xe2c>;
 		};
 
 		icu: icu@11050000 {
