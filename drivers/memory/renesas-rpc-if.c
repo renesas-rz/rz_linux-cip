@@ -1038,7 +1038,7 @@ static int rpcif_probe(struct platform_device *pdev)
 					     "cannot get enabled spi clk\n");
 	}
 
-	vdev = platform_device_alloc(name, pdev->id);
+	vdev = platform_device_alloc(name, PLATFORM_DEVID_AUTO);
 	if (!vdev)
 		return -ENOMEM;
 	vdev->dev.parent = dev;
