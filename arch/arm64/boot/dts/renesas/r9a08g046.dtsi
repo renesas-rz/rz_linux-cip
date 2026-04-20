@@ -583,8 +583,7 @@
 				 <&cpg CPG_MOD R9A08G046_LCDC_CLK_D>;
 			clock-names = "aclk", "pclk", "vclk";
 			power-domains = <&cpg>;
-			resets = <&cpg R9A08G046_LCDC_RESET_N>,
-				 <&cpg R9A08G046_LCDC_RESET_N>;
+			resets = <&cpg R9A08G046_LCDC_RESET_N>;
 			renesas,vsps = <&vspd 0>;
 			status = "disabled";
 
