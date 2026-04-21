@@ -11,6 +11,7 @@
 #define SW_SD0_DEV_SEL		0
 #define SW_SD2_DEV_SEL		0
 #define SW_SDIO_M2E		0
+#define SW_I3C_EN		0
 #define SW_DPI_EN		0
 
 /*
@@ -45,6 +46,7 @@
  * SPDIF_SEL - Select pin function between SPDIF and I2C3.
  * 0 - I2C3 is selected		(DA7212 codec control, works with SSI0 audio)
  * 1 - SPDIF is selected	(DA7212 not accessible)
+ * and also SW_I3C_EN switch config must be 0
  */
 #define SPDIF_SEL		0
 
@@ -255,7 +257,7 @@
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "snd_rzg3l";
 
-#if (!SW_SD2_DEV_SEL && !SPDIF_SEL)
+#if (!SW_SD2_DEV_SEL && !SW_I3C_EN && !SPDIF_SEL)
 		ssi_link_play: simple-audio-card,dai-link@0 {
 			format = "i2s";
 			bitclock-master = <&cpu_dai>;
@@ -272,7 +274,7 @@
 			};
 		};
 
-#elif (!SW_SD2_DEV_SEL && SPDIF_SEL)
+#elif (!SW_SD2_DEV_SEL && !SW_I3C_EN && SPDIF_SEL)
 		spdif_link: simple-audio-card,dai-link@2 {
 			bitclock-master = <&cpu_dai2>;
 			frame-master = <&cpu_dai2>;
@@ -341,7 +343,7 @@
 	};
 #endif
 
-#if (!SPDIF_SEL)
+#if (!SW_I3C_EN && !SPDIF_SEL)
 	i2c3_pins: i2c3 {
 		pinmux = <RZG3L_PORT_PINMUX(2, 0, 4)>, /* SCL */
 			 <RZG3L_PORT_PINMUX(2, 1, 4)>; /* SDA */
@@ -640,7 +642,7 @@
 	};
 };
 
-#if (!SPDIF_SEL)
+#if (!SW_I3C_EN && !SPDIF_SEL)
 &i2c3 {
 	pinctrl-0 = <&i2c3_pins>;
 	pinctrl-names = "default";

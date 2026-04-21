@@ -13,6 +13,10 @@
  *      0 - SD0 is connected to eMMC (default)
  *      1 - SD0 is connected to uSD0 card
  *
+ * Switch position SYS.2, Macro SW_I3C_EN:
+ *      0 - I2C3 signals are routed to SMARC I2C_GP (default)
+ *      1 - I3C signals are routed to Breakout connector
+ *
  * Switch position SYS.5, Macro SW_DPI_EN:
  *      0 - Select Misc. Signals routing
  *      1 - Select LCD
@@ -279,7 +283,7 @@
 			 <RZG3L_PORT_PINMUX(A, 5, 4)>; /* SDA */
 	};
 
-#if (SPDIF_SEL)
+#if (!SW_I3C_EN && SPDIF_SEL)
 	spdif_pins: spdif {
 		pinmux = <RZG3L_PORT_PINMUX(2, 0, 12)>, /* SPDIF_IN */
 			 <RZG3L_PORT_PINMUX(2, 1, 12)>; /* SPDIF_OUT */
@@ -290,6 +294,13 @@
 		pinmux = <RZG3L_PORT_PINMUX(M, 4, 7)>, /* CLK1 */
 			 <RZG3L_PORT_PINMUX(M, 5, 7)>; /* DAT1 */
 	};
+
+#if (SW_I3C_EN)
+	i3c_pins: i3c {
+		pinmux = <RZG3L_PORT_PINMUX(2, 0, 2)>, /* SCL */
+			 <RZG3L_PORT_PINMUX(2, 1, 2)>; /* SDA */
+	};
+#endif
 };
 
 &eth0 {
@@ -500,7 +511,7 @@
 	mali-supply = <&reg_1p0v>;
 };
 
-#if (SPDIF_SEL)
+#if (!SW_I3C_EN && SPDIF_SEL)
 &spdif {
 	clocks = <&cpg CPG_MOD R9A08G046_SPDIF_PCLK>,
 		 <&versa3 2>, <&versa3 3>;
@@ -520,3 +531,16 @@
 		status = "okay";
 	};
 };
+
+#if (SW_I3C_EN)
+&i3c {
+	pinctrl-0 = <&i3c_pins>;
+	pinctrl-names = "default";
+
+	clock-frequency = <1000000>;
+	i2c-scl-hz = <1000000>;
+	i3c-scl-hz = <3000000>;
+
+	status = "okay";
+};
+#endif
