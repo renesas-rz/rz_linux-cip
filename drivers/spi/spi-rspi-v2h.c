@@ -899,7 +899,7 @@ static void rspi_remove(struct platform_device *pdev)
 static const struct spi_ops rspi_v2h_ops = {
 	.set_config_register	=	rspi_v2h_set_config_register,
 	.transfer_one		=	rspi_v2h_transfer_one,
-	.min_div		=	2,
+	.min_div		=	4,
 	.max_div		=	4096,
 	.flags			=	SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX,
 	.fifo_size		=	16,	/* 16 for TX, 16 for RX */
