@@ -300,11 +300,6 @@ void rz_mtu3_disable(struct rz_mtu3_channel *ch)
 }
 EXPORT_SYMBOL_GPL(rz_mtu3_disable);
 
-static void rz_mtu3_mfd_remove(void *data)
-{
-	mfd_remove_devices(data);
-}
-
 static const struct mfd_cell rz_mtu3_devs[] = {
 	{
 		.name = "rz-mtu3-counter",
@@ -320,7 +315,6 @@ static int rz_mtu3_probe(struct platform_device *pdev)
 	struct rz_mtu3_priv *priv;
 	struct rz_mtu3 *ddata;
 	unsigned int i;
-	int ret;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
@@ -353,13 +347,8 @@ static int rz_mtu3_probe(struct platform_device *pdev)
 		mutex_init(&ddata->channels[i].lock);
 	}
 
-	ret = mfd_add_devices(&pdev->dev, 0, rz_mtu3_devs,
-			      ARRAY_SIZE(rz_mtu3_devs), NULL, 0, NULL);
-	if (ret < 0)
-		return ret;
-
-	return devm_add_action_or_reset(&pdev->dev, rz_mtu3_mfd_remove,
-					&pdev->dev);
+	return devm_mfd_add_devices(&pdev->dev, 0, rz_mtu3_devs,
+				    ARRAY_SIZE(rz_mtu3_devs), NULL, 0, NULL);
 }
 
 static const struct of_device_id rz_mtu3_of_match[] = {
