@@ -230,6 +230,20 @@ static void rspi_set_rate(struct rspi_data *rspi)
 	unsigned long clksrc;
 	int brdv = 0, spbr;
 
+	/*
+	 * From the manual:
+	 * Bit rate = f(RSPI_n_TCLK)/(2*(n+1)*2^(N))
+	 *
+	 * Where:
+	 * * RSPI_n_TCLK is fixed to 200MHz on V2H, G3L
+	 * * n = SPR - is RSPI_SPBR.SPR (from 1 to 255)
+	 * * N = BRDV - is RSPI_SPCMD.BRDV (from 0 to 3)
+	 *
+	 * Note:
+	 * Since the maximum frequency of the RSPCKn clock signal is 50 MHz,
+	 * setting with N=0 and n=0 (resulting in 100Mbps) are prohibited.
+	 */
+
 	if (!spi_controller_is_target(rspi->ctlr)) {
 		clksrc = clk_get_rate(rspi->tclk);
 		spbr = DIV_ROUND_UP(clksrc, 2 * rspi->speed_hz) - 1;
@@ -238,7 +252,9 @@ static void rspi_set_rate(struct rspi_data *rspi)
 			spbr = DIV_ROUND_UP(spbr + 1, 2) - 1;
 		}
 
-		rspi_write8(rspi, clamp(spbr, 0, 255), RSPI_SPBR);
+		spbr = clamp(spbr, 1, 255);
+		rspi_write8(rspi, spbr, RSPI_SPBR);
+
 		rspi->spcmd |= SPCMD_BRDV(brdv);
 		rspi->speed_hz = DIV_ROUND_UP(clksrc, (2U << brdv) * (spbr + 1));
 	}
