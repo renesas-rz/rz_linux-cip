@@ -628,7 +628,7 @@ edac_mc_alloc_err:
 	return ret;
 }
 
-static int rzg2l_edac_mc_remove(struct platform_device *pdev)
+static void rzg2l_edac_mc_remove(struct platform_device *pdev)
 {
 	u32 val;
 	struct mem_ctl_info *mci = platform_get_drvdata(pdev);
@@ -652,8 +652,6 @@ static int rzg2l_edac_mc_remove(struct platform_device *pdev)
 
 	edac_mc_del_mc(&pdev->dev);
 	edac_mc_free(mci);
-
-	return 0;
 }
 
 static struct platform_driver rzg2l_edac_mc_driver = {
@@ -662,7 +660,7 @@ static struct platform_driver rzg2l_edac_mc_driver = {
 		   .of_match_table = rzg2l_edac_of_match,
 	},
 	.probe = rzg2l_edac_mc_probe,
-	.remove = rzg2l_edac_mc_remove,
+	.remove_new = rzg2l_edac_mc_remove,
 };
 
 module_platform_driver(rzg2l_edac_mc_driver);
