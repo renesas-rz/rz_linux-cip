@@ -855,33 +855,42 @@ static int rzg3l_cpg_dsi_div_determine_rate(struct clk_hw *hw,
 	struct g3l_dsi_div_hw_data *dsi_div = to_g3l_dsi_div_hw_data(hw);
 	struct rzg2l_cpg_priv *priv = dsi_div->priv;
 	struct rzg3l_plldsi_parameters *dsi_dividers = &priv->plldsi_div_parameters;
-	u32 divider;
+	u32 divider, dsi_div_ab_desired;
 	int div_a, div_b;
+	u64 rate_millihz;
 
 	/*
 	 * Adjust the requested clock rate (`req->rate`) to ensure it falls within
-	 * the supported range of 5.44 MHz to 187.5 MHz.
+	 * the supported range of 5.44 MHz to 187.5 MHz for MIPI-DSI and 5.44 MHz
+	 * to 87.5 MHz for DPI.
 	 */
-	req->rate = clamp(req->rate, 5440000UL, 187500000UL);
+	if (dsi_dividers->is_dsi)
+		req->rate = clamp(req->rate, 5440000UL, 187500000UL);
+	else
+		req->rate = clamp(req->rate, 5440000UL, 87000000UL);
 
-	if (dsi_dividers->is_dsi) {
-		/* The relationship between hsclk and vclk must follow
-		 * vclk * bpp = hsclk * 8 * lanes [1]
-		 *
-		 * For RZ/G3L, hsclk = pllclk/16 and pllclk = vclk * DSI divider
-		 * Therefore, the equation [1] becomes:
-		 * vclk * bpp = vclk * DSI divider / 16  * 8 * num_lanes
-		 * DSI divider = (bpp / num_lanes) * 2
-		 */
-		divider = dsi_div_ab * 2;
-		/* Calculate the DIV_DSI_A and DIV_DSI_B */
-		for (div_a = 6; div_a >= 0; div_a--) {
-			for (div_b = 0; div_b < 17; div_b++) {
-				if (((1 << div_a) * (div_b + 1)) == divider) {
-					dsi_div->div_a = div_a;
-					dsi_div->div_b = div_b;
-					goto out;
-				}
+	/* The relationship between hsclk and vclk must follow
+	 * vclk * bpp = hsclk * 8 * lanes [1]
+	 *
+	 * For RZ/G3L, hsclk = pllclk/16 and pllclk = vclk * DSI divider
+	 * Therefore, the equation [1] becomes:
+	 * vclk * bpp = vclk * DSI divider / 16  * 8 * num_lanes
+	 * DSI divider = (bpp / num_lanes) * 2
+	 */
+	dsi_div_ab_desired = dsi_div_ab * 2;
+
+	/* Calculate the DIV_DSI_A and DIV_DSI_B */
+	for (div_a = 0; div_a < 5; div_a++) {
+		for (div_b = 0; div_b < 15; div_b++) {
+			divider = (1 << div_a) * (div_b + 1);
+			rate_millihz = mul_u32_u32(req->rate * divider, MILLI);
+			if ((dsi_dividers->is_dsi && dsi_div_ab_desired == divider) ||
+			    (!dsi_dividers->is_dsi &&
+			     rzg3l_dsi_get_pll_parameters_values(priv->dsi_limits,
+								 dsi_dividers, rate_millihz))) {
+				dsi_div->div_a = div_a;
+				dsi_div->div_b = div_b;
+				goto out;
 			}
 		}
 	}
