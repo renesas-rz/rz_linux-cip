@@ -98,10 +98,6 @@
 #include "rzg3l-smarc-lvds.dtsi"
 #endif
 
-#if (SW_DPI_EN)
-#include "rzg3l-smarc-rgb.dtsi"
-#endif
-
 /*
  * SSI-DA7212
  *

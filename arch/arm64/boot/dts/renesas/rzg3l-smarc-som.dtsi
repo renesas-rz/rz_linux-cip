@@ -24,6 +24,11 @@
 
 #include <dt-bindings/clock/renesas,r9a08g046-vbattb.h>
 
+#if (SW_DPI_EN)
+#define ADV7513_PARENT_I2C i2c2
+#include "rz-smarc-du-adv7513.dtsi"
+#endif
+
 / {
 	compatible = "renesas,rzg3l-smarcm", "renesas,r9a08g046l48", "renesas,r9a08g046";
 
@@ -153,6 +158,51 @@
 				 power-source = <1800>;
 		};
 	};
+
+#if (SW_DPI_EN)
+	du_pins: du {
+		clk {
+			pinmux = <RZG3L_PORT_PINMUX(5, 0, 1)>; /* CLK */
+		};
+
+		data {
+			pinmux = <RZG3L_PORT_PINMUX(8, 5, 1)>, /* LCD_R0 */
+				 <RZG3L_PORT_PINMUX(8, 2, 1)>, /* LCD_R1 */
+				 <RZG3L_PORT_PINMUX(7, 7, 1)>, /* LCD_R2 */
+				 <RZG3L_PORT_PINMUX(7, 4, 1)>, /* LCD_R3 */
+				 <RZG3L_PORT_PINMUX(7, 1, 1)>, /* LCD_R4 */
+				 <RZG3L_PORT_PINMUX(6, 5, 1)>, /* LCD_R5 */
+				 <RZG3L_PORT_PINMUX(6, 2, 1)>, /* LCD_R6 */
+				 <RZG3L_PORT_PINMUX(5, 6, 1)>, /* LCD_R7 */
+				 <RZG3L_PORT_PINMUX(8, 3, 1)>, /* LCD_G0 */
+				 <RZG3L_PORT_PINMUX(8, 0, 1)>, /* LCD_G1 */
+				 <RZG3L_PORT_PINMUX(7, 5, 1)>, /* LCD_G2 */
+				 <RZG3L_PORT_PINMUX(7, 2, 1)>, /* LCD_G3 */
+				 <RZG3L_PORT_PINMUX(6, 6, 1)>, /* LCD_G4 */
+				 <RZG3L_PORT_PINMUX(6, 3, 1)>, /* LCD_G5 */
+				 <RZG3L_PORT_PINMUX(6, 0, 1)>, /* LCD_G6 */
+				 <RZG3L_PORT_PINMUX(5, 4, 1)>, /* LCD_G7 */
+				 <RZG3L_PORT_PINMUX(8, 4, 1)>, /* LCD_B0 */
+				 <RZG3L_PORT_PINMUX(8, 1, 1)>, /* LCD_B1 */
+				 <RZG3L_PORT_PINMUX(7, 6, 1)>, /* LCD_B2 */
+				 <RZG3L_PORT_PINMUX(7, 3, 1)>, /* LCD_B3 */
+				 <RZG3L_PORT_PINMUX(7, 0, 1)>, /* LCD_B4 */
+				 <RZG3L_PORT_PINMUX(6, 4, 1)>, /* LCD_B5 */
+				 <RZG3L_PORT_PINMUX(6, 1, 1)>, /* LCD_B6 */
+				 <RZG3L_PORT_PINMUX(5, 5, 1)>; /* LCD_B7 */
+				 power-source = <1800>;
+		};
+
+		sync {
+			pinmux = <RZG3L_PORT_PINMUX(5, 1, 1)>, /* HSYNC */
+				 <RZG3L_PORT_PINMUX(5, 2, 1)>; /* VSYNC */
+		};
+
+		de {
+			pinmux = <RZG3L_PORT_PINMUX(5, 3, 1)>; /* DE */
+		};
+	};
+#endif
 
 #if (!SW_DPI_EN)
 	sd0-pwr-en {
@@ -509,6 +559,13 @@
 &adc1 {
 	status = "okay";
 };
+
+#if (SW_DPI_EN)
+&adv7513 {
+	interrupt-parent = <&pinctrl>;
+	interrupts = <RZG3L_GPIO(K, 3) IRQ_TYPE_EDGE_FALLING>;
+};
+#endif
 
 &i2c2 {
 	pinctrl-0 = <&i2c2_pins>;
