@@ -164,6 +164,8 @@
 
 #define RZG3S_PCI_PHY_XCFGA_TX			0x25d0
 
+#define RZT2H_PCI_PHY_XCFGA_L0_L1_NUM		12
+
 #define RZG3S_PCI_PHY_XCFG_CTRL			0x2a20
 #define RZG3S_PCI_PHY_XCFG_CTRL_PHYREG_SEL	BIT(0)
 
@@ -1325,7 +1327,7 @@ static int rzg3s_pcie_config_init(struct rzg3s_pcie_host *host)
 	writel_relaxed(0xffffffff, host->pcie + RZG3S_PCI_CFG_BARMSK00U);
 
 	/*
-	 * Explicitly program class code. RZ/G3E requires this configuration.
+	 * Explicitly program class code. RZ/G3E and RZ/T2H  requires this configuration.
 	 * Harmless for RZ/G3S where this matches the hardware default.
 	 */
 	rzg3s_pcie_update_bits(host->pcie, PCI_CLASS_REVISION, mask,
@@ -1842,6 +1844,62 @@ static int rzg3s_soc_pcie_init_phy(struct rzg3s_pcie_host *host)
 	return 0;
 }
 
+static int rzt2h_soc_pcie_init_phy(struct rzg3s_pcie_host *host)
+{
+	static const u32 xcfgd_settings[RZG3S_PCI_PHY_XCFGD_NUM] = {
+		0x00002000, 0x00C00090, 0x000001E0, 0x02000000, 0x00000000,
+		0x00520154, 0x00000000, 0x00000000, 0x44440000, 0x00000000,
+		0x04444000, 0x1E000000,
+	};
+	static const u32 xcfga_cmn_settings[RZG3S_PCI_PHY_XCFGA_CMN_NUM] = {
+		0x00000080, 0x60940060, 0x00C12000, 0x60000BF8, 0x80834238,
+		0x00001118, 0x32040400, 0x21914064, 0x52948A03, 0x219CE008,
+		0x0C867F02, 0x40643228, 0x010A9291, 0xE044039C, 0x08800807,
+		0x00041002,
+	};
+	static const u32 xcfga_l0_l1_settings[RZT2H_PCI_PHY_XCFGA_L0_L1_NUM] = {
+		0x08000000, 0x00050400, 0xE0003300, 0xC0400FBF, 0x960902A0,
+		0x00020860, 0x08000000, 0x00050400, 0xE0003300, 0xC0400FBF,
+		0x960902A0, 0x00020860,
+	};
+
+	unsigned int i;
+
+	/*
+	 * Enable access permission for physical layer control and status
+	 * registers.
+	 */
+	writel_relaxed(RZG3S_PCI_PERM_PIPE_PHY_REG_EN,
+		       host->axi + RZG3S_PCI_PERM);
+
+	for (i = 0; i < RZG3S_PCI_PHY_XCFGD_NUM; i++) {
+		writel_relaxed(xcfgd_settings[i],
+			       host->axi + RZG3S_PCI_PHY_XCFGD(i));
+	}
+
+	for (i = 0; i < RZG3S_PCI_PHY_XCFGA_CMN_NUM; i++) {
+		writel_relaxed(xcfga_cmn_settings[i],
+			       host->axi + RZG3S_PCI_PHY_XCFGA_CMN(i));
+	}
+
+	for (i = 0; i < RZT2H_PCI_PHY_XCFGA_L0_L1_NUM; i++) {
+		writel_relaxed(xcfga_l0_l1_settings[i],
+			       host->axi + RZG3S_PCI_PHY_XCFGA_RX(i));
+	}
+
+	/* Select PHY settings values */
+	writel_relaxed(RZG3S_PCI_PHY_XCFG_CTRL_PHYREG_SEL,
+		       host->axi + RZG3S_PCI_PHY_XCFG_CTRL);
+
+	/*
+	 * Disable access permission for physical layer control and status
+	 * registers.
+	 */
+	writel_relaxed(0, host->axi + RZG3S_PCI_PERM);
+
+	return 0;
+}
+
 static int
 rzg3s_pcie_host_setup(struct rzg3s_pcie_host *host,
 		      int (*init_irqdomain)(struct rzg3s_pcie_host *host),
@@ -2212,6 +2270,34 @@ static const struct rzg3s_pcie_soc_data rzv2h_soc_data = {
 	},
 };
 
+static const struct rzg3s_pcie_soc_data rzt2h_soc_data = {
+	.power_resets = rzg3e_soc_power_resets,
+	.num_power_resets = ARRAY_SIZE(rzg3e_soc_power_resets),
+	.config_pre_init = rzg3e_pcie_config_pre_init,
+	.config_post_init = rzg3e_pcie_config_post_init,
+	.config_deinit = rzg3e_pcie_config_deinit,
+	.init_phy = rzt2h_soc_pcie_init_phy,
+	.max_channels = 2,
+	.sysc_info = {
+		.functions = {
+			[RZG3S_SYSC_FUNC_ID_L1_ALLOW] = {
+				.offset = 0x2020,
+				.stride = 0x30,
+				.mask = BIT(0),
+			},
+			[RZG3S_SYSC_FUNC_ID_MODE] = {
+				.offset = 0x2024,
+				.stride = 0x30,
+				.mask = BIT(0),
+			},
+			[RZG3S_SYSC_FUNC_LANES_MODE] = {
+				.offset = 0x2060,
+				.mask = GENMASK(9, 8),
+			},
+		},
+	},
+};
+
 static const struct of_device_id rzg3s_pcie_of_match[] = {
 	{
 		.compatible = "renesas,r9a08g045-pcie",
@@ -2224,6 +2310,10 @@ static const struct of_device_id rzg3s_pcie_of_match[] = {
 	{
 		.compatible = "renesas,r9a09g057-pcie",
 		.data = &rzv2h_soc_data,
+	},
+	{
+		.compatible = "renesas,r9a09g077-pcie",
+		.data = &rzt2h_soc_data,
 	},
 	{}
 };
