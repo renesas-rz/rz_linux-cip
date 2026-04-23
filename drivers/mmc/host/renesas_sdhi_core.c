@@ -1321,6 +1321,13 @@ int renesas_sdhi_suspend(struct device *dev)
 	struct renesas_sdhi *priv = host_to_priv(host);
 	int ret;
 
+	/*
+	 * SD_IOVS bit of SD_STATUS is cleared after resetting.
+	 * So, backup it to switch to correct mode speed after resume.
+	 */
+	if (priv->rdev)
+		priv->sd_status = sd_ctrl_read32(host, CTL_SD_STATUS);
+
 	ret = pm_runtime_force_suspend(dev);
 	if (ret)
 		return ret;
@@ -1346,6 +1353,12 @@ int renesas_sdhi_resume(struct device *dev)
 	ret = pm_runtime_force_resume(dev);
 	if (ret)
 		reset_control_assert(priv->rstc);
+
+	/*
+	 * Restore SD_STATUS to switch to correct voltage before reinitializing after resume
+	 */
+	if (priv->rdev)
+		sd_ctrl_write32(host, CTL_SD_STATUS, priv->sd_status);
 
 	return ret;
 }
