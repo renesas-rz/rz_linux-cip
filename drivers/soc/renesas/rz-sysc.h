@@ -41,20 +41,6 @@ struct rz_sysc_init_data {
 	u32 max_register;
 };
 
-/**
- * struct rz_sysc - RZ SYSC private data structure
- * @base: SYSC base address
- * @dev: SYSC device pointer
- * @signals: SYSC signals
- * @num_signals: number of SYSC signals
- */
-struct rz_sysc {
-       void __iomem *base;
-       struct device *dev;
-       struct rz_sysc_signal *signals;
-       u8 num_signals;
-};
-
 extern const struct rz_sysc_init_data rzg3e_sys_init_data;
 extern const struct rz_sysc_init_data rzg3s_sysc_init_data;
 extern const struct rz_sysc_init_data rzg3l_sysc_init_data;
