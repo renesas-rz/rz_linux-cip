@@ -59,6 +59,13 @@
  */
 #define USB_OTG		0
 
+/*
+ * Set SEL_GMAC1_PCIE to below values to select using of:
+ * - 0: PCIE
+ * - 1: GMAC1 (default)
+ */
+#define SEL_GMAC1_PCIE		1
+
 #include "rzt2h-n2h-evk-common.dtsi"
 
 / {
@@ -231,6 +238,7 @@
 	 * SW2[8] ON - use pins P33_2-P33_7, P34_0-P34_5, P34_7 and
 	 * P35_0-P35_2 for Ethernet port 3
 	 */
+#if (SEL_GMAC1_PCIE)
 	gmac1_pins: gmac1-pins {
 		pinmux = <RZT2H_PORT_PINMUX(33, 2, 0xf)>, /* ETH3_TXCLK */
 			 <RZT2H_PORT_PINMUX(33, 3, 0xf)>, /* ETH3_TXD0 */
@@ -253,6 +261,7 @@
 			 <RZT2H_PORT_PINMUX(34, 6, 0x2)>, /* ETH3_REFCLK */
 			 <RZT2H_PORT_PINMUX(27, 2, 0x0)>; /* IRQ3 */
 	};
+#endif
 
 	/*
 	 * GMAC2 Pin Configuration:

@@ -189,6 +189,7 @@
 	};
 };
 
+#if (SEL_GMAC1_PCIE)
 &gmac1 {
 	pinctrl-0 = <&gmac1_pins>;
 	pinctrl-names = "default";
@@ -197,6 +198,7 @@
 	pcs-handle = <&mii_conv3>;
 	status = "okay";
 };
+#endif
 
 &gmac2 {
 	pinctrl-0 = <&gmac2_pins>;
