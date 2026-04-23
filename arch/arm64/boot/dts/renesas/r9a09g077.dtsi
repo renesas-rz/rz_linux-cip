@@ -1360,6 +1360,136 @@
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
+
+		pcie0: pcie@92100000  {
+			compatible = "renesas,r9a09g077-pcie";
+			reg = <0 0x92100000 0 0x10000>;
+			ranges = <0x03000000 0x0 0xA0000000 0x4 0x00000000 0x0 0x10000000>,
+				 <0x43000000 0x4 0x10000000 0x4 0x10000000 0x1 0xF0000000>;
+			/* Map all possible DRAM ranges (8 GB). */
+			dma-ranges = <0x02000000 0x0 0xC0000000 0x0 0xC0000000 0x0 0x40000000>,
+				     <0x42000000 0x2 0x40000000 0x2 0x40000000 0x1 0xC0000000>;
+			bus-range = <0x0 0xff>;
+			interrupts = <GIC_SPI 786 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 787 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 788 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 789 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 790 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 791 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 793 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 794 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 795 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 796 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 797 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 792 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 798 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 799 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 800 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 801 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 802 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 803 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "inta", "intb", "intc", "intd",
+					  "msi", "link_bandwidth", "pm_pme",
+					  "dma", "pcie_evt", "msg", "all",
+					  "link_equalization_request",
+					  "turn_off_event", "pmu_poweroff",
+					  "d3_event_f0", "d3_event_f1",
+					  "cfg_pmcsr_writeclear_f0",
+					  "cfg_pmcsr_writeclear_f1";
+			#interrupt-cells = <1>;
+			interrupt-controller;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &pcie0 0 0 0 0>, /* INT A */
+					<0 0 0 2 &pcie0 0 0 0 1>, /* INT B */
+					<0 0 0 3 &pcie0 0 0 0 2>, /* INT C */
+					<0 0 0 4 &pcie0 0 0 0 3>; /* INT D */
+			clocks = <&cpg CPG_MOD 1208>;
+			clock-names = "aclk";
+			resets = <&cpg 1208>;
+			reset-names = "aresetn";
+			power-domains = <&cpg>;
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			renesas,sysc = <&sys0>;
+			pcie,channel = <0>;
+			max-link-speed = <3>;
+			status = "disabled";
+			pcie_port0: pcie@0,0 {
+				reg = <0x0 0x0 0x0 0x0 0x0>;
+				ranges;
+				device_type = "pci";
+				vendor-id = <0x1912>;
+				device-id = <0x0033>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+			};
+		};
+
+		pcie1: pcie@92110000  {
+			compatible = "renesas,r9a09g077-pcie";
+			reg = <0 0x92110000 0 0x10000>;
+			ranges = <0x03000000 0x0 0xB0000000 0x6 0x00000000 0x0 0x10000000>,
+				 <0x43000000 0x6 0x10000000 0x6 0x10000000 0x1 0xF0000000>;
+			/* Map all possible DRAM ranges (8 GB). */
+			dma-ranges = <0x02000000 0x0 0xC0000000 0x0 0xC0000000 0x0 0x40000000>,
+				     <0x42000000 0x2 0x40000000 0x2 0x40000000 0x1 0xC0000000>;
+			bus-range = <0x0 0xff>;
+			interrupts = <GIC_SPI 806 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 807 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 808 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 809 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 810 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 811 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 813 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 814 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 815 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 816 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 817 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 812 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 818 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 819 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 820 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 821 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 822 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 823 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "inta", "intb", "intc", "intd",
+					  "msi", "link_bandwidth", "pm_pme",
+					  "dma", "pcie_evt", "msg", "all",
+					  "link_equalization_request",
+					  "turn_off_event", "pmu_poweroff",
+					  "d3_event_f0", "d3_event_f1",
+					  "cfg_pmcsr_writeclear_f0",
+					  "cfg_pmcsr_writeclear_f1";
+			#interrupt-cells = <1>;
+			interrupt-controller;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &pcie1 0 0 0 0>, /* INT A */
+					<0 0 0 2 &pcie1 0 0 0 1>, /* INT B */
+					<0 0 0 3 &pcie1 0 0 0 2>, /* INT C */
+					<0 0 0 4 &pcie1 0 0 0 3>; /* INT D */
+			clocks = <&cpg CPG_MOD 1208>;
+			clock-names = "aclk";
+			resets = <&cpg 1208>;
+			reset-names = "aresetn";
+			power-domains = <&cpg>;
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			renesas,sysc = <&sys0>;
+			pcie,channel = <1>;
+			max-link-speed = <3>;
+			status = "disabled";
+			pcie_port1: pcie@0,0 {
+				reg = <0x0 0x0 0x0 0x0 0x0>;
+				ranges;
+				device_type = "pci";
+				vendor-id = <0x1912>;
+				device-id = <0x0033>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+			};
+		};
 	};
 
 	stmmac_axi_setup: stmmac-axi-config {
