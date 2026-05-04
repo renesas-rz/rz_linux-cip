@@ -914,6 +914,7 @@
 				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_RX_I>,
 				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_TX_180_I>,
 				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_RX_180_I>,
+				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_RMII_I>,
 				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_TX_I_RMII>,
 				  <&cpg CPG_MOD R9A08G046_ETH0_CLK_RX_I_RMII>;
 			clock-names = "stmmaceth", "pclk", "ptp_ref",
