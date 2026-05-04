@@ -416,7 +416,7 @@ static int renesas_poe3_probe(struct platform_device *pdev)
 	if (IS_ERR(poe3->base))
 		return PTR_ERR(poe3->base);
 
-	poe3->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	poe3->rstc = devm_reset_control_get_optional(&pdev->dev, NULL);
 	if (IS_ERR(poe3->rstc)) {
 		dev_err(&pdev->dev, "failed to get reset control\n");
 		return PTR_ERR(poe3->rstc);
