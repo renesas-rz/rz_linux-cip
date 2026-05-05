@@ -20,6 +20,7 @@
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
 		serial0 = &sci0;
+		serial1 = &sci1;
 	};
 
 	chosen {
@@ -177,6 +178,14 @@
 			 <RZT2H_PORT_PINMUX(27, 5, 0x14)>;
 	};
 
+	sci1_pins: sci1 {
+		pinmux = <RZT2H_PORT_PINMUX(18, 4, 0x14)>, /* SCI1_TXD */
+			 <RZT2H_PORT_PINMUX(18, 3, 0x14)>, /* SCI1_RXD */
+			 <RZT2H_PORT_PINMUX(18, 6, 0x14)>, /* CTS1# */
+			 <RZT2H_PORT_PINMUX(18, 5, 0x14)>; /* RTS1# */
+		bias-pull-up;
+	};
+
 #if SD0_EMMC
 	sdhi0-emmc-iovs-hog {
 		gpio-hog;
@@ -257,6 +266,14 @@
 &sci0 {
 	pinctrl-0 = <&sci0_pins>;
 	pinctrl-names = "default";
+	status = "okay";
+};
+
+&sci1 {
+	pinctrl-0 = <&sci1_pins>;
+	pinctrl-names = "default";
+
+	uart-has-rtscts;
 	status = "okay";
 };
 
