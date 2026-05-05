@@ -8,11 +8,13 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
+#include <linux/regmap.h>
 #include <linux/units.h>
 #include <linux/watchdog.h>
 
@@ -45,6 +47,10 @@
 
 #define WDT_DEFAULT_TIMEOUT	60U
 
+#define PERIERR_ERR_MASK	GENMASK(16, 13)
+#define PERIERR_CLR_OFFSET	0xc8
+#define PERIERR_RSTMSK_OFFSET	0xb0
+
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
@@ -63,6 +69,7 @@ struct rzv2h_of_data {
 	u16 timeout_cycles;
 	enum rzv2h_wdt_count_source count_source;
 	bool wdtdcr;
+	int (*syscon_err)(struct device *dev, struct device_node *np);
 };
 
 struct rzv2h_wdt_priv {
@@ -181,6 +188,26 @@ static int rzv2h_wdt_stop(struct watchdog_device *wdev)
 	return 0;
 }
 
+static int rzt2h_wdt_init_perierr(struct device *dev, struct device_node *np)
+{
+	struct regmap *syscon;
+	int ret;
+
+	syscon = syscon_regmap_lookup_by_phandle(np, "renesas,syscon-perierr-error");
+	if (!IS_ERR(syscon)) {
+		/* Clear Peripheral Error Event Reset status */
+		ret = regmap_write(syscon, PERIERR_CLR_OFFSET, PERIERR_ERR_MASK);
+		if (ret)
+			return ret;
+
+		/* Unmask Peripheral Error Event Reset */
+		ret = regmap_update_bits(syscon, PERIERR_RSTMSK_OFFSET, PERIERR_ERR_MASK, 0);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
 static const struct watchdog_info rzv2h_wdt_ident = {
 	.options = WDIOF_MAGICCLOSE | WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT,
 	.identity = "Renesas RZ/V2H WDT Watchdog",
@@ -280,6 +307,7 @@ static int rzt2h_wdt_wdtdcr_init(struct platform_device *pdev,
 static int rzv2h_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct rzv2h_wdt_priv *priv;
 	struct clk *count_clk;
 	int ret;
@@ -306,6 +334,12 @@ static int rzv2h_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->rstc))
 		return dev_err_probe(dev, PTR_ERR(priv->rstc),
 				     "Failed to get cpg reset\n");
+
+	if (priv->of_data->syscon_err) {
+		ret = priv->of_data->syscon_err(dev, np);
+		if (ret < 0)
+			return ret;
+	}
 
 	switch (priv->of_data->count_source) {
 	case COUNT_SOURCE_LOCO:
@@ -356,6 +390,7 @@ static const struct rzv2h_of_data rzt2h_wdt_of_data = {
 	.timeout_cycles = 4096,
 	.count_source = COUNT_SOURCE_PCLK,
 	.wdtdcr = true,
+	.syscon_err = rzt2h_wdt_init_perierr,
 };
 
 static const struct rzv2h_of_data rzv2h_wdt_of_data = {
