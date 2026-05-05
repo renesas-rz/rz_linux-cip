@@ -70,6 +70,33 @@ struct renesas_poe3 {
 	int dev_base;
 };
 
+struct renesas_poe3_port_output {
+	u16 hiz_mask;
+	u16 poecr_reg;
+	u16 poecr_shift;
+	u16 ocsr_reg;
+};
+
+static const struct renesas_poe3_port_output poe3_port_out[] = {
+	[MTU3_CHANNEL_0] = {
+		.hiz_mask = SPOER_MTUCH0HIZ,
+		.poecr_reg = POECR5,
+		.poecr_shift = 0x0001,
+	},
+	[MTU3_CHANNEL_34] = {
+		.hiz_mask = SPOER_MTUCH34HIZ,
+		.poecr_reg = POECR4,
+		.poecr_shift = 0x0001,
+		.ocsr_reg = OCSR1,
+	},
+	[MTU3_CHANNEL_67] = {
+		.hiz_mask = SPOER_MTUCH67HIZ,
+		.poecr_reg = POECR4,
+		.poecr_shift = 0x0100,
+		.ocsr_reg = OCSR2,
+	},
+};
+
 static inline unsigned int renesas_poe3_read(struct renesas_poe3 *poe3,
 					     unsigned int reg_nr)
 {
@@ -87,80 +114,65 @@ static inline void renesas_poe3_write(struct renesas_poe3 *poe3,
 		iowrite16((u16)value, poe3->base + reg_nr);
 }
 
+static void renesas_poe3_clear_poef(struct renesas_poe3 *poe3, u16 reg, u32 offset)
+{
+	int i, val;
+	unsigned int icsr;
+
+	val = renesas_poe3_read(poe3, reg);
+	for (i = 1; i <= 4; i++) {
+		if (val & (offset << i)) {
+			switch (i) {
+			case 1:
+				icsr = ICSR1;
+				break;
+			case 2:
+				icsr = ICSR2;
+				break;
+			case 3:
+				icsr = ICSR3;
+				break;
+			case 4:
+				icsr = ICSR4;
+				break;
+			default:
+				continue;
+			}
+
+			val = renesas_poe3_read(poe3, icsr);
+			if (val & ICSR_POEF)
+				renesas_poe3_write(poe3, icsr, val & 0x0FFF);
+		}
+	}
+}
+
 static int renesas_poe3_clear_Hi_z_state(struct renesas_poe3 *poe3,
 					 enum mtu3_channel_port_output ch)
 {
-	unsigned int poecr_reg, poecr_offset, ocsr_reg, icsr_reg;
-	int i, val;
+	const struct renesas_poe3_port_output *port_out;
+	u32 val;
 
+	if (ch >= ARRAY_SIZE(poe3_port_out))
+		return -EINVAL;
+
+	port_out = &poe3_port_out[ch];
+
+	/* Clear Hi-Z */
 	val = renesas_poe3_read(poe3, SPOER);
+	if (val & port_out->hiz_mask)
+		renesas_poe3_write(poe3, SPOER, val & ~port_out->hiz_mask);
 
-	switch (ch) {
-	case MTU3_CHANNEL_0:
-		if ((val & SPOER_MTUCH0HIZ) != 0)
-			renesas_poe3_write(poe3, SPOER,
-				(val & ~SPOER_MTUCH0HIZ));
-		poecr_reg = POECR5;
-		poecr_offset = 0x0001;
-		break;
-	case MTU3_CHANNEL_34:
-		if ((val & SPOER_MTUCH34HIZ) != 0)
-			renesas_poe3_write(poe3, SPOER,
-				(val & ~SPOER_MTUCH34HIZ));
-		poecr_reg = POECR4;
-		poecr_offset = 0x0001;
-		ocsr_reg = OCSR1;
-		break;
-	case MTU3_CHANNEL_67:
-		if ((val & SPOER_MTUCH67HIZ) != 0)
-			renesas_poe3_write(poe3, SPOER,
-				(val & ~SPOER_MTUCH67HIZ));
-		poecr_reg = POECR4;
-		poecr_offset = 0x0100;
-		ocsr_reg = OCSR2;
-		break;
-	default:
-		goto error_ports;
-	}
+	/* Clear POExF */
+	renesas_poe3_clear_poef(poe3, port_out->poecr_reg, port_out->poecr_shift);
 
-	/* Clear POExF bits */
-	for (i = 1; i <= 4; i++) {
-		val = renesas_poe3_read(poe3, poecr_reg);
-		if ((val && (poecr_offset << i)) != 0) {
-			switch (i) {
-			case 1:
-				icsr_reg = ICSR1;
-				break;
-			case 2:
-				icsr_reg =  ICSR2;
-				break;
-			case 3:
-				icsr_reg =  ICSR3;
-				break;
-			case 4:
-				icsr_reg =  ICSR4;
-				break;
-			}
-
-			val = renesas_poe3_read(poe3, icsr_reg);
-			if ((val & ICSR_POEF) != 0)
-				renesas_poe3_write(poe3,
-					icsr_reg, (val & 0x0FFF));
-		}
-	}
-
-	/* Clear OSF bits */
-	if ((ch == MTU3_CHANNEL_34) || (ch == MTU3_CHANNEL_67)) {
-		val = renesas_poe3_read(poe3, ocsr_reg);
-		if ((val & OCSR_OSF) != 0)
-			renesas_poe3_write(poe3, ocsr_reg,
-					   (val & 0x0FFF));
+	/* Clear OSF */
+	if (port_out->ocsr_reg) {
+		val = renesas_poe3_read(poe3, port_out->ocsr_reg);
+		if (val & OCSR_OSF)
+			renesas_poe3_write(poe3, port_out->ocsr_reg, val & 0x0FFF);
 	}
 
 	return 0;
-
-error_ports:
-	return -EINVAL;
 }
 
 static ssize_t mtu0_output_enable_store(struct device *dev,
