@@ -117,24 +117,6 @@ static void rz_cmtw_start_stop_ch(struct rz_cmtw_channel *ch, bool start)
 
 static int __rz_cmtw_enable(struct rz_cmtw_channel *ch)
 {
-	int ret;
-
-	/* Release reset state */
-	ret = reset_control_deassert(ch->rst);
-	if (ret) {
-		dev_err(&ch->cmtw->pdev->dev, "ch%u: cannot release reset\n",
-			ch->index);
-		return ret;
-	}
-
-	/* Enable clock */
-	ret = clk_prepare_enable(ch->clk);
-	if (ret) {
-		dev_err(&ch->cmtw->pdev->dev, "ch%u: cannot enable clock\n",
-			ch->index);
-		return ret;
-	}
-
 	/* make sure channel is disabled */
 	rz_cmtw_start_stop_ch(ch, 0);
 
@@ -178,12 +160,6 @@ static void __rz_cmtw_disable(struct rz_cmtw_channel *ch)
 	 * - IRQ off
 	 */
 	writew(CMWCR_CKS8 | CMWCR_CMS32 | CMWCR_CCLR_COR, ch->base + CMWCR);
-
-	/* stop clock */
-	clk_disable_unprepare(ch->clk);
-
-	/* put module to reset state */
-	reset_control_assert(ch->rst);
 }
 
 static void rz_cmtw_disable(struct rz_cmtw_channel *ch)
@@ -233,12 +209,21 @@ static void rz_cmtw_clocksource_disable(struct clocksource *cs)
 static void rz_cmtw_clocksource_suspend(struct clocksource *cs)
 {
 	struct rz_cmtw_channel *ch = cs_to_rz_cmtw(cs);
+	int i;
+
+	__rz_cmtw_disable(ch);
+	for (i = 0; i < ch->cmtw->num_channels; i++) {
+		/* stop clock */
+		clk_disable_unprepare(ch->cmtw->channels[i].clk);
+
+		/* put module to reset state */
+		reset_control_assert(ch->cmtw->channels[i].rst);
+	}
 
 	if (!ch->cs_enabled)
 		return;
 
 	if (--ch->enable_count == 0) {
-		__rz_cmtw_disable(ch);
 		dev_pm_genpd_suspend(&ch->cmtw->pdev->dev);
 	}
 }
@@ -246,6 +231,23 @@ static void rz_cmtw_clocksource_suspend(struct clocksource *cs)
 static void rz_cmtw_clocksource_resume(struct clocksource *cs)
 {
 	struct rz_cmtw_channel *ch = cs_to_rz_cmtw(cs);
+	int ret, i;
+
+	for (i = 0; i < ch->cmtw->num_channels; i++) {
+		/* Release reset state */
+		ret = reset_control_deassert(ch->cmtw->channels[i].rst);
+		if (ret) {
+			dev_err(&ch->cmtw->pdev->dev, "ch%u: cannot release reset\n", i);
+			return;
+		}
+
+		/* Enable clock */
+		ret = clk_prepare_enable(ch->cmtw->channels[i].clk);
+		if (ret) {
+			dev_err(&ch->cmtw->pdev->dev, "ch%u: cannot enable clock\n", i);
+			return;
+		}
+	}
 
 	if (!ch->cs_enabled)
 		return;
@@ -489,8 +491,22 @@ static int rz_cmtw_setup(struct rz_cmtw_device *cmtw,
 	for (i = 0; i < cmtw->num_channels; i++) {
 		char clk_name[5];
 
+		cmtw->channels[i].rst =
+			devm_reset_control_get_exclusive_by_index(dev, i);
+		if (IS_ERR(cmtw->channels[i].rst)) {
+			dev_err(dev, "cannot get reset\n");
+			ret = PTR_ERR(cmtw->channels[i].rst);
+			goto err_unmap;
+		}
+
+		ret = reset_control_deassert(cmtw->channels[i].rst);
+		if (ret) {
+			dev_err(dev, "ch%u: cannot release reset\n", i);
+			return ret;
+		}
+
 		sprintf(clk_name, "fck%u", i);
-		cmtw->channels[i].clk = devm_clk_get(dev, clk_name);
+		cmtw->channels[i].clk = devm_clk_get_enabled(dev, clk_name);
 		if (IS_ERR(cmtw->channels[i].clk)) {
 			dev_err(dev, "cannot get clock %s\n", clk_name);
 			ret = PTR_ERR(cmtw->channels[i].clk);
@@ -500,13 +516,6 @@ static int rz_cmtw_setup(struct rz_cmtw_device *cmtw,
 		/* Determine clock rate. */
 		cmtw->channels[i].rate = clk_get_rate(cmtw->channels[i].clk) / 8;
 
-		cmtw->channels[i].rst =
-			devm_reset_control_get_exclusive_by_index(dev, i);
-		if (IS_ERR(cmtw->channels[i].rst)) {
-			dev_err(dev, "cannot get reset\n");
-			ret = PTR_ERR(cmtw->channels[i].rst);
-			goto err_unmap;
-		}
 	};
 
 	/*
