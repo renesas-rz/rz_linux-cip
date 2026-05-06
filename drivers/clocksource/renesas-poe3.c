@@ -97,6 +97,19 @@ static const struct renesas_poe3_port_output poe3_port_out[] = {
 	},
 };
 
+struct renesas_poe3_icsr_info {
+	u16 ch;
+	u16 reg;
+	u16 poee_mask;
+};
+
+static const struct renesas_poe3_icsr_info poe3_icsr_info[] = {
+	{  0, ICSR1, 0 },
+	{  4, ICSR2, 0 },
+	{  8, ICSR3, ICSR34_POEE },
+	{ 10, ICSR4, ICSR34_POEE },
+};
+
 static inline unsigned int renesas_poe3_read(struct renesas_poe3 *poe3,
 					     unsigned int reg_nr)
 {
@@ -271,7 +284,8 @@ static void renesas_poe3_setup(struct renesas_poe3 *poe3)
 	struct device_node *child;
 	unsigned int poecr1_val, poecr2_val, poecr4_val, poecr5_val, val;
 	u32 tmp, num, ch;
-	int i, ret;
+	int i, j, ret;
+	bool found;
 
 	if (!of_get_property(np, "poe3_pins_mode", &tmp))
 		goto poe3_assign;
@@ -284,34 +298,22 @@ static void renesas_poe3_setup(struct renesas_poe3 *poe3)
 		of_property_read_u32_index(np, "poe3_pins_mode",
 					   i*2 + 1, &tmp);
 		if (tmp < 4) {
-			switch (ch) {
-			case 0:
-				val = renesas_poe3_read(poe3, ICSR1);
-				val = (val | (ICSR_PIE | tmp)) & 0x0FFF;
-				renesas_poe3_write(poe3, ICSR1, val);
-				break;
-			case 4:
-				val = renesas_poe3_read(poe3, ICSR2);
-				val = (val | (ICSR_PIE | tmp)) & 0x0FFF;
-				renesas_poe3_write(poe3, ICSR2, val);
-				break;
-			case 8:
-				val = renesas_poe3_read(poe3, ICSR3);
-				val = (val | (ICSR_PIE | ICSR34_POEE | tmp)) &
-					0x0FFF;
-				renesas_poe3_write(poe3, ICSR3, val);
-				break;
-			case 10:
-				val = renesas_poe3_read(poe3, ICSR4);
-				val = (val | (ICSR_PIE | ICSR34_POEE | tmp)) &
-					0x0FFF;
-				renesas_poe3_write(poe3, ICSR4, val);
-				break;
-			default:
+			found = false;
+
+			for (j = 0; j < ARRAY_SIZE(poe3_icsr_info); j++) {
+				if (poe3_icsr_info[j].ch == ch) {
+					val = renesas_poe3_read(poe3, poe3_icsr_info[j].reg);
+					val = (val | ICSR_PIE |
+					       poe3_icsr_info[j].poee_mask | tmp) & 0x0FFF;
+					renesas_poe3_write(poe3, poe3_icsr_info[j].reg, val);
+					found = true;
+					break;
+				}
+			}
+
+			if (!found)
 				dev_err(&poe3->pdev->dev, "Invalid pin POE%d: %d\n",
 					ch, -EINVAL);
-				break;
-			}
 		} else
 			dev_err(&poe3->pdev->dev,
 				"Invalid mode %d, must be smaller than 4: %d\n",
