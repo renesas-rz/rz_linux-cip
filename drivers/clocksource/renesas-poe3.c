@@ -110,6 +110,25 @@ static const struct renesas_poe3_icsr_info poe3_icsr_info[] = {
 	{ 10, ICSR4, ICSR34_POEE },
 };
 
+struct renesas_poe3_poecr_info {
+	const char *ch;
+	u16 input_pin;
+	u16 reg;
+	u16 bitmask;
+};
+
+static const struct renesas_poe3_poecr_info poe3_poecr_info[] = {
+	{ "mtu3_ch0",   0, POECR5, POECR5_IC1ADDMT0 },
+	{ "mtu3_ch0",   4, POECR5, POECR5_IC2ADDMT0 },
+	{ "mtu3_ch0",  10, POECR5, POECR5_IC4ADDMT0 },
+	{ "mtu3_ch34",  4, POECR4, POECR4_IC2ADDMT34 },
+	{ "mtu3_ch34",  8, POECR4, POECR4_IC3ADDMT34 },
+	{ "mtu3_ch34", 10, POECR4, POECR4_IC4ADDMT34 },
+	{ "mtu3_ch67",  0, POECR4, POECR4_IC1ADDMT67 },
+	{ "mtu3_ch67",  8, POECR4, POECR4_IC3ADDMT67 },
+	{ "mtu3_ch67", 10, POECR4, POECR4_IC4ADDMT67 },
+};
+
 static inline unsigned int renesas_poe3_read(struct renesas_poe3 *poe3,
 					     unsigned int reg_nr)
 {
@@ -277,6 +296,35 @@ static ssize_t mtu67_output_enable_store(struct device *dev,
 
 static DEVICE_ATTR_WO(mtu67_output_enable);
 
+static void renesas_poe3_additional_inputs(struct device_node *child,
+					   unsigned int *poecr4_val,
+					   unsigned int *poecr5_val)
+{
+	u32 input_pin, len;
+	int i, j;
+
+	if (!of_get_property(child, "addition_poe3_inputs", &len))
+		return;
+
+	len /= sizeof(u32);
+
+	for (i = 0; i < len; i++) {
+		if (of_property_read_u32_index(child, "addition_poe3_inputs", i, &input_pin))
+			continue;
+
+		for (j = 0; j < ARRAY_SIZE(poe3_poecr_info); j++) {
+			if (!strcmp(child->name, poe3_poecr_info[j].ch) &&
+			     input_pin == poe3_poecr_info[j].input_pin) {
+				if (poe3_poecr_info[j].reg == POECR5)
+					*poecr5_val |= poe3_poecr_info[j].bitmask;
+				else
+					*poecr4_val |= poe3_poecr_info[j].bitmask;
+				break;
+			}
+		}
+	}
+}
+
 static void renesas_poe3_setup(struct renesas_poe3 *poe3)
 {
 	struct device *dev = &poe3->pdev->dev;
@@ -343,49 +391,7 @@ poe3_assign:
 					poecr2_val |= (POECR2_MTU6BDZE >>  tmp);
 			}
 
-			of_get_property(child, "addition_poe3_inputs", &tmp);
-			num = tmp/sizeof(u32);
-			for (i = 0; i < num; i++) {
-				of_property_read_u32_index(child,
-					"addition_poe3_inputs", i, &tmp);
-				if (!strcmp(child->name, "mtu3_ch0")) {
-					switch (tmp) {
-					case 0:
-						poecr5_val |= POECR5_IC1ADDMT0;
-						break;
-					case 4:
-						poecr5_val |= POECR5_IC2ADDMT0;
-						break;
-					case 10:
-						poecr5_val |= POECR5_IC4ADDMT0;
-						break;
-					}
-				} else if (!strcmp(child->name, "mtu3_ch34")) {
-					switch (tmp) {
-					case 4:
-						poecr4_val |= POECR4_IC2ADDMT34;
-						break;
-					case 8:
-						poecr4_val |= POECR4_IC3ADDMT34;
-						break;
-					case 10:
-						poecr4_val |= POECR4_IC4ADDMT34;
-						break;
-					}
-				} else if (!strcmp(child->name, "mtu3_ch67")) {
-					switch (tmp) {
-					case 0:
-						poecr4_val |= POECR4_IC1ADDMT67;
-						break;
-					case 8:
-						poecr4_val |= POECR4_IC3ADDMT67;
-						break;
-					case 10:
-						poecr4_val |= POECR4_IC4ADDMT67;
-						break;
-					}
-				}
-			}
+			renesas_poe3_additional_inputs(child, &poecr4_val, &poecr5_val);
 		}
 
 		if (!strcmp(child->name, "mtu3_ch0"))
