@@ -31,8 +31,6 @@
 #include <linux/time.h>
 #include <linux/units.h>
 #include <linux/interrupt.h>
-#include <linux/regmap.h>
-#include <linux/mfd/syscon.h>
 #include <linux/wait.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
@@ -40,6 +38,7 @@
 #include <linux/iio/iio.h>
 #include <linux/pm_runtime.h>
 #include <linux/poeg-rzg2l.h>
+#include <linux/irqchip/irq-renesas-rzg2l.h>
 
 #define RZG2L_GET_CH(hwpwm)	((hwpwm) / 2)
 #define RZG2L_GET_HWPWM(ch, sub_ch) ((ch) * 2 + (sub_ch))
@@ -188,20 +187,16 @@
 #define RESET_COUNTER_PARAM(_gtssr, _gtpsr, _gtcsr) \
 	{ .gtssr = (_gtssr), .gtpsr = (_gtpsr), .gtcsr = (_gtcsr), }
 
-/* Support GPT Error Interrupt Status Control for RZ/G3L only */
-#define RZG3L_PEISR_OFFSET		0x0088
-#define RZG3L_PEVSTATn_BIT(ch)		BIT(ch)
-
 struct rz_gpt_data_cfg {
-	bool has_icu_errint_status;
+	bool has_icu_ovfunf_irqs;
 };
 
 static const struct rz_gpt_data_cfg rzg2l_cfg = {
-	.has_icu_errint_status = false,
+	.has_icu_ovfunf_irqs = false,
 };
 
 static const struct rz_gpt_data_cfg rzg3l_cfg = {
-	.has_icu_errint_status = true,
+	.has_icu_ovfunf_irqs = true,
 };
 
 enum {
@@ -270,7 +265,6 @@ struct rzg2l_gpt_cache {
 struct rzg2l_gpt_chip {
 	struct pwm_chip *chip;
 	void __iomem *mmio;
-	struct regmap *icu_regmap;
 	struct mutex mutex; /* lock to protect shared channel resources */
 	const struct rz_gpt_data_cfg *cfg;
 	struct rz_gpt_cpt_data *cpt_data;
@@ -1156,23 +1150,12 @@ static irqreturn_t gpt_gtciv_interrupt(int irq, void *data)
 	unsigned int pwm_id;
 	int ch;
 	u8 sub_ch;
-	u32 tmp;
 
 	ch = rzg2l_gpt_get_ch_from_irq(rzg2l_gpt, irq, GTCIV);
 	if (ch < 0)
 		return IRQ_NONE;
 
 	guard(spinlock_irqsave)(&rzg2l_gpt->lock);
-
-	if (rzg2l_gpt->cfg->has_icu_errint_status) {
-		regmap_read(rzg2l_gpt->icu_regmap, RZG3L_PEISR_OFFSET, &tmp);
-		if (!(tmp & RZG3L_PEVSTATn_BIT(ch)))
-			return IRQ_NONE;
-
-		/* Clear error interrupt */
-		regmap_update_bits(rzg2l_gpt->icu_regmap, RZG3L_PEISR_OFFSET,
-			RZG3L_PEVSTATn_BIT(ch), ~RZG3L_PEVSTATn_BIT(ch));
-	}
 
 	/* Counting overflow triggered to support input capture mode */
 	if (rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTICxSR(ch, 0)))
@@ -1918,12 +1901,13 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 {
 	struct rzg2l_gpt_chip *rzg2l_gpt;
 	struct device *dev = &pdev->dev;
+	struct device_node *icu_np __free(device_node);
 	struct pwm_chip *chip;
 	unsigned long rate;
 	struct clk *clk;
 	unsigned int i;
 	int ret, irq;
-	char irq_name[10];
+	char *irq_name;
 
 	chip = devm_pwmchip_alloc(dev, RZG2L_MAX_PWM_CHANNELS, sizeof(*rzg2l_gpt));
 	if (IS_ERR(chip))
@@ -1937,16 +1921,10 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	rzg2l_gpt_poeg_init(dev);
 
 	rzg2l_gpt->cfg = device_get_match_data(dev);
-	if (rzg2l_gpt->cfg->has_icu_errint_status) {
-		struct device_node *icu_np __free(device_node) =
-			of_parse_phandle(dev->of_node, "renesas,icu", 0);
-		if (icu_np != NULL) {
-			rzg2l_gpt->icu_regmap = device_node_to_regmap(icu_np);
-
-			if (IS_ERR(rzg2l_gpt->icu_regmap))
-				return dev_err_probe(dev, PTR_ERR(rzg2l_gpt->icu_regmap),
-						    "Failed to get regmap from IRQC\n");
-		}
+	if (rzg2l_gpt->cfg->has_icu_ovfunf_irqs) {
+		icu_np = of_parse_phandle(dev->of_node, "renesas,icu", 0);
+		if (!icu_np)
+			return dev_err_probe(dev, -ENODEV, "Failed to parse ICU node\n");
 	}
 
 	pm_runtime_enable(dev);
@@ -1965,14 +1943,25 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 
 	for (i = 0; i < RZG2L_MAX_HW_CHANNELS; i++) {
 		for (unsigned int j = 0; j < ARRAY_SIZE(gpt_irqs); j++) {
-			snprintf(irq_name, sizeof(irq_name), "%s_%d", gpt_irqs[j].name, i);
+			irq_name = devm_kasprintf(dev, GFP_KERNEL, "%s_%d", gpt_irqs[j].name, i);
 
-			irq = platform_get_irq_byname(pdev, irq_name);
-			if (irq < 0)
-				return dev_err_probe(dev, irq, "Failed to obtain IRQ\n");
+			if (rzg2l_gpt->cfg->has_icu_ovfunf_irqs &&
+				gpt_irqs[j].res_num == GTCIV) {
+				irq = rzg3l_irqc_gpt_ovfunf_mapping(icu_np, i, true);
+			} else {
+				irq = platform_get_irq_byname(pdev, irq_name);
+			}
 
+			/* irq_create_mapping() returns 0 on failure */
+			if (irq <= 0) {
+				return dev_err_probe(dev, (irq < 0) ? irq : -ENXIO,
+					"Failed to obtain IRQ (%s)\n", irq_name);
+			}
+
+			irq_name = devm_kasprintf(dev, GFP_KERNEL, "%s:%s_%d", dev_name(dev),
+						 gpt_irqs[j].name, i);
 			ret = devm_request_irq(dev, irq, gpt_irqs[j].isr,
-					       0, dev_name(dev), rzg2l_gpt);
+					       0, irq_name, rzg2l_gpt);
 			if (ret < 0)
 				return dev_err_probe(dev, ret, "Failed to request IRQ\n");
 
