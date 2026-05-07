@@ -624,10 +624,12 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 		rspi->last_speed_hz = speed_hz;
 	}
 
-	writeb(rspi->spr, rspi->base + RSPI_SPBR);
-
-	/* Configure the device to work in "host" mode */
-	conf32 = RSPI_SPCR_MSTR;
+	/* Configure the device to work in "host" mode or "slave" mode */
+	if (!spi_controller_is_target(rspi->controller)) {
+	        writeb(rspi->spr, rspi->base + RSPI_SPBR);
+		conf32 = RSPI_SPCR_MSTR;
+	} else
+		conf32 = 0;
 
 	/* Auto-stop function */
 	conf32 |= RSPI_SPCR_SCKASE;
@@ -655,8 +657,13 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 	conf32 |= FIELD_PREP(RSPI_SPCMD_CPHA, !!(spi->mode & SPI_CPHA));
 	conf32 |= FIELD_PREP(RSPI_SPCMD_LSBF, !!(spi->mode & SPI_LSB_FIRST));
 	conf32 |= FIELD_PREP(RSPI_SPCMD_SPB, bits_per_word - 1);
-	conf32 |= FIELD_PREP(RSPI_SPCMD_BRDV, rspi->brdv);
-	conf32 |= FIELD_PREP(RSPI_SPCMD_SSLKP, 1);
+
+	/* Configure clock setting for Master mode */
+	if (!spi_controller_is_target(rspi->controller)) {
+		conf32 |= FIELD_PREP(RSPI_SPCMD_BRDV, rspi->brdv);
+		conf32 |= FIELD_PREP(RSPI_SPCMD_SSLKP, 1);
+	}
+
 	conf32 |= FIELD_PREP(RSPI_SPCMD_SSLA, spi_get_chipselect(spi, 0));
 	writel(conf32, rspi->base + RSPI_SPCMD);
 	if (spi->mode & SPI_CS_HIGH)
@@ -696,7 +703,11 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	long tclk_rate;
 	int ret, i;
 
-	controller = devm_spi_alloc_host(dev, sizeof(*rspi));
+	if (of_property_read_bool(pdev->dev.of_node, "spi-slave"))
+		controller = devm_spi_alloc_target(dev, sizeof(*rspi));
+	else
+		controller = devm_spi_alloc_host(dev, sizeof(*rspi));
+
 	if (!controller)
 		return -ENOMEM;
 
