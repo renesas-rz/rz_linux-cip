@@ -1702,27 +1702,36 @@ static void rzg3s_pcie_set_outbound_window(struct rzg3s_pcie_host *host,
 {
 	struct resource *res = win->res;
 	resource_size_t size = resource_size(res);
-	resource_size_t res_start;
+	resource_size_t cpu_addr, pci_addr;
+
+	pci_addr = res->start - win->offset;
 
 	if (res->flags & IORESOURCE_IO)
-		res_start = pci_pio_to_address(res->start) - win->offset;
+		cpu_addr = pci_pio_to_address(res->start);
 	else
-		res_start = res->start - win->offset;
+		cpu_addr = res->start;
+
+	/*
+	 * According to the RZ/G3S HW manual (Rev.1.10, section 34.3.1.79 PCIe
+	 * Destination (Lower) Registers) the destination address need to be 4K
+	 * aligned.
+	 */
+	pci_addr = ALIGN(pci_addr, SZ_4K);
 
 	/*
 	 * According to the RZ/G3S HW manual (Rev.1.10, section 34.3.1.75 PCIe
 	 * Window Base (Lower) Registers) the window base address need to be 4K
 	 * aligned.
 	 */
-	res_start = ALIGN(res_start, SZ_4K);
+	cpu_addr = ALIGN(cpu_addr, SZ_4K);
 
 	size = ALIGN(size, SZ_4K);
 	size = roundup_pow_of_two(size) - 1;
 
 	/* Set PCIe destination */
-	writel_relaxed(upper_32_bits(res_start),
+	writel_relaxed(upper_32_bits(pci_addr),
 		       host->axi + RZG3S_PCI_PDESTU(id));
-	writel_relaxed(lower_32_bits(res_start),
+	writel_relaxed(lower_32_bits(pci_addr),
 		       host->axi + RZG3S_PCI_PDESTL(id));
 
 	/* Set PCIe window mask */
@@ -1730,9 +1739,9 @@ static void rzg3s_pcie_set_outbound_window(struct rzg3s_pcie_host *host,
 	writel_relaxed(lower_32_bits(size), host->axi + RZG3S_PCI_PWMASKL(id));
 
 	/* Set PCIe window base and enable the window */
-	writel_relaxed(upper_32_bits(res_start),
+	writel_relaxed(upper_32_bits(cpu_addr),
 		       host->axi + RZG3S_PCI_PWBASEU(id));
-	writel_relaxed(lower_32_bits(res_start) | RZG3S_PCI_PWBASEL_ENA,
+	writel_relaxed(lower_32_bits(cpu_addr) | RZG3S_PCI_PWBASEL_ENA,
 		       host->axi + RZG3S_PCI_PWBASEL(id));
 }
 
