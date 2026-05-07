@@ -71,6 +71,7 @@
 
 /* Register SPSR */
 #define RSPI_SPSR_SPRF		BIT(15)
+#define RSPI_SPSR_SPTEF		BIT(13)
 
 /* Register RSPI_SPSRC */
 #define RSPI_SPSRC_CLEAR	0xfd80
@@ -105,7 +106,7 @@ struct rzv2h_rspi_priv {
 	struct clk *pclk;
 	wait_queue_head_t wait;
 	unsigned int bytes_per_word;
-	int irq_rx;
+	int irq_rx, irq_tx;
 	u32 last_speed_hz;
 	u32 freq;
 	u16 status;
@@ -169,21 +170,70 @@ static inline void rzv2h_rspi_clear_all_irqs(struct rzv2h_rspi_priv *rspi)
 	rspi->status = 0;
 }
 
-static irqreturn_t rzv2h_rx_irq_handler(int irq, void *data)
+static void rspi_enable_irq(const struct rzv2h_rspi_priv *rspi, u32 enable)
 {
-	struct rzv2h_rspi_priv *rspi = data;
+	writel(readl(rspi->base + RSPI_SPCR) | enable, rspi->base + RSPI_SPCR);
+}
 
-	rspi->status = readw(rspi->base + RSPI_SPSR);
-	wake_up(&rspi->wait);
-
-	return IRQ_HANDLED;
+static void rspi_disable_irq(const struct rzv2h_rspi_priv *rspi, u32 disable)
+{
+	writel(readl(rspi->base + RSPI_SPCR) & ~disable, rspi->base + RSPI_SPCR);
 }
 
 static inline int rzv2h_rspi_wait_for_interrupt(struct rzv2h_rspi_priv *rspi,
-						u32 wait_mask)
+						u16 wait_mask,
+						u32 enable_bit)
 {
-	return wait_event_timeout(rspi->wait, (rspi->status & wait_mask),
-				  HZ) == 0 ? -ETIMEDOUT : 0;
+	int ret;
+
+	rspi->status = readw(rspi->base + RSPI_SPSR);
+	if (rspi->status & wait_mask)
+		return 0;
+
+	rspi_enable_irq(rspi, enable_bit);
+	ret = wait_event_timeout(rspi->wait, rspi->status & wait_mask, HZ);
+	if (ret == 0 && !(rspi->status & wait_mask))
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
+static inline int rspi_wait_for_tx_empty(struct rzv2h_rspi_priv *rspi)
+{
+	return rzv2h_rspi_wait_for_interrupt(rspi, RSPI_SPSR_SPTEF, RSPI_SPCR_SPTIE);
+}
+
+static inline int rspi_wait_for_rx_full(struct rzv2h_rspi_priv *rspi)
+{
+	return rzv2h_rspi_wait_for_interrupt(rspi, RSPI_SPSR_SPRF, RSPI_SPCR_SPRIE);
+}
+
+static irqreturn_t rzv2h_rx_irq_handler(int irq, void *data)
+{
+	struct rzv2h_rspi_priv *rspi = data;
+	u16 spsr;
+
+	rspi->status = spsr = readw(rspi->base + RSPI_SPSR);
+	if (spsr & RSPI_SPSR_SPRF) {
+		rspi_disable_irq(rspi, RSPI_SPCR_SPRIE);
+		wake_up(&rspi->wait);
+		return IRQ_HANDLED;
+	}
+	return 0;
+}
+
+static irqreturn_t rzv2h_tx_irq_handler(int irq, void *data)
+{
+	struct rzv2h_rspi_priv *rspi = data;
+	u16 spsr;
+
+	rspi->status = spsr = readw(rspi->base + RSPI_SPSR);
+	if (spsr & RSPI_SPSR_SPTEF) {
+		rspi_disable_irq(rspi, RSPI_SPCR_SPTIE);
+		wake_up(&rspi->wait);
+		return IRQ_HANDLED;
+	}
+	return 0;
 }
 
 static void rzv2h_rspi_send(struct rzv2h_rspi_priv *rspi, const void *txbuf,
@@ -204,12 +254,6 @@ static void rzv2h_rspi_send(struct rzv2h_rspi_priv *rspi, const void *txbuf,
 static int rzv2h_rspi_receive(struct rzv2h_rspi_priv *rspi, void *rxbuf,
 			      unsigned int index)
 {
-	int ret;
-
-	ret = rzv2h_rspi_wait_for_interrupt(rspi, RSPI_SPSR_SPRF);
-	if (ret)
-		return ret;
-
 	switch (rspi->bytes_per_word) {
 	case 4:
 		rzv2h_rspi_rx_u32(rspi, rxbuf, index);
@@ -239,24 +283,40 @@ static bool rzv2h_rspi_can_dma(struct spi_controller *ctlr, struct spi_device *s
 }
 
 static int rzv2h_rspi_transfer_pio(struct rzv2h_rspi_priv *rspi,
-				   struct spi_device *spi,
-				   struct spi_transfer *transfer,
-				   unsigned int words_to_transfer)
+				   const void *txbuf, void *rxbuf,
+				   unsigned int len, u16 *error)
 {
-	unsigned int i;
-	int ret = 0;
+	unsigned int words = len / rspi->bytes_per_word;
+	int ret, count;
 
-	for (i = 0; i < words_to_transfer; i++) {
-		rzv2h_rspi_clear_all_irqs(rspi);
-
-		rzv2h_rspi_send(rspi, transfer->tx_buf, i);
-
-		ret = rzv2h_rspi_receive(rspi, transfer->rx_buf, i);
-		if (ret)
-			break;
+	for (count = 0; count < words; count++) {
+		if (txbuf) {
+			ret = rspi_wait_for_tx_empty(rspi);
+			if (ret < 0) {
+				dev_err(&rspi->controller->dev, "transmit timeout\n");
+				return ret;
+			}
+			rzv2h_rspi_send(rspi, txbuf, count);
+		}
 	}
 
-	return ret;
+	for (count = 0; count < words; count++) {
+		if (rxbuf) {
+			ret = rspi_wait_for_rx_full(rspi);
+			if (ret < 0) {
+				dev_err(&rspi->controller->dev, "receive timeout %d\n", count);
+				return ret;
+			}
+
+			ret = rzv2h_rspi_receive(rspi, rxbuf, count);
+			if (ret) {
+				*error = SPI_TRANS_FAIL_IO;
+				return ret;
+			}
+		}
+	}
+
+	return 0;
 }
 
 static void rzv2h_rspi_dma_complete(void *arg)
@@ -353,9 +413,12 @@ static int rzv2h_rspi_transfer_dma(struct rzv2h_rspi_priv *rspi,
 
 	/*
 	 * DMA transfer does not need IRQs to be enabled.
-	 * For PIO, we only use RX IRQ, so disable that.
+	 * For PIO, we use TX/RX IRQ, so disable that.
 	 */
+	disable_irq(rspi->irq_tx);
 	disable_irq(rspi->irq_rx);
+
+	rspi_enable_irq(rspi, RSPI_SPCR_SPTIE | RSPI_SPCR_SPRIE);
 
 	rspi->dma_callbacked = 0;
 
@@ -374,6 +437,9 @@ static int rzv2h_rspi_transfer_dma(struct rzv2h_rspi_priv *rspi,
 		ret = -ETIMEDOUT;
 	}
 
+	rspi_disable_irq(rspi, RSPI_SPCR_SPTIE | RSPI_SPCR_SPRIE);
+
+	enable_irq(rspi->irq_tx);
 	enable_irq(rspi->irq_rx);
 
 	return ret;
@@ -394,7 +460,9 @@ static int rzv2h_rspi_transfer_one(struct spi_controller *controller,
 	if (is_dma)
 		ret = rzv2h_rspi_transfer_dma(rspi, spi, transfer, words_to_transfer);
 	else
-		ret = rzv2h_rspi_transfer_pio(rspi, spi, transfer, words_to_transfer);
+		ret = rzv2h_rspi_transfer_pio(rspi, transfer->tx_buf,
+				      transfer->rx_buf, transfer->len,
+				      &transfer->error);
 
 	rzv2h_rspi_clear_all_irqs(rspi);
 
@@ -634,12 +702,6 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 	/* Auto-stop function */
 	conf32 |= RSPI_SPCR_SCKASE;
 
-	/* SPI receive buffer full interrupt enable */
-	conf32 |= RSPI_SPCR_SPRIE;
-
-	/* SPI transmit buffer empty interrupt enable */
-	conf32 |= RSPI_SPCR_SPTIE;
-
 	/* Bypass synchronization circuit */
 	conf32 |= FIELD_PREP(RSPI_SPCR_BPEN, rspi->use_pclk);
 
@@ -691,6 +753,18 @@ static int rzv2h_rspi_unprepare_message(struct spi_controller *ctlr,
 	rzv2h_rspi_spe_disable(rspi);
 
 	return 0;
+}
+
+static int rspi_request_irq(struct device *dev, unsigned int irq,
+			    irq_handler_t handler, const char *suffix,
+			    void *dev_id)
+{
+	const char *name = devm_kasprintf(dev, GFP_KERNEL, "%s:%s",
+					  dev_name(dev), suffix);
+	if (!name)
+		return -ENOMEM;
+
+	return devm_request_irq(dev, irq, handler, 0, name, dev_id);
 }
 
 static int rzv2h_rspi_probe(struct platform_device *pdev)
@@ -751,18 +825,34 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(reset),
 				     "cannot get tresetn reset\n");
 
-	rspi->irq_rx = platform_get_irq_byname(pdev, "rx");
-	if (rspi->irq_rx < 0)
-		return dev_err_probe(dev, rspi->irq_rx, "cannot get IRQ 'rx'\n");
-
-	init_waitqueue_head(&rspi->wait);
-
-	ret = devm_request_irq(dev, rspi->irq_rx, rzv2h_rx_irq_handler, 0,
-			       dev_name(dev), rspi);
-	if (ret) {
-		dev_err(dev, "cannot request `rx` IRQ\n");
+	ret = platform_get_irq_byname(pdev, "rx");
+	if (ret < 0) {
+		dev_err(dev, "Failed to get RX IRQ\n");
 		return ret;
 	}
+
+	rspi->irq_rx = ret;
+
+	ret = platform_get_irq_byname(pdev, "tx");
+	if (ret < 0) {
+		dev_err(dev, "Failed to get TX IRQ\n");
+		return ret;
+	}
+
+	rspi->irq_tx = ret;
+
+	/* Multi-interrupt mode, only SPRI and SPTI are used */
+	ret = rspi_request_irq(dev, rspi->irq_rx, rzv2h_rx_irq_handler,
+			       "rx", rspi);
+	if (!ret)
+		ret = rspi_request_irq(dev, rspi->irq_tx,
+				       rzv2h_tx_irq_handler, "tx", rspi);
+
+	if (ret < 0) {
+		dev_err(dev, "request_irq error\n");
+	}
+
+	init_waitqueue_head(&rspi->wait);
 
 	controller->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH |
 				SPI_LSB_FIRST | SPI_LOOP;
