@@ -101,6 +101,9 @@
 #define RZG3S_PCI_PCSTAT1_LTSSM_STATE		GENMASK(14, 10)
 #define RZG3S_PCI_PCSTAT1_DL_DOWN_STS		BIT(0)
 
+#define RZG3S_PCI_PCCTRL1			0x404
+#define RZG3S_PCI_PCCTRL1_MODE_EQ_AUTO		BIT(10)
+
 #define RZG3S_PCI_PCCTRL2			0x410
 #define RZG3S_PCI_PCCTRL2_LS_CHG		GENMASK(9, 8)
 #define RZG3S_PCI_PCCTRL2_LS_CHG_REQ		BIT(0)
@@ -1354,6 +1357,11 @@ static int rzg3s_pcie_config_deinit(struct rzg3s_pcie_host *host)
 static void rzg3e_pcie_config_pre_init(struct rzg3s_pcie_host *host)
 {
 	u32 mask = RZG3S_PCI_RESET_RST_LOAD_B | RZG3S_PCI_RESET_RST_CFG_B;
+
+	/* Enable Autonomous Equalization (Gen3 Feature) */
+	rzg3s_pcie_update_bits(host->axi, RZG3S_PCI_PCCTRL1,
+			       RZG3S_PCI_PCCTRL1_MODE_EQ_AUTO,
+			       RZG3S_PCI_PCCTRL1_MODE_EQ_AUTO);
 
 	/* De-assert LOAD_B and CFG_B */
 	rzg3s_pcie_update_bits(host->axi, RZG3S_PCI_RESET, mask, mask);
