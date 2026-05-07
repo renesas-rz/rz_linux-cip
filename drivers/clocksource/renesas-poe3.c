@@ -122,29 +122,29 @@ struct renesas_poe3 {
 };
 
 struct renesas_poe3_port_output {
+	const char *channel_name;
 	u16 hiz_mask;
-	u16 poecr_reg;
-	u16 poecr_shift;
 	u16 ocsr_reg;
+	u16 icsr_reg_default;
 };
 
 static const struct renesas_poe3_port_output poe3_port_out[] = {
 	[MTU3_CHANNEL_0] = {
+		.channel_name = "mtu3_ch0",
 		.hiz_mask = SPOER_MTUCH0HIZ,
-		.poecr_reg = POECR5,
-		.poecr_shift = 0x0001,
+		.icsr_reg_default = ICSR3,
 	},
 	[MTU3_CHANNEL_34] = {
+		.channel_name = "mtu3_ch34",
 		.hiz_mask = SPOER_MTUCH34HIZ,
-		.poecr_reg = POECR4,
-		.poecr_shift = 0x0001,
 		.ocsr_reg = OCSR1,
+		.icsr_reg_default = ICSR1,
 	},
 	[MTU3_CHANNEL_67] = {
+		.channel_name = "mtu3_ch67",
 		.hiz_mask = SPOER_MTUCH67HIZ,
-		.poecr_reg = POECR4,
-		.poecr_shift = 0x0100,
 		.ocsr_reg = OCSR2,
+		.icsr_reg_default = ICSR2,
 	},
 };
 
@@ -165,23 +165,24 @@ static const struct renesas_poe3_icsr_info poe3_icsr_info[] = {
 struct renesas_poe3_poecr_info {
 	const char *ch;
 	u16 input_pin;
+	u16 icsr_reg;
 	u16 reg;
 	u16 bitmask;
 };
 
 static const struct renesas_poe3_poecr_info poe3_poecr_info[] = {
-	{ "mtu3_ch0",   0, POECR5, POECR5_IC1ADDMT0 },
-	{ "mtu3_ch0",   4, POECR5, POECR5_IC2ADDMT0 },
-	{ "mtu3_ch0",  10, POECR5, POECR5_IC4ADDMT0 },
-	{ "mtu3_ch0",  11, POECR5, POECR5_IC5ADDMT0 },
-	{ "mtu3_ch34",  4, POECR4, POECR4_IC2ADDMT34 },
-	{ "mtu3_ch34",  8, POECR4, POECR4_IC3ADDMT34 },
-	{ "mtu3_ch34", 10, POECR4, POECR4_IC4ADDMT34 },
-	{ "mtu3_ch34", 11, POECR4, POECR4_IC5ADDMT34 },
-	{ "mtu3_ch67",  0, POECR4, POECR4_IC1ADDMT67 },
-	{ "mtu3_ch67",  8, POECR4, POECR4_IC3ADDMT67 },
-	{ "mtu3_ch67", 10, POECR4, POECR4_IC4ADDMT67 },
-	{ "mtu3_ch67", 11, POECR4, POECR4_IC5ADDMT67 },
+	{ "mtu3_ch0",   0, ICSR1, POECR5, POECR5_IC1ADDMT0 },
+	{ "mtu3_ch0",   4, ICSR2, POECR5, POECR5_IC2ADDMT0 },
+	{ "mtu3_ch0",  10, ICSR4, POECR5, POECR5_IC4ADDMT0 },
+	{ "mtu3_ch0",  11, ICSR5, POECR5, POECR5_IC5ADDMT0 },
+	{ "mtu3_ch34",  4, ICSR2, POECR4, POECR4_IC2ADDMT34 },
+	{ "mtu3_ch34",  8, ICSR3, POECR4, POECR4_IC3ADDMT34 },
+	{ "mtu3_ch34", 10, ICSR4, POECR4, POECR4_IC4ADDMT34 },
+	{ "mtu3_ch34", 11, ICSR5, POECR4, POECR4_IC5ADDMT34 },
+	{ "mtu3_ch67",  0, ICSR1, POECR4, POECR4_IC1ADDMT67 },
+	{ "mtu3_ch67",  8, ICSR3, POECR4, POECR4_IC3ADDMT67 },
+	{ "mtu3_ch67", 10, ICSR4, POECR4, POECR4_IC4ADDMT67 },
+	{ "mtu3_ch67", 11, ICSR5, POECR4, POECR4_IC5ADDMT67 },
 };
 
 struct renesas_poe3_pin_select_info {
@@ -252,37 +253,26 @@ static inline void renesas_poe3_write(struct renesas_poe3 *poe3,
 		iowrite16((u16)value, poe3->base + reg_nr);
 }
 
-static void renesas_poe3_clear_poef(struct renesas_poe3 *poe3, u16 reg, u32 offset)
+static void renesas_poe3_clear_poef(struct renesas_poe3 *poe3,
+				    const char *channel_name, u16 default_icsr)
 {
 	int i, val;
-	unsigned int icsr;
 
-	val = renesas_poe3_read(poe3, reg);
-	for (i = 1; i <= 5; i++) {
-		if (val & (offset << i)) {
-			switch (i) {
-			case 1:
-				icsr = ICSR1;
-				break;
-			case 2:
-				icsr = ICSR2;
-				break;
-			case 3:
-				icsr = ICSR3;
-				break;
-			case 4:
-				icsr = ICSR4;
-				break;
-			case 5:
-				icsr = ICSR5;
-				break;
-			default:
-				continue;
+	/* Clear default ICSR POEF */
+	val = renesas_poe3_read(poe3, default_icsr);
+	if (val & ICSR_POEF)
+		renesas_poe3_write(poe3, default_icsr, val & ~ICSR_POEF);
+
+	/* Clear additional ICSR POEFs */
+	for (i = 0; i < ARRAY_SIZE(poe3_poecr_info); i++) {
+		if (!strcmp(channel_name, poe3_poecr_info[i].ch)) {
+			val = renesas_poe3_read(poe3, poe3_poecr_info[i].reg);
+			if (val & poe3_poecr_info[i].bitmask) {
+				val = renesas_poe3_read(poe3, poe3_poecr_info[i].icsr_reg);
+				if (val & ICSR_POEF)
+					renesas_poe3_write(poe3, poe3_poecr_info[i].icsr_reg,
+							   val & ~ICSR_POEF);
 			}
-
-			val = renesas_poe3_read(poe3, icsr);
-			if (val & ICSR_POEF)
-				renesas_poe3_write(poe3, icsr, val & 0x0FFF);
 		}
 	}
 }
@@ -304,7 +294,7 @@ static int renesas_poe3_clear_Hi_z_state(struct renesas_poe3 *poe3,
 		renesas_poe3_write(poe3, SPOER, val & ~port_out->hiz_mask);
 
 	/* Clear POExF */
-	renesas_poe3_clear_poef(poe3, port_out->poecr_reg, port_out->poecr_shift);
+	renesas_poe3_clear_poef(poe3, port_out->channel_name, port_out->icsr_reg_default);
 
 	/* Clear OSF */
 	if (port_out->ocsr_reg) {
