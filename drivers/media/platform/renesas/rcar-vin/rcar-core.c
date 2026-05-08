@@ -1158,6 +1158,7 @@ static const struct rvin_group_route rcar_info_r8a774e1_routes[] = {
 static const struct rvin_info rcar_info_r8a774e1 = {
 	.model = RCAR_GEN3,
 	.use_mc = true,
+	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a774e1_routes,
