@@ -447,7 +447,6 @@
 		pinmux = <RZG3L_PORT_PINMUX(7, 6, 5)>, /* RSCI2_RXD_MISO_SCL */
 			 <RZG3L_PORT_PINMUX(7, 7, 5)>; /* RSCI2_TXD_MOSI_SDA */
 		bias-pull-up;
-		drive-strength-microamp = <9000>;
 	};
 
 	rsci2_rtscts_pins: rsci2_ctsrts {
@@ -460,14 +459,12 @@
 			 <RZG3L_PORT_PINMUX(8, 1, 6)>; /* RSCI2_DE */
 #endif
 		bias-pull-up;
-		drive-strength-microamp = <9000>;
 	};
 
 	rsci2_i2c_pins: rsci2_i2c {
 		pinmux = <RZG3L_PORT_PINMUX(6, 5, 5)>, /* RSCI2_RXD_MISO_SCL */
 			 <RZG3L_PORT_PINMUX(6, 6, 5)>; /* RSCI2_TXD_MOSI_SDA */
 		bias-pull-up;
-		drive-strength-microamp = <9000>;
 	};
 #endif
 
@@ -476,7 +473,6 @@
 		pinmux = <RZG3L_PORT_PINMUX(8, 2, 5)>, /* RSCI3_RXD_MISO_SCL */
 			 <RZG3L_PORT_PINMUX(8, 3, 5)>; /* RSCI3_TXD_MOSI_SDA */
 		bias-pull-up;
-		drive-strength-microamp = <9000>;
 	};
 #endif
 
