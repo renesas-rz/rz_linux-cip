@@ -7,11 +7,14 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/bits.h>
 #include <linux/clk-provider.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/math.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 #include <linux/types.h>
 
 #include <dt-bindings/clock/renesas,r9a09g077-cpg-mssr.h>
@@ -66,6 +69,16 @@
 #define DIVSCI2ASYNC	CONF_PACK(SCKCR3, 10, 2)
 #define DIVSCI3ASYNC	CONF_PACK(SCKCR3, 12, 2)
 #define DIVSCI4ASYNC	CONF_PACK(SCKCR3, 14, 2)
+
+enum r9a09g077_sysc {
+	RZT2H_SYSC0,
+	RZT2H_SYSC1,
+	RZT2H_MAX_SYSC,
+};
+
+struct r9a09g077_sysc_reg {
+	void __iomem *base;
+};
 
 enum rzt2h_clk_types {
 	CLK_TYPE_RZT2H_DIV = CLK_TYPE_CUSTOM,	/* Clock with divider */
@@ -505,6 +518,172 @@ r9a09g077_cpg_clk_register(struct device *dev, const struct cpg_core_clk *core,
 	}
 }
 
+static int rzt2h_regmap_read(void *context, unsigned int reg, unsigned int *val)
+{
+	struct r9a09g077_sysc_reg *sysc = context;
+
+	*val = readl(sysc->base + reg);
+
+	return 0;
+}
+
+static int rzt2h_regmap_write(void *context, unsigned int reg, unsigned int val)
+{
+	struct r9a09g077_sysc_reg *sysc = context;
+
+	writel(val, sysc->base + reg);
+
+	return 0;
+}
+
+static const struct regmap_bus rzt2h_sys_regmap_bus = {
+	.reg_write = rzt2h_regmap_write,
+	.reg_read = rzt2h_regmap_read,
+};
+
+static bool rzt2h_writeable_readable_sysc0(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case 0x0000 ... 0x0008:
+	case 0x1000 ... 0x1164:
+	case 0x2000 ... 0x2024:
+	case 0x2030 ... 0x2054:
+	case 0x2060:
+	case 0x3000 ... 0x300C:
+	case 0x3100 ... 0x310C:
+	case 0x4100:
+	case 0x4200:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+static bool rzt2h_writeable_readable_sysc1(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case 0x000C:
+	case 0x0034 ... 0x0038:
+	case 0x0048 ... 0x007C:
+	case 0x0100 ... 0x017C:
+	case 0x0200 ... 0x027C:
+	case 0x0308 ... 0x030C:
+	case 0x0320 ... 0x037C:
+	case 0x0480 ... 0x0484:
+	case 0x0580 ... 0x0584:
+	case 0x0680 ... 0x0684:
+	case 0x0780 ... 0x0784:
+	case 0x0880:
+	case 0x0980 ... 0x098C:
+	case 0x1100 ... 0x1118:
+	case 0x1200 ... 0x1204:
+	case 0x1400 ... 0x1484:
+	case 0x1500 ... 0x1584:
+	case 0x1600 ... 0x1680:
+	case 0x1700 ... 0x1780:
+	case 0x1800 ... 0x1884:
+	case 0x1900 ... 0x1984:
+	case 0x1A00 ... 0x1A84:
+	case 0x1B00 ... 0x1B8C:
+	case 0x1C00 ... 0x1C8C:
+	case 0x1D00 ... 0x1D8C:
+	case 0x3000:
+	case 0x3010:
+	case 0x3020:
+	case 0x3030:
+	case 0x4000:
+	case 0x5008 ... 0x500C:
+	case 0x5020 ... 0x503C:
+	case 0x5100 ... 0x5114:
+	case 0x6000:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+static int r9a09g077_sysc_init(struct device *dev)
+{
+	struct device_node *child, *np = dev->of_node;
+
+	for_each_child_of_node(np, child) {
+		struct regmap_config *regmap_cfg __free(kfree) = kzalloc_obj(*regmap_cfg);
+		struct r9a09g077_sysc_reg *sysc_reg;
+		struct regmap *regmap;
+		void __iomem *base;
+		char *name;
+		u32 index;
+		int ret;
+
+		sysc_reg = devm_kzalloc(dev, sizeof(*sysc_reg), GFP_KERNEL);
+		if (!sysc_reg) {
+			of_node_put(child);
+			return -ENOMEM;
+		}
+
+		if (!regmap_cfg) {
+			of_node_put(child);
+			return -ENOMEM;
+		}
+
+		if (!of_node_name_eq(child, "system-controller"))
+			continue;
+
+		if (of_property_read_u32(child, "renesas,sys-block", &index)) {
+			of_node_put(child);
+			return -EINVAL;
+		}
+
+		if (index >= RZT2H_MAX_SYSC) {
+			of_node_put(child);
+			return -EINVAL;
+		}
+
+		name = devm_kasprintf(dev, GFP_KERNEL, "sysc%u", index);
+		if (!name) {
+			of_node_put(child);
+			return -ENOMEM;
+		}
+
+		base = devm_of_iomap(dev, child, 0, NULL);
+		if (IS_ERR(base)) {
+			of_node_put(child);
+			return PTR_ERR(base);
+		}
+
+		sysc_reg->base = base;
+		regmap_cfg->name = name;
+		regmap_cfg->reg_bits = 32;
+		regmap_cfg->reg_stride = 4;
+		regmap_cfg->val_bits = 32;
+		regmap_cfg->fast_io = true;
+		regmap_cfg->max_register = 0x10000;
+		if (index == RZT2H_SYSC0) {
+			regmap_cfg->readable_reg = rzt2h_writeable_readable_sysc0;
+			regmap_cfg->writeable_reg = rzt2h_writeable_readable_sysc0;
+		} else {
+			regmap_cfg->readable_reg = rzt2h_writeable_readable_sysc1;
+			regmap_cfg->writeable_reg = rzt2h_writeable_readable_sysc1;
+		}
+
+		regmap = devm_regmap_init(dev, &rzt2h_sys_regmap_bus, sysc_reg, regmap_cfg);
+		if (IS_ERR(regmap)) {
+			of_node_put(child);
+			return PTR_ERR(regmap);
+		}
+
+		ret = of_syscon_register_regmap(child, regmap);
+		if (ret) {
+			of_node_put(child);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 const struct cpg_mssr_info r9a09g077_cpg_mssr_info = {
 	/* Core Clocks */
 	.core_clks = r9a09g077_core_clks,
@@ -519,4 +698,5 @@ const struct cpg_mssr_info r9a09g077_cpg_mssr_info = {
 
 	.reg_layout = CLK_REG_LAYOUT_RZ_T2H,
 	.cpg_clk_register = r9a09g077_cpg_clk_register,
+	.sysc_init = r9a09g077_sysc_init,
 };

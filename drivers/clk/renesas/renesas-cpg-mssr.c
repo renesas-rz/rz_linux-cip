@@ -1310,6 +1310,12 @@ static int __init cpg_mssr_common_init(struct device *dev,
 		}
 	}
 
+	if (info->sysc_init) {
+		error = info->sysc_init(priv->dev);
+		if (error)
+			goto out_err;
+	}
+
 	priv->num_core_clks = info->num_total_core_clks;
 	priv->num_mod_clks = info->num_hw_mod_clks;
 	priv->last_dt_core_clk = info->last_dt_core_clk;
