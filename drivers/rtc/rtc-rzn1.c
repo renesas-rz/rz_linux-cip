@@ -12,6 +12,7 @@
  */
 
 #include <linux/bcd.h>
+#include <linux/clk.h>
 #include <linux/init.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
@@ -58,6 +59,8 @@
 #define RZN1_RTC_DAYC 0x5c
 #define RZN1_RTC_MONTHC 0x60
 #define RZN1_RTC_YEARC 0x64
+
+#define RZN1_RTC_SCMP		0x3c
 
 struct rzn1_rtc {
 	struct rtc_device *rtcdev;
@@ -328,8 +331,10 @@ static const struct rtc_class_ops rzn1_rtc_ops = {
 static int rzn1_rtc_probe(struct platform_device *pdev)
 {
 	struct rzn1_rtc *rtc;
+	struct clk	*clk;
 	int alarm_irq;
 	int ret;
+	u32 ctl0;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
@@ -367,9 +372,22 @@ static int rzn1_rtc_probe(struct platform_device *pdev)
 	 * Ensure the clock counter is enabled.
 	 * Set 24-hour mode and possible oscillator offset compensation in SUBU mode.
 	 */
-	writel(RZN1_RTC_CTL0_CE | RZN1_RTC_CTL0_AMPM | RZN1_RTC_CTL0_SLSB_SUBU,
-	       rtc->base + RZN1_RTC_CTL0);
+	ctl0 = RZN1_RTC_CTL0_CE | RZN1_RTC_CTL0_AMPM | RZN1_RTC_CTL0_SLSB_SUBU;
+	clk = devm_clk_get_optional(&pdev->dev, "rtc");
+	if (clk != NULL) {
+		unsigned long clk_rate = clk_get_rate(clk);
 
+		if (!clk_rate) {
+			dev_err(&pdev->dev, "Unable to fetch clock rate\n");
+			return -EINVAL;
+		}
+
+		ctl0 |= RZN1_RTC_CTL0_SLSB_SCMP;
+		writel(ctl0, rtc->base + RZN1_RTC_CTL0);
+		writel(clk_rate - 1, rtc->base + RZN1_RTC_SCMP);
+	} else {
+		writel(ctl0, rtc->base + RZN1_RTC_CTL0);
+	}
 	/* Disable all interrupts */
 	writel(0, rtc->base + RZN1_RTC_CTL1);
 
@@ -398,7 +416,8 @@ static void rzn1_rtc_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id rzn1_rtc_of_match[] = {
-	{ .compatible	= "renesas,rzn1-rtc" },
+	{ .compatible	= "renesas,rzn1-rtc", },
+	{ .compatible   = "renesas,rzt2n-rtc",},
 	{},
 };
 MODULE_DEVICE_TABLE(of, rzn1_rtc_of_match);
