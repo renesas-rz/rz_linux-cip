@@ -96,6 +96,24 @@ static const u16 mstpcr_for_gen4[] = {
 #define RZT2H_MSTPCR_BLOCK(x)		((x) >> RZT2H_MSTPCR_BLOCK_SHIFT)
 #define RZT2H_MSTPCR_OFFSET(x)		((x) & RZT2H_MSTPCR_OFFSET_MASK)
 
+/* Dummy read counts as specified by the RZ/T2H hardware manual */
+#define RZT2H_MSTP_DEFAULT_DUMMY_READS	7
+#define RZT2H_MSTP_LCDC_DUMMY_READS	100
+
+/*
+ * Time per dummy read in nanoseconds, derived from the original udelay(10)
+ * which was used to satisfy the 7 dummy-read requirement:
+ * 10000 ns / 7 reads = 1429 ns per read.
+ */
+#define RZT2H_MSTP_DUMMY_READ_NS	1429
+#define RZT2H_MSTP_READS_TO_US(n)	(((n) * RZT2H_MSTP_DUMMY_READ_NS) / 1000)
+#define RZT2H_MSTP_DEFAULT_DELAY_US	RZT2H_MSTP_READS_TO_US(RZT2H_MSTP_DEFAULT_DUMMY_READS)
+
+#define RZT2H_MSTPCRM_INDEX		12
+#define RZT2H_MSTPCRM04_LCDC		4
+
+#define RZT2H_MSTP_ANY_BIT		U32_MAX
+
 static const u16 mstpcr_for_rzt2h[] = {
 	RZT2H_MSTPCR(0, 0x300), /* MSTPCRA */
 	RZT2H_MSTPCR(0, 0x304), /* MSTPCRB */
@@ -111,6 +129,35 @@ static const u16 mstpcr_for_rzt2h[] = {
 	RZT2H_MSTPCR(0, 0x32c), /* MSTPCRL */
 	RZT2H_MSTPCR(0, 0x330), /* MSTPCRM */
 	RZT2H_MSTPCR(1, 0x334), /* MSTPCRN */
+};
+
+/**
+ * struct rzt2h_mstp_delay_entry - MSTP dummy-read requirement for RZ/T2H
+ *
+ * @reg: Index into control_regs[]. Exact match.
+ * @bit: MSTP bit position, or RZT2H_MSTP_ANY_BIT for register-level match.
+ * @delay_us: Computed delay in microseconds to satisfy the dummy read requirement.
+ */
+struct rzt2h_mstp_delay_entry {
+	u32 reg;
+	u32 bit;
+	u32 delay_us;
+};
+
+/*
+ * Per RZ/T2H HW manual: to secure processing after release from the
+ * module-stop state, dummy read the same register at least seven times
+ * (except RTC and LCDC) after writing to initiate release from the
+ * module-stop state. For RTC, dummy read at least 300 times and for
+ * LCDC, at least 100 times.
+ *
+ * Instead of performing the actual dummy reads, an equivalent delay is
+ * added using udelay(), computed from the required read count via
+ * RZT2H_MSTP_READS_TO_US().
+ */
+static const struct rzt2h_mstp_delay_entry rzt2h_mstp_delay_table[] = {
+	{ RZT2H_MSTPCRM_INDEX, RZT2H_MSTPCRM04_LCDC,
+	  RZT2H_MSTP_READS_TO_US(RZT2H_MSTP_LCDC_DUMMY_READS) },
 };
 
 /*
@@ -253,6 +300,20 @@ static void cpg_rzt2h_mstp_write(struct cpg_mssr_priv *priv, u16 offset, u32 val
 	writel(value, base + RZT2H_MSTPCR_OFFSET(offset));
 }
 
+static unsigned int cpg_rzt2h_mstp_get_delay_us(u32 reg, u32 bit)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(rzt2h_mstp_delay_table); i++) {
+		const struct rzt2h_mstp_delay_entry *e = &rzt2h_mstp_delay_table[i];
+
+		if (e->reg == reg && (e->bit == bit || bit == RZT2H_MSTP_ANY_BIT))
+			return e->delay_us;
+	}
+
+	return RZT2H_MSTP_DEFAULT_DELAY_US;
+}
+
 static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
 {
 	struct mstp_clock *clock = to_mstp_clock(hw);
@@ -311,7 +372,7 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
 		 * register, we simply add a delay after the read operation.
 		 */
 		cpg_rzt2h_mstp_read(priv, priv->control_regs[reg]);
-		udelay(10);
+		udelay(cpg_rzt2h_mstp_get_delay_us(reg, bit));
 		return 0;
 	}
 
@@ -1168,7 +1229,7 @@ static int cpg_mssr_resume_noirq(struct device *dev)
 			cpg_rzt2h_mstp_write(priv, priv->control_regs[reg], newval);
 			/* See cpg_mstp_clock_endisable() on why this is necessary. */
 			cpg_rzt2h_mstp_read(priv, priv->control_regs[reg]);
-			udelay(10);
+			udelay(cpg_rzt2h_mstp_get_delay_us(reg, RZT2H_MSTP_ANY_BIT));
 			continue;
 		} else
 			writel(newval, priv->pub.base0 + priv->control_regs[reg]);
