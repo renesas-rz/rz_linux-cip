@@ -102,8 +102,91 @@
 	renesas,miic-switch-portin = <ETHSS_GMAC0_PORT>;
 };
 
+&ethsw {
+	status = "okay";
+	dsa,member = <0 0>;
+
+	mdio {
+		clock-frequency = <2500000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		/*
+		 * P11_0 is connected to both the PHY0 and PHY1 reset pins.
+		 *
+		 * RZ/T2H EVK:
+		 * SW6[2]: OFF, SW6[3]: ON, SW6[4]: OFF, SW6[5]: ON
+		 *
+		 * RZ/N2H EVK:
+		 * DS12[3]: OFF, DS12[4]: ON
+		 */
+		reset-gpios = <&pinctrl RZT2H_GPIO(11, 0) GPIO_ACTIVE_LOW>;
+
+		ethsw0phy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-id0007.0772", "ethernet-phy-ieee802.3-c22";
+			reg = <0>;
+			leds {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				led@0 {
+					reg = <0>;
+					color = <LED_COLOR_ID_YELLOW>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <0>;
+					default-state = "keep";
+				};
+
+				led@1 {
+					reg = <1>;
+					color = <LED_COLOR_ID_GREEN>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <1>;
+					default-state = "keep";
+				};
+			};
+		};
+
+		ethsw0phy1: ethernet-phy@1 {
+			compatible = "ethernet-phy-id0007.0772", "ethernet-phy-ieee802.3-c22";
+			reg = <1>;
+			leds {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				led@0 {
+					reg = <0>;
+					color = <LED_COLOR_ID_YELLOW>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <0>;
+					default-state = "keep";
+				};
+
+				led@1 {
+					reg = <1>;
+					color = <LED_COLOR_ID_GREEN>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <1>;
+					default-state = "keep";
+				};
+			};
+		};
+	};
+};
+
 &extal_clk {
 	clock-frequency = <25000000>;
+};
+
+&gmac0 {
+	pinctrl-0 = <&gmac0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+	phy-mode = "gmii";
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
 };
 
 &gmac1 {
@@ -161,11 +244,13 @@
 
 &mii_conv0 {
 	renesas,miic-input = <ETHSS_ETHSW_PORT0>;
+	renesas,miic-phy-link-active-low;
 	status = "okay";
 };
 
 &mii_conv1 {
 	renesas,miic-input = <ETHSS_ETHSW_PORT1>;
+	renesas,miic-phy-link-active-low;
 	status = "okay";
 };
 
@@ -179,12 +264,82 @@
 	status = "okay";
 };
 
+/*
+ * The Tx fifo depth is 8192 and we have 8 Tx queues available, so in
+ * total we have 1024 bytes per queue. When using as a CPU port in a DSA
+ * configuration, MTU is configured to 1500 bytes which is larger than the
+ * per-queue fifo size. Reduce the number of Tx queues to 4 to have
+ * 2048 bytes per queue to accommodate the MTU.
+ */
+&mtl_tx_setup0 {
+	snps,tx-queues-to-use = <4>;
+};
+
 &ohci {
 	dr_mode = "otg";
 	status = "okay";
 };
 
 &pinctrl {
+	/*
+	 * GMAC0 Pin Configuration:
+	 * ------------------------
+	 *
+	 * RZ/T2H EVK:
+	 * Signal     | Pin     | SW4 Settings
+	 * -----------|---------|-------------------------
+	 * ETH1_CRS   | P27_0   | SW4[1]: ON, SW4[2]: OFF
+	 * ETH1_COL   | P27_1   | SW4[3]: ON, SW4[4]: OFF
+	 *
+	 * RZ/N2H EVK:
+	 * Signal     | Pin     | DSW13 and DSW21 Settings
+	 * -----------|---------|-------------------------
+	 * ETH1_TXER  | P26_6   | DSW21[1]: ON, DSW21[2]: OFF, DSW21[3]: ON
+	 * ETH1_RXER  | P26_7   | DSW13[1]: ON, DSW13[2]: OFF
+	 * ETH1_CRS   | P27_0   | DSW13[3]: ON, DSW13[4]: OFF
+	 * ETH1_COL   | P27_1   | DSW13[5]: ON, DSW13[6]: OFF
+	 */
+	gmac0_pins: gmac0-pins {
+		pinmux = <RZT2H_PORT_PINMUX(20, 0, 0xf)>, /* ETH0_TXCLK */
+			 <RZT2H_PORT_PINMUX(20, 1, 0xf)>, /* ETH0_TXD0 */
+			 <RZT2H_PORT_PINMUX(20, 2, 0xf)>, /* ETH0_TXD1 */
+			 <RZT2H_PORT_PINMUX(20, 3, 0xf)>, /* ETH0_TXD2 */
+			 <RZT2H_PORT_PINMUX(20, 4, 0xf)>, /* ETH0_TXD3 */
+			 <RZT2H_PORT_PINMUX(20, 5, 0xf)>, /* ETH0_TXEN */
+			 <RZT2H_PORT_PINMUX(20, 6, 0xf)>, /* ETH0_RXCLK */
+			 <RZT2H_PORT_PINMUX(20, 7, 0xf)>, /* ETH0_RXD0 */
+			 <RZT2H_PORT_PINMUX(21, 0, 0xf)>, /* ETH0_RXD1 */
+			 <RZT2H_PORT_PINMUX(21, 1, 0xf)>, /* ETH0_RXD2 */
+			 <RZT2H_PORT_PINMUX(21, 2, 0xf)>, /* ETH0_RXD3 */
+			 <RZT2H_PORT_PINMUX(21, 3, 0xf)>, /* ETH0_RXDV */
+			 <RZT2H_PORT_PINMUX(22, 1, 0xf)>, /* ETH0_TXER */
+			 <RZT2H_PORT_PINMUX(22, 2, 0xf)>, /* ETH0_RXER */
+			 <RZT2H_PORT_PINMUX(22, 3, 0xf)>, /* ETH0_CRS */
+			 <RZT2H_PORT_PINMUX(22, 4, 0xf)>, /* ETH0_COL */
+			 <RZT2H_PORT_PINMUX(21, 7, 0x2)>, /* ETH0_REFCLK */
+			 <RZT2H_PORT_PINMUX(24, 5, 0xf)>, /* ETH1_TXCLK */
+			 <RZT2H_PORT_PINMUX(24, 6, 0xf)>, /* ETH1_TXD0 */
+			 <RZT2H_PORT_PINMUX(24, 7, 0xf)>, /* ETH1_TXD1 */
+			 <RZT2H_PORT_PINMUX(25, 0, 0xf)>, /* ETH1_TXD2 */
+			 <RZT2H_PORT_PINMUX(25, 1, 0xf)>, /* ETH1_TXD3 */
+			 <RZT2H_PORT_PINMUX(25, 2, 0xf)>, /* ETH1_TXEN */
+			 <RZT2H_PORT_PINMUX(25, 3, 0xf)>, /* ETH1_RXCLK */
+			 <RZT2H_PORT_PINMUX(25, 4, 0xf)>, /* ETH1_RXDD0 */
+			 <RZT2H_PORT_PINMUX(25, 5, 0xf)>, /* ETH1_RXDD1 */
+			 <RZT2H_PORT_PINMUX(25, 6, 0xf)>, /* ETH1_RXDD2 */
+			 <RZT2H_PORT_PINMUX(25, 7, 0xf)>, /* ETH1_RXD3 */
+			 <RZT2H_PORT_PINMUX(26, 0, 0xf)>, /* ETH1_RXDV */
+			 <RZT2H_PORT_PINMUX(26, 6, 0xf)>, /* ETH1_TXER */
+			 <RZT2H_PORT_PINMUX(26, 7, 0xf)>, /* ETH1_RXER */
+			 <RZT2H_PORT_PINMUX(27, 0, 0xf)>, /* ETH1_CRS */
+			 <RZT2H_PORT_PINMUX(27, 1, 0xf)>, /* ETH1_COL */
+			 <RZT2H_PORT_PINMUX(26, 4, 0x2)>, /* ETH1_REFCLK */
+			 <RZT2H_PORT_PINMUX(21, 4, 0x11)>, /* ETHSW_MDC */
+			 <RZT2H_PORT_PINMUX(21, 5, 0x11)>, /* ETHSW_MDIO */
+			 <RZT2H_PORT_PINMUX(21, 6, 0x11)>, /* ETHSW_PHYLINK0 */
+			 <RZT2H_PORT_PINMUX(26, 3, 0x11)>; /* ETHSW_PHYLINK1 */
+	};
+
 	/*
 	 * SCI0 Pin Configuration:
 	 * ------------------------
@@ -360,6 +515,24 @@
 	status = "okay";
 };
 #endif
+
+&switch_port0 {
+	label = "lan0";
+	phy-mode = "mii";
+	phy-handle = <&ethsw0phy0>;
+	status = "okay";
+};
+
+&switch_port1 {
+	label = "lan1";
+	phy-mode = "mii";
+	phy-handle = <&ethsw0phy1>;
+	status = "okay";
+};
+
+&switch_port3 {
+	status = "okay";
+};
 
 &usb2_phy {
 	pinctrl-0 = <&usb_pins>;
