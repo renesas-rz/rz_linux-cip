@@ -156,6 +156,8 @@ struct rvin_group_route {
  * @max_height:		max input height the VIN supports
  * @routes:		list of possible routes from the CSI-2 recivers to
  *			all VINs. The list mush be NULL terminated.
+ * companions:		list of companion VIN indices
+ * @num_companions:	number of entries in companions
  * @scaler:		Optional scaler
  */
 struct rvin_info {
@@ -167,6 +169,8 @@ struct rvin_info {
 	unsigned int max_width;
 	unsigned int max_height;
 	const struct rvin_group_route *routes;
+	const unsigned int *companions;
+	unsigned int num_companions;
 	void (*scaler)(struct rvin_dev *vin);
 };
 
