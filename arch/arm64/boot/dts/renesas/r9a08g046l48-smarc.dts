@@ -315,6 +315,20 @@
 		dais = <&i2s2_port>;
 	};
 #endif
+
+#if (!SW_SDIO_M2E)
+	keys: keys {
+                compatible = "gpio-keys";
+
+                key-1 {
+			interrupts-extended = <&pinctrl RZG3L_GPIO(J, 3) IRQ_TYPE_EDGE_FALLING>;
+                        linux,code = <2>;
+                        label = "USER_SW1";
+                        wakeup-source;
+                        debounce-interval = <20>;
+                };
+        };
+#endif
 };
 
 &pinctrl {
