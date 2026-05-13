@@ -1162,6 +1162,7 @@ static const struct rvin_info rcar_info_r8a774e1 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a774e1_routes,
+	.scaler = rvin_scaler_gen3,
 };
 
 static const struct rvin_group_route rcar_info_r8a7795_routes[] = {
