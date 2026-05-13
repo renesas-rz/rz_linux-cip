@@ -30,6 +30,8 @@ enum rzg2l_du_output {
  * struct rzg2l_du_output_routing - Output routing specification
  * @possible_outputs: bitmask of possible outputs
  * @port: device tree port number corresponding to this output route
+ * @mode_clock_min: minimum pixel clock in kHz
+ * @mode_clock_max: maximum pixel clock in kHz
  *
  * The DU has 2 possible outputs (DPAD0, DSI0). Output routing data
  * specify the valid SoC outputs, which CRTC can drive the output, and the type
@@ -38,6 +40,8 @@ enum rzg2l_du_output {
 struct rzg2l_du_output_routing {
 	unsigned int possible_outputs;
 	unsigned int port;
+	int mode_clock_min;
+	int mode_clock_max;
 };
 
 /*
