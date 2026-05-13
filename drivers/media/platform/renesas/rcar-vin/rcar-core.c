@@ -1155,6 +1155,10 @@ static const struct rvin_group_route rcar_info_r8a774e1_routes[] = {
 	{ /* Sentinel */ }
 };
 
+static const unsigned int rvin_info_h3_m3w_m3n_companion[] = {
+	1, 5,
+};
+
 static const struct rvin_info rcar_info_r8a774e1 = {
 	.model = RCAR_GEN3,
 	.use_mc = true,
@@ -1162,6 +1166,8 @@ static const struct rvin_info rcar_info_r8a774e1 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a774e1_routes,
+	.companions = rvin_info_h3_m3w_m3n_companion,
+	.num_companions = ARRAY_SIZE(rvin_info_h3_m3w_m3n_companion),
 	.scaler = rvin_scaler_gen3,
 };
 
@@ -1216,6 +1222,8 @@ static const struct rvin_info rcar_info_r8a77965 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77965_routes,
+	.companions = rvin_info_h3_m3w_m3n_companion,
+	.num_companions = ARRAY_SIZE(rvin_info_h3_m3w_m3n_companion),
 	.scaler = rvin_scaler_gen3,
 };
 
@@ -1396,8 +1404,19 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	} else if (vin->info->use_mc) {
 		ret = rvin_csi2_init(vin);
 
+		bool is_companion = false;
+		unsigned int i;
+
+		for (i = 0; i < vin->info->num_companions; i++) {
+			if (vin->info->companions[i] == vin->id) {
+				is_companion = true;
+				break;
+			}
+		}
+
 		if (vin->info->scaler &&
-		    rvin_group_id_to_master(vin->id) == vin->id)
+		    (rvin_group_id_to_master(vin->id) == vin->id ||
+		     is_companion))
 			vin->scaler = vin->info->scaler;
 	} else {
 		ret = rvin_parallel_init(vin);
