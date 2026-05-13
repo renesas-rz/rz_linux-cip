@@ -222,7 +222,6 @@
 
 #define RZG2L_PIN_ID_TO_PORT(id)	((id) / RZG2L_PINS_PER_PORT)
 #define RZG2L_PIN_ID_TO_PIN(id)		((id) % RZG2L_PINS_PER_PORT)
-#define RZG2L_PIN_ID(port, bit) 	((port) * RZG2L_PINS_PER_PORT + (bit))
 
 #define RZG2L_TINT_MAX_INTERRUPT	32
 #define RZG2L_PACK_HWIRQ(t, i)		(((t) << 16) | (i))
@@ -231,42 +230,6 @@
 #define field_get(_mask, _reg)	(((_reg) & (_mask)) >> (ffs(_mask) - 1))
 #undef field_prep
 #define field_prep(_mask, _val)	(((_val) << (ffs(_mask) - 1)) & (_mask))
-
-static const int rzg3l_tint_pin_info[] = {
-	RZG2L_PIN_ID(28,  0), RZG2L_PIN_ID(28,  1),						/* PS */
-	RZG2L_PIN_ID(19,  0), RZG2L_PIN_ID(19,  1), RZG2L_PIN_ID(19,  2), RZG2L_PIN_ID(19,  3),	/* PJ */
-	RZG2L_PIN_ID(19,  4),
-	RZG2L_PIN_ID(3,  0), RZG2L_PIN_ID(3,  1), RZG2L_PIN_ID(3,  2), RZG2L_PIN_ID(3,  3),	/* P3 */
-	RZG2L_PIN_ID(3,  4), RZG2L_PIN_ID(3,  5), RZG2L_PIN_ID(3,  6),
-	RZG2L_PIN_ID(21,  0), RZG2L_PIN_ID(21,  1), RZG2L_PIN_ID(21,  2), RZG2L_PIN_ID(21,  3),	/* PL */
-	RZG2L_PIN_ID(22,  0), RZG2L_PIN_ID(22,  1), RZG2L_PIN_ID(22,  2), RZG2L_PIN_ID(22,  3),	/* PM */
-	RZG2L_PIN_ID(22,  4), RZG2L_PIN_ID(22,  5), RZG2L_PIN_ID(22,  6), RZG2L_PIN_ID(22,  7),
-	RZG2L_PIN_ID(21,  4),									/* PL */
-	RZG2L_PIN_ID(16,  0), RZG2L_PIN_ID(16,  1), RZG2L_PIN_ID(16,  2), RZG2L_PIN_ID(16,  3),	/* PG */
-	RZG2L_PIN_ID(16,  4), RZG2L_PIN_ID(16,  5), RZG2L_PIN_ID(16,  6), RZG2L_PIN_ID(16,  7),
-	RZG2L_PIN_ID(17,  0), RZG2L_PIN_ID(17,  1), RZG2L_PIN_ID(17,  2), RZG2L_PIN_ID(17,  3),	/* PH */
-	RZG2L_PIN_ID(17,  4), RZG2L_PIN_ID(17,  5),
-	RZG2L_PIN_ID(20,  0), RZG2L_PIN_ID(20,  1), RZG2L_PIN_ID(20,  2), RZG2L_PIN_ID(20,  3),	/* PK */
-	RZG2L_PIN_ID(10,  0), RZG2L_PIN_ID(10,  1), RZG2L_PIN_ID(10,  2), RZG2L_PIN_ID(10,  3),	/* PA */
-	RZG2L_PIN_ID(10,  4), RZG2L_PIN_ID(10,  5), RZG2L_PIN_ID(10,  6), RZG2L_PIN_ID(10,  7),
-	RZG2L_PIN_ID(11,  0), RZG2L_PIN_ID(11,  1), RZG2L_PIN_ID(11,  2), RZG2L_PIN_ID(11,  3),	/* PB */
-	RZG2L_PIN_ID(11,  4), RZG2L_PIN_ID(11,  5), RZG2L_PIN_ID(11,  6), RZG2L_PIN_ID(11,  7),
-	RZG2L_PIN_ID(12,  0), RZG2L_PIN_ID(12,  1), RZG2L_PIN_ID(12,  2),			/* PC */
-	RZG2L_PIN_ID(13,  0), RZG2L_PIN_ID(13,  1), RZG2L_PIN_ID(13,  2), RZG2L_PIN_ID(13,  3),	/* PD */
-	RZG2L_PIN_ID(13,  4), RZG2L_PIN_ID(13,  5), RZG2L_PIN_ID(13,  6), RZG2L_PIN_ID(13,  7),
-	RZG2L_PIN_ID(14,  0), RZG2L_PIN_ID(14,  1), RZG2L_PIN_ID(14,  2), RZG2L_PIN_ID(14,  3),	/* PE */
-	RZG2L_PIN_ID(14,  4), RZG2L_PIN_ID(14,  5), RZG2L_PIN_ID(14,  6), RZG2L_PIN_ID(14,  7),
-	RZG2L_PIN_ID(15,  0), RZG2L_PIN_ID(15,  1), RZG2L_PIN_ID(15,  2),			/* PF */
-	RZG2L_PIN_ID(2,  0), RZG2L_PIN_ID(2,  1),						/* P2 */
-	RZG2L_PIN_ID(5,  0), RZG2L_PIN_ID(5,  1), RZG2L_PIN_ID(5,  2), RZG2L_PIN_ID(5,  3),	/* P5 */
-	RZG2L_PIN_ID(5,  4), RZG2L_PIN_ID(5,  5), RZG2L_PIN_ID(5,  6),
-	RZG2L_PIN_ID(6,  0), RZG2L_PIN_ID(6,  1), RZG2L_PIN_ID(6,  2), RZG2L_PIN_ID(6,  3),	/* P6 */
-	RZG2L_PIN_ID(6,  4), RZG2L_PIN_ID(6,  5), RZG2L_PIN_ID(6,  6),
-	RZG2L_PIN_ID(7,  0), RZG2L_PIN_ID(7,  1), RZG2L_PIN_ID(7,  2), RZG2L_PIN_ID(7,  3),	/* P7 */
-	RZG2L_PIN_ID(7,  4), RZG2L_PIN_ID(7,  5), RZG2L_PIN_ID(7,  6), RZG2L_PIN_ID(7,  7),
-	RZG2L_PIN_ID(8,  0), RZG2L_PIN_ID(8,  1), RZG2L_PIN_ID(8,  2), RZG2L_PIN_ID(8,  3),	/* P8 */
-	RZG2L_PIN_ID(8,  4), RZG2L_PIN_ID(8,  5),
-};
 
 /* Custom pinconf parameters */
 #define RENESAS_RZV2H_PIN_CONFIG_OUTPUT_IMPEDANCE	(PIN_CONFIG_END + 1)
@@ -400,9 +363,6 @@ struct rzg2l_pinctrl_data {
 	unsigned int n_variable_pin_cfg;
 	unsigned int num_custom_params;
 	const struct pinconf_generic_params *custom_params;
-	const unsigned int *tint_pin_info;
-	unsigned int ngpioints;
-
 #ifdef CONFIG_DEBUG_FS
 	const struct pin_config_item *custom_conf_items;
 #endif
@@ -2924,17 +2884,9 @@ static int rzg2l_gpio_get_gpioint(unsigned int virq, struct rzg2l_pinctrl *pctrl
 	    bit >= hweight8(FIELD_GET(PIN_CFG_PIN_MAP_MASK, data->port_pin_configs[port])))
 		return -EINVAL;
 
-	if (data->tint_pin_info) {
-		for (i = 0; i < data->ngpioints ; i++) {
-			if (virq == data->tint_pin_info[i])
-				break;
-		}
-		gpioint = i;
-	} else {
-		gpioint = bit;
-		for (i = 0; i < port; i++)
-			gpioint += hweight8(FIELD_GET(PIN_CFG_PIN_MAP_MASK, data->port_pin_configs[i]));
-	}
+	gpioint = bit;
+	for (i = 0; i < port; i++)
+		gpioint += hweight8(FIELD_GET(PIN_CFG_PIN_MAP_MASK, data->port_pin_configs[i]));
 
 	return gpioint;
 }
@@ -3978,9 +3930,6 @@ static struct rzg2l_pinctrl_data r9a08g046_data = {
 	.hwcfg = &rzg3l_hwcfg,
 	.num_custom_params = ARRAY_SIZE(renesas_rzg3l_custom_bindings),
 	.custom_params = renesas_rzg3l_custom_bindings,
-	.tint_pin_info = rzg3l_tint_pin_info,
-	.ngpioints = ARRAY_SIZE(rzg3l_tint_pin_info),
-
 #ifdef CONFIG_DEBUG_FS
 	.custom_conf_items = renesas_rzg3l_conf_items,
 #endif
