@@ -74,8 +74,6 @@ struct rzg2l_hw_info {
 	bool have_inttsel_reg;
 	u8 irqc_irq_count;
 	u8 irqc_irq_shared;
-	u8 n_titsr;
-	u8 n_tssr;
 };
 
 /**
@@ -84,11 +82,8 @@ struct rzg2l_hw_info {
  * @titsr: TITSR registers
  */
 struct rzg2l_irqc_reg_cache {
-	u32	nitsr;
 	u32	iitsr;
-	u32	*titsr;
-	u32	inttsel;
-	u32	*tssr;
+	u32	titsr[2];
 };
 
 /**
@@ -104,7 +99,7 @@ static struct rzg2l_irqc_priv {
 	const struct irq_chip		*irqchip;
 	struct irq_fwspec		*fwspec;
 	raw_spinlock_t			lock;
-	struct rzg2l_irqc_reg_cache	*cache;
+	struct rzg2l_irqc_reg_cache	cache;
 	const struct rzg2l_hw_info	*hw_info;
 } *rzg2l_irqc_data;
 
@@ -112,16 +107,12 @@ static const struct rzg2l_hw_info rzg2l_params = {
 	.have_inttsel_reg = false,
 	.irqc_irq_count = 8,
 	.irqc_irq_shared = 0,
-	.n_titsr = 2,
-	.n_tssr = 8,
 };
 
 static const struct rzg2l_hw_info rzg3l_params = {
 	.have_inttsel_reg = true,
 	.irqc_irq_count = 16,
 	.irqc_irq_shared = 8,
-	.n_titsr = 2,
-	.n_tssr = 8,
 };
 
 static struct rzg2l_irqc_priv *irq_data_to_priv(struct irq_data *data)
@@ -566,72 +557,31 @@ static int rzg2l_irqc_set_type(struct irq_data *d, unsigned int type)
 	return irq_chip_set_type_parent(d, IRQ_TYPE_LEVEL_HIGH);
 }
 
-static int rzg2l_irqc_reg_cache_alloc(struct rzg2l_irqc_priv *priv,
-                                      struct device *dev)
-{
-	struct rzg2l_irqc_reg_cache *cache;
-
-	cache = devm_kzalloc(dev, sizeof(*cache), GFP_KERNEL);
-	if (!cache)
-		return -ENOMEM;
-
-	cache->titsr = devm_kcalloc(dev, priv->hw_info->n_titsr,
-				    sizeof(*cache->titsr), GFP_KERNEL);
-	if (!cache->titsr)
-		return -ENOMEM;
-
-	cache->tssr = devm_kcalloc(dev, priv->hw_info->n_tssr,
-				    sizeof(*cache->tssr), GFP_KERNEL);
-	if (!cache->tssr)
-		return -ENOMEM;
-
-	priv->cache = cache;
-	return 0;
-}
-
 static int rzg2l_irqc_irq_suspend(void)
 {
-	struct rzg2l_irqc_reg_cache *cache = rzg2l_irqc_data->cache;
+	struct rzg2l_irqc_reg_cache *cache = &rzg2l_irqc_data->cache;
 	void __iomem *base = rzg2l_irqc_data->base;
-	const struct rzg2l_hw_info *hw_info = rzg2l_irqc_data->hw_info;
-	u8 i;
 
-	cache->nitsr = readl_relaxed(base + NITSR);
 	cache->iitsr = readl_relaxed(base + IITSR);
-	for (i = 0; i < hw_info->n_titsr; i++)
+	for (u8 i = 0; i < 2; i++)
 		cache->titsr[i] = readl_relaxed(base + TITSR(i));
-
-	if (hw_info->have_inttsel_reg)
-		cache->inttsel = readl_relaxed(base + INTTSEL);
-
-	for (i = 0; i < hw_info->n_tssr; i++)
-		cache->tssr[i] = readl_relaxed(base + TSSR(i));
 
 	return 0;
 }
 
 static void rzg2l_irqc_irq_resume(void)
 {
-	struct rzg2l_irqc_reg_cache *cache = rzg2l_irqc_data->cache;
+	struct rzg2l_irqc_reg_cache *cache = &rzg2l_irqc_data->cache;
 	void __iomem *base = rzg2l_irqc_data->base;
-	const struct rzg2l_hw_info *hw_info = rzg2l_irqc_data->hw_info;
-	u8 i;
 
 	/*
 	 * Restore only interrupt type. TSSRx will be restored at the
 	 * request of pin controller to avoid spurious interrupts due
 	 * to invalid PIN states.
 	 */
-	for (i = 0; i < hw_info->n_tssr; i++)
-		writel_relaxed(cache->tssr[i], base + TSSR(i));
-
-	if (hw_info->have_inttsel_reg)
-		writel_relaxed(cache->inttsel, base + INTTSEL);
-
-	for (i = 0; i < hw_info->n_titsr; i++)
+	for (u8 i = 0; i < 2; i++)
 		writel_relaxed(cache->titsr[i], base + TITSR(i));
 	writel_relaxed(cache->iitsr, base + IITSR);
-	writel_relaxed(cache->nitsr, base + NITSR);
 }
 
 static struct syscore_ops rzg2l_irqc_syscore_ops = {
@@ -799,9 +749,6 @@ static int rzg2l_irqc_common_init(struct device_node *node, struct device_node *
 	}
 
 	raw_spin_lock_init(&rzg2l_irqc_data->lock);
-	ret = rzg2l_irqc_reg_cache_alloc(rzg2l_irqc_data, &pdev->dev);
-	if (ret)
-		return ret;
 
 	irq_domain = irq_domain_add_hierarchy(parent_domain, 0, IRQC_NUM_IRQ(hw_info),
 					      node, &rzg2l_irqc_domain_ops,
