@@ -1569,11 +1569,12 @@ config RTC_DRV_RS5C313
 	  If you say yes here you get support for the Ricoh RS5C313 RTC chips.
 
 config RTC_DRV_RZN1
-	tristate "Renesas RZ/N1 RTC"
-	depends on ARCH_RZN1 || COMPILE_TEST
+	tristate "Renesas RZ/N1, RZ/T2N RTC"
+	depends on ARCH_RENESAS || ARCH_RZN1 ||  ARCH_R9A07G076 || COMPILE_TEST
 	depends on OF && HAS_IOMEM
 	help
-	  If you say yes here you get support for the Renesas RZ/N1 RTC.
+	  If you say yes here you get support for the Renesas RZ/N1,
+	  RZ/T2N RTC.
 
 config RTC_DRV_GENERIC
 	tristate "Generic RTC support"
