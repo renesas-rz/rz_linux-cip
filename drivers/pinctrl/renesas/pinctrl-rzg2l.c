@@ -3828,7 +3828,7 @@ static const struct rzg2l_hwcfg rzg3l_hwcfg = {
 	.drive_strength_ua = true,
 	.func_base = 0,
 	.oen_max_pin = 1, /* Pin 1 of PB1_ISO and PE1_ISO is the maximum OEN pin. */
-	.oen_max_port = 4, /* PE1_ISO is the maximum OEN port. */
+	.oen_max_port = 14, /* PE1_ISO is the maximum OEN port. */
 	.tint_start_index = 17,
 	.has_clone_ch = true,
 };
@@ -3935,8 +3935,8 @@ static struct rzg2l_pinctrl_data r9a08g046_data = {
 #endif
 	.pwpr_pfc_lock_unlock = &rzg2l_pwpr_pfc_lock_unlock,
 	.pmc_writeb = &rzg2l_pmc_writeb,
-	.oen_read = &rzg3s_oen_read,
-	.oen_write = &rzg3s_oen_write,
+	.oen_read = &rzg2l_read_oen,
+	.oen_write = &rzg2l_write_oen,
 	.hw_to_bias_param = &rzg2l_hw_to_bias_param,
 	.bias_param_to_hw = &rzg2l_bias_param_to_hw,
 };
