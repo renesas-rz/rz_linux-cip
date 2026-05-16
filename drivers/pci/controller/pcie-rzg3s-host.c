@@ -261,6 +261,25 @@ enum {
 	RZ_PCIE_THREAD_RESET
 };
 
+
+/**
+ * struct pcie_leqctl - Lane Equalization Control
+ * @lane: Number of lanes.
+ *	  0 means unconditional (always written).
+ * @offset: Register offset from PCIe configuration base.
+ * @value: Value to write to the register.
+ */
+struct pcie_leqctl {
+	u8 lane;
+	u32 offset;
+	u32 value;
+};
+
+static const struct pcie_leqctl rzt2h_pcie_leqctl[] = {
+	{ 2, 0x1BC, 0x78787878 },
+	{ 1, 0x1BC, 0x7F7F7878 },
+};
+
 struct rzg3s_pcie_host;
 static int pcie_thread_status;
 static int pcie_receiver_detection;
@@ -292,6 +311,8 @@ struct rzg3s_pcie_soc_data {
 	u8 max_channels;
 	u8 num_power_resets;
 	u8 num_cfg_resets;
+	const struct pcie_leqctl *leqctl;
+	int num_pcie_leqctl;
 };
 
 /**
@@ -1327,6 +1348,18 @@ static int rzg3s_pcie_config_init(struct rzg3s_pcie_host *host)
 	writel_relaxed(0xffffffff, host->pcie + RZG3S_PCI_CFG_BARMSK00L);
 	writel_relaxed(0xffffffff, host->pcie + RZG3S_PCI_CFG_BARMSK00U);
 
+	if (host->data->leqctl) {
+		for (int i = 0; i < host->data->num_pcie_leqctl; i++) {
+			if (host->data->leqctl[i].lane) {
+				if (host->num_lanes == host->data->leqctl[i].lane)
+					writel_relaxed(host->data->leqctl[i].value,
+						host->pcie + host->data->leqctl[i].offset);
+			} else
+				writel_relaxed(host->data->leqctl[i].value,
+					host->pcie + host->data->leqctl[i].offset);
+		}
+	}
+
 	/*
 	 * Explicitly program class code. RZ/G3E and RZ/T2H  requires this configuration.
 	 * Harmless for RZ/G3S where this matches the hardware default.
@@ -2316,6 +2349,8 @@ static const struct rzg3s_pcie_soc_data rzt2h_soc_data = {
 			},
 		},
 	},
+	.leqctl = rzt2h_pcie_leqctl,
+	.num_pcie_leqctl = ARRAY_SIZE(rzt2h_pcie_leqctl),
 };
 
 static const struct of_device_id rzg3s_pcie_of_match[] = {
