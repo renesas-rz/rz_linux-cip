@@ -609,7 +609,8 @@ static int r9a09g077_sysc_init(struct device *dev)
 	struct device_node *child, *np = dev->of_node;
 
 	for_each_child_of_node(np, child) {
-		struct regmap_config *regmap_cfg __free(kfree) = kzalloc_obj(*regmap_cfg);
+		struct regmap_config *regmap_cfg __free(kfree) =
+			kzalloc(sizeof(*regmap_cfg), GFP_KERNEL);
 		struct r9a09g077_sysc_reg *sysc_reg;
 		struct regmap *regmap;
 		void __iomem *base;
