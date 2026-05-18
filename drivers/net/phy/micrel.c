@@ -5396,10 +5396,18 @@ static int lan8841_suspend(struct phy_device *phydev)
 
 static int ksz9131_resume(struct phy_device *phydev)
 {
-	if (phydev->suspended && phy_interface_is_rgmii(phydev))
-		ksz9131_config_rgmii_delay(phydev);
+	int ret;
 
-	return kszphy_resume(phydev);
+	ret = kszphy_resume(phydev);
+	if (ret)
+		return ret;
+
+	/* Reconfig the PHY after suspend */
+	ret = ksz9131_config_init(phydev);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static struct phy_driver ksphy_driver[] = {
