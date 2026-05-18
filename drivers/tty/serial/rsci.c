@@ -26,6 +26,7 @@ MODULE_IMPORT_NS(SH_SCI);
 #define CCR3	0x14
 #define CCR4	0x18
 #define FCR	0x24
+#define DCR	0x30
 #define CSR	0x48
 #define FRSR	0x50
 #define FTSR	0x54
@@ -103,6 +104,11 @@ MODULE_IMPORT_NS(SH_SCI);
 #define FCR_RTRG4_0		GENMASK(20, 16)
 #define FCR_TTRG		GENMASK(12, 8)
 
+/* DCR (Driver Control Register) */
+#define DCR_DEPOL		BIT(0) /* Driver effective polarity select */
+#define DCR_DEAST_MASK		GENMASK(12, 8) /* Driver Assertion Time */
+#define DCR_DENGT_MASK		GENMASK(20, 16)	/* Driver negation time */
+
 /* CSR (Common Status Register) */
 #define CSR_RDRF		BIT(31)	/* Receive Data Full */
 #define CSR_TEND		BIT(30)	/* Transmit End Flag */
@@ -165,12 +171,101 @@ static void rsci_clear_DRxC(struct uart_port *port)
 	rsci_serial_out(port, FFCLR, FFCLR_DRC);
 }
 
+static const struct serial_rs485 rsci_rs485_supported = {
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND |
+		 SER_RS485_RTS_AFTER_SEND | SER_RS485_RX_DURING_TX,
+	.delay_rts_before_send = 1,
+	.delay_rts_after_send = 1,
+};
+
+static bool is_rsci_rs485_enabled(struct uart_port *port)
+{
+	return port->rs485.flags & SER_RS485_ENABLED;
+}
+
+static bool is_rsci_rs485_half_duplex(struct uart_port *port)
+{
+	return is_rsci_rs485_enabled(port) &&
+	       !(port->rs485.flags & SER_RS485_RX_DURING_TX);
+}
+
+static void rsci_rs485_delay_config(u32 *ccr2, u32 *ccr3, u32 *dcr,
+				  u32 delay_ADE, u32 delay_DDE, u32 baud)
+{
+	u32 rs485_deast, rs485_dengt;
+	u32 rs485_deast_max = DCR_DEAST_MASK;
+	u32 rs485_dengt_max = DCR_DENGT_MASK;
+	bool abcs_8base;
+
+	*ccr3 |= CCR3_DEN;
+	abcs_8base = *ccr2 & CCR2_ABCS;
+
+	*dcr &= ~(DCR_DEAST_MASK | DCR_DENGT_MASK);
+
+	if (abcs_8base)
+		rs485_deast = delay_ADE * baud * 8;
+	else
+		rs485_deast = delay_ADE * baud * 16;
+
+	rs485_deast = DIV_ROUND_CLOSEST(rs485_deast, 1000);
+	rs485_deast = rs485_deast > rs485_deast_max ?
+		      rs485_deast_max : rs485_deast;
+	*dcr |= FIELD_PREP(DCR_DEAST_MASK, rs485_deast);
+
+	if (abcs_8base)
+		rs485_dengt = delay_DDE * baud * 8;
+	else
+		rs485_dengt = delay_DDE * baud * 16;
+
+	rs485_dengt = DIV_ROUND_CLOSEST(rs485_dengt, 1000);
+	rs485_dengt = rs485_dengt > rs485_dengt_max ?
+		      rs485_dengt_max : rs485_dengt;
+	*dcr |= FIELD_PREP(DCR_DENGT_MASK, rs485_dengt);
+}
+
+static int rsci_rs485_config(struct uart_port *port, struct ktermios *termios,
+		      struct serial_rs485 *rs485conf)
+{
+	struct sci_port *sp = to_sci_port(port);
+	u32 ccr2, ccr3, dcr;
+
+	port->rs485 = *rs485conf;
+	ccr2 = rsci_serial_in(port, CCR2);
+	ccr3 = rsci_serial_in(port, CCR3);
+	dcr = rsci_serial_in(port, DCR);
+
+	if (rs485conf->flags & SER_RS485_ENABLED) {
+		dev_dbg(port->dev, "Setting UART to RS485\n");
+
+		rsci_rs485_delay_config(&ccr2, &ccr3, &dcr,
+				     rs485conf->delay_rts_before_send,
+				     rs485conf->delay_rts_after_send,
+				     sp->baud);
+
+		if (rs485conf->flags & SER_RS485_RTS_ON_SEND)
+			dcr &= ~DCR_DEPOL;
+		else
+			dcr |= DCR_DEPOL;
+	} else {
+		dcr &= ~DCR_DEPOL;
+		ccr3 &= ~CCR3_DEN;
+	}
+
+	rsci_serial_out(port, DCR, dcr);
+	rsci_serial_out(port, CCR3, ccr3);
+
+	return 0;
+}
 
 static void rsci_start_rx(struct uart_port *port)
 {
 	unsigned int ctrl;
 
 	ctrl = rsci_serial_in(port, CCR0);
+
+	if (is_rsci_rs485_half_duplex(port))
+		ctrl |= CCR0_RE;
+
 	ctrl |= CCR0_RIE;
 	rsci_serial_out(port, CCR0, ctrl);
 }
@@ -282,7 +377,7 @@ done:
 	if (best_clk >= 0)
 		dev_dbg(port->dev, "Using clk %pC for %u%+d bps\n",
 			s->clks[best_clk], baud, min_err);
-
+	s->baud = baud;
 	sci_port_enable(s);
 	uart_port_lock_irqsave(port, &flags);
 
@@ -402,6 +497,14 @@ static void rsci_start_tx(struct uart_port *port)
 	 * to start the transmit process.
 	 */
 	ctrl = rsci_serial_in(port, CCR0);
+
+	/*
+	 * If running in RS485 half-duplex mode,
+	 * disable RE (Receive Enable) during transmission.
+	 */
+	if (is_rsci_rs485_half_duplex(port))
+		ctrl &= ~CCR0_RE;
+
 	ctrl |= CCR0_TIE | CCR0_TE;
 	rsci_serial_out(port, CCR0, ctrl);
 }
@@ -689,6 +792,7 @@ static const struct sci_port_ops rsci_port_ops = {
 	.suspend_regs_size	= rsci_suspend_regs_size,
 	.set_rtrg		= rsci_scif_set_rtrg,
 	.shutdown_complete	= rsci_shutdown_complete,
+	.rs485_config		= rsci_rs485_config,
 };
 
 struct sci_of_data of_rsci_rzg3e_data = {
@@ -696,6 +800,8 @@ struct sci_of_data of_rsci_rzg3e_data = {
 	.ops = &rsci_port_ops,
 	.uart_ops = &rsci_uart_ops,
 	.params = &rsci_rzg3e_port_params,
+	.rs485_supported = rsci_rs485_supported,
+	.has_rs485 = true,
 };
 
 struct sci_of_data of_rsci_rzt2h_data = {
@@ -703,6 +809,8 @@ struct sci_of_data of_rsci_rzt2h_data = {
 	.ops = &rsci_port_ops,
 	.uart_ops = &rsci_uart_ops,
 	.params = &rsci_rzt2h_port_params,
+	.rs485_supported = rsci_rs485_supported,
+	.has_rs485 = true,
 };
 
 #ifdef CONFIG_SERIAL_SH_SCI_EARLYCON
