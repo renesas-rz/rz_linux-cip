@@ -3332,6 +3332,7 @@ static int sci_init_single(struct platform_device *dev,
 
 	port->iotype	= UPIO_MEM;
 	port->line	= index;
+	port->dev	= &dev->dev;
 	port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_SH_SCI_CONSOLE);
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
@@ -3368,6 +3369,16 @@ static int sci_init_single(struct platform_device *dev,
 	if (sci_port->irqs[1] < 0)
 		for (i = 1; i < ARRAY_SIZE(sci_port->irqs); i++)
 			sci_port->irqs[i] = sci_port->irqs[0];
+
+	if (sci_port->has_rs485) {
+		port->rs485_config = sci_port->ops->rs485_config;
+		port->rs485_supported = sci_port->rs485_supported;
+		ret = uart_get_rs485_mode(port);
+		if (ret) {
+			dev_err(&dev->dev, "Failed to initialize RS485 mode: %d\n", ret);
+			return ret;
+		}
+	}
 
 	switch (p->type) {
 	case PORT_SCIFB:
@@ -3823,6 +3834,8 @@ static struct plat_sci_port *sci_parse_dt(struct platform_device *pdev,
 	sp->params = data->params;
 
 	sp->has_rtscts = of_property_read_bool(np, "uart-has-rtscts");
+	sp->has_rs485 = data->has_rs485;
+	sp->rs485_supported = data->rs485_supported;
 
 	return p;
 }

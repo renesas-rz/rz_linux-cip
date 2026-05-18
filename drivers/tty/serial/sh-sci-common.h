@@ -98,14 +98,18 @@ struct sci_port_ops {
 	void (*console_save)(struct uart_port *port);
 	void (*console_restore)(struct uart_port *port);
 	size_t (*suspend_regs_size)(void);
+
+	int (*rs485_config) (struct uart_port *port, struct ktermios *termios, struct serial_rs485 *rs485conf);
 };
 
 struct sci_of_data {
 	const struct sci_port_params *params;
 	const struct uart_ops *uart_ops;
 	const struct sci_port_ops *ops;
+	struct serial_rs485 rs485_supported;
 	unsigned short regtype;
 	unsigned short type;
+	bool has_rs485;
 };
 
 struct sci_port {
@@ -156,11 +160,16 @@ struct sci_port {
 	u8				type;
 	u8				regtype;
 
+	unsigned int			baud;
+
 	const struct sci_port_ops *ops;
 
 	bool has_rtscts;
+	bool has_rs485;
 	bool autorts;
 	bool tx_occurred;
+
+	struct serial_rs485 rs485_supported;
 };
 
 #define to_sci_port(uart) container_of((uart), struct sci_port, port)
