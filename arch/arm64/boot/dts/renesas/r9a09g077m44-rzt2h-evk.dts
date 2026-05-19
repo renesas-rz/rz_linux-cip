@@ -66,6 +66,20 @@
  */
 #define SEL_GMAC1_PCIE		1
 
+/*
+ * Use PCIE_SEL to select channel mode for PCIe:
+ * - PCIE0 (Default)	: Enable only PCIe0 (1 channel x 2 lanes)
+ * - PCIE1		: Enable only PCIe1 (1 channel x 1 lanes)
+ * - PCIE0_PCIE1	: Enable both PCIe0 and PCIe1 (dual channel, split lanes)
+ *
+ * By changing PCIE_SEL, the corresponding pinmux and node
+ * configuration will be automatically adjusted
+ */
+#define PCIE0		0
+#define PCIE1		1
+#define PCIE0_PCIE1	2
+#define PCIE_SEL	PCIE0
+
 #include "rzt2h-n2h-evk-common.dtsi"
 
 / {

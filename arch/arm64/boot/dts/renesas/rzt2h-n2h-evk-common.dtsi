@@ -27,6 +27,12 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	pcie_refclk: pcie-ref-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
+	};
+
 	reg_1p8v: regulator-1p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-1.8V";
@@ -282,6 +288,16 @@
 	status = "okay";
 };
 
+&pcie_port0 {
+	clocks = <&pcie_refclk>;
+	clock-names = "ref";
+};
+
+&pcie_port1 {
+	clocks = <&pcie_refclk>;
+	clock-names = "ref";
+};
+
 &pinctrl {
 	/*
 	 * GMAC0 Pin Configuration:
@@ -458,6 +474,21 @@
 			input-schmitt-disable;
 		};
 	};
+
+#if (!SEL_GMAC1_PCIE)
+#if (PCIE_SEL == PCIE0 || PCIE_SEL == PCIE0_PCIE1)
+	pcie0_pins: pcie0 {
+		pinmux = <RZT2H_PORT_PINMUX(33, 3, 0x27)>; /* PCIE_RST_OUT0B */
+	};
+#endif
+
+#if (PCIE_SEL == PCIE1 || PCIE_SEL == PCIE0_PCIE1)
+	pcie1_pins: pcie1 {
+		pinmux = <RZT2H_PORT_PINMUX(33, 4, 0x27)>; /* PCIE_RST_OUT1B */
+	};
+#endif
+#endif
+
 };
 
 &sci0 {
@@ -551,3 +582,27 @@
 &rtc {
 	status = "okay";
 };
+
+#if (!SEL_GMAC1_PCIE)
+#if (PCIE_SEL == PCIE0 || PCIE_SEL == PCIE0_PCIE1)
+&pcie0 {
+	pinctrl-0 = <&pcie0_pins>;
+	pinctrl-names = "default";
+#if (PCIE_SEL == PCIE0_PCIE1)
+	num-lanes = <1>;
+#else
+	num-lanes = <2>;
+#endif
+	status = "okay";
+};
+#endif
+
+#if (PCIE_SEL == PCIE1 || PCIE_SEL == PCIE0_PCIE1)
+&pcie1 {
+	pinctrl-0 = <&pcie1_pins>;
+	pinctrl-names = "default";
+	num-lanes = <1>;
+	status = "okay";
+};
+#endif
+#endif
