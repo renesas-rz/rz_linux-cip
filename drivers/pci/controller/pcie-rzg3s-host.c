@@ -342,6 +342,7 @@ struct rzg3s_pcie_host {
 	int max_link_speed;
 	int channel;
 	int num_lanes;
+	bool has_companion;
 };
 
 #define rzg3s_msi_to_host(_msi)	container_of(_msi, struct rzg3s_pcie_host, msi)
@@ -1953,6 +1954,7 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 		of_parse_phandle(np, "renesas,sysc", 0);
 	struct rzg3s_pcie_host *host;
 	struct rzg3s_sysc *sysc;
+	struct device_node *companion;
 	int ret, channel, num_lanes;
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*host));
@@ -2000,6 +2002,12 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 		}
 		host->num_lanes = num_lanes;
 		dev_info(dev, "Configuring PCIe with %u lane(s)\n", host->num_lanes);
+
+		companion = of_parse_phandle(dev->of_node, "renesas,pcie-companion", 0);
+		if (companion) {
+			if (of_device_is_available(companion))
+				host->has_companion = true;
+		}
 	}
 
 	ret = rzg3s_pcie_host_parse_port(host);
@@ -2012,16 +2020,28 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 		goto port_refclk_put;
 	}
 
-	if (host->num_lanes == 4)
-		/* Put controller in 4 lanes mode x 1 channel */
-		ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_LANES_MODE,
-					     1, host->channel);
-	else
-		/* Put controller in 2 lanes mode x 2 channels */
-		ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_LANES_MODE,
-					     3, host->channel);
-	if (ret)
-		goto port_refclk_put;
+	/*
+	 * Set Link selection depends on number of pcie channels.
+	 * This should be set only when initializing PCIE0 and only PCIE1.
+	 */
+	if (host->data->max_channels > 1) {
+		if ((!host->has_companion) && (!host->channel))
+			/*
+			 * Put controller in:
+			 * - 4 lanes mode x 1 channel (RZ/V2H)
+			 * - 2 lanes mode x 1 channel (RZ/T2H)
+			 */
+			ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_LANES_MODE,
+						     1, host->channel);
+		else
+			/*
+			 * Put controller in:
+			 * - 2 lanes mode x 2 channels (RZ/V2H)
+			 * - 1 lanes mode x 2 channels (RZ/T2H)
+			 */
+			ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_LANES_MODE,
+						     3, host->channel);
+	}
 
 	/* Put controller in RC mode */
 	ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_ID_MODE, 1,
