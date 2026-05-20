@@ -1699,7 +1699,7 @@
 			pcie,channel = <0>;
 			power-domains = <&cpg>;
 			vendor-id = <0x1912>;
-			device-id = <0x0033>;
+			device-id = <0x003f>;
 			renesas,sysc = <&sysc>;
 			status = "disabled";
 		};
