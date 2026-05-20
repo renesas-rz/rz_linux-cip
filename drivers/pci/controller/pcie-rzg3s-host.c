@@ -1115,6 +1115,10 @@ static int rzg3s_pcie_config_init(struct rzg3s_pcie_host *host)
 	writel(0xffffffff, host->pcie + RZG3S_PCI_CFG_BARMSK00L);
 	writel(0xffffffff, host->pcie + RZG3S_PCI_CFG_BARMSK00U);
 
+	/* Disable L1 PM Substates for RZ/G3L */
+	if (host->device_id == 0x003f)
+		writel(0x00280000, host->pcie + RZG3L_PCI_CFG_L1PMSC);
+
 	/* Disable access control to the CFGU */
 	writel(0, host->axi + RZG3S_PCI_PERM);
 
