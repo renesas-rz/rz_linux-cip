@@ -1418,6 +1418,7 @@
 			renesas,sysc = <&sys0>;
 			pcie,channel = <0>;
 			max-link-speed = <3>;
+			renesas,pcie-companion = <&pcie1>;
 			status = "disabled";
 			pcie_port0: pcie@0,0 {
 				reg = <0x0 0x0 0x0 0x0 0x0>;
