@@ -11,6 +11,7 @@
 #define SW_SD0_DEV_SEL		0
 #define SW_SD2_DEV_SEL		0
 #define SW_SDIO_M2E		0
+#define SW_SER0_PMOD		1
 #define SW_I3C_EN		0
 #define SW_DPI_EN		0
 
@@ -144,6 +145,9 @@
 #endif
 #if (SER1_RSCI3_EN)
 		serial1 = &rsci3;
+#endif
+#if (SW_SER0_PMOD)
+		serial2 = &rsci1;
 #endif
 	};
 
@@ -444,6 +448,14 @@
 		pinmux = <RZG3L_PORT_PINMUX(G, 7, 1)>; /* PCIE_RST_OUT# */
 	};
 
+	rsci1_pins: rsci1 {
+		pinmux = <RZG3L_PORT_PINMUX(D, 4, 5)>, /* RSCI1_RXD_MISO_SCL */
+			 <RZG3L_PORT_PINMUX(D, 5, 5)>, /* RSCI1_TXD_MOSI_SDA */
+			 <RZG3L_PORT_PINMUX(D, 6, 6)>, /* RSCI1_CTS */
+			 <RZG3L_PORT_PINMUX(D, 7, 5)>; /* RSCI1_SS_CTS#_RTS# */
+		bias-pull-up;
+	};
+
 #if (RSCI2_MODE_SEL && !SW_DPI_EN)
 	rsci2_pins: rsci2 {
 		pinmux = <RZG3L_PORT_PINMUX(7, 6, 5)>, /* RSCI2_RXD_MISO_SCL */
@@ -475,6 +487,7 @@
 		pinmux = <RZG3L_PORT_PINMUX(8, 2, 5)>, /* RSCI3_RXD_MISO_SCL */
 			 <RZG3L_PORT_PINMUX(8, 3, 5)>; /* RSCI3_TXD_MOSI_SDA */
 		bias-pull-up;
+		power-source = <1800>;
 	};
 #endif
 
@@ -839,7 +852,19 @@
 	};
 };
 
-#if (RSCI2_MODE_SEL == 1 && !SW_DPI_EN)
+#if SW_SER0_PMOD
+&rsci1 {
+	compatible = "renesas,rz-rscif";
+	pinctrl-0 = <&rsci1_pins>;
+	pinctrl-names = "default";
+
+	uart-has-rtscts;
+
+	status = "okay";
+};
+#endif
+
+#if (RSCI2_MODE_SEL == 1 && !SW_DPI_EN && SW_SER0_PMOD)
 &rsci2 {
 	compatible = "renesas,rz-rscif";
 	pinctrl-0 = <&rsci2_rtscts_pins>;
