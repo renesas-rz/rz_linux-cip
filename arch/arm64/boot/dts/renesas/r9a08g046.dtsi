@@ -1660,9 +1660,8 @@
 			dma-ranges = <0x42000000 0 0x40000000 0 0x40000000 0x1 0x0>;
 			bus-range = <0x0 0xff>;
 			clocks = <&cpg CPG_MOD R9A08G046_PCI_ACLK>,
-				 <&cpg CPG_MOD R9A08G046_PCI_CLKL1PM>,
 				 <&cpg CPG_MOD R9A08G046_PCI_CLK_PMU>;
-			clock-names = "aclk", "pm", "pmu";
+			clock-names = "aclk", "pmu";
 			resets = <&cpg R9A08G046_PCI_ARESETN>;
 			reset-names = "aresetn";
 			interrupts = <GIC_SPI 483 IRQ_TYPE_LEVEL_HIGH>,
