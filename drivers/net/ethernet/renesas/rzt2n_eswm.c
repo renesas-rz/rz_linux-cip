@@ -28,6 +28,7 @@
 
 #include <linux/gpio/consumer.h>
 #include "rzt2n_eswm.h"
+#include "rzt2n_eswm_xdp.h"
 
 static int eswm_reg_wait(void __iomem *addr, u32 offs, u32 mask, u32 expected)
 {
@@ -37,7 +38,7 @@ static int eswm_reg_wait(void __iomem *addr, u32 offs, u32 mask, u32 expected)
 					 1, ESWM_TIMEOUT_US);
 }
 
-static void eswm_modify(void __iomem *addr, enum eswm_reg reg, u32 clear, u32 set)
+void eswm_modify(void __iomem *addr, enum eswm_reg reg, u32 clear, u32 set)
 {
 	iowrite32((ioread32(addr + reg) & ~clear) | set, addr + reg);
 }
@@ -191,7 +192,7 @@ static void eswm_get_data_irq_status(struct eswm_private *priv, u32 *dis)
 	}
 }
 
-static void eswm_enadis_data_irq(struct eswm_private *priv,
+void eswm_enadis_data_irq(struct eswm_private *priv,
 				    unsigned int index, bool enable)
 {
 	u32 offs = enable ? GWDIE(index / 32) : GWDID(index / 32);
@@ -207,7 +208,7 @@ static void eswm_ack_data_irq(struct eswm_private *priv,
 	iowrite32(BIT(index % 32), priv->addr + offs);
 }
 
-static unsigned int eswm_next_queue_index(struct eswm_gwca_queue *gq,
+unsigned int eswm_next_queue_index(struct eswm_gwca_queue *gq,
 					     bool cur, unsigned int num)
 {
 	unsigned int index = cur ? gq->cur : gq->dirty;
@@ -220,7 +221,7 @@ static unsigned int eswm_next_queue_index(struct eswm_gwca_queue *gq,
 	return index;
 }
 
-static unsigned int eswm_get_num_cur_queues(struct eswm_gwca_queue *gq)
+unsigned int eswm_get_num_cur_queues(struct eswm_gwca_queue *gq)
 {
 	if (gq->cur >= gq->dirty)
 		return gq->cur - gq->dirty;
@@ -238,7 +239,7 @@ static bool eswm_is_queue_rxed(struct eswm_gwca_queue *gq)
 	return false;
 }
 
-static int eswm_gwca_queue_alloc_rx_buf(struct eswm_gwca_queue *gq,
+int eswm_gwca_queue_alloc_rx_buf(struct eswm_gwca_queue *gq,
 					   unsigned int start_index,
 					   unsigned int num)
 {
@@ -289,6 +290,12 @@ static void eswm_gwca_queue_free(struct net_device *ndev,
 		gq->skbs = NULL;
 		kfree(gq->unmap_addrs);
 		gq->unmap_addrs = NULL;
+		kfree(gq->xdpf);
+		gq->xdpf = NULL;
+		kfree(gq->is_xdp_tx);
+		gq->is_xdp_tx = NULL;
+		kfree(gq->xdp_from_ndo);
+		gq->xdp_from_ndo = NULL;
 	}
 }
 
@@ -330,6 +337,15 @@ static int eswm_gwca_queue_alloc(struct net_device *ndev,
 		gq->unmap_addrs = kcalloc(gq->ring_size, sizeof(*gq->unmap_addrs), GFP_KERNEL);
 		if (!gq->unmap_addrs)
 			goto out;
+		gq->xdpf = kcalloc(gq->ring_size, sizeof(*gq->xdpf), GFP_KERNEL);
+		if (!gq->xdpf)
+			goto out;
+		gq->is_xdp_tx = kcalloc(gq->ring_size, sizeof(*gq->is_xdp_tx), GFP_KERNEL);
+		if (!gq->is_xdp_tx)
+			goto out;
+		gq->xdp_from_ndo = kcalloc(gq->ring_size, sizeof(*gq->xdp_from_ndo), GFP_KERNEL);
+		if (!gq->xdp_from_ndo)
+			goto out;
 		gq->tx_ring = dma_alloc_coherent(ndev->dev.parent,
 						 sizeof(struct eswm_ext_desc) *
 						 (gq->ring_size + 1), &gq->ring_dma, GFP_KERNEL);
@@ -353,18 +369,18 @@ out:
 	return -ENOMEM;
 }
 
-static void eswm_desc_set_dptr(struct eswm_desc *desc, dma_addr_t addr)
+void eswm_desc_set_dptr(struct eswm_desc *desc, dma_addr_t addr)
 {
 	desc->dptrl = cpu_to_le32(lower_32_bits(addr));
 	desc->dptrh = upper_32_bits(addr) & 0xff;
 }
 
-static dma_addr_t eswm_desc_get_dptr(const struct eswm_desc *desc)
+dma_addr_t eswm_desc_get_dptr(const struct eswm_desc *desc)
 {
 	return __le32_to_cpu(desc->dptrl) | (u64)(desc->dptrh) << 32;
 }
 
-static int eswm_gwca_queue_format(struct net_device *ndev,
+int eswm_gwca_queue_format(struct net_device *ndev,
 				     struct eswm_private *priv,
 				     struct eswm_gwca_queue *gq)
 {
@@ -430,7 +446,7 @@ static void eswm_gwca_ts_queue_fill(struct eswm_private *priv,
 	}
 }
 
-static int eswm_gwca_queue_ext_ts_fill(struct net_device *ndev,
+int eswm_gwca_queue_ext_ts_fill(struct net_device *ndev,
 					  struct eswm_gwca_queue *gq,
 					  unsigned int start_index,
 					  unsigned int num)
@@ -444,12 +460,18 @@ static int eswm_gwca_queue_ext_ts_fill(struct net_device *ndev,
 		index = (i + start_index) % gq->ring_size;
 		desc = &gq->rx_ring[index];
 		if (!gq->dir_tx) {
-			dma_addr = dma_map_single(ndev->dev.parent,
-						  gq->rx_bufs[index] + ESWM_HEADROOM,
-						  ESWM_MAP_BUF_SIZE,
-						  DMA_FROM_DEVICE);
-			if (dma_mapping_error(ndev->dev.parent, dma_addr))
-				goto err;
+			if (gq->rx_use_page_pool) {
+				struct page *page = virt_to_head_page(gq->rx_bufs[index] - ESWM_XDP_HEADROOM);
+
+				dma_addr = page_pool_get_dma_addr(page) + ESWM_XDP_HEADROOM;
+			} else {
+				dma_addr = dma_map_single(ndev->dev.parent,
+							  gq->rx_bufs[index] + ESWM_HEADROOM,
+							  ESWM_MAP_BUF_SIZE,
+							  DMA_FROM_DEVICE);
+				if (dma_mapping_error(ndev->dev.parent, dma_addr))
+					goto err;
+			}
 
 			desc->desc.info_ds = cpu_to_le16(ESWM_DESC_BUF_SIZE);
 			eswm_desc_set_dptr(&desc->desc, dma_addr);
@@ -477,7 +499,7 @@ err:
 	return -ENOMEM;
 }
 
-static int eswm_gwca_queue_ext_ts_format(struct net_device *ndev,
+int eswm_gwca_queue_ext_ts_format(struct net_device *ndev,
 					    struct eswm_private *priv,
 					    struct eswm_gwca_queue *gq)
 {
@@ -670,18 +692,25 @@ static int eswm_rxdmac_alloc(struct net_device *ndev)
 		return -EBUSY;
 
 	err = eswm_gwca_queue_alloc(ndev, priv, rdev->rx_queue, false, RX_RING_SIZE);
-	if (err < 0) {
-		eswm_gwca_put(priv, rdev->rx_queue);
-		return err;
-	}
+	if (err < 0)
+		goto out;
+
+	err =  eswm_pp_create(ndev, rdev->rx_queue);
+	if (err < 0)
+		goto out;
 
 	return 0;
+
+out:
+	eswm_gwca_put(priv, rdev->rx_queue);
+	return err;
 }
 
 static void eswm_rxdmac_free(struct net_device *ndev)
 {
 	struct eswm_device *rdev = netdev_priv(ndev);
 
+	eswm_pp_destroy(rdev->rx_queue);
 	eswm_gwca_queue_free(ndev, rdev->rx_queue);
 	eswm_gwca_put(rdev->priv, rdev->rx_queue);
 }
@@ -754,7 +783,7 @@ static int eswm_gwca_hw_deinit(struct eswm_private *priv)
 	return eswm_gwca_change_mode(priv, GWMC_OPC_DISABLE);
 }
 
-static int eswm_gwca_halt(struct eswm_private *priv)
+int eswm_gwca_halt(struct eswm_private *priv)
 {
 	int err;
 
@@ -910,6 +939,7 @@ static void eswm_tx_free(struct net_device *ndev)
 {
 	struct eswm_device *rdev = netdev_priv(ndev);
 	unsigned int q;
+	struct eswm_xdp_stats *xs = this_cpu_ptr(rdev->xdp_stats);
 
 	for (q = 0; q < rdev->num_tx_queues; q++) {
 		struct eswm_gwca_queue *gq = rdev->tx_queues[q];
@@ -935,6 +965,48 @@ static void eswm_tx_free(struct net_device *ndev)
 				rdev->ndev->stats.tx_packets++;
 				rdev->ndev->stats.tx_bytes += skb->len;
 			}
+
+			if (gq->is_xdp_tx[gq->dirty]) {
+				struct xdp_frame *xdpf = gq->xdpf[gq->dirty];
+
+				if (gq->unmap_addrs[gq->dirty] && gq->xdp_from_ndo[gq->dirty]) {
+					u16 len = le16_to_cpu(desc->desc.info_ds);
+
+					if (xdpf) {
+						dma_unmap_single(ndev->dev.parent, gq->unmap_addrs[gq->dirty],
+									len, DMA_TO_DEVICE);
+					} else {
+						dma_unmap_page(ndev->dev.parent, gq->unmap_addrs[gq->dirty],
+									len, DMA_TO_DEVICE);
+					}
+
+					gq->unmap_addrs[gq->dirty] = 0;
+				}
+
+				if (xdpf) {
+					u32 pkt_len = xdpf->len;
+
+					if (xdp_frame_has_frags(xdpf)) {
+						struct skb_shared_info *sinfo = xdp_get_shared_info_from_frame(xdpf);
+
+						pkt_len += sinfo->xdp_frags_size;
+					}
+
+					xs->xdp_tx++;
+					rdev->ndev->stats.tx_packets++;
+					rdev->ndev->stats.tx_bytes += pkt_len;
+
+					if (gq->xdp_from_ndo[gq->dirty])
+						xdp_return_frame(xdpf);
+					else
+						xdp_return_frame_rx_napi(xdpf);
+				}
+
+				gq->xdpf[gq->dirty] = NULL;
+				gq->is_xdp_tx[gq->dirty] = false;
+				gq->xdp_from_ndo[gq->dirty] = false;
+			}
+
 			desc->desc.die_dt = DT_EEMPTY;
 		}
 	}
@@ -954,14 +1026,22 @@ static int eswm_poll(struct napi_struct *napi, int budget)
 retry:
 	eswm_tx_free(ndev);
 
-	if (eswm_rx(ndev, &quota))
-		goto out;
-	else if (rdev->priv->gwca_halt)
-		goto err;
-	else if (eswm_is_queue_rxed(rdev->rx_queue))
-		goto retry;
+	if (READ_ONCE(rdev->xdp_prog)) {
+		if (eswm_rx_xdp(ndev, &quota))
+			goto out;
+		else if (rdev->priv->gwca_halt)
+			goto err;
+	} else {
+		if (eswm_rx(ndev, &quota))
+			goto out;
+		else if (rdev->priv->gwca_halt)
+			goto err;
+		else if (eswm_is_queue_rxed(rdev->rx_queue))
+			goto retry;
+	}
 
-	netif_tx_wake_all_queues(ndev);
+	if (!READ_ONCE(rdev->xdp_prog))
+		netif_tx_wake_all_queues(ndev);
 
 	if (napi_complete_done(napi, budget - quota)) {
 		spin_lock_irqsave(&priv->lock, flags);
@@ -1696,6 +1776,7 @@ static int eswm_open(struct net_device *ndev)
 
 	phylink_start(rdev->phylink);
 
+	xdp_features_set_redirect_target(ndev, true);
 	napi_enable(&rdev->napi);
 	netif_start_queue(ndev);
 
@@ -2694,6 +2775,8 @@ static const struct net_device_ops eswm_netdev_ops = {
 	.ndo_setup_tc = eswm_setup_tc,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_set_mac_address = eth_mac_addr,
+	.ndo_xdp_xmit = eswm_xdp_xmit,
+	.ndo_bpf = eswm_bpf,
 };
 
 static int eswm_get_ts_info(struct net_device *ndev, struct kernel_ethtool_ts_info *info)
@@ -2717,6 +2800,9 @@ static const struct ethtool_ops eswm_ethtool_ops = {
 	.get_ts_info = eswm_get_ts_info,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
+	.get_ethtool_stats = eswm_get_ethtool_stats,
+	.get_strings = eswm_get_strings,
+	.get_sset_count = eswm_get_sset_count,
 };
 
 static const struct of_device_id renesas_eth_sw_of_table[] = {
@@ -2767,6 +2853,13 @@ static int eswm_device_alloc(struct eswm_private *priv, unsigned int index)
 	rdev->addr = priv->addr;
 	rdev->dev = &pdev->dev;
 
+	/* For XDP */
+	spin_lock_init(&rdev->xdp_tx_lock);
+	rdev->xdp_prog = NULL;
+	rdev->xdp_stats = alloc_percpu(struct eswm_xdp_stats);
+	if (!rdev->xdp_stats)
+		return -ENOMEM;
+
 	ndev->base_addr = (unsigned long)rdev->addr;
 	snprintf(ndev->name, IFNAMSIZ, "tsn%d", index);
 	ndev->features = NETIF_F_HW_TC;
@@ -2774,6 +2867,12 @@ static int eswm_device_alloc(struct eswm_private *priv, unsigned int index)
 	ndev->ethtool_ops = &eswm_ethtool_ops;
 	ndev->max_mtu = ESWM_MAX_MTU;
 	ndev->min_mtu = ETH_MIN_MTU;
+
+	ndev->xdp_features = NETDEV_XDP_ACT_BASIC |
+				NETDEV_XDP_ACT_REDIRECT |
+				NETDEV_XDP_ACT_NDO_XMIT |
+				NETDEV_XDP_ACT_RX_SG |
+				NETDEV_XDP_ACT_NDO_XMIT_SG;
 
 	netif_napi_add(ndev, &rdev->napi, eswm_poll);
 
@@ -2830,6 +2929,12 @@ static void eswm_device_free(struct eswm_private *priv, unsigned int index)
 	eswm_txdmac_free(ndev);
 	eswm_rxdmac_free(ndev);
 	netif_napi_del(&rdev->napi);
+
+	if (rdev->xdp_stats) {
+		free_percpu(rdev->xdp_stats);
+		rdev->xdp_stats =  NULL;
+	}
+
 	free_netdev(ndev);
 }
 

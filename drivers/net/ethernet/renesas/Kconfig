@@ -83,6 +83,7 @@ config RENESAS_ETHER_ESWM_T2N
 	select CRC32
 	select MII
 	select PHYLINK
+	select PAGE_POOL
 	help
 	  Renesas Layer3 Ethernet Switch device driver.
 	  This driver supports the following SoCs:

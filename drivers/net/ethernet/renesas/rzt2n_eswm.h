@@ -13,6 +13,10 @@
 #include <linux/phylink.h>
 #include <net/pkt_sched.h>
 #include "rzt2n_eswm_ptp.h"
+#include <net/page_pool/helpers.h>
+#include <net/xdp.h>
+#include <linux/bpf_trace.h>
+#include <net/xdp_sock_drv.h>
 
 #define ESWM_MAX_NUM_QUEUES	128
 
@@ -980,11 +984,19 @@ struct eswm_gwca_queue {
 	bool dir_tx;
 	struct net_device *ndev;	/* queue to ndev for irq */
 
+	/* For XDP */
+	struct page_pool *pp;
+	struct xdp_rxq_info xdp_rxq;
+	bool rx_use_page_pool;
+
 	union {
 		/* For TX */
 		struct {
 			struct sk_buff **skbs;
 			dma_addr_t *unmap_addrs;
+			struct xdp_frame **xdpf;
+			bool *is_xdp_tx;
+			bool *xdp_from_ndo;
 		};
 		/* For RX */
 		struct {
@@ -1045,6 +1057,11 @@ struct eswm_device {
 	ktime_t cycle_time;
 
 	spinlock_t lock;
+
+	/* XDP BPF Program */
+	struct bpf_prog *xdp_prog;
+	spinlock_t xdp_tx_lock;
+	struct eswm_xdp_stats __percpu *xdp_stats;
 };
 
 struct eswm_mfwd_mac_table_entry {
@@ -1210,4 +1227,20 @@ struct eswm_flow_meter {
 	u32 cir;
 };
 
+void eswm_enadis_data_irq(struct eswm_private *priv, unsigned int index, bool enable);
+unsigned int eswm_next_queue_index(struct eswm_gwca_queue *gq, bool cur, unsigned int num);
+unsigned int eswm_get_num_cur_queues(struct eswm_gwca_queue *gq);
+int eswm_gwca_queue_ext_ts_fill(struct net_device *ndev, struct eswm_gwca_queue *gq,
+					unsigned int start_index, unsigned int num);
+int eswm_gwca_halt(struct eswm_private *priv);
+void eswm_desc_set_dptr(struct eswm_desc *desc, dma_addr_t addr);
+void eswm_modify(void __iomem *addr, enum eswm_reg reg, u32 clear, u32 set);
+int eswm_gwca_queue_alloc_rx_buf(struct eswm_gwca_queue *gq, unsigned int start_index,
+					unsigned int num);
+int eswm_gwca_queue_format(struct net_device *ndev, struct eswm_private *priv,
+					struct eswm_gwca_queue *gq);
+int eswm_gwca_queue_ext_ts_format(struct net_device *ndev,
+					struct eswm_private *priv,
+					struct eswm_gwca_queue *gq);
+dma_addr_t eswm_desc_get_dptr(const struct eswm_desc *desc);
 #endif	/* #ifndef __ESWM_H__ */
