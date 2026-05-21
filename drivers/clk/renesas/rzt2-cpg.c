@@ -352,6 +352,7 @@ static int rzt2_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	struct device *dev = priv->dev;
 	u32 bitmask = BIT(clock->bit);
 	unsigned long flags;
+	void __iomem *base;
 	u32 value;
 
 	if (!reg) {
@@ -360,24 +361,30 @@ static int rzt2_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	}
 
 	spin_lock_irqsave((struct spinlock *)&priv->rmw_lock, flags);
-	if (clock->sel_base)
-		value = readl(priv->cpg_base1 + reg);
-	else
-		value = readl(priv->cpg_base0 + reg);
+
+	base = clock->sel_base ?
+			priv->cpg_base1 + reg :
+			priv->cpg_base0 + reg;
+
+	value = readl(base);
 
 	if (enable)
 		value &= ~bitmask;
 	else
 		value |= bitmask;
 
-	if (clock->sel_base)
-		writel(value, priv->cpg_base1 + reg);
-	else
-		writel(value, priv->cpg_base0 + reg);
-
-	udelay(50);
+	writel(value, base);
 
 	spin_unlock_irqrestore((struct spinlock *)&priv->rmw_lock, flags);
+
+	/*
+	 * For the RZ/T2N case, it is necessary to perform a read-back after
+	 * accessing the MSTPCRm register and to dummy-read any register of
+	 * the IP at least ten times. Instead of memory-mapping the IP
+	 * register, we simply add a delay after the read operation.
+	 */
+	readl(base);
+	udelay(10);
 
 	return 0;
 }
