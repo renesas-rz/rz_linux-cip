@@ -21,6 +21,7 @@
 		mmc1 = &sdhi1;
 		serial0 = &sci0;
 		serial1 = &sci1;
+		serial2 = &sci3;
 	};
 
 	chosen {
@@ -460,6 +461,17 @@
 		bias-pull-up;
 	};
 
+	sci3_pins: sci3 {
+		data-pins {
+			pinmux = <RZT2H_PORT_PINMUX(13, 5, 0x14)>, /* SCI3_TXD */
+				 <RZT2H_PORT_PINMUX(13, 4, 0x14)>; /* SCI3_RXD */
+		};
+
+		de-pin {
+			pinmux = <RZT2H_PORT_PINMUX(14, 0, 0x14)>; /* DE3 */
+		};
+	};
+
 #if SD0_EMMC
 	sdhi0-emmc-iovs-hog {
 		gpio-hog;
@@ -629,6 +641,15 @@
 	pinctrl-names = "default";
 
 	uart-has-rtscts;
+	status = "okay";
+};
+
+&sci3 {
+	pinctrl-0 = <&sci3_pins>;
+	pinctrl-names = "default";
+
+	linux,rs485-enabled-at-boot-time;
+	rs485-rts-delay = <1 1>;
 	status = "okay";
 };
 
