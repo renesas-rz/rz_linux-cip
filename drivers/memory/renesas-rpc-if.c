@@ -1027,7 +1027,7 @@ static int rpcif_probe(struct platform_device *pdev)
 	if (rpc->info->type == XSPI_RZ_G3E) {
 		struct clk *spi_clk;
 
-		spi_clk = devm_clk_get_enabled(dev, "spix2");
+		spi_clk = devm_clk_get_optional_enabled(dev, "spix2");
 		if (IS_ERR(spi_clk))
 			return dev_err_probe(dev, PTR_ERR(spi_clk),
 					     "cannot get enabled spix2 clk\n");
