@@ -490,9 +490,11 @@ static int rz_cmtw_setup(struct rz_cmtw_device *cmtw,
 	/* Get clock and resets for each channels */
 	for (i = 0; i < cmtw->num_channels; i++) {
 		char clk_name[5];
+		char rst_name[5];
 
+		sprintf(rst_name, "rst%u", i);
 		cmtw->channels[i].rst =
-			devm_reset_control_get_exclusive_by_index(dev, i);
+			devm_reset_control_get_optional_exclusive(dev, rst_name);
 		if (IS_ERR(cmtw->channels[i].rst)) {
 			dev_err(dev, "cannot get reset\n");
 			ret = PTR_ERR(cmtw->channels[i].rst);
@@ -564,9 +566,15 @@ static const struct rz_cmtw_info rzv2h_cmtw_info = {
 	.channel_offset = 0x400,
 };
 
+static const struct rz_cmtw_info rzt2h_cmtw_info = {
+	.num_channels = 2,
+	.channel_offset = 0x400,
+};
+
 static const struct of_device_id rz_cmtw_of_table[] __maybe_unused = {
 	{ .compatible = "renesas,rzv2h-cmtw", .data = &rzv2h_cmtw_info },
 	{ .compatible = "renesas,rzg3e-cmtw", .data = &rzv2h_cmtw_info },
+	{ .compatible = "renesas,rzt2h-cmtw", .data = &rzt2h_cmtw_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rz_cmtw_of_table);
