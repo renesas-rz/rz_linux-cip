@@ -1797,6 +1797,39 @@
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
+
+		cmt0: timer@80080000 {
+			compatible = "renesas,rzt2h-cmt";
+			reg = <0 0x80080000 0 0x400>;
+			interrupts = <GIC_SPI 479 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 480 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD 302>;
+			clock-names = "fck";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		cmt1: timer@80080400 {
+			compatible = "renesas,rzt2h-cmt";
+			reg = <0 0x80080400 0 0x400>;
+			interrupts = <GIC_SPI 481 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 482 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD 303>;
+			clock-names = "fck";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		cmt2: timer@80080800 {
+			compatible = "renesas,rzt2h-cmt";
+			reg = <0 0x80080800 0 0x400>;
+			interrupts = <GIC_SPI 483 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 484 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD 304>;
+			clock-names = "fck";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
 	};
 
 	stmmac_axi_setup: stmmac-axi-config {
