@@ -801,3 +801,15 @@
 &cmtw0 {
 	status = "okay";
 };
+
+&cmt0 {
+	status = "okay";
+};
+
+&cmt1 {
+	status = "okay";
+};
+
+&cmt2 {
+	status = "okay";
+};
