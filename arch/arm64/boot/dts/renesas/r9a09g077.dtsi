@@ -1067,6 +1067,38 @@
 			};
 		};
 
+		xspi0: spi@801c0000 {
+			compatible = "renesas,r9a09g077-xspi",
+				     "renesas,r9a09g047-xspi";
+			reg = <0 0x801c0000 0 0x1000>,
+			      <0 0x40000000 0 0x10000000>;
+			reg-names = "regs", "dirmap";
+			clocks = <&cpg CPG_CORE R9A09G077_XSPI_CLK0>,
+				 <&cpg CPG_MOD 4>;
+			clock-names = "spi", "ahb";
+			resets = <&cpg 4>;
+			power-domains = <&cpg>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		xspi1: spi@801c1000 {
+			compatible = "renesas,r9a09g077-xspi",
+				     "renesas,r9a09g047-xspi";
+			reg = <0 0x801c1000 0 0x1000>,
+			      <0 0x50000000 0 0x10000000>;
+			reg-names = "regs", "dirmap";
+			clocks = <&cpg CPG_CORE R9A09G077_XSPI_CLK1>,
+				 <&cpg CPG_MOD 5>;
+			clock-names = "spi", "ahb";
+			resets = <&cpg 5>;
+			power-domains = <&cpg>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		cpg: clock-controller@80280000 {
 			compatible = "renesas,r9a09g077-cpg-mssr";
 			reg = <0 0x80280000 0 0x10000>,
