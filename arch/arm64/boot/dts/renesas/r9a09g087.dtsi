@@ -1640,6 +1640,18 @@
 			power-domains = <&cpg>;
 			renesas,fcp = <&fcpvd>;
 		};
+
+		cmtw0: timer@80081000 {
+			compatible = "renesas,rzn2h-cmtw",
+				     "renesas,rzt2h-cmtw";
+			reg = <0 0x80081000 0 0x1000>;
+			interrupts = <GIC_SPI 485 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 490 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD 305>, <&cpg CPG_MOD 306>;
+			clock-names = "fck0", "fck1";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
 	};
 
 	stmmac_axi_setup: stmmac-axi-config {
