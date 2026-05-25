@@ -406,10 +406,22 @@
 			pinmux = <RZT2H_PORT_PINMUX(3, 2, 0x07)>; /* MTIOC1A */
 		};
 	};
+
+	gpt0_pins: gpt0 {
+			pinmux = <RZT2H_PORT_PINMUX(0, 4, 0x09)>, /* GTIOC00_2A */
+				 <RZT2H_PORT_PINMUX(0, 5, 0x09)>; /* GTIOC00_2B */
+	};
 };
 
 &mtu3 {
 	pinctrl-0 = <&mtu3_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&gpt0 {
+	pinctrl-0 = <&gpt0_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";
