@@ -66,6 +66,7 @@ enum sh_cmt_model {
 	SH_CMT_48BIT,
 	SH_CMT0_RCAR_GEN2,
 	SH_CMT1_RCAR_GEN2,
+	SH_CMT_T2H,
 };
 
 struct sh_cmt_info {
@@ -229,6 +230,17 @@ static const struct sh_cmt_info sh_cmt_info[] = {
 		.write_control = sh_cmt_write32,
 		.read_count = sh_cmt_read32,
 		.write_count = sh_cmt_write32,
+	},
+	[SH_CMT_T2H] = {
+		.model = SH_CMT_16BIT,
+		.channels_mask = 0x3,
+		.width = 16,
+		.overflow_bit = 0,
+		.clear_bits = 0xFF,
+		.read_control = sh_cmt_read16,
+		.write_control = sh_cmt_write16,
+		.read_count = sh_cmt_read16,
+		.write_count = sh_cmt_write16,
 	},
 };
 
@@ -932,6 +944,10 @@ static int sh_cmt_setup_channel(struct sh_cmt_channel *ch, unsigned int index,
 		value |= BIT(hwidx);
 		iowrite32(value, cmt->mapbase + CMCLKE);
 		break;
+	case SH_CMT_T2H:
+		ch->ioctrl = cmt->mapbase + 2 + ch->hwidx * 6;
+		break;
+
 	}
 
 	if (cmt->info->width == (sizeof(ch->max_match_value) * 8))
@@ -1022,6 +1038,9 @@ static const struct of_device_id sh_cmt_of_table[] __maybe_unused = {
 	{
 		.compatible = "renesas,rcar-gen4-cmt1",
 		.data = &sh_cmt_info[SH_CMT1_RCAR_GEN2]
+	},
+	{ 	.compatible = "renesas,rzt2h-cmt",
+		.data = &sh_cmt_info[SH_CMT_T2H]
 	},
 	{ }
 };
