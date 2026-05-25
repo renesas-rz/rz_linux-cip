@@ -80,6 +80,19 @@
 #define PCIE0_PCIE1	2
 #define PCIE_SEL	PCIE0
 
+/*
+ * P31_4 can be used as P31_4_HEADER_PMOD1_SCK or P31_4_ETH2_CRS
+ * P31_5 can be used as P31_5_HEADER_PMOD1_MOSI or P31_5_ETH2_COL
+ * To enable RSPI0, set SW2[7] = OFF
+ * To enable GMAC2, set SW2[7] = ON
+ * and set following macro:
+ *
+ * Set SEL_RSPI0_GMAC2 to below values to select using of:
+ * - 0: RSPI0
+ * - 1: GMAC2 (default)
+ */
+#define SEL_RSPI0_GMAC2		1
+
 #include "rzt2h-n2h-evk-common.dtsi"
 
 / {
@@ -284,6 +297,7 @@
 	 * SW2[7] ON - use pins P29_1-P29_7, P30_0-P30_4, and P31_2-P31_5
 	 * for Ethernet port 2
 	 */
+#if (SEL_RSPI0_GMAC2)
 	gmac2_pins: gmac2-pins {
 		pinmux = <RZT2H_PORT_PINMUX(29, 1, 0xf)>, /* ETH2_TXCLK */
 			 <RZT2H_PORT_PINMUX(29, 2, 0xf)>, /* ETH2_TXD0 */
@@ -306,6 +320,14 @@
 			 <RZT2H_PORT_PINMUX(31, 0, 0x2)>, /* ETH2_REFCLK */
 			 <RZT2H_PORT_PINMUX(31, 1, 0x0)>; /* IRQ13 */
 	};
+#else
+	rspi0_pins: rspi0 {
+		pinmux = <RZT2H_PORT_PINMUX(31, 4, 0x1A)>, /* SCK */
+			 <RZT2H_PORT_PINMUX(31, 5, 0x1A)>, /* MOSI */
+			 <RZT2H_PORT_PINMUX(31, 6, 0x1A)>, /* MISO */
+			 <RZT2H_PORT_PINMUX(31, 7, 0x1A)>; /* SSL */
+	};
+#endif
 
 	/*
 	 * I2C0 Pin Configuration:
@@ -364,3 +386,19 @@
 
 	status = "okay";
 };
+
+#if (!SEL_RSPI0_GMAC2)
+&rspi0 {
+	pinctrl-0 = <&rspi0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&gmac2 {
+	/delete-property/ pinctrl-0;
+	/delete-property/ pinctrl-names;
+
+	status = "disabled";
+};
+#endif
