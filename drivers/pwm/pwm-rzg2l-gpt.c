@@ -96,7 +96,6 @@
 
 #define RZG2L_MAX_HW_CHANNELS	8
 #define RZG2L_CHANNELS_PER_IO	2
-#define RZG2L_MAX_PWM_CHANNELS	(RZG2L_MAX_HW_CHANNELS * RZG2L_CHANNELS_PER_IO)
 #define RZG2L_MAX_SCALE_FACTOR	1024
 #define RZG2L_MAX_TICKS		((u64)U32_MAX * RZG2L_MAX_SCALE_FACTOR)
 
@@ -104,6 +103,7 @@ struct rzg2l_gpt_info {
 	u8 (*calculate_prescale)(u64 period);
 	u32 gtcr_tpcs;
 	u8 prescale_mult;
+	u8 max_hw_channels;
 };
 
 struct rzg2l_gpt_chip {
@@ -465,14 +465,27 @@ static const struct pwm_ops rzg2l_gpt_ops = {
 static int rzg2l_gpt_probe(struct platform_device *pdev)
 {
 	struct rzg2l_gpt_chip *rzg2l_gpt;
+	const struct rzg2l_gpt_info *info;
 	struct device *dev = &pdev->dev;
 	struct reset_control *rstc;
 	struct pwm_chip *chip;
 	unsigned long rate;
 	struct clk *clk;
+	u32 max_hw_channels, val;
 	int ret;
 
-	chip = devm_pwmchip_alloc(dev, RZG2L_MAX_PWM_CHANNELS, sizeof(*rzg2l_gpt));
+	info = of_device_get_match_data(dev);
+	if (!info)
+		return -EINVAL;
+
+	ret = device_property_read_u32(dev, "gpt,max-channels", &val);
+	if (ret)
+		max_hw_channels = info->max_hw_channels;
+	else
+		max_hw_channels = val;
+
+	chip = devm_pwmchip_alloc(dev, max_hw_channels * RZG2L_CHANNELS_PER_IO,
+				  sizeof(*rzg2l_gpt));
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 	rzg2l_gpt = to_rzg2l_gpt_chip(chip);
@@ -481,7 +494,7 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	if (IS_ERR(rzg2l_gpt->mmio))
 		return PTR_ERR(rzg2l_gpt->mmio);
 
-	rzg2l_gpt->info = of_device_get_match_data(dev);
+	rzg2l_gpt->info = info;
 
 	rstc = devm_reset_control_get_optional_exclusive(dev, NULL);
 	if (IS_ERR(rstc))
@@ -545,16 +558,26 @@ static const struct rzg2l_gpt_info rzg3e_data = {
 	.calculate_prescale = rzg3e_gpt_calculate_prescale,
 	.gtcr_tpcs = RZG3E_GTCR_TPCS,
 	.prescale_mult = 1,
+	.max_hw_channels = 8,
+};
+
+static const struct rzg2l_gpt_info rzt2h_data = {
+	.calculate_prescale = rzg3e_gpt_calculate_prescale,
+	.gtcr_tpcs = RZG3E_GTCR_TPCS,
+	.prescale_mult = 1,
+	.max_hw_channels = 5,
 };
 
 static const struct rzg2l_gpt_info rzg2l_data = {
 	.calculate_prescale = rzg2l_gpt_calculate_prescale,
 	.gtcr_tpcs = RZG2L_GTCR_TPCS,
 	.prescale_mult = 2,
+	.max_hw_channels = 8,
 };
 
 static const struct of_device_id rzg2l_gpt_of_table[] = {
 	{ .compatible = "renesas,r9a09g047-gpt", .data = &rzg3e_data },
+	{ .compatible = "renesas,r9a09g077-gpt", .data = &rzt2h_data },
 	{ .compatible = "renesas,rzg2l-gpt", .data = &rzg2l_data },
 	{ /* Sentinel */ }
 };
