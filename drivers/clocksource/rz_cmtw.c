@@ -62,7 +62,6 @@ struct rz_cmtw_channel {
 	unsigned int index;
 
 	void __iomem *base;
-	int irq;
 
 	struct clk *clk;
 	unsigned long rate;
@@ -363,14 +362,13 @@ static int rz_cmtw_register_clockevent(struct rz_cmtw_channel *ch,
 				       const char *name)
 {
 	struct clock_event_device *ced = &ch->ced;
-	int irq;
-	int ret;
+	int ret, irq;
 
-	ch->irq = platform_get_irq(ch->cmtw->pdev, ch->index);
-	if (ch->irq < 0)
+	irq = platform_get_irq(ch->cmtw->pdev, ch->index);
+	if (irq < 0)
 		return irq;
 
-	ret = request_irq(ch->irq, rz_cmtw_interrupt,
+	ret = request_irq(irq, rz_cmtw_interrupt,
 			  IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
 			  dev_name(&ch->cmtw->pdev->dev), ch);
 	if (ret) {
