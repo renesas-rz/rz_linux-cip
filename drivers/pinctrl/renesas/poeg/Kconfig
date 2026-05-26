@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
+config RENESAS_RZG2L_POEG
+	tristate "Renesas RZ/G2L poeg support"
+	depends on PWM_RZG2L_GPT || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This driver exposes the Port Output Enable for GPT(POEG) found
+	  in Renesas RZ/G2L alike SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called rzg2l-poeg.
