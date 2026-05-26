@@ -13,6 +13,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/irqchip.h>
+#include <linux/irqchip/irq-renesas-rzg2l.h>
 #include <linux/irqdomain.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
@@ -20,12 +21,21 @@
 #include <linux/reset.h>
 #include <linux/spinlock.h>
 #include <linux/syscore_ops.h>
+#include <linux/interrupt.h>
 
 #define IRQC_NMI			0
 #define IRQC_IRQ_START			1
 #define IRQC_TINT_COUNT			32
 #define IRQC_SHARED_IRQ_COUNT		8
+#define IRQC_BUS_ERR_COUNT		1
 #define IRQC_IRQ_SHARED_START		(IRQC_IRQ_START + IRQC_SHARED_IRQ_COUNT)
+
+/* Virtual GPT Error irqs for RZ/G3L only */
+#define IRQC_GPT_OVFUNF_VIRT_START	(info.gpt_error_start + info.gpt_error_count)
+#define IRQC_GPT_OVF_VIRT_START		(IRQC_GPT_OVFUNF_VIRT_START)
+#define IRQC_GPT_UNF_VIRT_START		(IRQC_GPT_OVF_VIRT_START + info.gpt_error_count)
+#define IRQC_GPT_OVFUNF_VIRT_LAST	(IRQC_GPT_UNF_VIRT_START + info.gpt_error_count - 1)
+#define IRQC_GPT_OVFUNF_VIRT_COUNT	(IRQC_GPT_OVFUNF_VIRT_LAST - IRQC_GPT_OVFUNF_VIRT_START + 1)
 
 #define NSCR				0x0
 #define NITSR				0x4
@@ -69,6 +79,11 @@
 #define TINT_EXTRACT_HWIRQ(x)		FIELD_GET(GENMASK(15, 0), (x))
 #define TINT_EXTRACT_GPIOINT(x)		FIELD_GET(GENMASK(31, 16), (x))
 
+/* GPT Error Interrupt Status Control for RZ/G3L only */
+#define RZG3L_PEISR			0x88
+#define RZG3L_PEVSTATn_BIT(ch)		BIT(ch)
+#define RZG3L_PEUSTATn_BIT(ch)		BIT((ch) + 16)
+
 /**
  * struct rzg2l_irqc_reg_cache - registers cache (necessary for suspend/resume)
  * @nitsr: NITSR register
@@ -97,6 +112,9 @@ struct rzg2l_hw_info {
 	unsigned int	tint_start;
 	unsigned int	num_irq;
 	unsigned int	shared_irq_cnt;
+	unsigned int	eccram_count;
+	unsigned int	gpt_error_start;
+	unsigned int	gpt_error_count;
 };
 
 /**
@@ -116,6 +134,7 @@ static struct rzg2l_irqc_priv {
 	const struct irq_chip		*tint_chip;
 	struct irq_fwspec		*fwspec;
 	raw_spinlock_t			lock;
+	struct irq_domain		*domain;
 	struct rzg2l_hw_info		info;
 	struct rzg2l_irqc_reg_cache	cache;
 	DECLARE_BITMAP(used_irqs, IRQC_SHARED_IRQ_COUNT);
@@ -633,6 +652,23 @@ static const struct irq_chip rzg2l_irqc_tint_chip = {
 				  IRQCHIP_SKIP_SET_WAKE,
 };
 
+static const struct irq_chip rzg3l_irqc_gpt_ovfunf_chip = {
+	.name			= "rzg2l-irqc",
+	.irq_eoi		= irq_chip_eoi_parent,
+	.irq_mask		= irq_chip_mask_parent,
+	.irq_unmask		= irq_chip_unmask_parent,
+	.irq_disable		= irq_chip_disable_parent,
+	.irq_enable		= irq_chip_enable_parent,
+	.irq_get_irqchip_state	= irq_chip_get_parent_state,
+	.irq_set_irqchip_state	= irq_chip_set_parent_state,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
+	.irq_set_type		= irq_chip_set_type_parent,
+	.irq_set_affinity	= irq_chip_set_affinity_parent,
+	.flags			= IRQCHIP_MASK_ON_SUSPEND |
+				  IRQCHIP_SET_TYPE_MASKED |
+				  IRQCHIP_SKIP_SET_WAKE,
+};
+
 static const struct irq_chip rzfive_irqc_irq_chip = {
 	.name			= "rzfive-irqc",
 	.irq_eoi		= rzg2l_irqc_irq_eoi,
@@ -733,6 +769,25 @@ static void rzg2l_irqc_shared_irq_free(struct rzg2l_irqc_priv *priv, irq_hw_numb
 		rzg2l_irqc_set_inttsel(priv, INTTSEL_TINTSEL_START + irq_num, 0);
 }
 
+static int rzg2l_irqc_map(struct irq_domain *domain, unsigned int irq,
+			  irq_hw_number_t hwirq)
+{
+	struct rzg2l_irqc_priv *priv = domain->host_data;
+	struct rzg2l_hw_info info = priv->info;
+
+	if (!info.gpt_error_count)
+		return 0;
+
+	if (hwirq < IRQC_GPT_OVFUNF_VIRT_START ||
+	    hwirq > IRQC_GPT_OVFUNF_VIRT_LAST)
+		return -EINVAL;
+
+	irq_set_chip_data(irq, priv);
+	irq_set_chip_and_handler(irq, &dummy_irq_chip, handle_simple_irq);
+
+	return 0;
+}
+
 static int rzg2l_irqc_alloc(struct irq_domain *domain, unsigned int virq,
 			    unsigned int nr_irqs, void *arg)
 {
@@ -756,6 +811,9 @@ static int rzg2l_irqc_alloc(struct irq_domain *domain, unsigned int virq,
 	 */
 	if (hwirq == IRQC_NMI) {
 		chip = &rzg2l_irqc_nmi_chip;
+	} else if (priv->info.gpt_error_count &&
+		   hwirq >= priv->info.gpt_error_start) {
+		chip = &rzg3l_irqc_gpt_ovfunf_chip;
 	} else if (hwirq > priv->info.irq_count) {
 		tint = TINT_EXTRACT_GPIOINT(hwirq);
 		hwirq = TINT_EXTRACT_HWIRQ(hwirq);
@@ -803,6 +861,7 @@ static void rzg2l_irqc_free(struct irq_domain *domain, unsigned int virq, unsign
 }
 
 static const struct irq_domain_ops rzg2l_irqc_domain_ops = {
+	.map = rzg2l_irqc_map,
 	.alloc = rzg2l_irqc_alloc,
 	.free = rzg2l_irqc_free,
 	.translate = irq_domain_translate_twocell,
@@ -826,15 +885,106 @@ static int rzg2l_irqc_parse_interrupts(struct rzg2l_irqc_priv *priv,
 	return 0;
 }
 
+int rzg3l_irqc_gpt_ovfunf_mapping(struct device_node *np,
+				  unsigned int channel,
+				  bool is_overflow)
+{
+	struct irq_domain *domain;
+	struct rzg2l_irqc_priv *priv;
+	struct rzg2l_hw_info info;
+	irq_hw_number_t hwirq;
+
+	domain = irq_find_host(np);
+	if (!domain)
+		return -EPROBE_DEFER;
+
+	priv = domain->host_data;
+	info = priv->info;
+
+	if (!priv->info.gpt_error_count)
+		return dev_err_probe(domain->dev, -ENODEV, "IRQ domain does not have GPT ERROR\n");
+
+	hwirq = is_overflow ? IRQC_GPT_OVF_VIRT_START + channel :
+			      IRQC_GPT_UNF_VIRT_START + channel;
+
+	return irq_create_mapping(domain, hwirq);
+}
+EXPORT_SYMBOL_GPL(rzg3l_irqc_gpt_ovfunf_mapping);
+
+static irqreturn_t rzg3l_irqc_ovfunf_irq(int irq, void *data)
+{
+	struct rzg2l_irqc_priv *priv = data;
+	struct rzg2l_hw_info info = priv->info;
+	irq_hw_number_t hwirq = irqd_to_hwirq(irq_get_irq_data(irq));
+	unsigned int ch = hwirq - info.gpt_error_start;
+	unsigned int virq;
+	u32 reg;
+
+	raw_spin_lock(&priv->lock);
+	reg = readl_relaxed(priv->base + RZG3L_PEISR);
+	writel_relaxed(reg & ~(RZG3L_PEVSTATn_BIT(ch) | RZG3L_PEUSTATn_BIT(ch)),
+		       priv->base + RZG3L_PEISR);
+	raw_spin_unlock(&priv->lock);
+
+	if (reg & RZG3L_PEVSTATn_BIT(ch)) {
+		virq = irq_find_mapping(priv->domain, IRQC_GPT_OVF_VIRT_START + ch);
+		if (virq)
+			generic_handle_irq(virq);
+	}
+
+	if (reg & RZG3L_PEUSTATn_BIT(ch)) {
+		virq = irq_find_mapping(priv->domain, IRQC_GPT_UNF_VIRT_START + ch);
+		if (virq)
+			generic_handle_irq(virq);
+	}
+
+	return IRQ_HANDLED;
+}
+
+static int rzg3l_irqc_setup_ovfunf_irqs(struct platform_device *pdev,
+				  struct rzg2l_irqc_priv *priv)
+{
+	struct device *dev = &pdev->dev;
+	struct irq_fwspec fwspec;
+	unsigned int irq, i;
+	char *irq_name;
+	int ret;
+
+	/* Clear all GPT error interrupt status */
+	writel_relaxed(0x0, priv->base + RZG3L_PEISR);
+
+	fwspec.fwnode = priv->domain->fwnode;
+	fwspec.param_count = 2;
+	fwspec.param[1] = IRQ_TYPE_LEVEL_HIGH;
+
+	for (i = 0; i < priv->info.gpt_error_count; i++) {
+		fwspec.param[0] = priv->info.gpt_error_start + i;
+
+		irq = irq_create_fwspec_mapping(&fwspec);
+		if (!irq)
+			return dev_err_probe(dev, -EINVAL,
+					     "failed to create IRQ mapping for ovfunf%d\n", i);
+
+		irq_name = devm_kasprintf(dev, GFP_KERNEL, "%s:ovfunf%d", dev_name(dev), i);
+		ret = devm_request_irq(dev, irq, rzg3l_irqc_ovfunf_irq, 0, irq_name, priv);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "failed to request ovfunf%d IRQ\n", i);
+	}
+
+	return 0;
+}
+
 static int rzg2l_irqc_common_probe(struct platform_device *pdev, struct device_node *parent,
 				   const struct irq_chip *irq_chip,
 				   const struct irq_chip *tint_chip,
 				   const struct rzg2l_hw_info info)
 {
-	struct irq_domain *irq_domain, *parent_domain;
+	struct irq_domain *parent_domain;
 	struct device_node *node = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct reset_control *resetn;
+	unsigned int irq_size = info.num_irq;
 	int ret;
 
 	parent_domain = irq_find_host(parent);
@@ -878,14 +1028,25 @@ static int rzg2l_irqc_common_probe(struct platform_device *pdev, struct device_n
 
 	raw_spin_lock_init(&rzg2l_irqc_data->lock);
 
-	irq_domain = irq_domain_create_hierarchy(parent_domain, 0, info.num_irq, dev_fwnode(dev),
-						 &rzg2l_irqc_domain_ops, rzg2l_irqc_data);
-	if (!irq_domain) {
+	irq_size += info.gpt_error_count ? IRQC_GPT_OVFUNF_VIRT_COUNT : 0;
+
+	rzg2l_irqc_data->domain = irq_domain_create_hierarchy(parent_domain, 0,
+							      irq_size, dev_fwnode(dev),
+							      &rzg2l_irqc_domain_ops,
+							      rzg2l_irqc_data);
+	if (!rzg2l_irqc_data->domain) {
 		pm_runtime_put_sync(dev);
 		return -ENOMEM;
 	}
 
 	register_syscore_ops(&rzg2l_irqc_syscore_ops);
+
+	if (info.gpt_error_count) {
+		ret = rzg3l_irqc_setup_ovfunf_irqs(pdev, rzg2l_irqc_data);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "rzg3l_irqc_setup_ovfunf_irqs failed: %d\n", ret);
+	}
 
 	return 0;
 }
@@ -914,11 +1075,16 @@ static const u8 rzg3l_tssel_lut[] = {
 };
 
 static const struct rzg2l_hw_info rzg3l_hw_params = {
-	.tssel_lut	= rzg3l_tssel_lut,
-	.irq_count	= 16,
-	.tint_start	= IRQC_IRQ_START + 16,
-	.num_irq	= IRQC_IRQ_START + 16 + IRQC_TINT_COUNT,
-	.shared_irq_cnt	= IRQC_SHARED_IRQ_COUNT,
+	.tssel_lut		= rzg3l_tssel_lut,
+	.irq_count		= 16,
+	.tint_start		= IRQC_IRQ_START + 16,
+	.eccram_count		= 3,
+	.gpt_error_start	= IRQC_IRQ_START + 16 + IRQC_TINT_COUNT +
+				  IRQC_BUS_ERR_COUNT + 3,
+	.gpt_error_count	= 8,
+	.num_irq		= IRQC_IRQ_START + 16 + IRQC_TINT_COUNT +
+				  IRQC_BUS_ERR_COUNT + 3 + 8,
+	.shared_irq_cnt		= IRQC_SHARED_IRQ_COUNT,
 };
 
 static const struct rzg2l_hw_info rzg2l_hw_params = {
