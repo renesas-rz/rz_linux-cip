@@ -24,7 +24,8 @@
 #define WDTRCR			0x06	/* WDT Reset Control Register RW, 8  */
 
 /* This register is only available on RZ/T2H and RZ/N2H SoCs */
-#define WDTDCR			0x00	/* WDT Debug Control Register RW, 32  */
+#define WDTDCR(x)		(0x5100 + 0x04 * (x))	/* WDT Debug Control Register RW, 32  */
+#define RZT2H_MAX_WDT_INDEX	5
 
 #define WDTCR_TOPS_1024		0x00
 #define WDTCR_TOPS_4096		0x01
@@ -74,7 +75,8 @@ struct rzv2h_of_data {
 
 struct rzv2h_wdt_priv {
 	void __iomem *base;
-	void __iomem *wdtdcr;
+	struct regmap *wdtdcr;
+	unsigned int wdt_index;
 	struct clk *pclk;
 	struct clk *oscclk;
 	struct reset_control *rstc;
@@ -98,16 +100,20 @@ static int rzv2h_wdt_ping(struct watchdog_device *wdev)
 
 static void rzt2h_wdt_wdtdcr_count_stop(struct rzv2h_wdt_priv *priv)
 {
-	u32 reg = readl(priv->wdtdcr + WDTDCR);
+	u32 reg;
 
-	writel(reg | WDTDCR_WDTSTOPCTRL, priv->wdtdcr + WDTDCR);
+	regmap_read(priv->wdtdcr, WDTDCR(priv->wdt_index), &reg);
+
+	regmap_write(priv->wdtdcr, WDTDCR(priv->wdt_index), reg | WDTDCR_WDTSTOPCTRL);
 }
 
 static void rzt2h_wdt_wdtdcr_count_start(struct rzv2h_wdt_priv *priv)
 {
-	u32 reg = readl(priv->wdtdcr + WDTDCR);
+	u32 reg;
 
-	writel(reg & ~WDTDCR_WDTSTOPCTRL, priv->wdtdcr + WDTDCR);
+	regmap_read(priv->wdtdcr, WDTDCR(priv->wdt_index), &reg);
+
+	regmap_write(priv->wdtdcr, WDTDCR(priv->wdt_index), reg & ~WDTDCR_WDTSTOPCTRL);
 }
 
 static void rzv2h_wdt_setup(struct watchdog_device *wdev, u16 wdtcr)
@@ -282,14 +288,20 @@ static const struct watchdog_ops rzv2h_wdt_ops = {
 	.restart = rzv2h_wdt_restart,
 };
 
-static int rzt2h_wdt_wdtdcr_init(struct platform_device *pdev,
+static int rzt2h_wdt_wdtdcr_init(struct platform_device *pdev, struct device_node *np,
 				 struct rzv2h_wdt_priv *priv)
 {
 	int ret;
 
-	priv->wdtdcr = devm_platform_ioremap_resource(pdev, 1);
+	priv->wdtdcr = syscon_regmap_lookup_by_phandle(np, "renesas,wdtdcr");
 	if (IS_ERR(priv->wdtdcr))
 		return PTR_ERR(priv->wdtdcr);
+
+	ret = of_property_read_u32(np, "renesas,wdt_index", &priv->wdt_index);
+	if ((ret) || (priv->wdt_index > RZT2H_MAX_WDT_INDEX)) {
+		dev_err(&pdev->dev, "WDT index %u invalid.\n", priv->wdt_index);
+		return -EINVAL;
+	}
 
 	ret = pm_runtime_resume_and_get(&pdev->dev);
 	if (ret)
@@ -361,7 +373,7 @@ static int rzv2h_wdt_probe(struct platform_device *pdev)
 		return ret;
 
 	if (priv->of_data->wdtdcr) {
-		ret = rzt2h_wdt_wdtdcr_init(pdev, priv);
+		ret = rzt2h_wdt_wdtdcr_init(pdev, np, priv);
 		if (ret)
 			return dev_err_probe(dev, ret, "WDTDCR init failed\n");
 	}
