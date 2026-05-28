@@ -316,6 +316,7 @@
 			clocks = <&cpg CPG_CORE R9A09G087_CLK_PCLKL>;
 			clock-names = "pclk";
 			power-domains = <&cpg>;
+			renesas,syscon-perierr-error = <&icu>;
 			status = "disabled";
 		};
 
@@ -326,6 +327,7 @@
 			clocks = <&cpg CPG_CORE R9A09G087_CLK_PCLKL>;
 			clock-names = "pclk";
 			power-domains = <&cpg>;
+			renesas,syscon-perierr-error = <&icu>;
 			status = "disabled";
 		};
 
@@ -336,6 +338,7 @@
 			clocks = <&cpg CPG_CORE R9A09G087_CLK_PCLKL>;
 			clock-names = "pclk";
 			power-domains = <&cpg>;
+			renesas,syscon-perierr-error = <&icu>;
 			status = "disabled";
 		};
 
@@ -346,6 +349,7 @@
 			clocks = <&cpg CPG_CORE R9A09G087_CLK_PCLKL>;
 			clock-names = "pclk";
 			power-domains = <&cpg>;
+			renesas,syscon-perierr-error = <&icu>;
 			status = "disabled";
 		};
 
@@ -356,6 +360,7 @@
 			clocks = <&cpg CPG_CORE R9A09G087_CLK_PCLKL>;
 			clock-names = "pclk";
 			power-domains = <&cpg>;
+			renesas,syscon-perierr-error = <&icu>;
 			status = "disabled";
 		};
 
@@ -366,6 +371,7 @@
 			clocks = <&cpg CPG_CORE R9A09G087_CLK_PCLKL>;
 			clock-names = "pclk";
 			power-domains = <&cpg>;
+			renesas,syscon-perierr-error = <&icu>;
 			status = "disabled";
 		};
 
@@ -1130,7 +1136,9 @@
 		};
 
 		icu: interrupt-controller@802a0000 {
-			compatible = "renesas,r9a09g087-icu", "renesas,r9a09g077-icu";
+			compatible = "renesas,r9a09g087-icu",
+				     "renesas,r9a09g077-icu",
+				     "syscon";
 			reg = <0 0x802a0000 0 0x10000>,
 			      <0 0x812a0000 0 0x50>;
 			#interrupt-cells = <2>;
