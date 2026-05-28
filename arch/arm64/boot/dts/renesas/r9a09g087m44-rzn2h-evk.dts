@@ -79,7 +79,7 @@
  * - 0: PCIE
  * - 1: GMAC1 (default)
  */
-#define SEL_GMAC1_PCIE		0
+#define SEL_GMAC1_PCIE		1
 
 /*
  * Use PCIE_SEL to select channel mode for PCIe:
