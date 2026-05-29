@@ -346,6 +346,13 @@
 	reset-gpios = <&pinctrl RZT2H_GPIO(3, 1) GPIO_ACTIVE_LOW>;
 };
 
+&gpt1 {
+	pinctrl-0 = <&gpt1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
 &pinctrl {
 	/*
 	 * CAN1 Pin Configuration:
@@ -459,5 +466,10 @@
 	usb_pins: usb-pins {
 		pinmux = <RZT2H_PORT_PINMUX(2, 2, 0x13)>, /* VBUSEN */
 			 <RZT2H_PORT_PINMUX(2, 3, 0x13)>; /* OVRCUR */
+	};
+
+	gpt1_pins: gpt1 {
+		pinmux = <RZT2H_PORT_PINMUX(1, 2, 0x09)>, /* GTIOC01_0A */
+			 <RZT2H_PORT_PINMUX(1, 3, 0x09)>; /* GTIOC01_0B */
 	};
 };
