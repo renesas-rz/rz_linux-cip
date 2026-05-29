@@ -1699,6 +1699,140 @@
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
+
+		gpt0: pwm@90002000 {
+			compatible = "renesas,r9a09g087-gpt",
+				     "renesas,r9a09g077-gpt";
+			reg = <0 0x90002000 0 0x1000>;
+			#pwm-cells = <3>;
+			clocks = <&cpg CPG_CORE R9A09G087_CLK_PCLKGPTL>,
+				 <&cpg CPG_MOD 201>;
+			clock-names = "core", "bus";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		gpt1: pwm@90003000 {
+			compatible = "renesas,r9a09g087-gpt",
+				     "renesas,r9a09g077-gpt";
+			reg = <0 0x90003000 0 0x1000>;
+			#pwm-cells = <3>;
+			clocks = <&cpg CPG_CORE R9A09G087_CLK_PCLKGPTL>,
+				 <&cpg CPG_MOD 202>;
+			clock-names = "core", "bus";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		gpt2: pwm@90004000 {
+			compatible = "renesas,r9a09g087-gpt",
+				     "renesas,r9a09g077-gpt";
+			reg = <0 0x90004000 0 0x1000>;
+			#pwm-cells = <3>;
+			clocks = <&cpg CPG_CORE R9A09G087_CLK_PCLKGPTL>,
+				 <&cpg CPG_MOD 216>;
+			clock-names = "core", "bus";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		gpt3: pwm@90005000 {
+			compatible = "renesas,r9a09g087-gpt",
+				     "renesas,r9a09g077-gpt";
+			reg = <0 0x90005000 0 0x1000>;
+			#pwm-cells = <3>;
+			clocks = <&cpg CPG_CORE R9A09G087_CLK_PCLKGPTL>,
+				 <&cpg CPG_MOD 217>;
+			clock-names = "core", "bus";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		gpt4: pwm@90006000 {
+			compatible = "renesas,r9a09g087-gpt",
+				     "renesas,r9a09g077-gpt";
+			reg = <0 0x90006000 0 0x1000>;
+			#pwm-cells = <3>;
+			clocks = <&cpg CPG_CORE R9A09G087_CLK_PCLKGPTL>,
+				 <&cpg CPG_MOD 218>;
+			clock-names = "core", "bus";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		gpt5: pwm@90007000 {
+			compatible = "renesas,r9a09g087-gpt",
+				     "renesas,r9a09g077-gpt";
+			reg = <0 0x90007000 0 0x1000>;
+			#pwm-cells = <3>;
+			clocks = <&cpg CPG_CORE R9A09G087_CLK_PCLKGPTL>,
+				 <&cpg CPG_MOD 219>;
+			clock-names = "core", "bus";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		gpt6: pwm@90100000 {
+			compatible = "renesas,r9a09g087-gpt",
+				     "renesas,r9a09g077-gpt";
+			reg = <0 0x90100000 0 0x1000>;
+			#pwm-cells = <3>;
+			clocks = <&cpg CPG_CORE R9A09G087_CLK_PCLKGPTL>,
+				 <&cpg CPG_MOD 220>;
+			clock-names = "core", "bus";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		gpt7: pwm@90101000 {
+			compatible = "renesas,r9a09g087-gpt",
+				     "renesas,r9a09g077-gpt";
+			reg = <0 0x90101000 0 0x1000>;
+			#pwm-cells = <3>;
+			clocks = <&cpg CPG_CORE R9A09G087_CLK_PCLKGPTL>,
+				 <&cpg CPG_MOD 221>;
+			clock-names = "core", "bus";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		gpt8: pwm@90102000 {
+			compatible = "renesas,r9a09g087-gpt",
+				     "renesas,r9a09g077-gpt";
+			reg = <0 0x90102000 0 0x1000>;
+			#pwm-cells = <3>;
+			clocks = <&cpg CPG_CORE R9A09G087_CLK_PCLKGPTL>,
+				 <&cpg CPG_MOD 222>;
+			clock-names = "core", "bus";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		gpt9: pwm@80000000 {
+			compatible = "renesas,r9a09g087-gpt",
+				     "renesas,r9a09g077-gpt";
+			reg = <0 0x80000000 0 0x1000>;
+			#pwm-cells = <3>;
+			clocks = <&cpg CPG_CORE R9A09G087_CLK_PCLKM>,
+				 <&cpg CPG_MOD 223>;
+			clock-names = "core", "bus";
+			power-domains = <&cpg>;
+			gpt,max-channels = <7>;
+			status = "disabled";
+		};
+
+		gpt10: pwm@81000000 {
+			compatible = "renesas,r9a09g087-gpt",
+				     "renesas,r9a09g077-gpt";
+			reg = <0 0x81000000 0 0x1000>;
+			#pwm-cells = <3>;
+			clocks = <&cpg CPG_CORE R9A09G087_CLK_PCLKM>,
+				 <&cpg CPG_MOD 603>;
+			clock-names = "core", "bus";
+			power-domains = <&cpg>;
+			gpt,max-channels = <4>;
+			status = "disabled";
+		};
 	};
 
 	stmmac_axi_setup: stmmac-axi-config {
