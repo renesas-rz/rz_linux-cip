@@ -3291,7 +3291,7 @@ static int rzg2l_pinctrl_suspend_noirq(struct device *dev)
 	}
 
 	if (regs->qspi)
-		cache->qspi = readb(pctrl->base + regs-> qspi);
+		cache->qspi = readb(pctrl->base + regs->qspi);
 
 	cache->oen = readb(pctrl->base + pctrl->data->hwcfg->regs.oen);
 
