@@ -75,11 +75,19 @@
 #define USB_OTG		0
 
 /*
- * Set SEL_GMAC1_PCIE to below values to select using of:
- * - 0: PCIE
+ * P33_7 can be used as SPI_RSPCK2 or ETH3_TXEN
+ * P34_0 can be used as SPI_MOSI2 or ETH3_RXCLK
+ * P34_1 can be used as SPI_MISO2 or ETH3_RXD0
+ * P34_2 can be used as SPI_SSL20 or ETH3_RXD1
+ * To enable PCIE and RSPI2, set DSW5[8] = OFF
+ * To enable GMAC1, set DSW5[8] = ON; DSW12[1] = OFF; DSW12[2] = ON
+ * and set following macro:
+ *
+ * Set SEL_GMAC1_OTHERS to below values to select using of:
+ * - 0: PCIE and RSPI2
  * - 1: GMAC1 (default)
  */
-#define SEL_GMAC1_PCIE		1
+#define SEL_GMAC1_OTHERS		1
 
 /*
  * Use PCIE_SEL to select channel mode for PCIe:
@@ -353,6 +361,20 @@
 	status = "okay";
 };
 
+#if (!SEL_GMAC1_OTHERS)
+&rspi2 {
+	pinctrl-0 = <&rspi2_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&gmac1 {
+	/delete-property/ pinctrl-0;
+	/delete-property/ pinctrl-names;
+	status = "disabled";
+};
+#endif
+
 &pinctrl {
 	/*
 	 * CAN1 Pin Configuration:
@@ -371,7 +393,7 @@
 	 * for Ethernet port 3
 	 * DSW12[1] OFF; DSW12[2] ON - use pin P00_3 for Ethernet port 3
 	 */
-#if (SEL_GMAC1_PCIE)
+#if (SEL_GMAC1_OTHERS)
 	gmac1_pins: gmac1-pins {
 		pinmux = <RZT2H_PORT_PINMUX(33, 2, 0xf)>, /* ETH3_TXCLK */
 			 <RZT2H_PORT_PINMUX(33, 3, 0xf)>, /* ETH3_TXD0 */
@@ -453,6 +475,20 @@
 		pinmux = <RZT2H_PORT_PINMUX(3, 3, 0x17)>,
 			 <RZT2H_PORT_PINMUX(3, 4, 0x17)>;
 	};
+
+	/*
+	 * RSPI2 Pin Configuration:
+	 *
+	 * DSW5[8] OFF - use pins P33_7, P34_0-P34_2 for RSPI2
+	 */
+#if (!SEL_GMAC1_OTHERS)
+	rspi2_pins: rspi2 {
+		pinmux = <RZT2H_PORT_PINMUX(33, 7, 0x1A)>, /* SPI_RSPCK2 */
+			 <RZT2H_PORT_PINMUX(34, 0, 0x1A)>, /* SPI_MOSI2 */
+			 <RZT2H_PORT_PINMUX(34, 1, 0x1A)>, /* SPI_MISO2 */
+			 <RZT2H_PORT_PINMUX(34, 2, 0x1A)>; /* SPI_SSL20 */
+	};
+#endif
 
 #if USB_OTG
 	usb-exicen-hog {
