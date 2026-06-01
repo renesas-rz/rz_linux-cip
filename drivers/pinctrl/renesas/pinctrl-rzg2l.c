@@ -3163,7 +3163,7 @@ static void rzg2l_pinctrl_pm_setup_dedicated_regs(struct rzg2l_pinctrl *pctrl, b
 	 * port offset are close together.
 	 */
 	for (i = 0, caps = 0; i < pctrl->data->n_dedicated_pins; i++) {
-		bool has_iolh, has_ien, has_sr;
+		bool has_iolh, has_ien, has_sr, has_nod;
 		u32 off, next_off = 0;
 		u64 cfg, next_cfg;
 		u8 pincnt;
@@ -3186,6 +3186,7 @@ static void rzg2l_pinctrl_pm_setup_dedicated_regs(struct rzg2l_pinctrl *pctrl, b
 				      PIN_CFG_IOLH_C | PIN_CFG_IOLH_RZV2H));
 		has_ien = !!(caps & PIN_CFG_IEN);
 		has_sr = !!(caps & PIN_CFG_SR);
+		has_nod = !!(caps & PIN_CFG_NOD);
 		pincnt = hweight8(FIELD_GET(RZG2L_SINGLE_PIN_BITS_MASK, cfg));
 
 		if (has_iolh) {
@@ -3199,6 +3200,10 @@ static void rzg2l_pinctrl_pm_setup_dedicated_regs(struct rzg2l_pinctrl *pctrl, b
 		if (has_sr) {
 			RZG2L_PCTRL_REG_ACCESS32(suspend, pctrl->base + SR(off),
 						cache->sr[0][i]);
+		}
+		if (has_nod) {
+			RZG2L_PCTRL_REG_ACCESS32(suspend, pctrl->base + NOD(off),
+						 cache->nod[0][i]);
 		}
 
 		if (pincnt >= 4) {
@@ -3216,6 +3221,11 @@ static void rzg2l_pinctrl_pm_setup_dedicated_regs(struct rzg2l_pinctrl *pctrl, b
 				RZG2L_PCTRL_REG_ACCESS32(suspend,
 							pctrl->base + SR(off) + 4,
 							cache->sr[1][i]);
+			}
+			if (has_nod) {
+				RZG2L_PCTRL_REG_ACCESS32(suspend,
+							 pctrl->base + NOD(off) + 4,
+							 cache->nod[1][i]);
 			}
 		}
 		caps = 0;
