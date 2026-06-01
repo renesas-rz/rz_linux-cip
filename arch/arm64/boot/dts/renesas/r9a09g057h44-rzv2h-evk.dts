@@ -168,6 +168,12 @@
 	status = "okay";
 };
 
+&gpt0 {
+	pinctrl-0 = <&gpt0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "default";
@@ -477,6 +483,11 @@
 		sd1_cd {
 			pinmux = <RZV2H_PORT_PINMUX(9, 4, 14)>; /* SD1_CD */
 		};
+	};
+
+	gpt0_pins: gpt0 {
+		pinmux = <RZV2H_PORT_PINMUX(7, 6, 9)>, /* GTIOC6A */
+			 <RZV2H_PORT_PINMUX(7, 7, 9)>; /* GTIOC6B */
 	};
 
 	usb20_pins: usb20 {
