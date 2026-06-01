@@ -301,6 +301,21 @@
 	status = "okay";
 };
 
+&ehci0 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&ohci0 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&hsusb {
+	dr_mode = "otg";
+	status = "okay";
+};
+
 &pcie {
 	pinctrl-0 = <&pcie_pins>;
 	pinctrl-names = "default";
@@ -411,6 +426,16 @@
 			 <RZV2N_PORT_PINMUX(1, 1, 7)>, /* AUDIO_CLKC */
 			 <RZV2N_PORT_PINMUX(9, 7, 8)>; /* AUDIO_CLKOUT */
 	};
+
+	usb20_pins: usb20 {
+		ovc {
+			pinmux =  <RZV2N_PORT_PINMUX(9, 6, 14)>; /* OVC */
+		};
+
+		vbus {
+			pinmux = <RZV2N_PORT_PINMUX(9, 5, 14)>; /* VBUS */
+		};
+	};
 };
 
 &qextal_clk {
@@ -436,6 +461,17 @@
 	bus-width = <4>;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
+	status = "okay";
+};
+
+&usb20phyrst {
+	status = "okay";
+};
+
+&usb2_phy0 {
+	pinctrl-0 = <&usb20_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 };
 
