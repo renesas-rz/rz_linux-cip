@@ -627,6 +627,22 @@ void __iomem *rsnd_gen_get_base_addr(struct rsnd_priv *priv, int reg_id);
 int rsnd_adg_clk_query(struct rsnd_priv *priv, unsigned int rate);
 int rsnd_adg_ssi_clk_stop(struct rsnd_mod *ssi_mod);
 int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate);
+
+#ifdef CONFIG_SND_SOC_RCAR
+int rsnd_adg_spdif_clk_stop(struct device *dev, int spdif_id);
+int rsnd_adg_spdif_clk_start(struct device *dev, int spdif_id, unsigned int rate);
+#else
+static inline int rsnd_adg_spdif_clk_stop(struct device *dev, int spdif_id)
+{
+	return -ENOSYS;
+}
+static inline int rsnd_adg_spdif_clk_start(struct device *dev, int spdif_id,
+					    unsigned int rate)
+{
+	return -ENOSYS;
+}
+#endif
+
 int rsnd_adg_probe(struct rsnd_priv *priv);
 void rsnd_adg_remove(struct rsnd_priv *priv);
 void rsnd_adg_suspend(struct rsnd_priv *priv);
