@@ -1090,6 +1090,7 @@
 			clock-names = "fck0", "fck1", "fck2", "fck3";
 			resets = <&cpg 0x65>, <&cpg 0x66>,
 				 <&cpg 0x67>, <&cpg 0x68>;
+			reset-names = "rst0", "rst1", "rst2", "rst3";
 			status = "disabled";
 		};
 
@@ -1105,6 +1106,7 @@
 			clock-names = "fck0", "fck1", "fck2", "fck3";
 			resets = <&cpg 0x69>, <&cpg 0x6A>,
 				 <&cpg 0x6B>, <&cpg 0x6C>;
+			reset-names = "rst0", "rst1", "rst2", "rst3";
 			status = "disabled";
 		};
 
