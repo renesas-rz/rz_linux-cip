@@ -30,6 +30,11 @@
 	status = "disabled";
 };
 
+&{/leds/led-7} {
+	/* P14_3 is used for DU function LCDC_DATG3. */
+	status = "disabled";
+};
+
 &i2c0 {
 	status = "disabled";
 };
