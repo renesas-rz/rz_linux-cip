@@ -21,6 +21,8 @@
 
 /* Maximum SSI count for per-SSI clocks */
 #define ADG_SSI_MAX	10
+/* Maximum SPDIF count for per-SPDIF clocks */
+#define ADG_SPDIF_MAX	3
 
 #define BRGCKR_31	(1 << 31)
 #define BRRx_MASK(x) (0x3FF & x)
@@ -39,12 +41,15 @@ struct rsnd_adg {
 	struct clk *clkout[CLKOUTMAX];
 	/* RZ/G3E: per-SSI ADG clocks (adg-ssi-0 through adg-ssi-9) */
 	struct clk *clk_adg_ssi[ADG_SSI_MAX];
+	/* RZ/G3E: per-SPDIF ADG clocks (adg-spdif-0 through adg-spdif-2) */
+	struct clk *clk_adg_spdif[ADG_SPDIF_MAX];
 	struct clk *clk_ssif_supply;
 	struct clk *null_clk;
 	struct clk_onecell_data onecell;
 	struct rsnd_mod mod;
 	int clkin_rate[CLKINMAX];
 	bool ssi_clk_prepared;
+	bool spdif_clk_prepared;
 	bool clk_enabled;
 	int clkin_size;
 	int clkout_size;
@@ -457,6 +462,126 @@ static void rsnd_adg_ssi_clk_unprepare(struct rsnd_adg *adg)
 		clk_unprepare(adg->clk_adg_ssi[i]);
 }
 
+static void rsnd_adg_set_spdif_clk_by_id(struct rsnd_priv *priv, int spdif_id,
+					 u32 val)
+{
+	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
+	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	int shift = (spdif_id % 4) * 8;
+	u32 mask = 0xFF << shift;
+
+	val = val << shift;
+	rsnd_mod_bset(adg_mod, AUDIO_CLK_SEL3, mask, val);
+
+	dev_dbg(dev, "AUDIO_CLK_SEL3[%d] = 0x%x\n", spdif_id, val);
+}
+
+static int rsnd_adg_spdif_id_check(struct device *dev, int spdif_id)
+{
+	if (spdif_id < 0 || spdif_id >= ADG_SPDIF_MAX)
+		return dev_err_probe(dev, -EINVAL,
+				     "invalid spdif-id %d\n", spdif_id);
+
+	return 0;
+}
+
+int rsnd_adg_spdif_clk_stop(struct device *dev, int spdif_id)
+{
+	struct rsnd_priv *priv = dev_get_drvdata(dev);
+	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
+	int ret;
+
+	ret = rsnd_adg_spdif_id_check(dev, spdif_id);
+	if (ret)
+		return ret;
+
+	rsnd_adg_set_spdif_clk_by_id(priv, spdif_id, 0);
+	clk_disable(adg->clk_adg_spdif[spdif_id]);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rsnd_adg_spdif_clk_stop);
+
+int rsnd_adg_spdif_clk_start(struct device *dev, int spdif_id,
+			     unsigned int rate)
+{
+	struct rsnd_priv *priv = dev_get_drvdata(dev);
+	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
+	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
+	int ret;
+	int data;
+	u32 ckr = 0;
+
+	ret = rsnd_adg_spdif_id_check(dev, spdif_id);
+	if (ret)
+		return ret;
+
+	data = rsnd_adg_clk_query(priv, rate);
+	if (data < 0)
+		return data;
+
+	rsnd_adg_set_spdif_clk_by_id(priv, spdif_id, data);
+
+	ckr = adg->ckr & ~BRGCKR_31;
+	if (0 == (rate % 8000))
+		ckr |= BRGCKR_31; /* use BRGB output = 48kHz */
+	if (ckr != adg->ckr) {
+		rsnd_mod_bset(adg_mod, BRGCKR, 0x80770000, adg->ckr);
+		adg->ckr = ckr;
+	}
+
+	dev_dbg(dev, "SPDIF%d: sel=0x%x BRG%c (%dHz)\n", spdif_id, data,
+		(ckr & BRGCKR_31) ? 'B' : 'A',
+		(ckr & BRGCKR_31) ? adg->brg_rate[ADG_HZ_48] :
+				    adg->brg_rate[ADG_HZ_441]);
+
+	ret = clk_enable(adg->clk_adg_spdif[spdif_id]);
+	if (ret) {
+		dev_err(dev, "Cannot enable adg-spdif-%d ADG clock\n", spdif_id);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rsnd_adg_spdif_clk_start);
+
+static int rsnd_adg_spdif_clk_prepare(struct rsnd_adg *adg)
+{
+	int i;
+	int ret;
+
+	if (adg->spdif_clk_prepared)
+		return 0;
+
+	for (i = 0; i < ADG_SPDIF_MAX; i++) {
+		ret = clk_prepare(adg->clk_adg_spdif[i]);
+		if (ret)
+			goto unwind;
+	}
+
+	adg->spdif_clk_prepared = true;
+	return 0;
+
+unwind:
+	while (i--)
+		clk_unprepare(adg->clk_adg_spdif[i]);
+
+	return ret;
+}
+
+static void rsnd_adg_spdif_clk_unprepare(struct rsnd_adg *adg)
+{
+	int i;
+
+	if (!adg->spdif_clk_prepared)
+		return;
+	adg->spdif_clk_prepared = false;
+
+	for (i = 0; i < ADG_SPDIF_MAX; i++)
+		clk_unprepare(adg->clk_adg_spdif[i]);
+}
+
 int rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
 {
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
@@ -516,7 +641,7 @@ int rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
 	 * We need to rollback in such case
 	 */
 	/*
-	 * RZ/G3E per-SSI ADG and SSIF supply clocks.
+	 * RZ/G3E per-SSI ADG, SSIF and SPDIF supply clocks.
 	 *
 	 * Follow the same style as for_each_rsnd_clkin() above: on enable,
 	 * try to prepare every clock and accumulate the error. On disable,
@@ -529,8 +654,13 @@ int rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
 		/* Preserve the first error from the clkin loop above. */
 		if (sub_ret && !ret)
 			ret = sub_ret;
+
+		sub_ret = rsnd_adg_spdif_clk_prepare(adg);
+		if (sub_ret && !ret)
+			ret = sub_ret;
 	} else {
 		rsnd_adg_ssi_clk_unprepare(adg);
+		rsnd_adg_spdif_clk_unprepare(adg);
 	}
 
 	/*
@@ -923,6 +1053,24 @@ static int rsnd_adg_get_ssi_clks(struct rsnd_priv *priv)
 	return 0;
 }
 
+static int rsnd_adg_get_spdif_clks(struct rsnd_priv *priv)
+{
+	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	char name[16];
+	int i;
+
+	for (i = 0; i < ADG_SPDIF_MAX; i++) {
+		snprintf(name, sizeof(name), "adg-spdif-%d", i);
+		adg->clk_adg_spdif[i] = devm_clk_get_optional(dev, name);
+		if (IS_ERR(adg->clk_adg_spdif[i]))
+			return dev_err_probe(dev, PTR_ERR(adg->clk_adg_spdif[i]),
+					     "failed to get %s clock\n", name);
+	}
+
+	return 0;
+}
+
 int rsnd_adg_probe(struct rsnd_priv *priv)
 {
 	struct reset_control *rstc;
@@ -954,6 +1102,11 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 
 	/* RZ/G3E-specific: per-SSI ADG and SSIF supply clocks */
 	ret = rsnd_adg_get_ssi_clks(priv);
+	if (ret)
+		return ret;
+
+	/* RZ/G3E-specific: per-SPDIF ADG clocks */
+	ret = rsnd_adg_get_spdif_clks(priv);
 	if (ret)
 		return ret;
 
