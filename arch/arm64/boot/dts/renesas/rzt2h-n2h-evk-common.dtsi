@@ -743,8 +743,12 @@
 		reg = <0>;
 		m25p,fast-read;
 		spi-max-frequency = <50000000>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
+		/*
+		 * Configure for 1-bit mode to prevent the BootROM from failing
+		 * to load the first-stage bootloader following a watchdog reset.
+		 */
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
 
 		partitions {
 			compatible = "fixed-partitions";
