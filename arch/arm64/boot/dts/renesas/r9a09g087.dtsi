@@ -1594,7 +1594,6 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			renesas,sysc = <&sys0>;
-			num-lanes = <1>;
 			pcie,channel = <1>;
 			max-link-speed = <3>;
 			status = "disabled";
