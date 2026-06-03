@@ -171,11 +171,20 @@
 	status = "okay";
 
 	ports {
+#if (SW_LCD_EN)
+		port@0 {
+			dsi_in0: endpoint {
+				remote-endpoint = <&du0_out_dsi0>;
+			};
+		};
+#else
+
 		port@1 {
 			dsi_in1: endpoint {
 				remote-endpoint = <&du1_out_dsi0>;
 			};
 		};
+#endif
 
 		port@2 {
 			dsi_out: endpoint {
@@ -185,6 +194,20 @@
 		};
 	};
 };
+
+#if (SW_LCD_EN)
+&du0 {
+	status = "okay";
+
+	ports {
+		port@0 {
+			du0_out_dsi0: endpoint {
+				remote-endpoint = <&dsi_in0>;
+			};
+		};
+	};
+};
+#else
 
 &du1 {
 	status = "okay";
@@ -197,6 +220,7 @@
 		};
 	};
 };
+#endif
 #endif
 
 &gpu {
