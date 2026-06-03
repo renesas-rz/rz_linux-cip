@@ -113,6 +113,13 @@
 #define LED8	(!I2C0)
 #define LED9	(!I2C0)
 
+/*
+ * Set SEL_I2C1_MTU3 to below values to select using of:
+ * - 0: MTU3
+ * - 1: I2C1 (default)
+ */
+#define SEL_I2C1_MTU3		1
+
 / {
 	model = "Renesas RZ/N2H EVK Board based on r9a09g087m44";
 	compatible = "renesas,rzn2h-evk", "renesas,r9a09g087m44", "renesas,r9a09g087";
@@ -326,12 +333,14 @@
 };
 #endif
 
+#if SEL_I2C1_MTU3
 &i2c1 {
 	pinctrl-0 = <&i2c1_pins>;
 	pinctrl-names = "default";
 	clock-frequency = <400000>;
 	status = "okay";
 };
+#endif
 
 &mdio1_phy {
 	interrupts-extended = <&icu RZN2H_IRQ15 IRQ_TYPE_EDGE_FALLING>;
@@ -372,6 +381,15 @@
 	/delete-property/ pinctrl-0;
 	/delete-property/ pinctrl-names;
 	status = "disabled";
+};
+#endif
+
+#if (!SEL_I2C1_MTU3)
+&mtu3 {
+	pinctrl-0 = <&mtu3_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
 };
 #endif
 
@@ -471,10 +489,12 @@
 	 * SCL    | P03_3   | 1: ON, 2: OFF
 	 * SDA    | P03_4   | 3: ON, 4: OFF
 	 */
+#if SEL_I2C1_MTU3
 	i2c1_pins: i2c1-pins {
 		pinmux = <RZT2H_PORT_PINMUX(3, 3, 0x17)>,
 			 <RZT2H_PORT_PINMUX(3, 4, 0x17)>;
 	};
+#endif
 
 	/*
 	 * RSPI2 Pin Configuration:
@@ -508,4 +528,30 @@
 		pinmux = <RZT2H_PORT_PINMUX(1, 2, 0x09)>, /* GTIOC01_0A */
 			 <RZT2H_PORT_PINMUX(1, 3, 0x09)>; /* GTIOC01_0B */
 	};
+
+	/*
+	 * MTU3 Pin Configuration:
+	 *
+	 * DSW2[3] OFF - use pin P27_3 for MTIOC2A
+	 * DSW7[1] OFF; DSW7[2] ON - use pin P9_4 for MTIOC6B
+	 * DSW7[3] OFF; DSW7[4] ON - use pin P9_5 for MTIOC6D
+	 */
+#if (!SEL_I2C1_MTU3)
+	mtu3_pins: mtu3 {
+		mtu3-ext-clk-input-pin {
+			pinmux = <RZT2H_PORT_PINMUX(3, 3, 0x06)>, /* MTCLKA */
+				 <RZT2H_PORT_PINMUX(3, 4, 0x06)>; /* MTCLKB */
+		};
+
+		mtu3-pwm {
+			pinmux = <RZT2H_PORT_PINMUX(27, 3, 0x06)>, /* MTIOC2A */
+				 <RZT2H_PORT_PINMUX(9, 4, 0x06)>, /* MTIOC6B */
+				 <RZT2H_PORT_PINMUX(9, 5, 0x06)>; /* MTIOC6D */
+		};
+
+		mtu3-zphase-clk {
+			pinmux = <RZT2H_PORT_PINMUX(10, 4, 0x06)>; /* MTIOC1A */
+		};
+	};
+#endif
 };
