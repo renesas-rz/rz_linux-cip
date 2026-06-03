@@ -2199,9 +2199,11 @@ static int genphy_config_advert(struct phy_device *phydev,
 	u32 adv;
 
 	adv = linkmode_adv_to_mii_adv_t(advert);
+	adv |= ADVERTISE_CSMA;
 
 	/* Setup standard advertisement */
 	err = phy_modify_changed(phydev, MII_ADVERTISE,
+				 ADVERTISE_CSMA |
 				 ADVERTISE_ALL | ADVERTISE_100BASE4 |
 				 ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM,
 				 adv);
