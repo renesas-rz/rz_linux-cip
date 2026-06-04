@@ -1560,7 +1560,7 @@
 			device-id = <0x003a>;
 			resets = <&cpg 0xb2>;
 			pcie,channel = <0>;
-			renesas,pcie-sys = <&sys>;
+			renesas,sysc = <&sys>;
 			status = "disabled";
 		};
 
@@ -1581,7 +1581,7 @@
 			device-id = <0x003a>;
 			resets = <&cpg 0xb2>;
 			pcie,channel = <1>;
-			renesas,pcie-sys = <&sys>;
+			renesas,sysc = <&sys>;
 			status = "disabled";
 		};
 
