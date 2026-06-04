@@ -2074,6 +2074,8 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 			 */
 			ret = rzg3s_sysc_config_func(sysc, RZG3S_SYSC_FUNC_LANES_MODE,
 						     3, host->channel);
+		if (ret)
+			goto port_refclk_put;
 	}
 
 	/* Put controller in RC mode */
