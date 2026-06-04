@@ -557,16 +557,15 @@ static int rz_pcie_ep_assert_msi(struct rz_pcie_endpoint *ep,
 }
 
 static int rz_pcie_ep_raise_irq(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
-				  enum pci_epc_irq_type type,
-				  u16 interrupt_num)
+				unsigned int type, u16 interrupt_num)
 {
 	struct rz_pcie_endpoint *ep = epc_get_drvdata(epc);
 
 	switch (type) {
-	case PCI_EPC_IRQ_LEGACY:
+	case PCI_IRQ_INTX:
 		return rz_pcie_ep_assert_intx(ep, func_no);
 
-	case PCI_EPC_IRQ_MSI:
+	case PCI_IRQ_MSI:
 		return rz_pcie_ep_assert_msi(ep, func_no, interrupt_num);
 
 	default:
