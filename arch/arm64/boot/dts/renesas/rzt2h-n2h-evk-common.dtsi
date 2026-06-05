@@ -739,7 +739,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "macronix,mx25uw51245g","jedec,spi-nor";
+		compatible = "jedec,spi-nor";
 		reg = <0>;
 		m25p,fast-read;
 		spi-max-frequency = <50000000>;
