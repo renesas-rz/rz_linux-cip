@@ -33,7 +33,6 @@ struct rzg3l_plldsi_parameters {
 	u8 pr, mr;
 	u16 nir, nfr;
 	u8 rangesel;
-	bool is_dsi;
 };
 
 static const struct rzg3l_pll_div_limits rzg3l_cpg_pll_dsi_limits = {

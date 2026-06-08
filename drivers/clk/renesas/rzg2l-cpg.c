@@ -831,6 +831,7 @@ struct g3l_dsi_div_hw_data {
 	u8 div_b;
 	unsigned long rate;
 	struct rzg2l_cpg_priv *priv;
+	bool is_dsi;
 };
 
 #define to_g3l_dsi_div_hw_data(_hw)	container_of(_hw, struct g3l_dsi_div_hw_data, hw)
@@ -864,7 +865,7 @@ static int rzg3l_cpg_dsi_div_determine_rate(struct clk_hw *hw,
 	 * the supported range of 5.44 MHz to 187.5 MHz for MIPI-DSI and 5.44 MHz
 	 * to 87.5 MHz for DPI.
 	 */
-	if (dsi_dividers->is_dsi)
+	if (dsi_div->is_dsi)
 		req->rate = clamp(req->rate, 5440000UL, 187500000UL);
 	else
 		req->rate = clamp(req->rate, 5440000UL, 87000000UL);
@@ -884,8 +885,8 @@ static int rzg3l_cpg_dsi_div_determine_rate(struct clk_hw *hw,
 		for (div_b = 0; div_b < 15; div_b++) {
 			divider = (1 << div_a) * (div_b + 1);
 			rate_millihz = mul_u32_u32(req->rate * divider, MILLI);
-			if ((dsi_dividers->is_dsi && dsi_div_ab_desired == divider) ||
-			    (!dsi_dividers->is_dsi &&
+			if ((dsi_div->is_dsi && dsi_div_ab_desired == divider) ||
+			    (!dsi_div->is_dsi &&
 			     rzg3l_dsi_get_pll_parameters_values(priv->dsi_limits,
 								 dsi_dividers, rate_millihz))) {
 				dsi_div->div_a = div_a;
@@ -968,7 +969,7 @@ rzg3l_cpg_dsi_div_clk_register(const struct cpg_core_clk *core,
 	np =  of_find_compatible_node(NULL, NULL, "renesas,r9a08g046-mipi-dsi");
 	if (np) {
 		if (of_device_is_available(np))
-			priv->plldsi_div_parameters.is_dsi = true;
+			clk_hw_data->is_dsi = true;
 		of_node_put(np);
 	}
 
