@@ -14,7 +14,7 @@ description: |
   with PCIe Base Specification 4.0 and supports different link speeds
   depending on the SoC variant:
     - Gen2 (5 GT/s): RZ/G3S
-    - Gen3 (8 GT/s): RZ/G3E, RZ/V2H(P), RZ/V2N
+    - Gen3 (8 GT/s): RZ/G3E, RZ/V2H(P), RZ/V2N, RZ/T2H
 
 properties:
   compatible:
@@ -23,6 +23,7 @@ properties:
           - renesas,r9a08g045-pcie # RZ/G3S
           - renesas,r9a09g047-pcie # RZ/G3E
           - renesas,r9a09g057-pcie # RZ/V2H(P)
+          - renesas,r9a09g057-pcie # RZ/T2H
       - items:
           - const: renesas,r9a09g056-pcie # RZ/V2N
           - const: renesas,r9a09g047-pcie
@@ -123,8 +124,9 @@ properties:
 
   dma-ranges:
     description:
-      A single range for the inbound memory region.
-    maxItems: 1
+      Ranges for the inbound memory regions.
+    minItems: 1
+    maxItems: 2
 
   renesas,sysc:
     description: |
@@ -146,6 +148,23 @@ properties:
       - items:
           - description: Phandle to system controller
         minItems: 0
+
+  pcie,channel:
+    description: |
+      PCIe controller channel index for SoCs with multiple PCIe
+      channels sharing a common configuration space.
+    items:
+      -items:
+        - description: PCIe channel index
+          enum: [0, 1]
+
+  renesas,pcie-companion:
+    description: |
+      Phandle to the companion PCIe controller for multi-channel
+      lane sharing configuration. When two PCIe channels share
+      physical lanes, the primary channel references its companion
+      to coordinate lane allocation.
+    $ref: /schemas/types.yaml#/definitions/phandle
 
 patternProperties:
   "^pcie@0,[0-0]$":
@@ -262,7 +281,35 @@ allOf:
         renesas,sysc:
           items:
             - maxItems: 1
-
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,r9a09g077-pcie
+    then:
+      properties:
+        interrupts:
+          minItems: 18
+        interrupt-names:
+          minItems: 18
+        clock-names:
+          items:
+            - const: aclk
+        dma-ranges:
+          maxItems: 2
+        num-lanes:
+          enum: [1, 2]
+        renesas,sysc:
+          items:
+            - minItems: 1
+      required:
+        - pcie,channel
+        - num-lanes
+    else:
+      properties:
+        renesas,sysc:
+          items:
+            - maxItems: 1
 unevaluatedProperties: false
 
 examples:
