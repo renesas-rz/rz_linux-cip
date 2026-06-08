@@ -14,8 +14,12 @@
 #define DMA_CHAN_NUM	2
 #define DMA_IRQ_NUM	1
 
-#define DMA_REMOTE	0
-#define DMA_LOCAL	1
+enum rz_dma_pcie_test_mode {
+	LOCAL_WR_LOCAL_RD,
+	REMOTE_WR_REMOTE_RD,
+	REMOTE_WR_LOCAL_RD,
+	LOCAL_WR_REMOTE_RD,
+};
 
 #define RZ_BLOCK(a, b, c) \
 	{ \
@@ -44,21 +48,22 @@ struct rz_dma_pcie_data {
 };
 
 struct rz_dma_pcie_test {
-	struct pci_dev 		*pdev;
-	struct dma_chan 	*local_chan[DMA_CHAN_NUM];
-	struct dma_chan		*remote_chan[DMA_CHAN_NUM];
-	struct dma_chan		*current_chan;
-	struct completion	transfer_complete;
-	struct dentry		*debugfs;
-	struct rz_pcie		*pcie;
-	dma_cookie_t		transfer_cookie;
-	enum dma_status		transfer_status;
-	u32			dma_size;
-	u32			stress_count;
-	u8			local_ch_cnt;
-	u8			remote_ch_cnt;
-	u8			chan;
-	bool			mode;
+	struct pci_dev			*pdev;
+	struct dma_chan			*local_chan[DMA_CHAN_NUM];
+	struct dma_chan			*remote_chan[DMA_CHAN_NUM];
+	struct dma_chan			*current_chan;
+	struct completion		transfer_complete;
+	struct dentry			*debugfs;
+	struct rz_pcie			*pcie;
+	struct rz_dma_pcie_data		*pdata;
+	dma_cookie_t			transfer_cookie;
+	enum dma_status			transfer_status;
+	enum rz_dma_pcie_test_mode	mode;
+	u32				dma_size;
+	u32				stress_count;
+	u8				local_ch_cnt;
+	u8				remote_ch_cnt;
+	u8				chan;
 };
 
 static const struct rz_dma_pcie_data rzv2h_pcie_test_data = {
@@ -98,8 +103,8 @@ static bool rz_dma_pcie_filter_fn(struct dma_chan *chan, void *node)
 	memset(&caps, 0, sizeof(caps));
 	dma_get_slave_caps(chan, &caps);
 
-	return chan->device->dev == filter->dev
-	       && (filter->dma_mask & caps.directions);
+	return (chan->device->dev == filter->dev) &&
+	       (filter->dma_mask & caps.directions);
 }
 
 static int rz_dma_pcie_request_dma_chan(struct rz_dma_pcie_test *test)
@@ -240,24 +245,20 @@ terminate:
 	return ret;
 }
 
-static void rz_dma_pcie_print_test_log(struct rz_dma_pcie_test *test, u64 write_ns,
-					u64 read_ns)
+static const char *rz_dma_pcie_mode_to_str(enum rz_dma_pcie_test_mode mode)
 {
-	struct device *dev = &test->pdev->dev;
-	u64 write_rate = 0, read_rate = 0;
-
-	if (write_ns && read_ns) {
-		write_rate = div64_u64(test->dma_size * NSEC_PER_SEC, write_ns * 1000);
-		read_rate = div64_u64(test->dma_size * NSEC_PER_SEC, read_ns * 1000);
+	switch (mode) {
+	case LOCAL_WR_LOCAL_RD:
+		return "Mode 0: from RC to EP using DMA RC - from EP to RC using DMA RC";
+	case REMOTE_WR_REMOTE_RD:
+		return "Mode 1: from RC to EP using DMA EP - from EP to RC using DMA EP";
+	case REMOTE_WR_LOCAL_RD:
+		return "Mode 2: from RC to EP using DMA EP - from EP to RC using DMA RC";
+	case LOCAL_WR_REMOTE_RD:
+		return "Mode 3: from RC to EP using DMA RC - from EP to RC using DMA EP";
+	default:
+		return "Mode: Unknown";
 	}
-
-	dev_info(dev, "Mode: %s DMA WRITE\t Size: %u bytes\t Avg.rate: %llu KB/s\n",
-		 (test->mode == DMA_LOCAL) ? "LOCAL" : "REMOTE",
-		 test->dma_size, write_rate);
-
-	dev_info(dev, "Mode: %s DMA READ\t Size: %u bytes\t Avg.rate: %llu KB/s\n",
-		 (test->mode == DMA_LOCAL) ? "LOCAL" : "REMOTE",
-		 test->dma_size, read_rate);
 }
 
 static int rz_dma_pcie_start_test(struct seq_file *s, void *data)
@@ -270,25 +271,105 @@ static int rz_dma_pcie_start_test(struct seq_file *s, void *data)
 	void *write_buf;
 	void *read_buf;
 	phys_addr_t src_phys_addr, dst_phys_addr;
-	u64 ep_test_addr;
+	u64 ep_write_addr, ep_read_addr;
 	size_t size;
 	int index, ret = 0;
 	int pass_count = 0;
 	u64 write_ns, read_ns;
+	struct dma_chan *write_chan, *read_chan;
+	const char *mode_str;
 
 	index = test->chan;
 	size = test->dma_size;
 
-	if (test->mode == DMA_REMOTE) {
-		struct rzg3s_pcie_dma_region *dt_region;
+	/* Determine channels base on mode */
+	switch (test->mode) {
+	case REMOTE_WR_REMOTE_RD:
 		if (index > test->remote_ch_cnt - 1) {
 			pci_err(pdev, "remote channel %d not available\n", index);
 			ret = -EINVAL;
 			goto err;
 		}
 
-		test->current_chan = test->remote_chan[index];
-		dt_region = (struct rzg3s_pcie_dma_region *)test->current_chan->private;
+		write_chan = test->remote_chan[index];
+		read_chan = test->remote_chan[index];
+		break;
+
+	case LOCAL_WR_LOCAL_RD:
+		if (index > test->local_ch_cnt - 1) {
+			pci_err(pdev, "local channel %d not available\n", index);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		write_chan = test->local_chan[index];
+		read_chan = test->local_chan[index];
+		break;
+
+	case LOCAL_WR_REMOTE_RD:
+		if (index > test->local_ch_cnt - 1) {
+			pci_err(pdev, "local channel %d not available\n", index);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		if (index > test->remote_ch_cnt - 1) {
+			pci_err(pdev, "remote channel %d not available\n", index);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		write_chan = test->local_chan[index];
+		read_chan = test->remote_chan[index];
+		break;
+
+	case REMOTE_WR_LOCAL_RD:
+		if (index > test->remote_ch_cnt - 1) {
+			pci_err(pdev, "remote channel %d not available\n", index);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		if (index > test->local_ch_cnt - 1) {
+			pci_err(pdev, "local channel %d not available\n", index);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		write_chan = test->remote_chan[index];
+		read_chan = test->local_chan[index];
+		break;
+	default:
+		pci_err(pdev, "invalid mode %d\n", test->mode);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	/*
+	 * Get endpoint test address
+	 * Local DMAC use PCIe bus address
+	 * Remote DMAC use EP's physical address
+	 */
+	if (test->mode == LOCAL_WR_LOCAL_RD) {
+		struct rz_dma_pcie_data *pdata = test->pdata;
+		struct rz_dma_block *dt = &pdata->dt[index];
+
+		ep_write_addr = pci_resource_start(pdev, dt->bar) + dt->off;
+		ep_read_addr = ep_write_addr;
+
+		if (size > dt->sz) {
+			pci_err(pdev, "size too large\n");
+			ret = -EINVAL;
+			goto err;
+		}
+	} else {
+		struct rzg3s_pcie_dma_region *dt_region;
+
+		if (test->mode == REMOTE_WR_LOCAL_RD || test->mode == REMOTE_WR_REMOTE_RD)
+			dt_region = (struct rzg3s_pcie_dma_region *)write_chan->private;
+		else
+			dt_region = (struct rzg3s_pcie_dma_region *)read_chan->private;
+
 		if (!dt_region) {
 			pci_err(pdev, "missing data region\n");
 			ret = -ENOMEM;
@@ -300,18 +381,17 @@ static int rz_dma_pcie_start_test(struct seq_file *s, void *data)
 			ret = -EINVAL;
 			goto err;
 		}
-		/* For remote DMA, use reserved data region as test memory */
-		ep_test_addr = dt_region->paddr;
-	} else if (test->mode == DMA_LOCAL) {
-		if (index > test->local_ch_cnt - 1) {
-			pci_err(pdev, "local channel %d not available", index);
-			ret = -EINVAL;
-			goto err;
-		}
 
-		test->current_chan = test->local_chan[index];
-		/* For local DMA, use memory starting at offset 0x400 from BAR0 */
-		ep_test_addr = pci_resource_start(pdev, BAR_0) + SZ_1K;
+		if (test->mode == REMOTE_WR_REMOTE_RD) {
+			ep_write_addr = dt_region->paddr;
+			ep_read_addr = ep_write_addr;
+		} else if (test->mode == REMOTE_WR_LOCAL_RD) {
+			ep_write_addr = dt_region->paddr;
+			ep_read_addr = pci_resource_start(pdev, dt_region->bar) + dt_region->off;
+		} else {
+			ep_read_addr = dt_region->paddr;
+			ep_write_addr = pci_resource_start(pdev, dt_region->bar) + dt_region->off;
+		}
 	}
 
         write_buf = dma_alloc_coherent(dev, size, &src_phys_addr, GFP_KERNEL);
@@ -320,47 +400,107 @@ static int rz_dma_pcie_start_test(struct seq_file *s, void *data)
                 goto err;
         }
 
-        read_buf = dma_alloc_coherent(dev, size, &dst_phys_addr, GFP_KERNEL);
-        if (!read_buf) {
-                ret = -ENOMEM;
-                goto err;
-        }
+	read_buf = dma_alloc_coherent(dev, size, &dst_phys_addr, GFP_KERNEL);
+	if (!read_buf) {
+		ret = -ENOMEM;
+		goto err_free_writebuf;
+	}
 
-	get_random_bytes(write_buf, size);
+	mode_str = rz_dma_pcie_mode_to_str(test->mode);
+
+	seq_printf(s, "DMA transfer started for channels %d, size: %lu bytes, iter: %d\n"
+		      "%s\n"
+		      "RC to EP: src=0x%llx dest=0x%llx\n"
+		      "EP to RC: src=0x%llx dest=0x%llx\n"
+		      "\nResult:\n",
+		      index, size, test->stress_count, mode_str,
+		      src_phys_addr, ep_write_addr,
+		      ep_read_addr, dst_phys_addr);
 
 	for (int i = 0; i < test->stress_count; i++) {
+		get_random_bytes(write_buf, size);
+
 		/* Transfer data from rootcomplex to endpoint */
+		test->current_chan = write_chan;
 		ktime_get_ts64(&start);
-		if (rz_dma_pcie_dma_transfer(test, src_phys_addr, ep_test_addr, size, DMA_MEM_TO_DEV))
+		if (rz_dma_pcie_dma_transfer(test, src_phys_addr, ep_write_addr,
+					     size, DMA_MEM_TO_DEV))
 			continue;
 
 		ktime_get_ts64(&end);
 		write_ts = timespec64_sub(end, start);
 
 		/* Transfer data from endpoint to rootcomplex */
+		test->current_chan = read_chan;
 		ktime_get_ts64(&start);
-		if (rz_dma_pcie_dma_transfer(test, dst_phys_addr, ep_test_addr, size, DMA_DEV_TO_MEM))
+		if (rz_dma_pcie_dma_transfer(test, dst_phys_addr, ep_read_addr,
+					     size, DMA_DEV_TO_MEM))
 			continue;
 
 		ktime_get_ts64(&end);
 		read_ts = timespec64_sub(end, start);
 
 		if (memcmp(write_buf, read_buf, size) == 0) {
-			/* If success, print test log */
-			pass_count++;
+			u64 write_rate = 0, read_rate = 0;
+
 			write_ns = timespec64_to_ns(&write_ts);
 			read_ns = timespec64_to_ns(&read_ts);
-			rz_dma_pcie_print_test_log(test, write_ns, read_ns);
+
+			if (write_ns && read_ns) {
+				write_rate = div64_u64(size * NSEC_PER_SEC, write_ns * 1000);
+				read_rate = div64_u64(size * NSEC_PER_SEC, read_ns * 1000);
+			}
+
+			pass_count++;
+			seq_printf(s, "[Iter %d] Avg.rate: RC to EP %llu KB/s\tEP to RC %llu KB/s\n",
+				   i, write_rate, read_rate);
+		} else {
+			seq_printf(s, "[Iter %d] Failed\n", i);
 		}
 	}
 
-	dev_info(dev, "Pass: %u/%u\n", pass_count, test->stress_count);
+	seq_printf(s, "Pass: %u/%u\n", pass_count, test->stress_count);
 
-	dma_free_coherent(dev, size, write_buf, src_phys_addr);
 	dma_free_coherent(dev, size, read_buf, dst_phys_addr);
+err_free_writebuf:
+	dma_free_coherent(dev, size, write_buf, src_phys_addr);
 err:
 	return ret;
 }
+
+static void rz_dma_pcie_remove_debugfs(struct rz_dma_pcie_test *test)
+{
+	debugfs_remove_recursive(test->debugfs);
+}
+
+static int rz_dma_pcie_mode_get(void *data, u64 *val)
+{
+	struct rz_dma_pcie_test *test = (struct rz_dma_pcie_test *)data;
+	struct device *dev = &test->pdev->dev;
+
+	*val = test->mode;
+	dev_info(dev, "%s\n", rz_dma_pcie_mode_to_str(test->mode));
+	return 0;
+}
+
+static int rz_dma_pcie_mode_set(void *data, u64 val)
+{
+	struct rz_dma_pcie_test *test = (struct rz_dma_pcie_test *)data;
+	struct device *dev = &test->pdev->dev;
+
+	if (val > LOCAL_WR_REMOTE_RD) {
+		dev_err(dev, "Invalid DMA mode: %llu. Valid modes: 0-3\n", val);
+		return -EINVAL;
+	}
+
+	test->mode = (enum rz_dma_pcie_test_mode)val;
+	dev_info(dev, "Selected %s\n", rz_dma_pcie_mode_to_str(test->mode));
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(rz_dma_pcie_mode_fops, rz_dma_pcie_mode_get,
+			rz_dma_pcie_mode_set, "%llu\n");
 
 static void rz_dma_pcie_init_debugfs(struct rz_dma_pcie_test *test)
 {
@@ -375,18 +515,14 @@ static void rz_dma_pcie_init_debugfs(struct rz_dma_pcie_test *test)
 	test->chan = 0;
 
 	debugfs_create_u32("stress_count", 0644, test->debugfs, &test->stress_count);
-	test->stress_count = 10;
+	test->stress_count = 5;
 
 	debugfs_create_u32("dma_size", 0644, test->debugfs, &test->dma_size);
 	test->dma_size = SZ_1M;
 
-	debugfs_create_bool("dma_mode", 0644, test->debugfs, &test->mode);
-	test->mode = DMA_REMOTE;
-}
-
-static void rz_dma_pcie_remove_debugfs(struct rz_dma_pcie_test *test)
-{
-	debugfs_remove_recursive(test->debugfs);
+	debugfs_create_file("dma_mode", 0644, test->debugfs, test,
+			    &rz_dma_pcie_mode_fops);
+	test->mode = LOCAL_WR_LOCAL_RD;
 }
 
 static int rz_dma_pcie_irq_vector(struct device *dev, unsigned int nr)
@@ -412,6 +548,7 @@ static int rz_dma_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *p
 
 	test->pdev = pdev;
 	test->pcie = pcie;
+	test->pdata = pdata;
 	test->local_ch_cnt = 0;
 	test->remote_ch_cnt = 0;
 	init_completion(&test->transfer_complete);
@@ -448,7 +585,7 @@ static int rz_dma_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *p
 	nr_irqs = pci_alloc_irq_vectors(pdev, 1, pdata->irq, PCI_IRQ_MSI);
 	if (nr_irqs < 1) {
 		pci_err(pdev, "Fail to alloc IRQ vector (number of IRQs=%u)\n",
-								nr_irqs);
+			nr_irqs);
 		return -EPERM;
 	}
 
@@ -479,6 +616,8 @@ static int rz_dma_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *p
 		ll_region->vaddr += ll_block->off;
 		ll_region->off = ll_block->off;
 		ll_region->sz = ll_block->sz;
+		if (ll_region->off + ll_region->sz > pci_resource_len(pdev, ll_region->bar))
+			return -EINVAL;
 
 		/* Virtual address and size for data memory */
 		dt_region->bar = dt_block->bar;
@@ -489,6 +628,8 @@ static int rz_dma_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *p
 		dt_region->vaddr += dt_block->off;
 		dt_region->off = dt_block->off;
 		dt_region->sz = dt_block->sz;
+		if (dt_region->off + dt_region->sz > pci_resource_len(pdev, dt_region->bar))
+			return -EINVAL;
 	}
 
 	/* Validating if PCI interrupts were enabled */
@@ -521,15 +662,15 @@ static int rz_dma_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *p
 		pcie->base);
 
 	for (i = 0; i < pdata->ch_cnt; i++) {
-		pci_dbg(pdev, "Linked List region:\tchan%.2u, BAR=%u, off=0x%.8lx, sz=0x%zx bytes, addr(v=%px, p=0x%llx)\n",
+		pci_dbg(pdev, "Linked List region: chan%.2u\tBAR=%u\toff=0x%.8lx\tsz=0x%zx bytes\tep_addr=0x%llx)\n",
 			i, pdata->ll[i].bar,
 			pdata->ll[i].off, pcie->ll_region[i].sz,
-			pcie->ll_region[i].vaddr, pcie->ll_region[i].paddr);
+			pcie->ll_region[i].paddr);
 
-		pci_dbg(pdev, "Data region:\tchan%.2u, BAR=%u, off=0x%.8lx, sz=0x%zx bytes, addr(v=%px, p=0x%llx))\n",
+		pci_dbg(pdev, "Data region: chan%.2u\tBAR=%u\toff=0x%.8lx\tsz=0x%zx bytes\tep_addr=0x%llx))\n",
 			i, pdata->dt[i].bar,
 			pdata->dt[i].off, pcie->dt_region[i].sz,
-			pcie->dt_region[i].vaddr, pcie->dt_region[i].paddr);
+			pcie->dt_region[i].paddr);
 	}
 
 	return 0;
@@ -540,7 +681,6 @@ err_request_dma:
 
 static void rz_dma_pcie_remove(struct pci_dev *pdev)
 {
-
 	struct rz_dma_pcie_test *test = pci_get_drvdata(pdev);
 	struct rz_pcie *pcie = test->pcie;
 
