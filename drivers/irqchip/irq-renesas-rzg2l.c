@@ -812,7 +812,8 @@ static int rzg2l_irqc_alloc(struct irq_domain *domain, unsigned int virq,
 	if (hwirq == IRQC_NMI) {
 		chip = &rzg2l_irqc_nmi_chip;
 	} else if (priv->info.gpt_error_count &&
-		   hwirq >= priv->info.gpt_error_start) {
+		   hwirq >= priv->info.gpt_error_start &&
+		   hwirq < priv->info.num_irq) {
 		chip = &rzg3l_irqc_gpt_ovfunf_chip;
 	} else if (hwirq > priv->info.irq_count) {
 		tint = TINT_EXTRACT_GPIOINT(hwirq);
