@@ -68,10 +68,9 @@ static int gpio_dummy_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int gpio_dummy_remove(struct platform_device *pdev)
+static void gpio_dummy_remove(struct platform_device *pdev)
 {
 	gpiochip_remove(&gpio_dummy_chip);
-	return 0;
 }
 
 static const struct of_device_id gpio_dummy_of_match[] = {
