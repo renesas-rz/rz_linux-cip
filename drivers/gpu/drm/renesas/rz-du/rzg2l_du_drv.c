@@ -31,10 +31,10 @@ static const struct rzg2l_du_device_info rzg2l_du_r9a07g043u_info = {
 		[RZG2L_DU_OUTPUT_DPAD0] = {
 			.possible_outputs = BIT(0),
 			.port = 0,
-			.mode_clock_min = 20875,
-			.mode_clock_max = 83500,
 		},
 	},
+	.mode_clock_min = 20875,
+	.mode_clock_max = 83500,
 };
 
 static const struct rzg2l_du_device_info rzg2l_du_r9a07g044_info = {
@@ -47,10 +47,10 @@ static const struct rzg2l_du_device_info rzg2l_du_r9a07g044_info = {
 		[RZG2L_DU_OUTPUT_DPAD0] = {
 			.possible_outputs = BIT(0),
 			.port = 1,
-			.mode_clock_min = 20875,
-			.mode_clock_max = 83500,
 		}
-	}
+	},
+	.mode_clock_min = 20875,
+	.mode_clock_max = 83500,
 };
 
 static const struct rzg2l_du_device_info rzg2l_du_r9a09g047_du_info = {
@@ -75,6 +75,8 @@ static const struct rzg2l_du_device_info rzg2l_du_r9a09g047_du_info = {
 			.port = 3,
 		},
 	},
+	.mode_clock_min = 5440,
+	.mode_clock_max = 187500,
 };
 
 static const struct rzg2l_du_device_info rzg2l_du_r9a09g057_info = {
@@ -85,6 +87,8 @@ static const struct rzg2l_du_device_info rzg2l_du_r9a09g057_info = {
 			.port = 0,
 		},
 	},
+	.mode_clock_min = 5440,
+	.mode_clock_max = 187500,
 };
 
 static const struct rzg2l_du_device_info rzg2l_du_r9a09g077_info = {
@@ -93,11 +97,11 @@ static const struct rzg2l_du_device_info rzg2l_du_r9a09g077_info = {
 		[RZG2L_DU_OUTPUT_DPAD0] = {
 			.possible_outputs = BIT(0),
 			.port = 0,
-			.mode_clock_min = 5000,
-			.mode_clock_max = 100000,
 		},
 	},
 	.features = RZG2L_DU_FEATURE_DPIO_OE,
+	.mode_clock_min = 5000,
+	.mode_clock_max = 100000,
 };
 
 static const struct of_device_id rzg2l_du_of_table[] = {

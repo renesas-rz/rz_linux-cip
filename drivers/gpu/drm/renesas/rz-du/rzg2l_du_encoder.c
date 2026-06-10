@@ -52,11 +52,14 @@ rzg2l_du_encoder_mode_valid(struct drm_encoder *encoder,
 {
 	struct rzg2l_du_encoder *renc = to_rzg2l_encoder(encoder);
 	struct rzg2l_du_device *rcdu = to_rzg2l_du_device(renc->base.dev);
-	const struct rzg2l_du_output_routing *route = &rcdu->info->routes[renc->output];
+	const struct rzg2l_du_device_info *info = rcdu->info;
 
-	if (route->mode_clock_min && mode->clock < route->mode_clock_min)
+	if (renc->output != RZG2L_DU_OUTPUT_DPAD0)
+		return MODE_OK;
+
+	if (info->mode_clock_min && mode->clock < info->mode_clock_min)
 		return MODE_CLOCK_LOW;
-	if (route->mode_clock_max && mode->clock > route->mode_clock_max)
+	if (info->mode_clock_max && mode->clock > info->mode_clock_max)
 		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;
