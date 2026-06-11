@@ -62,6 +62,7 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
+#if SD1_MICRO_SD
 	vmmc_sdhi1: regulator-vcc-sdhi1 {
 		compatible = "regulator-fixed";
 		regulator-name = "SDHI1 Vmmc";
@@ -70,6 +71,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
+#endif
 
 #if SD0_SD
 	vqmmc_sdhi0: regulator-vqmmc-sdhi0 {
