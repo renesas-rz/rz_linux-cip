@@ -381,6 +381,12 @@
 	pinctrl-0 = <&gpt0_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+	renesas,poegs = <&poeg0gd 6>;
+};
+
+&poeg0gd {
+	status = "okay";
+	renesas,poeg-config = <1>;
 };
 
 &i2c0 {
