@@ -301,6 +301,30 @@
 		ngpios = <2>;
 	};
 
+#if (SEL_CAN0_HEADER == SPDIF_HEADER)
+	codec_test0: codec_test0 {
+		compatible = "linux,snd-soc-dummy";
+		#sound-dai-cells = <0>;
+		port {
+			dummy_codec0: endpoint {
+				remote-endpoint = <&spdif0_endpoint>;
+			};
+		};
+	};
+#endif
+
+#if (SEL_CAN1_HEADER == SPDIF_HEADER)
+	codec_test1: codec_test1 {
+		compatible = "linux,snd-soc-dummy";
+		#sound-dai-cells = <0>;
+		port {
+			dummy_codec1: endpoint {
+				remote-endpoint = <&spdif2_endpoint>;
+			};
+		};
+	};
+#endif
+
 	sound_card: sound {
 		compatible = "audio-graph-card";
 
@@ -310,6 +334,22 @@
 			&rsnd_port1	/* HDMI0  */
 			>;
 	};
+
+#if (SEL_CAN0_HEADER == SPDIF_HEADER)
+	spdif0_card: spdif0-sound {
+		compatible = "audio-graph-card";
+		label = "snd-spdif0";
+		dais = <&spdif0_port>;
+	};
+#endif
+
+#if (SEL_CAN1_HEADER == SPDIF_HEADER)
+	spdif2_card: spdif2-sound {
+		compatible = "audio-graph-card";
+		label = "snd-spdif2";
+		dais = <&spdif2_port>;
+	};
+#endif
 };
 
 &adc {
@@ -1156,6 +1196,20 @@
 	hdmi_int_pins: hdmi_int {
 		pinmux = <RZV2H_PORT_PINMUX(7, 1, 13)>; /* IRQ1-HDMI_INT# */
 	};
+
+#if (SEL_CAN0_HEADER == SPDIF_HEADER)
+	spdif0_pins: spdif0 {
+		pinmux = <RZV2H_PORT_PINMUX(8, 0, 8)>, /* SPDIF0_OUT */
+			 <RZV2H_PORT_PINMUX(8, 1, 8)>; /* SPDIF0_IN */
+	};
+#endif
+
+#if (SEL_CAN1_HEADER == SPDIF_HEADER)
+	spdif2_pins: spdif2 {
+		pinmux = <RZV2H_PORT_PINMUX(8, 2, 8)>, /* SPDIF2_OUT */
+			 <RZV2H_PORT_PINMUX(8, 3, 8)>; /* SPDIF2_IN */
+	};
+#endif
 };
 
 &qextal_clk {
@@ -1314,5 +1368,33 @@
 		status = "okay";
 	};
 #endif
+};
+#endif
+
+#if (SEL_CAN0_HEADER == SPDIF_HEADER)
+&spdif0 {
+	pinctrl-0 = <&spdif0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	spdif0_port: port@1 {
+		spdif0_endpoint: endpoint {
+			remote-endpoint = <&dummy_codec0>;
+		};
+	};
+};
+#endif
+
+#if (SEL_CAN1_HEADER == SPDIF_HEADER)
+&spdif2 {
+	pinctrl-0 = <&spdif2_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	spdif2_port: port@2 {
+		spdif2_endpoint: endpoint {
+			remote-endpoint = <&dummy_codec1>;
+		};
+	};
 };
 #endif
