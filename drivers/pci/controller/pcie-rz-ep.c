@@ -471,7 +471,7 @@ static int rz_pcie_ep_map_addr(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	status = readl_relaxed(pcie->base + RZG3S_PCI_PCSTAT2);
 	status = FIELD_GET(RZG3S_PCI_PCSTAT2_STATE_RX_DETECT, status);
 	if (status) {
-		dev_err(pcie->dev, "PCIe have Link up\n");
+		dev_dbg(pcie->dev, "PCIe have Link up\n");
 		/*- Detect Lane 0 or Lane 1 -*/
 	} else {
 		dev_err(pcie->dev, "PCIe x%d: Link not up\n", status);
