@@ -33,6 +33,11 @@ struct rz_pcie {
 	struct device		*dev;
 };
 
+struct rz_pcie_soc_data {
+	struct rzg3s_sysc_info sysc_info;
+	u8 max_channels;
+};
+
 struct rz_pcie_endpoint {
 	struct rz_pcie			pcie;
 	phys_addr_t			*ob_mapped_addr;
@@ -44,7 +49,8 @@ struct rz_pcie_endpoint {
 	u32				num_ob_windows;
 	int				channel;
 	struct reset_control		*rst;
-	struct regmap			*syscon;
+	const struct rz_pcie_soc_data	*data;
+	struct rzg3s_sysc		*sysc;
 	u32				vendor_id;
 	u32				device_id;
 };
@@ -119,9 +125,7 @@ static void rz_pcie_set_inbound_ep(struct rz_pcie *pcie, u64 cpu_addr,
 }
 
 
-/*-----------------------------------------------------
-  PCIe Setting Function
--------------------------------------------------------*/
+/* PCIe Setting Function */
 static void rz_pcie_setting_config_ep(struct rz_pcie *pcie, u8 func_no)
 {
 	rzg3s_pcie_update_bits(pcie->base, RZG3S_PCI_PCMSET1,
@@ -186,9 +190,13 @@ static int rz_pcie_hw_init_ep(struct rz_pcie *pcie, int channel)
 {
 	struct rz_pcie_endpoint *ep = container_of(pcie, struct rz_pcie_endpoint, pcie);
 	u32 mask = RZG3S_PCI_RESET_RST_LOAD_B | RZG3S_PCI_RESET_RST_CFG_B;
+	int ret;
 
-	/* SYS setting mode port */
-	regmap_write(ep->syscon, SYS_PCIE_MODE_CH(channel), MODE_PORT_SYS_EP);
+	/* Put controller in EP mode */
+	ret = rzg3s_sysc_config_func(ep->sysc, RZG3S_SYSC_FUNC_ID_MODE, 0,
+				     ep->channel);
+	if (ret)
+		return ret;
 
 	/* Set to the PCIe reset state */
 	writel_relaxed(0, pcie->base + RZG3S_PCI_RESET);
@@ -196,7 +204,11 @@ static int rz_pcie_hw_init_ep(struct rz_pcie *pcie, int channel)
 	/* De-assert LOAD_B, CFG_B */
 	rzg3s_pcie_update_bits(pcie->base, RZG3S_PCI_RESET, mask, mask);
 
-	regmap_write(ep->syscon, SYS_PCIE_LANE_MODE, LINK_MASTER_4_LANE_MODE);
+	/* Put controller in 4 lanes mode */
+	ret = rzg3s_sysc_config_func(ep->sysc, RZG3S_SYSC_FUNC_LANES_MODE, 1,
+				     ep->channel);
+	if (ret)
+		return ret;
 
 	/* Enable access control to the CFGU */
 	writel_relaxed(RZG3S_PCI_PERM_CFG_HWINIT_EN,
@@ -213,7 +225,10 @@ static int rz_pcie_hw_init_ep(struct rz_pcie *pcie, int channel)
 	writel_relaxed(0, pcie->base_cfg + RZG3S_PCI_PERM);
 
 	/* SYS setting allow_enter_l1  */
-	regmap_write(ep->syscon, SYS_PCIE_MISC_CH(channel), ALLOW_ENTER_L1);
+	ret = rzg3s_sysc_config_func(ep->sysc, RZG3S_SYSC_FUNC_ID_L1_ALLOW, 1,
+				     ep->channel);
+	if (ret)
+		return ret;
 
 	/* Set Interrupt settings */
 	PCIE_EP_IRQ_Initialize(pcie);
@@ -514,6 +529,7 @@ static int rz_pcie_ep_assert_intx(struct rz_pcie_endpoint *ep,
 {
 	struct rz_pcie *pcie = &ep->pcie;
 	u32 val;
+	int ret;
 
 	/* Check MSI enable bit */
 	val = rz_read_conf_ep(pcie, RZ_PCI_EP_CFG_MSICAP, func_no);
@@ -523,7 +539,12 @@ static int rz_pcie_ep_assert_intx(struct rz_pcie_endpoint *ep,
 	}
 
 	/* SYS assert INTX interrupt */
-	regmap_write(ep->syscon, SYS_PCIE_INTX_CH(ep->channel), 0x1);
+	ret = rzg3s_sysc_config_func(ep->sysc, RZG3S_SYSC_FUNC_ID_INTX, 1,
+				     ep->channel);
+	if (ret) {
+		dev_err(pcie->dev, "Cannot assert INTx interrupt\n");
+		return ret;
+	}
 
 	return 0;
 }
@@ -534,6 +555,7 @@ static int rz_pcie_ep_assert_msi(struct rz_pcie_endpoint *ep,
 	struct rz_pcie *pcie = &ep->pcie;
 	u16 msi_count;
 	u32 val;
+	int ret;
 
 	/* Check MSI enable bit */
 	val = rz_read_conf_ep(pcie, RZ_PCI_EP_CFG_MSICAP, func_no);
@@ -549,9 +571,21 @@ static int rz_pcie_ep_assert_msi(struct rz_pcie_endpoint *ep,
 	if (!interrupt_num || interrupt_num > msi_count)
 		return -EINVAL;
 
+	/* SYS deassert MSI interrupt */
+	ret = rzg3s_sysc_config_func(ep->sysc, RZG3S_SYSC_FUNC_ID_MSI1, 0,
+				  ep->channel);
+	if (ret) {
+		dev_err(pcie->dev, "Cannot deassert MSI interrupt\n");
+		return ret;
+	}
+
 	/* SYS assert MSI interrupt */
-	regmap_write(ep->syscon, SYS_PCIE_MSI1_CH(ep->channel), 0x0);
-	regmap_write(ep->syscon, SYS_PCIE_MSI1_CH(ep->channel), 0x1);
+	ret = rzg3s_sysc_config_func(ep->sysc, RZG3S_SYSC_FUNC_ID_MSI1, 1,
+				  ep->channel);
+	if (ret) {
+		dev_err(pcie->dev, "Cannot assert MSI interrupt\n");
+		return ret;
+	}
 
 	return 0;
 }
@@ -608,8 +642,41 @@ static const struct pci_epc_ops rz_pcie_epc_ops = {
 	.get_features	= rz_pcie_ep_get_features,
 };
 
+static const struct rz_pcie_soc_data rzv2h_soc_data = {
+	.max_channels = 2,
+	.sysc_info = {
+		.functions = {
+			[RZG3S_SYSC_FUNC_ID_INTX] = {
+				.offset = 0x1000,
+				.mask = BIT(0),
+			},
+			[RZG3S_SYSC_FUNC_ID_MSI1] = {
+				.offset = 0x1004,
+				.mask = BIT(0),
+			},
+			[RZG3S_SYSC_FUNC_ID_L1_ALLOW] = {
+				.offset = 0x1020,
+				.stride = 0x30,
+				.mask = BIT(0),
+			},
+			[RZG3S_SYSC_FUNC_ID_MODE] = {
+				.offset = 0x1024,
+				.stride = 0x30,
+				.mask = BIT(0),
+			},
+			[RZG3S_SYSC_FUNC_LANES_MODE] = {
+				.offset = 0x1060,
+				.mask = GENMASK(9, 8),
+			},
+		},
+	},
+};
+
 static const struct of_device_id rz_pcie_ep_of_match[] = {
-	{ .compatible = "renesas,rzv2h-pcie-ep", },
+	{
+		.compatible = "renesas,rzv2h-pcie-ep",
+		.data = &rzv2h_soc_data,
+	},
 	{}, /* sentinel */
 };
 
@@ -618,6 +685,9 @@ static int rz_pcie_ep_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rz_pcie_endpoint *ep;
 	struct device_node *np = dev->of_node;
+	struct device_node *sysc_np __free(device_node) =
+		of_parse_phandle(np, "renesas,sysc", 0);
+	struct rzg3s_sysc *sysc;
 	struct rz_pcie *pcie;
 	struct pci_epc *epc;
 	int err, channel;
@@ -630,6 +700,15 @@ static int rz_pcie_ep_probe(struct platform_device *pdev)
 
 	pcie = &ep->pcie;
 	pcie->dev = dev;
+	ep->data = device_get_match_data(dev);
+	platform_set_drvdata(pdev, ep);
+
+	ep->sysc = devm_kzalloc(dev, sizeof(*ep->sysc), GFP_KERNEL);
+	if (!ep->sysc)
+		return -ENOMEM;
+
+	sysc = ep->sysc;
+	sysc->info = &ep->data->sysc_info;
 
 	pm_runtime_enable(dev);
 	err = pm_runtime_resume_and_get(dev);
@@ -646,18 +725,26 @@ static int rz_pcie_ep_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	err = of_property_read_u32(dev->of_node, "pcie,channel", &channel);
-	if (err) {
-		dev_err(pcie->dev, "%pOF: No pcie,channel property found\n",
+	if (ep->data->max_channels > 1) {
+		err = of_property_read_u32(dev->of_node, "pcie,channel", &channel);
+		if (err) {
+			dev_err(pcie->dev, "%pOF: No pcie,channel property found\n",
 				dev->of_node);
-		return -EINVAL;
+			return -EINVAL;
+		}
+
+		ep->channel = channel;
+		if (ep->channel >= ep->data->max_channels) {
+			dev_err(pcie->dev, "%pOF: Invalid pcie,channel '%u'\n",
+				dev->of_node, ep->channel);
+			return -EINVAL;
+		}
 	}
 
-	ep->channel = channel;
-	if (ep->channel >= PCIE_MAX_CHANNEL) {
-		dev_err(pcie->dev, "%pOF: Invalid pcie,channel '%u'\n",
-				dev->of_node, ep->channel);
-		return -EINVAL;
+	sysc->regmap = syscon_node_to_regmap(sysc_np);
+	if (IS_ERR(sysc->regmap)) {
+		err = PTR_ERR(sysc->regmap);
+		goto err_pm_put;
 	}
 
 	err = rz_pcie_ep_get_pdata(ep, pdev);
@@ -665,11 +752,6 @@ static int rz_pcie_ep_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to request resources: %d\n", err);
 		goto err_pm_put;
 	}
-
-	ep->syscon = syscon_regmap_lookup_by_phandle(dev->of_node, "renesas,pcie-sys");
-	if (IS_ERR(ep->syscon))
-		return dev_err_probe(dev, PTR_ERR(ep->syscon),
-				"Failed to get pcie syscon");
 
 	ep->num_ib_windows = RZG3S_MAX_WINDOWS;
 	ep->ib_window_map =
@@ -714,10 +796,13 @@ static int rz_pcie_ep_probe(struct platform_device *pdev)
 
 	udelay(200);
 
-	rz_pcie_hw_init_ep(pcie, ep->channel);
+	err = rz_pcie_hw_init_ep(pcie, ep->channel);
+	if (err < 0) {
+		dev_err(dev, "failed to initialize endpoint\n");
+		goto err_pm_put;
+	}
 
 	err = pci_epc_multi_mem_init(epc, ep->ob_window, ep->num_ob_windows);
-
 	if (err < 0) {
 		dev_err(dev, "failed to initialize the epc memory space\n");
 		goto err_pm_put;
