@@ -22,13 +22,15 @@
 #include <linux/container_of.h>
 
 #include "../pci.h"
-#include "pcie-rzg3s-regs.h"
+#include "pcie-rzg3s.h"
+
+#define RZ_EPC_MAX_FUNCTIONS		2
 
 /* Structure representing the PCIe interface */
-
 struct rz_pcie {
-	struct device		*dev;
+	void __iomem		*base_cfg;
 	void __iomem		*base;
+	struct device		*dev;
 };
 
 struct rz_pcie_endpoint {
@@ -36,7 +38,7 @@ struct rz_pcie_endpoint {
 	phys_addr_t			*ob_mapped_addr;
 	struct pci_epc_mem_window	*ob_window;
 	u8				max_functions;
-	unsigned int			bar_to_atu[MAX_NR_INBOUND_MAPS_EP];
+	unsigned int			bar_to_atu[PCI_STD_NUM_BARS];
 	unsigned long			*ib_window_map;
 	u32				num_ib_windows;
 	u32				num_ob_windows;
@@ -48,34 +50,20 @@ struct rz_pcie_endpoint {
 };
 
 /* Static Function */
-
-void rz_pci_write_reg(struct rz_pcie *pcie, u32 val, unsigned long reg)
+static void rz_write_conf_ep(struct rz_pcie *pcie, u32 data, int where)
 {
-	writel(val, pcie->base + reg);
+	writel_relaxed(RZG3S_PCI_PERM_CFG_HWINIT_EN,
+		       pcie->base + RZG3S_PCI_PERM);
+	writel_relaxed(data, pcie->base_cfg + where);
+	writel_relaxed(0, pcie->base + RZG3S_PCI_PERM);
 }
 
-u32 rz_pci_read_reg(struct rz_pcie *pcie, unsigned long reg)
+static u32 rz_read_conf_ep(struct rz_pcie *pcie, int where, u8 fn)
 {
-	return readl(pcie->base + reg);
+	return readl_relaxed(pcie->base_cfg + where);
 }
 
-void rz_rmw(struct rz_pcie *pcie, int where, u32 mask, u32 data)
-{
-	u32 val = rz_pci_read_reg(pcie, where);
-
-	val &= ~(mask);
-	val |= (data);
-	rz_pci_write_reg(pcie, val, where);
-}
-
-void rz_write_conf_ep(struct rz_pcie *pcie, u32 data, int where)
-{
-	rz_pci_write_reg(pcie, RZG3S_PCI_PERM_CFG_HWINIT_EN, RZG3S_PCI_PERM);
-	rz_pci_write_reg(pcie, data, PCIE_CONFIGURATION_REG_EP(0) + where);
-	rz_pci_write_reg(pcie, 0, RZG3S_PCI_PERM);
-}
-
-void rz_pcie_set_outbound_ep(struct rz_pcie *pcie, int win,
+static void rz_pcie_set_outbound_ep(struct rz_pcie *pcie, int win,
 				phys_addr_t cpu_addr, u64 pci_addr, size_t size)
 {
 	u64 mask;
@@ -83,101 +71,113 @@ void rz_pcie_set_outbound_ep(struct rz_pcie *pcie, int win,
 	mask = roundup_pow_of_two(size) - 1;
 	cpu_addr = (cpu_addr - 0x30000000) | 0x30000000UL;
 	/* PW base */
-	rz_pci_write_reg(pcie, (u32)(cpu_addr >> 32), RZG3S_PCI_PWBASEU(win));
-	rz_rmw(pcie, RZG3S_PCI_PWBASEL(win), 0xFFFFF000, (u32)(cpu_addr & 0xFFFFF000));
+	writel_relaxed((u32)(cpu_addr >> 32),
+		       pcie->base + RZG3S_PCI_PWBASEU(win));
+	rzg3s_pcie_update_bits(pcie->base, RZG3S_PCI_PWBASEL(win), 0xFFFFF000,
+			       (u32)(cpu_addr & 0xFFFFF000));
 
 	/* PW mask */
-	rz_pci_write_reg(pcie, (u64)(mask >> 32), RZG3S_PCI_PWMASKU(win));
-	rz_pci_write_reg(pcie, (u64)(mask & 0xFFFFF000), RZG3S_PCI_PWMASKL(win));
+	writel_relaxed((u64)(mask >> 32),
+		       pcie->base + RZG3S_PCI_PWMASKU(win));
+	writel_relaxed((u64)(mask & 0xFFFFF000),
+		       pcie->base + RZG3S_PCI_PWMASKL(win));
 
 	/* PW dest */
-	rz_pci_write_reg(pcie, (u32)(pci_addr >> 32), RZG3S_PCI_PDESTU(win));
-	rz_pci_write_reg(pcie, (u32)(pci_addr & 0xFFFFFFFF), RZG3S_PCI_PDESTL(win));
+	writel_relaxed((u32)(pci_addr >> 32),
+		       pcie->base + RZG3S_PCI_PDESTU(win));
+	writel_relaxed((u32)(pci_addr & 0xFFFFFFFF),
+		       pcie->base + RZG3S_PCI_PDESTL(win));
 
-	rz_rmw(pcie, RZG3S_PCI_PWBASEL(win), RZG3S_PCI_PWBASEL_ENA, RZG3S_PCI_PWBASEL_ENA);
+	rzg3s_pcie_update_bits(pcie->base, RZG3S_PCI_PWBASEL(win),
+			       RZG3S_PCI_PWBASEL_ENA, RZG3S_PCI_PWBASEL_ENA);
 }
 
-void rz_pcie_set_inbound_ep(struct rz_pcie *pcie, u64 cpu_addr,
+static void rz_pcie_set_inbound_ep(struct rz_pcie *pcie, u64 cpu_addr,
 			   u64 pci_addr, u64 flags, int idx, u8 fn)
 {
 
 	/* AW base */
-	rz_pci_write_reg(pcie, lower_32_bits(pci_addr), RZG3S_PCI_AWBASEL(idx));
-	rz_pci_write_reg(pcie, upper_32_bits(pci_addr), RZG3S_PCI_AWBASEU(idx));
+	writel_relaxed(lower_32_bits(pci_addr),
+		       pcie->base + RZG3S_PCI_AWBASEL(idx));
+	writel_relaxed(upper_32_bits(pci_addr),
+		       pcie->base + RZG3S_PCI_AWBASEU(idx));
 
 	/* AW dest */
-	rz_pci_write_reg(pcie, lower_32_bits(cpu_addr), RZG3S_PCI_ADESTL(idx));
-	rz_pci_write_reg(pcie, upper_32_bits(cpu_addr), RZG3S_PCI_ADESTU(idx));
+	writel_relaxed(lower_32_bits(cpu_addr),
+		       pcie->base + RZG3S_PCI_ADESTL(idx));
+	writel_relaxed(upper_32_bits(cpu_addr),
+		       pcie->base + RZG3S_PCI_ADESTU(idx));
 
 	/* AW base */
-	rz_pci_write_reg(pcie, lower_32_bits(flags), RZG3S_PCI_AWMASKL(idx));
-	rz_pci_write_reg(pcie, upper_32_bits(flags), RZG3S_PCI_AWMASKU(idx));
-	rz_rmw(pcie, RZG3S_PCI_AWBASEL(idx), RZG3S_PCI_AWBASEL_WIN_ENA,
-						RZG3S_PCI_AWBASEL_WIN_ENA);
+	writel_relaxed(lower_32_bits(flags),
+		       pcie->base + RZG3S_PCI_AWMASKL(idx));
+	writel_relaxed(upper_32_bits(flags),
+		       pcie->base + RZG3S_PCI_AWMASKU(idx));
+	rzg3s_pcie_update_bits(pcie->base, RZG3S_PCI_AWBASEL(idx),
+			       RZG3S_PCI_AWBASEL_WIN_ENA,
+			       RZG3S_PCI_AWBASEL_WIN_ENA);
 }
 
-u32 rz_read_conf_ep(struct rz_pcie *pcie, int where, u8 fn)
-{
-	int shift = 8 * (where & 3);
-	u32 val = rz_pci_read_reg(pcie, PCIE_CONFIGURATION_REG_EP(fn) + (where & ~3));
-
-	return val >> shift;
-}
 
 /*-----------------------------------------------------
   PCIe Setting Function
 -------------------------------------------------------*/
 static void rz_pcie_setting_config_ep(struct rz_pcie *pcie, u8 func_no)
 {
-	rz_pci_write_reg(pcie, rz_pci_read_reg(pcie, PCIE_CORE_MODE_SET_1_REG) & ~MODE_PORT,
-			    PCIE_CORE_MODE_SET_1_REG);
-
-	rz_pci_write_reg(pcie, RZV2H_RESET_CONFIG_DEASSERT, RZV2H_PCI_RESET_REG);
+	rzg3s_pcie_update_bits(pcie->base, RZG3S_PCI_PCMSET1,
+			       RZG3S_PCI_PCMSET1_MODE_PORT, 0);
 
 	/* Clear BAR mask register */
-	for (int i = 0; i < MAX_NR_INBOUND_MAPS_EP; i++)
-		rz_write_conf_ep(pcie, 0, PCI_EP_BAR_MASK_ADR(i));
+	for (int i = 0; i < PCI_STD_NUM_BARS; i++)
+		writel_relaxed(0, pcie->base_cfg + RZ_PCI_EP_CFG_BARMSK(i));
 
 	/* Setting following hardware manual */
-	rz_write_conf_ep(pcie, PCIE_CFG_BASE_SIZE_0001_EP_F0, PCI_EP_BSIZE00_0001_ADR);
-	rz_write_conf_ep(pcie, PCIE_CFG_BASE_SIZE_0203_EP_F0, PCI_EP_BSIZE00_0203_ADR);
-	rz_write_conf_ep(pcie, PCIE_CFG_BASE_SIZE_0405_EP_F0, PCI_EP_BSIZE00_0405_ADR);
-	rz_write_conf_ep(pcie, PCIE_CFG_BASE_SIZE_0006_EP_F0, PCI_EP_BSIZE00_0006_ADR);
+	writel_relaxed(0, pcie->base_cfg + RZG3S_PCI_CFG_BSIZE00_01);
+	writel_relaxed(0, pcie->base_cfg + RZ_PCI_EP_CFG_BSIZE02_03);
+	writel_relaxed(0, pcie->base_cfg + RZ_PCI_EP_CFG_BSIZE04_05);
+	writel_relaxed(0, pcie->base_cfg + RZ_PCI_EP_CFG_BSIZE06);
 
-	rz_write_conf_ep(pcie, DEVICE_CONTROL_INIT, PCI_EP_DEVICE_CONTROL_ADDR);
+	writel_relaxed(PCI_EXP_DEVCTL_PAYLOAD_256B |
+		       PCI_EXP_DEVCTL_READRQ_512B |
+		       PCI_EXP_DEVCTL_RELAX_EN,
+		       pcie->base_cfg + RZG3S_PCI_CFG_DEVCS);
 }
 
 static int PCIE_EP_IRQ_Initialize(struct rz_pcie *pcie)
 {
 	/* Clear Event Interrupt Status 0 */
-	rz_pci_write_reg(pcie, INT_ST0_CLR, RZG3S_PCI_PEIS0);	/* Set 0204h */
+	writel_relaxed(RZG3S_PCI_PEIS0_DL_UPDOWN |
+		       RZG3S_PCI_PEIS0_RX_DLLP_PM_ENTER, pcie->base + RZG3S_PCI_PEIS0);
 
-	/* Set Event Interrupt Enable 0 */
-	rz_pci_write_reg(pcie, INT_EN0_SET, RZG3S_PCI_PEIE0);	/* Set 0200h */
+	/* Disable all interrupts */
+	writel_relaxed(0, pcie->base + RZG3S_PCI_PEIE0);
 
-	/* Clear  Event Interrupt Status 1 */
-	rz_pci_write_reg(pcie, INT_ST1_CLR, RZG3S_PCI_PEIS1);	/* Set 020ch */
+	/* Clear all parity and ecc error interrupts */
+	writel_relaxed(~0U, pcie->base + RZG3S_PCI_PEIS1);
 
-	/* Set Event Interrupt Enable 1 */
-	rz_pci_write_reg(pcie, INT_EN1_SET, RZG3S_PCI_PEIE1);	/* Set 0208h */
+	/* Disable all parity and ecc error interrupts */
+	writel_relaxed(0, pcie->base + RZG3S_PCI_PEIE1);
 
 	/* Clear AXI Master Error Interrupt Status */
-	rz_pci_write_reg(pcie, INT_ST_AXIM_CLR, RZG3S_PCI_AMEIS);	/* Set 0214h */
+	writel_relaxed(~0U, pcie->base + RZG3S_PCI_AMEIS);
 
 	/* Set AXI Master Error Interrupt Enable */
-	rz_pci_write_reg(pcie, INT_EN_AXIM_SET, RZG3S_PCI_AMEIE);	/* Set 0210h */
+	writel_relaxed(~0U, pcie->base + RZG3S_PCI_AMEIE);
 
 	/* Clear AXI Slave Error Interrupt Status */
-	rz_pci_write_reg(pcie, INT_ST_AXIS_CLR, RZG3S_PCI_ASEIS1);	/* Set 0224h */
+	writel_relaxed(~0U, pcie->base + RZG3S_PCI_ASEIS1);
 
 	/* Set AXI Slave Error Interrupt Enable */
-	rz_pci_write_reg(pcie, INT_EN_AXIS_SET, RZG3S_PCI_ASEIE1);	/* Set 0220h */
+	writel_relaxed(~0U, pcie->base + RZG3S_PCI_ASEIE1);
 
 	/* Clear Message Receive Interrupt Status */
-	rz_pci_write_reg(pcie, INT_MR_CLR, RZG3S_PCI_MSGRCVIS);	/* Set 0124h */
+	writel_relaxed(~0U, pcie->base + RZG3S_PCI_MSGRCVIS);
 
 	/* Set Message Receive Interrupt Enable */
-	rz_pci_write_reg(pcie, INT_MR_SET_EP, RZG3S_PCI_MSGRCVIE);	/* Set 0120h */
+	writel_relaxed(RZG3S_PCI_MSGRCVIE_PME_TURN_OFF_RCV |
+		       RZG3S_PCI_MSGRCVIE_PM_STATE_NAK_RCV |
+		       RZG3S_PCI_MSGRCVIE_MSG_RCV,
+		       pcie->base + RZG3S_PCI_MSGRCVIE);
 
 	return 0;
 }
@@ -185,40 +185,50 @@ static int PCIE_EP_IRQ_Initialize(struct rz_pcie *pcie)
 static int rz_pcie_hw_init_ep(struct rz_pcie *pcie, int channel)
 {
 	struct rz_pcie_endpoint *ep = container_of(pcie, struct rz_pcie_endpoint, pcie);
+	u32 mask = RZG3S_PCI_RESET_RST_LOAD_B | RZG3S_PCI_RESET_RST_CFG_B;
 
 	/* SYS setting mode port */
 	regmap_write(ep->syscon, SYS_PCIE_MODE_CH(channel), MODE_PORT_SYS_EP);
 
 	/* Set to the PCIe reset state */
-	rz_pci_write_reg(pcie, RZV2H_RESET_ALL_ASSERT, RZV2H_PCI_RESET_REG);
+	writel_relaxed(0, pcie->base + RZG3S_PCI_RESET);
 
-	/* Release the PCIe reset */
-	rz_pci_write_reg(pcie, RZV2H_RESET_LOAD_CFG_RELEASE, RZV2H_PCI_RESET_REG);
+	/* De-assert LOAD_B, CFG_B */
+	rzg3s_pcie_update_bits(pcie->base, RZG3S_PCI_RESET, mask, mask);
 
 	regmap_write(ep->syscon, SYS_PCIE_LANE_MODE, LINK_MASTER_4_LANE_MODE);
 
-	/* config Device ID for PCIE EP here */
-	rz_write_conf_ep(pcie, ep->device_id << 16 | ep->vendor_id, PCI_EP_VID_ADR);
+	/* Enable access control to the CFGU */
+	writel_relaxed(RZG3S_PCI_PERM_CFG_HWINIT_EN,
+		       pcie->base + RZG3S_PCI_PERM);
+
+	/* Update vendor ID and device ID */
+	writew_relaxed(ep->vendor_id, pcie->base_cfg + PCI_VENDOR_ID);
+	writew_relaxed(ep->device_id, pcie->base_cfg + PCI_DEVICE_ID);
 
 	/* set BAR */
 	rz_pcie_setting_config_ep(pcie, 0);
 
+	/* Disable access control to the CFGU */
+	writel_relaxed(0, pcie->base_cfg + RZG3S_PCI_PERM);
+
 	/* SYS setting allow_enter_l1  */
 	regmap_write(ep->syscon, SYS_PCIE_MISC_CH(channel), ALLOW_ENTER_L1);
 
-	/* Set Interrupt settings             : step14  */
+	/* Set Interrupt settings */
 	PCIE_EP_IRQ_Initialize(pcie);
 
-	/* Release the PCIe reset : step14 : RZV2H_RST_PS_B, RZV2H_RST_GP_B, RZV2H_RST_B */
-	rz_pci_write_reg(pcie, RZV2H_RESET_PS_GP_RELEASE, RZV2H_PCI_RESET_REG);	/* Set PCI_RC 310h */
+	/* De-assert PS_B, GP_B, RST_B  */
+	mask = RZG3S_PCI_RESET_RST_PS_B | RZG3S_PCI_RESET_RST_GP_B |
+	       RZG3S_PCI_RESET_RST_B;
+	rzg3s_pcie_update_bits(pcie->base, RZG3S_PCI_RESET, mask, mask);
 
-	/* Wait 500us over */
-	msleep(20);
+	/* Wait for 500us or more */
+	fsleep(500);
 
-	/* Release the PCIe reset : step17 : RZV2H_RST_OUT_B, RZV2H_RST_RSM_B) */
-	rz_pci_write_reg(pcie, RZV2H_RESET_ALL_ASSERT,  RZV2H_PCI_RESET_REG);	/* Set PCI_RC 310h */
-
-	rz_pci_write_reg(pcie, 0x3ff2,  MODE_SET_1_REG);		/* Set PCI_RC 318h */
+	/* De-assert OUT_B and RSM_B */
+	mask = RZG3S_PCI_RESET_RST_OUT_B | RZG3S_PCI_RESET_RST_RSM_B;
+	rzg3s_pcie_update_bits(pcie->base, RZG3S_PCI_RESET, mask, mask);
 
 	return 0;
 }
@@ -244,7 +254,7 @@ static int rz_pcie_parse_outbound_ranges(struct rz_pcie_endpoint *ep,
 	unsigned int i = 0;
 
 	ep->num_ob_windows = 0;
-	for (i = 0; i < RZV2H_PCI_MAX_RESOURCES_EP; i++) {
+	for (i = 0; i < RZ_PCI_EP_MAX_RESOURCES; i++) {
 		sprintf(outbound_name, "memory%u", i);
 		res = platform_get_resource_byname(pdev,
 						   IORESOURCE_MEM,
@@ -287,11 +297,11 @@ static int rz_pcie_ep_get_pdata(struct rz_pcie_endpoint *ep,
 		return err;
 
 	pcie->base = devm_ioremap_resource(dev, &res);
-
 	if (IS_ERR(pcie->base))
 		return PTR_ERR(pcie->base);
+	pcie->base_cfg = pcie->base + RZG3S_PCI_CFG_BASE;
 
-	ep->ob_window = devm_kcalloc(dev, RZV2H_PCI_MAX_RESOURCES_EP,
+	ep->ob_window = devm_kcalloc(dev, RZ_PCI_EP_MAX_RESOURCES,
 				     sizeof(*window), GFP_KERNEL);
 	if (!ep->ob_window)
 		return -ENOMEM;
@@ -300,14 +310,14 @@ static int rz_pcie_ep_get_pdata(struct rz_pcie_endpoint *ep,
 
 	err = of_property_read_u8(dev->of_node, "max-functions",
 				  &ep->max_functions);
-	if (err < 0 || ep->max_functions > RZV2H_EPC_MAX_FUNCTIONS)
-		ep->max_functions = RZV2H_EPC_MAX_FUNCTIONS;
+	if (err < 0 || ep->max_functions > RZ_EPC_MAX_FUNCTIONS)
+		ep->max_functions = RZ_EPC_MAX_FUNCTIONS;
 
 	return 0;
 }
 
 static int rz_pcie_ep_write_header(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
-				     struct pci_epf_header *hdr)
+				   struct pci_epf_header *hdr)
 {
 	struct rz_pcie_endpoint *ep = epc_get_drvdata(epc);
 	struct rz_pcie *pcie = &ep->pcie;
@@ -316,33 +326,33 @@ static int rz_pcie_ep_write_header(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	if (!func_no)
 		val = hdr->vendorid;
 	else
-		val = rz_read_conf_ep(pcie, PCI_EP_VID_ADR, func_no);
+		val = rz_read_conf_ep(pcie, RZG3S_PCI_CFG_VID, func_no);
 
 	val |= hdr->deviceid << 16;
-	rz_write_conf_ep(pcie, val, PCI_EP_VID_ADR);
+	rz_write_conf_ep(pcie, val, RZG3S_PCI_CFG_VID);
 
 	val = hdr->revid;
 	val |= hdr->progif_code << 8;
 	val |= hdr->subclass_code << 16;
 	val |= hdr->baseclass_code << 24;
-	rz_write_conf_ep(pcie, val, PCI_EP_RID_CC_ADR);
+	rz_write_conf_ep(pcie, val, PCI_CLASS_REVISION);
 
 	if (!func_no)
 		val = hdr->subsys_vendor_id;
 	else
-		val = rz_read_conf_ep(pcie, PCI_EP_SUBSYS_ID_ADR, func_no);
+		val = rz_read_conf_ep(pcie, PCI_SUBSYSTEM_VENDOR_ID, func_no);
 	val |= hdr->subsys_id << 16;
-	rz_write_conf_ep(pcie, val, PCI_EP_SUBSYS_ID_ADR);
+	rz_write_conf_ep(pcie, val, PCI_SUBSYSTEM_VENDOR_ID);
 
 	if (hdr->interrupt_pin > PCI_INTERRUPT_INTA)
 		return -EINVAL;
 
-	val = rz_read_conf_ep(pcie, PCI_EP_INTERRUPT_ADR, func_no);
+	val = rz_read_conf_ep(pcie, RZ_PCI_EP_CFG_INT, func_no);
 	val |= (hdr->interrupt_pin << 8);
-	rz_write_conf_ep(pcie, val, PCI_EP_INTERRUPT_ADR);
+	rz_write_conf_ep(pcie, val, RZ_PCI_EP_CFG_INT);
 
-	rz_write_conf_ep(pcie, PCI_EP_BUS_MASTER_ENABLE | PCI_EP_MEMORY_SPACE_ENABLE,
-							PCI_EP_COMMAND_AND_STATUS);
+	rz_write_conf_ep(pcie, PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY,
+			 PCI_COMMAND);
 
 	return 0;
 }
@@ -350,7 +360,7 @@ static int rz_pcie_ep_write_header(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 static int rz_pcie_ep_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 				struct pci_epf_bar *epf_bar)
 {
-	int flags = epf_bar->flags | LAR_ENABLE | LAM_64BIT;
+	int flags = epf_bar->flags;
 	struct rz_pcie_endpoint *ep = epc_get_drvdata(epc);
 	u64 size = 1ULL << fls64(epf_bar->size - 1);
 	dma_addr_t cpu_addr = epf_bar->phys_addr;
@@ -381,7 +391,7 @@ static int rz_pcie_ep_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	mask = roundup_pow_of_two(size) - 1;
 
 	/* setup BAR */
-	rz_write_conf_ep(pcie, mask, PCI_EP_BAR_MASK_ADR(idx));
+	rz_write_conf_ep(pcie, mask, RZ_PCI_EP_CFG_BARMSK(idx));
 
 	mask &= ~0xf;
 	rz_pcie_set_inbound_ep(pcie, cpu_addr,
@@ -410,9 +420,10 @@ static int rz_pcie_ep_set_msi(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	struct rz_pcie *pcie = &ep->pcie;
 	u32 flags;
 
-	flags = rz_read_conf_ep(pcie, PCI_EP_MSICAP(0), func_no);
-	flags |= interrupts << MSICAP0_MMESCAP_OFFSET;
-	rz_write_conf_ep(pcie, flags, PCI_EP_MSICAP(0));
+	flags = rz_read_conf_ep(pcie, RZ_PCI_EP_CFG_MSICAP, func_no);
+	flags &= ~RZ_PCI_EP_CFG_MSICAP_MMESCAP;
+	flags |= FIELD_PREP(RZ_PCI_EP_CFG_MSICAP_MMESCAP, interrupts);
+	rz_write_conf_ep(pcie, flags, RZ_PCI_EP_CFG_MSICAP);
 
 	return 0;
 }
@@ -423,12 +434,12 @@ static int rz_pcie_ep_get_msi(struct pci_epc *epc, u8 func_no, u8 vfunc_no)
 	struct rz_pcie *pcie = &ep->pcie;
 	u32 flags;
 
-	flags = rz_read_conf_ep(pcie, PCI_EP_MSICAP(0), func_no);
+	flags = rz_read_conf_ep(pcie, RZ_PCI_EP_CFG_MSICAP, func_no);
 
-	if (!(flags & MSICAP0_MSIE))
+	if (!(flags & RZ_PCI_EP_CFG_MSICAP_MSIE))
 		return -EINVAL;
 
-	return ((flags & MSICAP0_MMESE_MASK) >> MSICAP0_MMESE_OFFSET);
+	return FIELD_GET(RZ_PCI_EP_CFG_MSICAP_MMESE, flags);
 }
 
 static int rz_pcie_ep_map_addr(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
@@ -442,7 +453,8 @@ static int rz_pcie_ep_map_addr(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	u32 status;
 
 	/* check if we have a link. */
-	status = (rz_pci_read_reg(pcie, RZG3S_PCI_PCSTAT2) >> 8) & 0x3;
+	status = readl_relaxed(pcie->base + RZG3S_PCI_PCSTAT2);
+	status = FIELD_GET(RZG3S_PCI_PCSTAT2_STATE_RX_DETECT, status);
 	if (status) {
 		dev_err(pcie->dev, "PCIe have Link up\n");
 		/*- Detect Lane 0 or Lane 1 -*/
@@ -504,8 +516,8 @@ static int rz_pcie_ep_assert_intx(struct rz_pcie_endpoint *ep,
 	u32 val;
 
 	/* Check MSI enable bit */
-	val = rz_read_conf_ep(pcie, PCI_EP_MSICAP(0), func_no);
-	if ((val & MSICAP0_MSIE)) {
+	val = rz_read_conf_ep(pcie, RZ_PCI_EP_CFG_MSICAP, func_no);
+	if ((val & RZ_PCI_EP_CFG_MSICAP_MSIE)) {
 		dev_err(pcie->dev, "MSI is enabled, cannot assert INTx\n");
 		return -EINVAL;
 	}
@@ -524,14 +536,14 @@ static int rz_pcie_ep_assert_msi(struct rz_pcie_endpoint *ep,
 	u32 val;
 
 	/* Check MSI enable bit */
-	val = rz_read_conf_ep(pcie, PCI_EP_MSICAP(0), func_no);
-	if (!(val & MSICAP0_MSIE)) {
+	val = rz_read_conf_ep(pcie, RZ_PCI_EP_CFG_MSICAP, func_no);
+	if (!(val & RZ_PCI_EP_CFG_MSICAP_MSIE)) {
 		dev_err(pcie->dev, "MSI is not enabled, cannot assert MSI\n");
 		return -EINVAL;
 	}
 
 	/* Get MSI numbers from MME */
-	msi_count = ((val & MSICAP0_MMESE_MASK) >> MSICAP0_MMESE_OFFSET);
+	msi_count = FIELD_GET(RZ_PCI_EP_CFG_MSICAP_MMESE, val);
 	msi_count = 1 << msi_count;
 
 	if (!interrupt_num || interrupt_num > msi_count)
@@ -656,7 +668,7 @@ static int rz_pcie_ep_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(ep->syscon),
 				"Failed to get pcie syscon");
 
-	ep->num_ib_windows = MAX_NR_INBOUND_MAPS_EP;
+	ep->num_ib_windows = RZG3S_MAX_WINDOWS;
 	ep->ib_window_map =
 			devm_kcalloc(dev, BITS_TO_LONGS(ep->num_ib_windows),
 				     sizeof(long), GFP_KERNEL);
