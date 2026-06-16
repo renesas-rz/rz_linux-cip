@@ -251,7 +251,7 @@ static int rzg2l_poeg_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "cannot get irq\n");
 
-	chip->rstc = devm_reset_control_get_exclusive_deasserted(dev, NULL);
+	chip->rstc = devm_reset_control_get_optional_exclusive_deasserted(dev, NULL);
 	if (IS_ERR(chip->rstc))
 		return dev_err_probe(dev, PTR_ERR(chip->rstc), "get deasserted reset failed\n");
 
