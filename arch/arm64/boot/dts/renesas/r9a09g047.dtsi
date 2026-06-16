@@ -650,6 +650,95 @@
 			};
 		};
 
+		pdm0: pdm@11040000 {
+			compatible = "renesas,r9a09g047-pdm",
+				     "renesas,rz-pdm";
+			reg = <0 0x11040000 0 0x400>;
+			interrupts = <GIC_SPI 236 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 237 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 234 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 235 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "int_pdm_err0", "int_pdm_err1", "int_pdm_err2",
+					  "int_pdm_dat0", "int_pdm_dat1", "int_pdm_dat2",
+					  "int_pdm_sdet";
+			clocks = <&cpg CPG_MOD 257>,
+				 <&cpg CPG_MOD 258>,
+				 <&cpg CPG_MOD 259>;
+			clock-names = "pdm_pclk", "pdm_pclk_sfr", "pdm_cclk";
+			resets = <&cpg 242>,
+				 <&cpg 243>;
+			reset-names = "pclk", "cclk";
+			dmas = <&dmac0 0x2CC2>, <&dmac0 0x2CC3>, <&dmac0 0x2CC4>,
+			       <&dmac1 0x2CC2>, <&dmac1 0x2CC3>, <&dmac1 0x2CC4>,
+			       <&dmac2 0x2CC2>, <&dmac2 0x2CC3>, <&dmac2 0x2CC4>,
+			       <&dmac3 0x2CC2>, <&dmac3 0x2CC3>, <&dmac3 0x2CC4>,
+			       <&dmac4 0x2CC2>, <&dmac4 0x2CC3>, <&dmac4 0x2CC4>;
+			dma-names = "rx0", "rx1", "rx2", "rx0", "rx1", "rx2",
+				    "rx0", "rx1", "rx2", "rx0", "rx1", "rx2",
+				    "rx0", "rx1", "rx2";
+			power-domains = <&cpg>;
+			#sound-dai-cells = <0>;
+			status = "disabled";
+
+			channel0 {
+				status = "disabled";
+			};
+			channel1 {
+				status = "disabled";
+			};
+			channel2 {
+				status = "disabled";
+			};
+
+		};
+
+		pdm1: pdm@11050000 {
+			compatible = "renesas,r9a09g047-pdm",
+				     "renesas,rz-pdm";
+			reg = <0 0x11050000 0 0x400>;
+			interrupts = <GIC_SPI 243 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 244 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 242 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "int_pdm_err0", "int_pdm_err1", "int_pdm_err2",
+					  "int_pdm_dat0", "int_pdm_dat1", "int_pdm_dat2",
+					  "int_pdm_sdet";
+			clocks = <&cpg CPG_MOD 260>,
+				 <&cpg CPG_MOD 261>,
+				 <&cpg CPG_MOD 262>;
+			clock-names = "pdm_pclk", "pdm_pclk_sfr", "pdm_cclk";
+			resets = <&cpg 244>,
+				 <&cpg 245>;
+			reset-names = "pclk", "cclk";
+			dmas = <&dmac0 0x2CC5>, <&dmac0 0x2CC6>, <&dmac0 0x2CC7>,
+			       <&dmac1 0x2CC5>, <&dmac1 0x2CC6>, <&dmac1 0x2CC7>,
+			       <&dmac2 0x2CC5>, <&dmac2 0x2CC6>, <&dmac2 0x2CC7>,
+			       <&dmac3 0x2CC5>, <&dmac3 0x2CC6>, <&dmac3 0x2CC7>,
+			       <&dmac4 0x2CC5>, <&dmac4 0x2CC6>, <&dmac4 0x2CC7>;
+			dma-names = "rx0", "rx1", "rx2", "rx0", "rx1", "rx2",
+				    "rx0", "rx1", "rx2", "rx0", "rx1", "rx2",
+				    "rx0", "rx1", "rx2";
+			power-domains = <&cpg>;
+			#sound-dai-cells = <0>;
+			status = "disabled";
+
+			channel0 {
+				status = "disabled";
+			};
+			channel1 {
+				status = "disabled";
+			};
+			channel2 {
+				status = "disabled";
+			};
+		};
+
 		snd_rzg3e: sound@13c00000 {
 			compatible = "renesas,r9a09g047-sound";
 			reg = <0 0x13c00000 0 0x10000>, /* SCU */
