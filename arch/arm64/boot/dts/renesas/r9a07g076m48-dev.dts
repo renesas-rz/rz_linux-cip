@@ -12,13 +12,6 @@
 #include <dt-bindings/net/rzt2-ethss.h>
 
 /*
- * Set SEL_ETHSW_ESWM to below values to select using of:
- * - 0: ETHSW (default)
- * - 1: ESWM
- */
-#define SEL_ETHSW_ESWM		0
-
-/*
  * Set the marco SEL_SPI_XSPI1 to the values below to select the usage of:
  * SEL_SPI_XSPI1 = 0: XSPI1
  * SEL_SPI_XSPI1 = 1: SPI0 (Default)
@@ -26,11 +19,13 @@
 #define SEL_SPI_XSPI1		1
 
 /*
- * Set the marco SEL_ETH34_ESWM_MTU3 to the values below to select the usage of:
- * SEL_ETH34_ESWM_MTU3 = 0 : ETH34, ESWM (Default)
- * SEL_ETH34_ESWM_MTU3 = 1 : MTU3
+ * Set the marco SEL_ETH34_MTU3 to the values below to select the usage of:
+ * SEL_ETH34_MTU3 = 0 : ETH34 (Default)
+ * SEL_ETH34_MTU3 = 1 : MTU3
+ * To enable MTU3, must set SEL_SW_MODE_0111 to 1 and enable
+ * the below macro:
  */
-#define SEL_ETH34_ESWM_MTU3	0
+#define SEL_ETH34_MTU3		0
 
 /*
  * Set SEL_PCIE_RC_EP to below values to select using of:
@@ -75,24 +70,32 @@
  */
 #define SEL_POEG_POE3		0
 
-/*
- * Set the marco SEL_HPSW to 1 to select the usage of HPSW:
- */
-#define SEL_HPSW		0
+// ETHSS SW_MODE[3:0] from HW manual
+//----------------------------------------------------------------------------------------------
+// SW_MODE[3:0]	 | Port 0	| Port 1	| Port 2	| Port 3	| Port 4	|
+// 0000(Default) | ETHSW Port 0	| ETHSW Port 1	| ETHSW Port 2	| GMAC1		| GMAC2		|
+// 0001		 | ESC Port 0	| ESC Port 1	| ESC Port 2	| GMAC1		| GMAC2		|
+// 0010		 | HPSW Port A	| HPSW Port B	| -		| GMAC1		| GMAC2		|
+// 0011		 | ESWM Port 0	| ESWM Port 1	| GMAC0		| GMAC1		| GMAC2		|
+// 0100		 | ETHSW Port 0	| ETHSW Port 1	| GMAC2		| HPSW Port A	| HPSW Port B	|
+// 0101		 | ETHSW Port 0	| ETHSW Port 1	| GMAC2		| ESWM Port 0	| ESWM Port 1	|
+// 0110		 | ESC Port 0	| ESC Port 1	| GMAC2		| ESWM Port 0	| ESWM Port 1	|
+// 0111		 | GMAC0	| GMAC1		| GMAC2		| -		| -		|
+// 1000		 | ETHSW Port 0	| ESC Port 1	| ETHSW Port 2	| GMAC1		| GMAC2		|
+// 1001		 | -		| ESC Port 1	| ESC Port 2	| GMAC1		| GMAC2		|
+//----------------------------------------------------------------------------------------------
 
-/*
- * Set the marco SEL_HPSW_MODE to the values below to select the usage of:
- * - 0: ETHSS mode 0x2 (default)
- * - 1: ETHSS mode 0x4
- */
-#define SEL_HPSW_MODE		0
-
-/*
- * Set the macro SEL_SW_MODE to the values below to select the usage of:
- * - 0: ETHSS mode 0x0 (default)
- * - 1: ETHSS mode 0x2
- */
-#define SEL_SW_MODE		0
+// ONLY set one SEL_SW_MODE_xxxx = 1
+#define SEL_SW_MODE_0000	1	// No.0
+#define SEL_SW_MODE_0001	0	// No.1
+#define SEL_SW_MODE_0010	0	// No.2
+#define SEL_SW_MODE_0011	0	// No.3
+#define SEL_SW_MODE_0100	0	// No.4
+#define SEL_SW_MODE_0101	0	// No.5
+#define SEL_SW_MODE_0110	0	// No.6
+#define SEL_SW_MODE_0111	0	// No.7
+#define SEL_SW_MODE_1000	0	// No.8
+#define SEL_SW_MODE_1001	0	// No.9
 
 / {
 	model = "Renesas Development EVK based on r9a07g076m48";
@@ -317,15 +320,17 @@
 		};
 	};
 
-#if (SEL_HPSW)
+#if (SEL_SW_MODE_0010 || SEL_SW_MODE_0111)
 	mdio0_pins: gmac_mdio0 {
-#if (!SEL_HPSW_MODE)
 		pinmux = <RZT2_PORT_PINMUX(20, 4, 0x11)>, /* GMAC : GMAC0_MDC/P20_4 */
 			 <RZT2_PORT_PINMUX(20, 5, 0x11)>; /* GMAC : GMAC0_MDIO/P20_5 */
-#else
+	};
+#endif
+
+#if (SEL_SW_MODE_0100)
+	mdio0_pins: gmac_mdio0 {
 		pinmux = <RZT2_PORT_PINMUX(3, 2, 0x11)>, /* GMAC : GMAC0_MDC/P03_2 */
 			 <RZT2_PORT_PINMUX(3, 3, 0x11)>; /* GMAC : GMAC0_MDIO/P03_3 */
-#endif
 	};
 #endif
 
@@ -334,8 +339,14 @@
 			 <RZT2_PORT_PINMUX(3, 3, 0x12)>; /* GMAC : GMAC1_MDIO/P3_3 */
 	};
 
-#if (!SEL_SW_MODE)
-#if (!SEL_ETHSW_ESWM)
+#if (SEL_SW_MODE_0110)
+	mdio2_pins: gmac_mdio2 {
+		pinmux = <RZT2_PORT_PINMUX(20, 4, 0x13)>, /* GMAC : GMAC2_MDC/P20_4 */
+			 <RZT2_PORT_PINMUX(20, 5, 0x13)>; /* GMAC : GMAC2_MDIO/P20_5 */
+	};
+#endif
+
+#if (SEL_SW_MODE_0000 || SEL_SW_MODE_0100 || SEL_SW_MODE_0101 || SEL_SW_MODE_1000)
 	ethsw_pins: ethsw_pins {
 		pinmux = <RZT2_PORT_PINMUX(20, 4, 0x14)>, /* ETHSW : ETHSW_MDC/P20_4 */
 			 <RZT2_PORT_PINMUX(20, 5, 0x14)>, /* ETHSW : ETHSW_MDIO/P20_5 */
@@ -344,11 +355,8 @@
 			 <RZT2_PORT_PINMUX(25, 0, 0x14)>; /* ETHSW : ETHSW_PHYLINK2/P25_0 */
 	};
 #endif
-#endif
 
-#if (!SEL_SW_MODE)
-#if (SEL_ETHSW_ESWM)
-#if (!SEL_ETH34_ESWM_MTU3)
+#if (SEL_SW_MODE_0011)
 	eswm_pins: eswm_pins {
 		pinmux = <RZT2_PORT_PINMUX(9, 3, 0x2F)>, /* ESWM : ESWM_MPINT0/P09_3 */
 			 <RZT2_PORT_PINMUX(9, 4, 0x2F)>, /* ESWM : ESWM_MPINT1/P09_4 */
@@ -358,7 +366,16 @@
 			 <RZT2_PORT_PINMUX(20, 5, 0x2F)>; /* ESWM : ESWM_MDIO/P20_5 */
 	};
 #endif
-#endif
+
+#if (SEL_SW_MODE_0101 || SEL_SW_MODE_0110)
+	eswm_pins: eswm_pins {
+		pinmux = <RZT2_PORT_PINMUX(9, 3, 0x2F)>, /* ESWM : ESWM_MPINT0/P09_3 */
+			 <RZT2_PORT_PINMUX(9, 4, 0x2F)>, /* ESWM : ESWM_MPINT1/P09_4 */
+			 <RZT2_PORT_PINMUX(1, 5, 0x2F)>, /* ESWM : ESWM_PHYLINK3/P01_5 */
+			 <RZT2_PORT_PINMUX(3, 5, 0x2F)>, /* ESWM : ESWM_PHYLINK4/P03_5 */
+			 <RZT2_PORT_PINMUX(3, 2, 0x2F)>, /* ESWM : ESWM_MDC/P03_2 */
+			 <RZT2_PORT_PINMUX(3, 3, 0x2F)>; /* ESWM : ESWM_MDIO/P03_3 */
+	};
 #endif
 
 	pins_refclk: pins_refclk {
@@ -423,7 +440,7 @@
 			drive-strength	= <3>;
 	};
 
-#if (!SEL_ETH34_ESWM_MTU3)
+#if (!SEL_ETH34_MTU3 || !SEL_SW_MODE_0111)
 	eth3_pins: ethss_3 {
 		pinmux = <RZT2_PORT_PINMUX(00, 0, 0x0F)>, /* ETHSS : ETH3_TXCLK/P00_0 */
 			 <RZT2_PORT_PINMUX(00, 1, 0x0F)>, /* ETHSS : ETH3_TXD0/P00_1 */
@@ -511,7 +528,7 @@
 			 <RZT2_PORT_PINMUX(8, 2, 0x1D)>; /* CANFD : CANTX1/P08_2 */
 	};
 
-#if (SEL_ETH34_ESWM_MTU3)
+#if (SEL_ETH34_MTU3 && SEL_SW_MODE_0111)
 	mtu3_pins: mtu3 {
 		mtu3-ext-clk-input-pin {
 			pinmux = <RZT2_PORT_PINMUX(00, 6, 0x06)>, /* MTU3 : MTCLKA/P00_6 */
@@ -673,302 +690,20 @@
 	status = "okay";
 };
 
-#if (SEL_ETHSW_ESWM)
-&gmac0 {
-	phy-handle = <&phy2>;
-	phy-mode = "rgmii-id";
-	pcs-handle = <&mii_conv2>;
-	status = "okay";
-	enable-time-based-scheduling;
-	snps,force_thresh_dma_mode;
-	snps,tx_threshold = <128>;
-	snps,mtl-tx-config = <&mtl_tx_setup>;
-	snps,mtl-rx-config = <&mtl_rx_setup>;
-};
-#endif
-
-#if (!SEL_ETHSW_ESWM)
-&gmac0 {
-	status = "okay";
-	phy-mode = "rgmii";
-	ethss-handle = <&ethss>;
-#if (SEL_HPSW)
-#if (SEL_HPSW_MODE)
-	phy-reset-gpios = <&pinctrl RZT2_GPIO(16, 1) GPIO_ACTIVE_HIGH>; /* ETH34: RESETOUT/P16_1 */
-	pinctrl-names = "default";
-	pinctrl-0 = <&mdio0_pins>;
-
-	mdio {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		phy3: ethernet-phy@3 {
-			compatible = "ethernet-phy-id0007.0772";
-			phy-mode = "rgmii-id";
-			reg = <0>;
-		};
-
-		phy4: ethernet-phy@4 {
-			compatible = "ethernet-phy-id0007.0772";
-			phy-mode = "rgmii-id";
-			reg = <1>;
-		};
-	};
-#endif
-#endif
-
-	fixed-link {
-		speed = <1000>;
-		full-duplex;
-	};
-};
-#endif
-
-#if (SEL_HPSW)
-#if (!SEL_HPSW_MODE)
-#if (SEL_SW_MODE)
-&gmac0 {
-	status = "okay";
-	phy-reset-gpios = <&pinctrl RZT2_GPIO(7, 0) GPIO_ACTIVE_HIGH>; /* ETH012: RESETOUT/P07_0 */
-	phy-mode = "rgmii";
-	ethss-handle = <&ethss>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&mdio0_pins>;
-
-	fixed-link {
-		speed = <1000>;
-		full-duplex;
-	};
-
-	mdio {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		phy0: ethernet-phy@0 {
-			compatible = "ethernet-phy-id0007.0772";
-			phy-mode = "rgmii-id";
-			reg = <0>;
-		};
-
-		phy1: ethernet-phy@1 {
-			compatible = "ethernet-phy-id0007.0772";
-			phy-mode = "rgmii-id";
-			reg = <1>;
-		};
-	};
-};
-#endif
-#endif
-#endif
-
-#if (!SEL_HPSW_MODE)
-#if (!SEL_ETH34_ESWM_MTU3)
-&gmac1 {
-	phy-handle = <&phy3>;
-	phy-mode = "rgmii-id";
-	pcs-handle = <&mii_conv3>;
-	status = "okay";
-	phy-reset-gpios = <&pinctrl RZT2_GPIO(16, 1) GPIO_ACTIVE_HIGH>; /* ETH34: RESETOUT/P16_1 */
-	pinctrl-names = "default";
-	pinctrl-0 = <&mdio1_pins>;
-	enable-time-based-scheduling;
-	snps,force_thresh_dma_mode;
-	snps,tx_threshold = <128>;
-	snps,mtl-tx-config = <&mtl_tx_setup>;
-	snps,mtl-rx-config = <&mtl_rx_setup>;
-
-	mdio {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		phy3: ethernet-phy@3 {
-			compatible = "ethernet-phy-id0007.0772";
-			phy-mode = "rgmii-id";
-			reg = <0>;
-		};
-
-		phy4: ethernet-phy@4 {
-			compatible = "ethernet-phy-id0007.0772";
-			phy-mode = "rgmii-id";
-			reg = <1>;
-		};
-	};
-};
-#endif
-#endif
-
-#if (!SEL_ETH34_ESWM_MTU3)
-&gmac2 {
-#if (!SEL_HPSW_MODE)
-	phy-handle = <&phy4>;
-	phy-mode = "rgmii-id";
-	pcs-handle = <&mii_conv4>;
-#else
-	phy-handle = <&phy2>;
-	phy-mode = "rgmii-id";
-	pcs-handle = <&mii_conv2>;
-#endif
-	status = "okay";
-	enable-time-based-scheduling;
-	snps,force_thresh_dma_mode;
-	snps,tx_threshold = <128>;
-	snps,mtl-tx-config = <&mtl_tx_setup>;
-	snps,mtl-rx-config = <&mtl_rx_setup>;
-};
-#endif
-
 &ethss {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_refclk>, <&eth1_pins>, <&eth2_pins>,
-#if (!SEL_ETH34_ESWM_MTU3)
+#if (!SEL_ETH34_MTU3 && SEL_SW_MODE_0111)
 		    <&eth3_pins>, <&eth4_pins>,
 #endif
 		    <&eth0_pins>;
-#if (!SEL_ETHSW_ESWM || SEL_HPSW)
+#if (SEL_SW_MODE_0000 || SEL_SW_MODE_0010 || SEL_SW_MODE_0100 || SEL_SW_MODE_0101 \
+	|| SEL_SW_MODE_1000 || SEL_SW_MODE_1001)
 	renesas,ethss-switch-portmanagement = <ETHSS_GMAC0_PORT>;
+#endif
 	ethsw_pulse_gen_timer = <0>;	/* Pulse generator use ETHSW timer 0 */
-#endif
 };
-
-#if (!SEL_SW_MODE)
-#if (!SEL_ETHSW_ESWM)
-&ethsw {
-	status = "okay";
-	#address-cells = <1>;
-	#size-cells = <0>;
-	phy-reset-gpios = <&pinctrl RZT2_GPIO(07, 0) GPIO_ACTIVE_HIGH>; /* ETH012: RESETOUT/P07_0 */
-	pinctrl-names = "default";
-	pinctrl-0 = <&ethsw_pins>;
-
-	dsa,member = <0 0>;
-
-	mdio {
-		clock-frequency = <2500000>;
-
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		phy0: ethernet-phy@0 {
-			compatible = "ethernet-phy-id0007.0772";
-			phy-mode = "rgmii-id";
-			reg = <0>;
-		};
-
-		phy1: ethernet-phy@1 {
-			compatible = "ethernet-phy-id0007.0772";
-			phy-mode = "rgmii-id";
-			reg = <1>;
-		};
-
-		phy2: ethernet-phy@2 {
-			compatible = "ethernet-phy-id0007.0772";
-			phy-mode = "rgmii-id";
-			reg = <2>;
-		};
-	};
-};
-
-&switch_port0 {
-	label = "lan0";
-	phy-mode = "rgmii-id";
-	pcs-handle = <&mii_conv0>;
-	phy-handle = <&phy0>;
-	status = "okay";
-};
-
-&switch_port1 {
-	label = "lan1";
-	phy-mode = "rgmii-id";
-	pcs-handle = <&mii_conv1>;
-	phy-handle = <&phy1>;
-	status = "okay";
-};
-
-#if (!SEL_HPSW_MODE)
-&switch_port2 {
-	label = "lan2";
-	phy-mode = "rgmii-id";
-	pcs-handle = <&mii_conv2>;
-	phy-handle = <&phy2>;
-	status = "okay";
-};
-#else
-&switch_port2 {
-	label = "lan2";
-	phy-mode = "internal";
-	status = "okay";
-
-	fixed-link {
-		speed = <1000>;
-		full-duplex;
-	};
-};
-#endif
-
-&switch_port3 {
-	status = "okay";
-};
-#endif
-#endif
-
-#if (!SEL_HPSW)
-#if (!SEL_ETHSW_ESWM)
-&mii_conv0 {
-	renesas,ethss-port = <ETHSS_SWITCH_PORT0>;
-	status = "okay";
-};
-
-&mii_conv1 {
-	renesas,ethss-port = <ETHSS_SWITCH_PORT1>;
-	status = "okay";
-};
-
-&mii_conv2 {
-	renesas,ethss-port = <ETHSS_SWITCH_PORT2>;
-	status = "okay";
-};
-
-&mii_conv3 {
-	renesas,ethss-port = <ETHSS_GMAC1_PORT>;
-	status = "okay";
-};
-
-&mii_conv4 {
-	renesas,ethss-port = <ETHSS_GMAC2_PORT>;
-	status = "okay";
-};
-#else
-#if (!SEL_ETH34_ESWM_MTU3)
-&mii_conv0 {
-	renesas,ethss-port = <ETHSS_ESWM_PORT0>;
-	renesas,eswm-phylink = <0>;
-	status = "okay";
-};
-
-&mii_conv1 {
-	renesas,ethss-port = <ETHSS_ESWM_PORT1>;
-	renesas,eswm-phylink = <0>;
-	status = "okay";
-};
-
-&mii_conv2 {
-	renesas,ethss-port = <ETHSS_GMAC0_PORT>;
-	status = "okay";
-};
-
-&mii_conv3 {
-	renesas,ethss-port = <ETHSS_GMAC1_PORT>;
-	status = "okay";
-};
-
-&mii_conv4 {
-	renesas,ethss-port = <ETHSS_GMAC2_PORT>;
-	status = "okay";
-};
-#endif
-#endif
-#endif
 
 &intc_ex {
 	pinctrl-0 = <&icu_pins>;
@@ -1063,56 +798,6 @@
 #endif
 #endif
 
-#if (SEL_ETHSW_ESWM)
-#if (!SEL_ETH34_ESWM_MTU3)
-&eswm {
-	pinctrl-0 = <&eswm_pins>;
-	pinctrl-names = "default";
-	phy-reset-gpios = <&pinctrl RZT2_GPIO(07, 0) GPIO_ACTIVE_HIGH>; /* ETH01: RESETOUT/P07_0 */
-	status = "okay";
-
-	mdio {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		phy0: ethernet-phy@0 {
-			compatible = "ethernet-phy-id0007.0772";
-			reg = <0>;
-		};
-
-		phy1: ethernet-phy@1 {
-			compatible = "ethernet-phy-id0007.0772";
-			reg = <1>;
-		};
-
-		phy2: ethernet-phy@2 {
-			compatible = "ethernet-phy-id0007.0772";
-			reg = <2>;
-		};
-	};
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@0 {
-			reg = <0>;
-			phy-handle = <&phy0>;
-			phy-mode = "rgmii-id";
-			pcs-handle = <&mii_conv0>;
-		};
-
-		port@1 {
-			reg = <1>;
-			phy-handle = <&phy1>;
-			phy-mode = "rgmii-id";
-			pcs-handle = <&mii_conv1>;
-		};
-	};
-};
-#endif
-#endif
-
 #if (SEL_I2C0_ADC12)
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
@@ -1148,7 +833,7 @@
 	status = "okay";
 };
 
-#if (SEL_ETH34_ESWM_MTU3)
+#if (SEL_ETH34_MTU3 && SEL_SW_MODE_0111)
 &mtu3 {
 	pinctrl-0 = <&mtu3_pins>;
 	pinctrl-names = "default";
@@ -1163,7 +848,7 @@
 	poe3_pins_mode = <0 0>, <4 0>, <8 0>, <10 0>;
 	oscillation_detection = <1>;
 	status = "okay";
-#if (SEL_ETH34_ESWM_MTU3)
+#if (SEL_ETH34_MTU3 && SEL_SW_MODE_0111)
 	mtu3_ch67 {
 		mtu3_outputs = <0>;
 		addition_poe3_inputs = <0>;
@@ -1262,103 +947,505 @@
 };
 #endif
 
-#if (SEL_HPSW)
-#if (!SEL_HPSW_MODE)
-&hpsw {
+// GMAC0 as Management Port
+#if (SEL_SW_MODE_0000 || SEL_SW_MODE_0101 || SEL_SW_MODE_1000 || SEL_SW_MODE_1001)
+&gmac0 {
 	status = "okay";
+	phy-mode = "rgmii";
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+};
+#endif
+
+// GMAC0 as PHY0 or PHY2
+#if (SEL_SW_MODE_0111 || SEL_SW_MODE_0011)
+&gmac0 {
+#if (SEL_SW_MODE_0111)
+	phy-handle = <&phy0>;
+	phy-mode = "rgmii-id";
+	pcs-handle = <&mii_conv0>;
+	phy-reset-gpios = <&pinctrl RZT2_GPIO(7, 0) GPIO_ACTIVE_HIGH>; /* ETH012: RESETOUT/P07_0 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio0_pins>;
+#endif
+
+#if (SEL_SW_MODE_0011)
+	phy-handle = <&phy2>;
+	phy-mode = "rgmii-id";
+	pcs-handle = <&mii_conv2>;
+#endif
+	status = "okay";
+	enable-time-based-scheduling;
+	snps,force_thresh_dma_mode;
+	snps,tx_threshold = <128>;
+	snps,mtl-tx-config = <&mtl_tx_setup>;
+	snps,mtl-rx-config = <&mtl_rx_setup>;
+
+#if (SEL_SW_MODE_0111)
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <0>;
+		};
+
+		phy1: ethernet-phy@1 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <1>;
+		};
+
+		phy2: ethernet-phy@2 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <2>;
+		};
+	};
+#endif
+};
+#endif
+
+// GMAC1 as PHY1 or PHY3
+#if (SEL_SW_MODE_0000 || SEL_SW_MODE_0001 || SEL_SW_MODE_0010 || SEL_SW_MODE_0011 \
+	|| SEL_SW_MODE_1000 || SEL_SW_MODE_1001 || SEL_SW_MODE_0111)
+&gmac1 {
+#if (SEL_SW_MODE_0111)
+	phy-handle = <&phy1>;
+	phy-mode = "rgmii-id";
+	pcs-handle = <&mii_conv1>;
+#endif
+#if (SEL_SW_MODE_0000 || SEL_SW_MODE_0001 || SEL_SW_MODE_0010 || SEL_SW_MODE_0011 \
+	|| SEL_SW_MODE_1000 || SEL_SW_MODE_1001)
+	phy-handle = <&phy3>;
+	phy-mode = "rgmii-id";
+	pcs-handle = <&mii_conv3>;
+	phy-reset-gpios = <&pinctrl RZT2_GPIO(16, 1) GPIO_ACTIVE_HIGH>; /* ETH34: RESETOUT/P16_1 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio1_pins>;
+#endif
+	status = "okay";
+	enable-time-based-scheduling;
+	snps,force_thresh_dma_mode;
+	snps,tx_threshold = <128>;
+	snps,mtl-tx-config = <&mtl_tx_setup>;
+	snps,mtl-rx-config = <&mtl_rx_setup>;
+
+#if (SEL_SW_MODE_0000 || SEL_SW_MODE_0001 || SEL_SW_MODE_0010 || SEL_SW_MODE_0011 \
+	|| SEL_SW_MODE_1000 || SEL_SW_MODE_1001)
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy3: ethernet-phy@3 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <0>;
+		};
+
+		phy4: ethernet-phy@4 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <1>;
+		};
+	};
+#endif
+};
+#endif
+
+// GMAC2 as PHY2 or PHY4
+#if (SEL_SW_MODE_0000 || SEL_SW_MODE_0001 || SEL_SW_MODE_0010 || SEL_SW_MODE_0011 \
+	|| SEL_SW_MODE_0100 || SEL_SW_MODE_0101 || SEL_SW_MODE_0110 \
+	|| SEL_SW_MODE_0111 || SEL_SW_MODE_1000 || SEL_SW_MODE_1001)
+&gmac2 {
+#if (SEL_SW_MODE_0100 || SEL_SW_MODE_0101 || SEL_SW_MODE_0110 || SEL_SW_MODE_0111)
+	phy-handle = <&phy2>;
+	phy-mode = "rgmii-id";
+	pcs-handle = <&mii_conv2>;
+#endif
+#if (SEL_SW_MODE_0110)
+	phy-reset-gpios = <&pinctrl RZT2_GPIO(7, 0) GPIO_ACTIVE_HIGH>; /* ETH012: RESETOUT/P07_0 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio2_pins>;
+#endif
+#if (SEL_SW_MODE_0000 || SEL_SW_MODE_0001 || SEL_SW_MODE_0010 || SEL_SW_MODE_0011 \
+	|| SEL_SW_MODE_1000 || SEL_SW_MODE_1001)
+	phy-handle = <&phy4>;
+	phy-mode = "rgmii-id";
+	pcs-handle = <&mii_conv4>;
+#endif
+	status = "okay";
+	enable-time-based-scheduling;
+	snps,force_thresh_dma_mode;
+	snps,tx_threshold = <128>;
+	snps,mtl-tx-config = <&mtl_tx_setup>;
+	snps,mtl-rx-config = <&mtl_rx_setup>;
+
+#if (SEL_SW_MODE_0110)
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy2: ethernet-phy@2 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <2>;
+		};
+	};
+#endif
+};
+#endif
+
+// ETHSW as PHY012
+#if (SEL_SW_MODE_0000 || SEL_SW_MODE_0100 || SEL_SW_MODE_0101 || SEL_SW_MODE_1000)
+&ethsw {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	phy-reset-gpios = <&pinctrl RZT2_GPIO(07, 0) GPIO_ACTIVE_HIGH>; /* ETH012: RESETOUT/P07_0 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&ethsw_pins>;
+
+	dsa,member = <0 0>;
+
+	mdio {
+		clock-frequency = <2500000>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <0>;
+		};
+
+		phy1: ethernet-phy@1 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <1>;
+		};
+
+		phy2: ethernet-phy@2 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <2>;
+		};
+	};
 };
 
-&hpsw_portA {
+&switch_port0 {
+	label = "lan0";
 	phy-mode = "rgmii-id";
 	pcs-handle = <&mii_conv0>;
 	phy-handle = <&phy0>;
 	status = "okay";
 };
 
-&hpsw_portB {
+#if (SEL_SW_MODE_0000 || SEL_SW_MODE_0100 || SEL_SW_MODE_0101)
+&switch_port1 {
+	label = "lan1";
 	phy-mode = "rgmii-id";
 	pcs-handle = <&mii_conv1>;
 	phy-handle = <&phy1>;
 	status = "okay";
 };
+#endif
 
-&hpsw_portC {
+#if (SEL_SW_MODE_0000 || SEL_SW_MODE_1000)
+&switch_port2 {
+	label = "lan2";
+	phy-mode = "rgmii-id";
+	pcs-handle = <&mii_conv2>;
+	phy-handle = <&phy2>;
 	status = "okay";
 };
+#endif
 
-&mii_conv0 {
-	renesas,ethss-port = <ETHSS_HPSW_PORTA>;
-	renesas,hpsw-phylink = <0>;
+&switch_port3 {
 	status = "okay";
 };
+#endif
 
-&mii_conv1 {
-	renesas,ethss-port = <ETHSS_HPSW_PORTB>;
-	renesas,hpsw-phylink = <0>;
+// ESWM as PHY012 or PHY34
+#if (SEL_SW_MODE_0011 || SEL_SW_MODE_0101 || SEL_SW_MODE_0110)
+&eswm {
+	pinctrl-0 = <&eswm_pins>;
+	pinctrl-names = "default";
+#if (SEL_SW_MODE_0011)
+	phy-reset-gpios = <&pinctrl RZT2_GPIO(07, 0) GPIO_ACTIVE_HIGH>; /* ETH01: RESETOUT/P07_0 */
+#endif
+#if (SEL_SW_MODE_0101 || SEL_SW_MODE_0110)
+	phy-reset-gpios = <&pinctrl RZT2_GPIO(16, 1) GPIO_ACTIVE_HIGH>; /* ETH34: RESETOUT/P16_1 */
+#endif
 	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+#if (SEL_SW_MODE_0011)
+		phy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-id0007.0772";
+			reg = <0>;
+		};
+
+		phy1: ethernet-phy@1 {
+			compatible = "ethernet-phy-id0007.0772";
+			reg = <1>;
+		};
+
+		phy2: ethernet-phy@2 {
+			compatible = "ethernet-phy-id0007.0772";
+			reg = <2>;
+		};
+#endif
+#if (SEL_SW_MODE_0101 || SEL_SW_MODE_0110)
+		phy3: ethernet-phy@3 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <0>;
+		};
+
+		phy4: ethernet-phy@4 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <1>;
+		};
+#endif
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+#if (SEL_SW_MODE_0011)
+			phy-handle = <&phy0>;
+			pcs-handle = <&mii_conv0>;
+#endif
+#if (SEL_SW_MODE_0101 || SEL_SW_MODE_0110)
+			phy-handle = <&phy3>;
+			pcs-handle = <&mii_conv3>;
+#endif
+			phy-mode = "rgmii-id";
+		};
+
+		port@1 {
+			reg = <1>;
+#if (SEL_SW_MODE_0011)
+			phy-handle = <&phy1>;
+			pcs-handle = <&mii_conv1>;
+#endif
+#if (SEL_SW_MODE_0101 || SEL_SW_MODE_0110)
+			phy-handle = <&phy4>;
+			pcs-handle = <&mii_conv4>;
+#endif
+			phy-mode = "rgmii-id";
+		};
+	};
+};
+#endif
+
+// HPSW as PHY01 or PHY34
+#if (SEL_SW_MODE_0010 || SEL_SW_MODE_0100)
+&gmac0 {
+	status = "okay";
+#if (SEL_SW_MODE_0010)
+	phy-reset-gpios = <&pinctrl RZT2_GPIO(7, 0) GPIO_ACTIVE_HIGH>; /* ETH012: RESETOUT/P07_0 */
+#endif
+#if (SEL_SW_MODE_0100)
+	phy-reset-gpios = <&pinctrl RZT2_GPIO(16, 1) GPIO_ACTIVE_HIGH>; /* ETH34: RESETOUT/P16_1 */
+#endif
+	phy-mode = "rgmii";
+	ethss-handle = <&ethss>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio0_pins>;
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+#if (SEL_SW_MODE_0010)
+		phy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <0>;
+		};
+
+		phy1: ethernet-phy@1 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <1>;
+		};
+#endif
+
+#if (SEL_SW_MODE_0100)
+		phy3: ethernet-phy@3 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <0>;
+		};
+
+		phy4: ethernet-phy@4 {
+			compatible = "ethernet-phy-id0007.0772";
+			phy-mode = "rgmii-id";
+			reg = <1>;
+		};
+#endif
+	};
 };
 
-&mii_conv2 {
-	status = "okay";
-};
-
-&mii_conv3 {
-	renesas,ethss-port = <ETHSS_GMAC1_PORT>;
-	status = "okay";
-};
-
-&mii_conv4 {
-	renesas,ethss-port = <ETHSS_GMAC2_PORT>;
-	status = "okay";
-};
-#else
 &hpsw {
 	status = "okay";
 };
 
+#if (SEL_SW_MODE_0100)
+&switch_port2 {
+	label = "lan2";
+	phy-mode = "internal";
+	status = "okay";
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+};
+#endif
+
 &hpsw_portA {
 	phy-mode = "rgmii-id";
+#if (SEL_SW_MODE_0010)
+	pcs-handle = <&mii_conv0>;
+	phy-handle = <&phy0>;
+#endif
+#if (SEL_SW_MODE_0100)
 	pcs-handle = <&mii_conv3>;
 	phy-handle = <&phy3>;
+#endif
 	status = "okay";
 };
 
 &hpsw_portB {
 	phy-mode = "rgmii-id";
+#if (SEL_SW_MODE_0010)
+	pcs-handle = <&mii_conv1>;
+	phy-handle = <&phy1>;
+#endif
+#if (SEL_SW_MODE_0100)
 	pcs-handle = <&mii_conv4>;
 	phy-handle = <&phy4>;
+#endif
 	status = "okay";
 };
 
 &hpsw_portC {
 	status = "okay";
 };
+#endif
 
+// ETHSS SW_MODE
+#if (SEL_SW_MODE_0000 || SEL_SW_MODE_0001 || SEL_SW_MODE_0010 || SEL_SW_MODE_0011 \
+	|| SEL_SW_MODE_0100 || SEL_SW_MODE_0101 || SEL_SW_MODE_0110 \
+	|| SEL_SW_MODE_0111 || SEL_SW_MODE_1000 || SEL_SW_MODE_1001)
 &mii_conv0 {
+#if (SEL_SW_MODE_0000 || SEL_SW_MODE_0100 || SEL_SW_MODE_0101 || SEL_SW_MODE_1000)
 	renesas,ethss-port = <ETHSS_SWITCH_PORT0>;
+#endif
+#if (SEL_SW_MODE_0001 || SEL_SW_MODE_0110)
+	renesas,ethss-port = <ETHSS_ETHERCAT_PORT0>;
+#endif
+#if (SEL_SW_MODE_0010)
+	renesas,ethss-port = <ETHSS_HPSW_PORTA>;
+	renesas,hpsw-phylink = <0>;
+#endif
+#if (SEL_SW_MODE_0011)
+	renesas,ethss-port = <ETHSS_ESWM_PORT0>;
+	renesas,eswm-phylink = <0>;
+#endif
+#if (SEL_SW_MODE_0111)
+	renesas,ethss-port = <ETHSS_GMAC0_PORT>;
+#endif
 	status = "okay";
 };
 
 &mii_conv1 {
+#if (SEL_SW_MODE_0000 || SEL_SW_MODE_0100 || SEL_SW_MODE_0101)
 	renesas,ethss-port = <ETHSS_SWITCH_PORT1>;
+#endif
+#if (SEL_SW_MODE_0001 || SEL_SW_MODE_0110 || SEL_SW_MODE_1000 || SEL_SW_MODE_1001)
+	renesas,ethss-port = <ETHSS_ETHERCAT_PORT1>;
+#endif
+#if (SEL_SW_MODE_0010)
+	renesas,ethss-port = <ETHSS_HPSW_PORTB>;
+	renesas,hpsw-phylink = <0>;
+#endif
+#if (SEL_SW_MODE_0011)
+	renesas,ethss-port = <ETHSS_ESWM_PORT1>;
+	renesas,eswm-phylink = <0>;
+#endif
+#if (SEL_SW_MODE_0111)
+	renesas,ethss-port = <ETHSS_GMAC1_PORT>;
+#endif
 	status = "okay";
 };
 
 &mii_conv2 {
+#if (SEL_SW_MODE_0000 || SEL_SW_MODE_1000)
+	renesas,ethss-port = <ETHSS_SWITCH_PORT2>;
+#endif
+#if (SEL_SW_MODE_0001 || SEL_SW_MODE_1001)
+	renesas,ethss-port = <ETHSS_ETHERCAT_PORT2>;
+#endif
+#if (SEL_SW_MODE_0011)
+	renesas,ethss-port = <ETHSS_GMAC0_PORT>;
+#endif
+#if (SEL_SW_MODE_0100 || SEL_SW_MODE_0101 || SEL_SW_MODE_0110 || SEL_SW_MODE_0111)
 	renesas,ethss-port = <ETHSS_GMAC2_PORT>;
+#endif
 	status = "okay";
 };
 
 &mii_conv3 {
+#if (SEL_SW_MODE_0000 || SEL_SW_MODE_0001 || SEL_SW_MODE_0010 || SEL_SW_MODE_0011 \
+	|| SEL_SW_MODE_1000 || SEL_SW_MODE_1001)
+	renesas,ethss-port = <ETHSS_GMAC1_PORT>;
+#endif
+#if (SEL_SW_MODE_0100)
 	renesas,ethss-port = <ETHSS_HPSW_PORTA>;
 	renesas,hpsw-phylink = <0>;
+#endif
+#if (SEL_SW_MODE_0101 || SEL_SW_MODE_0110)
+	renesas,ethss-port = <ETHSS_ESWM_PORT0>;
+	renesas,eswm-phylink = <0>;
+#endif
 	status = "okay";
 };
 
 &mii_conv4 {
+#if (SEL_SW_MODE_0000 || SEL_SW_MODE_0001 || SEL_SW_MODE_0010 || SEL_SW_MODE_0011 \
+	|| SEL_SW_MODE_1000 || SEL_SW_MODE_1001)
+	renesas,ethss-port = <ETHSS_GMAC2_PORT>;
+#endif
+#if (SEL_SW_MODE_0100)
 	renesas,ethss-port = <ETHSS_HPSW_PORTB>;
 	renesas,hpsw-phylink = <0>;
+#endif
+#if (SEL_SW_MODE_0101 || SEL_SW_MODE_0110)
+	renesas,ethss-port = <ETHSS_ESWM_PORT1>;
+	renesas,eswm-phylink = <0>;
+#endif
 	status = "okay";
 };
-#endif
 #endif
