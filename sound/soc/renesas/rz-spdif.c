@@ -9,6 +9,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <sound/pcm_params.h>
@@ -16,6 +17,7 @@
 #include <linux/dmaengine.h>
 #include <sound/asoundef.h>
 #include <linux/dma-mapping.h>
+#include "rcar/rsnd.h"
 
 /* Register offset	*/
 #define SPDIF_TLCA		0x00
@@ -129,6 +131,16 @@ struct rz_spdif_stream {
 	int (*transfer)(struct spdif_dev_data *spdif, struct rz_spdif_stream *strm);
 };
 
+struct rz_spdif_ops {
+	int (*clk_init)(struct spdif_dev_data *spdif, struct device *dev);
+	int (*set_clk)(struct spdif_dev_data *spdif, unsigned int rate, bool enable);
+};
+
+struct rz_spdif_soc_data {
+	const struct rz_spdif_ops *ops;
+	u8 max_channels;
+};
+
 struct spdif_dev_data {
 	void __iomem *base;
 	struct reset_control *rstc;
@@ -136,17 +148,20 @@ struct spdif_dev_data {
 	struct clk *clk;
 	phys_addr_t phys;
 
+	const struct rz_spdif_soc_data *soc_data;
+
 	/* clock */
 	unsigned long audio_clk_1;
 	unsigned long audio_clk_2;
+
+	struct device *adg_dev;
+	int spdif_id;
 
 	spinlock_t lock;
 
 	u32 mode;
 	u32 rate;
 	u32 bit_width;
-	bool is_dma;
-	bool is_passback;
 
 	struct rz_spdif_stream playback;
 	struct rz_spdif_stream capture;
@@ -163,6 +178,9 @@ struct spdif_dev_data {
 	int rx_byte_pos;
 	int rx_byte_per_period;
 	int rx_next_period_byte;
+
+	bool is_dma;
+	bool is_passback;
 };
 
 static void rz_spdif_dma_complete(void *data);
@@ -468,6 +486,7 @@ static int rz_spdif_dai_hw_params(struct snd_pcm_substream *substream,
 	struct spdif_dev_data *spdif = snd_soc_dai_get_drvdata(dai);
 	struct rz_spdif_stream *strm = rz_spdif_stream_get(spdif, substream);
 	u32 channel_status1, channel_status2;
+	int ret;
 
 	spdif->rate = params_rate(params);
 	spdif->bit_width = params_width(params);
@@ -476,6 +495,10 @@ static int rz_spdif_dai_hw_params(struct snd_pcm_substream *substream,
 		dev_err(spdif->dev, "SPDIF only support 2 channel\n");
 		return -EIO;
 	}
+
+	ret = spdif->soc_data->ops->set_clk(spdif, spdif->rate, true);
+	if (ret)
+		return ret;
 
 	/*	Transmitter Channel X Status Register
 	 *	b31:b30 Reserved - Read only bit       - 00:
@@ -507,7 +530,8 @@ static int rz_spdif_dai_hw_params(struct snd_pcm_substream *substream,
 		break;
 	default:
 		dev_err(spdif->dev, "SPDIF only support 32,44,48 KHz\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_disable_clk;
 	}
 
 	/* Buffer clear */
@@ -535,7 +559,7 @@ static int rz_spdif_dai_hw_params(struct snd_pcm_substream *substream,
 								  GFP_KERNEL);
 
 			if (!strm->dma_pad_buf_tx)
-				return -ENOMEM;
+				goto err_disable_clk;
 		} else {
 			strm->dma_pad_buf_rx = dma_alloc_coherent(spdif->dev,
 								  strm->dma_buf_size,
@@ -543,10 +567,15 @@ static int rz_spdif_dai_hw_params(struct snd_pcm_substream *substream,
 								  GFP_KERNEL);
 
 			if (!strm->dma_pad_buf_rx)
-				return -ENOMEM;
+				goto err_disable_clk;
 		}
 	}
 	return 0;
+
+err_disable_clk:
+	spdif->soc_data->ops->set_clk(spdif, spdif->rate, false);
+
+	return ret;
 }
 
 static int rz_spdif_dai_hw_free(struct snd_pcm_substream *substream,
@@ -554,6 +583,13 @@ static int rz_spdif_dai_hw_free(struct snd_pcm_substream *substream,
 {
 	struct spdif_dev_data *spdif = snd_soc_dai_get_drvdata(dai);
 	struct rz_spdif_stream *strm = rz_spdif_stream_get(spdif, substream);
+	int ret;
+
+	if (spdif->soc_data->ops && spdif->soc_data->ops->set_clk) {
+		ret = spdif->soc_data->ops->set_clk(spdif, spdif->rate, false);
+		if (ret)
+			return ret;
+	}
 
 	/* Free padding buffer after use */
 	if (spdif->is_dma && spdif->bit_width == 16) {
@@ -1228,31 +1264,18 @@ no_dma:
 	return -ENODEV;
 }
 
-static int rz_spdif_probe(struct platform_device *pdev)
+static int rz_spdif_rzg3s_clk_init(struct spdif_dev_data *spdif,
+				    struct device *dev)
 {
-	struct device *dev = &pdev->dev;
-	struct spdif_dev_data *spdif;
 	struct clk *audio_clk;
-	struct resource *res;
-	int ret;
 
-	spdif = devm_kzalloc(dev, sizeof(*spdif), GFP_KERNEL);
-	if (!spdif)
-		return -ENOMEM;
-
-	spdif->dev = dev;
-	spdif->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
-	if (IS_ERR(spdif->base))
-		return PTR_ERR(spdif->base);
-
-	spdif->phys = res->start;
 	spdif->clk = devm_clk_get(dev, "spdif-tx-rx");
 	if (IS_ERR(spdif->clk))
 		return PTR_ERR(spdif->clk);
 
 	audio_clk = devm_clk_get(dev, "audio_clk1");
 	if (IS_ERR(audio_clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(audio_clk),
+		return dev_err_probe(dev, PTR_ERR(audio_clk),
 				     "no audio clk1");
 	spdif->audio_clk_1 = clk_get_rate(audio_clk);
 
@@ -1265,6 +1288,108 @@ static int rz_spdif_probe(struct platform_device *pdev)
 	if (!(spdif->audio_clk_1 || spdif->audio_clk_2))
 		return dev_err_probe(dev, -EINVAL,
 				     "no audio clk1 or audio clk2");
+	return 0;
+}
+
+static int rz_spdif_rzv2h_clk_init(struct spdif_dev_data *spdif,
+				    struct device *dev)
+{
+	struct device_node *np;
+	struct platform_device *adg_pdev;
+	char clk_name[16];
+	u32 channel_id;
+
+	if (!spdif->soc_data || !spdif->soc_data->max_channels)
+		return dev_err_probe(dev, -EINVAL, "invalid max_channels\n");
+
+	if (of_property_read_u32(dev->of_node, "renesas,channel-id", &channel_id))
+		return dev_err_probe(dev, -EINVAL,
+				     "missing renesas,channel-id in DT\n");
+
+	if (channel_id >= spdif->soc_data->max_channels)
+		return dev_err_probe(dev, -EINVAL,
+				     "invalid renesas,channel-id %u (max %u)\n",
+				     channel_id,
+				     spdif->soc_data->max_channels - 1);
+
+	spdif->spdif_id = channel_id;
+
+	snprintf(clk_name, sizeof(clk_name), "spdif-%d", spdif->spdif_id);
+	spdif->clk = devm_clk_get(dev, clk_name);
+	if (IS_ERR(spdif->clk))
+		return dev_err_probe(dev, PTR_ERR(spdif->clk),
+				     "failed to get %s\n", clk_name);
+
+	np = of_parse_phandle(dev->of_node, "renesas,adg", 0);
+	if (!np)
+		return dev_err_probe(dev, -ENODEV,
+				     "missing renesas,adg\n");
+
+	adg_pdev = of_find_device_by_node(np);
+	of_node_put(np);
+	if (!adg_pdev)
+		return dev_err_probe(dev, -EPROBE_DEFER,
+				     "ADG device not ready\n");
+
+	if (!dev_get_drvdata(&adg_pdev->dev)) {
+		put_device(&adg_pdev->dev);
+		return dev_err_probe(dev, -EPROBE_DEFER,
+				     "ADG driver data not ready\n");
+	}
+
+	spdif->adg_dev = &adg_pdev->dev;
+	put_device(&adg_pdev->dev);
+
+	return 0;
+}
+
+static int rz_spdif_rzv2h_set_clk(struct spdif_dev_data *spdif,
+				   unsigned int rate, bool enable)
+{
+	int ret;
+
+	if (enable) {
+		ret = rsnd_adg_spdif_clk_start(spdif->adg_dev,
+					      spdif->spdif_id,
+					      (unsigned long)rate * 512);
+		if (ret)
+			return dev_err_probe(spdif->dev, ret,
+					     "ADG clock config failed\n");
+
+		return 0;
+	}
+
+	return rsnd_adg_spdif_clk_stop(spdif->adg_dev, spdif->spdif_id);
+}
+
+static int rz_spdif_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct spdif_dev_data *spdif;
+	const struct rz_spdif_soc_data *soc_data;
+	struct resource *res;
+	int ret;
+
+	soc_data = of_device_get_match_data(dev);
+	if (!soc_data)
+		return -ENODEV;
+
+	spdif = devm_kzalloc(dev, sizeof(*spdif), GFP_KERNEL);
+	if (!spdif)
+		return -ENOMEM;
+
+	spdif->dev = dev;
+	spdif->soc_data = soc_data;
+	spdif->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(spdif->base))
+		return PTR_ERR(spdif->base);
+
+	spdif->phys = res->start;
+	if (spdif->soc_data->ops && spdif->soc_data->ops->clk_init) {
+		ret = soc_data->ops->clk_init(spdif, dev);
+		if (ret)
+			return ret;
+	}
 
 	/* Detect DMA support */
 	ret = rz_spdif_dma_request(spdif, &pdev->dev);
@@ -1364,8 +1489,28 @@ static int __maybe_unused rz_spdif_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(rz_spdif_pm_ops, rz_spdif_suspend,
 			 rz_spdif_resume);
 
+static const struct rz_spdif_ops rzg3s_spdif_ops = {
+	.clk_init = rz_spdif_rzg3s_clk_init,
+};
+
+static const struct rz_spdif_ops rzv2h_spdif_ops = {
+	.clk_init = rz_spdif_rzv2h_clk_init,
+	.set_clk = rz_spdif_rzv2h_set_clk,
+};
+
+static const struct rz_spdif_soc_data rzg3s_soc_data = {
+	.ops = &rzg3s_spdif_ops,
+	.max_channels = 1,
+};
+
+static const struct rz_spdif_soc_data rzv2h_soc_data = {
+	.ops = &rzv2h_spdif_ops,
+	.max_channels = 3,
+};
+
 static const struct of_device_id rz_spdif_of_match[] = {
-	{ .compatible = "renesas,rz-spdif", },
+	{ .compatible = "renesas,r9a08g045-spdif", .data = &rzg3s_soc_data },
+	{ .compatible = "renesas,r9a09g057-spdif", .data = &rzv2h_soc_data },
 	{/* Sentinel */},
 };
 MODULE_DEVICE_TABLE(of, rz_spdif_of_match);
