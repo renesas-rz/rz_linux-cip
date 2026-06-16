@@ -208,7 +208,8 @@ static const struct renesas_gbeth_of_data renesas_gbeth_of_data = {
 static const struct renesas_gbeth_of_data renesas_gmac_of_data = {
 	.clks = renesas_gmac_clks,
 	.num_clks = ARRAY_SIZE(renesas_gmac_clks),
-	.stmmac_flags = STMMAC_FLAG_HWTSTAMP_CORRECT_LATENCY,
+	.stmmac_flags = STMMAC_FLAG_HWTSTAMP_CORRECT_LATENCY |
+			STMMAC_FLAG_RX_CLK_RUNS_IN_LPI,
 	.has_pcs = true,
 };
 
