@@ -839,6 +839,13 @@ static int rzt2h_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	u8 bit = RZT2H_PIN_ID_TO_PIN(offset);
 	u16 reg;
 
+	if (rzt2h_pin_mode_is_peripheral(pctrl, port, bit)) {
+		if (rzt2h_pin_func_is_irq(pctrl, port, bit))
+			return rzt2h_pin_read_input(pctrl, port, bit);
+
+		return -EINVAL;
+	}
+
 	reg = rzt2h_pinctrl_readw(pctrl, port, PM(port));
 	reg = (reg >> (bit * 2)) & PM_MASK;
 	if (reg & PM_INPUT)
