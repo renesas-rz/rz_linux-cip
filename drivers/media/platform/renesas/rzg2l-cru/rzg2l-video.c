@@ -344,14 +344,14 @@ static void rzg2l_cru_parallel_setup(struct rzg2l_cru_dev *cru,
 	switch (cru->code) {
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 		/* BT.656 8bit YCbCr422 or BT.601 8bit YCbCr422 */
-		if (cru->parallel->mbus_type == V4L2_MBUS_BT656)
+		if (cru->parallel.mbus_type == V4L2_MBUS_BT656)
 			icnpifc |= ICnPIFC_PINF_UYVY8_BT656;
 		else
 			icnpifc |= ICnPIFC_PINF_UYVY8;
 		break;
 	case MEDIA_BUS_FMT_UYVY10_2X10:
 		/* BT.656 10bit YCbCr422 or BT.601 10bit YCbCr422 */
-		if (cru->parallel->mbus_type == V4L2_MBUS_BT656)
+		if (cru->parallel.mbus_type == V4L2_MBUS_BT656)
 			icnpifc |= ICnPIFC_PINF_UYVY10_BT656;
 		else
 			icnpifc |= ICnPIFC_PINF_UYVY10;
@@ -385,11 +385,11 @@ static void rzg2l_cru_parallel_setup(struct rzg2l_cru_dev *cru,
 	}
 
 	/* Hsync Signal Polarity Select */
-	if (cru->parallel->mbus_flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
+	if (cru->parallel.mbus_flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
 		icnpifc |= ICnPIFC_ENPOL_LOW;
 
 	/* Vsync Signal Polarity Select */
-	if (cru->parallel->mbus_flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
+	if (cru->parallel.mbus_flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
 		icnpifc |= ICnPIFC_VSPOL_LOW;
 
 	/* Set field and input data */

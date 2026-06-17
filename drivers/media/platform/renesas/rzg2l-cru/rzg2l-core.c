@@ -62,7 +62,7 @@ rzg2l_cru_parallel_notify_complete(struct v4l2_async_notifier *notifier)
 	/*
 	 * Create media device link between PARALLEL <-> CRU IP
 	 */
-	source = &cru->parallel->subdev->entity;
+	source = &cru->parallel.subdev->entity;
 	sink = &cru->ip.subdev.entity;
 	ret = media_create_pad_link(source, 0, sink, 0,
 				    MEDIA_LNK_FL_ENABLED |
@@ -72,7 +72,7 @@ rzg2l_cru_parallel_notify_complete(struct v4l2_async_notifier *notifier)
 			source->name, sink->name);
 		return ret;
 	}
-	cru->ip.remote = cru->parallel->subdev;
+	cru->ip.remote = cru->parallel.subdev;
 
 	/* Create media device link between CRU IP <-> CRU OUTPUT */
 	source = &cru->ip.subdev.entity;
@@ -92,36 +92,36 @@ rzg2l_cru_parallel_notify_complete(struct v4l2_async_notifier *notifier)
 static void
 rzg2l_cru_parallel_notify_unbind(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *subdev,
-				 struct v4l2_async_subdev *asd)
+				 struct v4l2_async_connection *asd)
 {
 	struct rzg2l_cru_dev *cru = notifier_to_cru(notifier);
-	struct v4l2_async_subdev *asd_subdev = &cru->parallel->asd;
 
 	rzg2l_cru_ip_subdev_unregister(cru);
 
-	mutex_lock(&cru->lock);
+	mutex_lock(&cru->mdev_lock);
 
-	if (asd_subdev == asd) {
-		cru->parallel->subdev = NULL;
+	if (cru->parallel.asd == asd) {
+		cru->parallel.subdev = NULL;
 		dev_dbg(cru->dev, "Unbind Parallel %s\n", subdev->name);
 	}
 
-	mutex_unlock(&cru->lock);
+	mutex_unlock(&cru->mdev_lock);
 }
 
 static int rzg2l_cru_parallel_notify_bound(struct v4l2_async_notifier *notifier,
 					   struct v4l2_subdev *subdev,
-					   struct v4l2_async_subdev *asd)
+					   struct v4l2_async_connection *asd)
 {
 	struct rzg2l_cru_dev *cru = notifier_to_cru(notifier);
-	struct v4l2_async_subdev *asd_subdev = &cru->parallel->asd;
 
-	mutex_lock(&cru->lock);
-	if (asd_subdev == asd) {
-		cru->parallel->subdev = subdev;
+	mutex_lock(&cru->mdev_lock);
+
+	if (cru->parallel.asd == asd) {
+		cru->parallel.subdev = subdev;
 		dev_dbg(cru->dev, "Bound Parallel %s\n", subdev->name);
 	}
-	mutex_unlock(&cru->lock);
+
+	mutex_unlock(&cru->mdev_lock);
 
 	return 0;
 }
@@ -133,33 +133,50 @@ rzg2l_cru_parallel_notify_ops = {
 	.complete = rzg2l_cru_parallel_notify_complete,
 };
 
-static int rzg2l_cru_parallel_parse_v4l2(struct device *dev,
-					 struct v4l2_fwnode_endpoint *vep,
-					 struct v4l2_async_subdev *asd)
+static int rzg2l_cru_parallel_parse_v4l2(struct rzg2l_cru_dev *cru)
 {
-	struct rzg2l_cru_dev *cru = dev_get_drvdata(dev);
-	struct rzg2l_cru_parallel *rvpe =
-			container_of(asd, struct rzg2l_cru_parallel, asd);
+	struct fwnode_handle *fwnode __free(fwnode_handle) = NULL;
+	struct fwnode_handle *ep __free(fwnode_handle) = NULL;
+	struct v4l2_fwnode_endpoint vep = {
+		.bus_type = V4L2_MBUS_UNKNOWN,
+	};
+	struct v4l2_async_connection *asd;
 
-	if (vep->base.port || vep->base.id)
-		return -ENOTCONN;
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(cru->dev), 0, 0, 0);
+	if (!ep)
+		return 0;
 
-	cru->parallel = rvpe;
-	cru->parallel->mbus_type = vep->bus_type;
+	if (v4l2_fwnode_endpoint_parse(ep, &vep)) {
+		dev_err(cru->dev, "Failed to parse %pOF\n", to_of_node(ep));
+		return -EINVAL;
+	}
 
-	switch (cru->parallel->mbus_type) {
+	cru->parallel.mbus_type = vep.bus_type;
+
+	switch (cru->parallel.mbus_type) {
 	case V4L2_MBUS_PARALLEL:
 		dev_dbg(cru->dev, "Found PARALLEL media bus\n");
-		cru->parallel->mbus_flags = vep->bus.parallel.flags;
+		cru->parallel.mbus_flags = vep.bus.parallel.flags;
 		break;
 	case V4L2_MBUS_BT656:
 		dev_dbg(cru->dev, "Found BT656 media bus\n");
-		cru->parallel->mbus_flags = 0;
+		cru->parallel.mbus_flags = 0;
 		break;
 	default:
 		dev_err(cru->dev, "Unknown media bus type\n");
 		return -EINVAL;
 	}
+
+	fwnode = fwnode_graph_get_remote_endpoint(ep);
+	asd = v4l2_async_nf_add_fwnode(&cru->notifier, fwnode,
+				       struct v4l2_async_connection);
+
+	if (IS_ERR(asd))
+		return PTR_ERR(asd);
+
+	cru->parallel.asd = asd;
+
+	dev_dbg(cru->dev, "Add parallel OF device %pOF\n", to_of_node(fwnode));
 
 	return 0;
 }
@@ -168,23 +185,17 @@ static int rzg2l_cru_parallel_init(struct rzg2l_cru_dev *cru)
 {
 	int ret;
 
-	v4l2_async_nf_init(&cru->notifier);
-	ret = v4l2_async_nf_parse_fwnode_endpoints(
-				cru->dev, &cru->notifier,
-				sizeof(struct rzg2l_cru_parallel),
-				rzg2l_cru_parallel_parse_v4l2);
+	v4l2_async_nf_init(&cru->notifier, &cru->v4l2_dev);
+
+	ret = rzg2l_cru_parallel_parse_v4l2(cru);
 	if (ret)
 		return ret;
 
-	/* If using mc, it's fine not to have any input registered. */
-	if (!cru->parallel)
-		return 0;
-
 	dev_dbg(cru->dev, "Found parallel subdevice %pOF\n",
-		to_of_node(cru->parallel->asd.match.fwnode));
+		to_of_node(cru->parallel.asd->match.fwnode));
 
 	cru->notifier.ops = &rzg2l_cru_parallel_notify_ops;
-	ret = v4l2_async_nf_register(&cru->v4l2_dev, &cru->notifier);
+	ret = v4l2_async_nf_register(&cru->notifier);
 	if (ret < 0) {
 		dev_err(cru->dev, "Notifier registration failed\n");
 		v4l2_async_nf_cleanup(&cru->notifier);
