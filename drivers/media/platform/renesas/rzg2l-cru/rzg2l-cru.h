@@ -275,7 +275,7 @@ struct rzg2l_cru_dev;
  *
  */
 struct rzg2l_cru_parallel {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_connection *asd;
 	struct v4l2_subdev *subdev;
 
 	enum v4l2_mbus_type mbus_type;
@@ -410,7 +410,7 @@ struct rzg2l_cru_dev {
 	struct v4l2_ctrl *ctrl;
 	struct v4l2_ctrl_handler ctrl_handler;
 
-	struct rzg2l_cru_parallel *parallel;
+	struct rzg2l_cru_parallel parallel;
 	struct rzg2l_cru_ip ip;
 	struct rzg2l_cru_csi csi;
 	struct media_device mdev;
