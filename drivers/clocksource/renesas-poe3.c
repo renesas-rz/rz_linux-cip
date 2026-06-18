@@ -521,7 +521,7 @@ static void renesas_poe3_setup(struct renesas_poe3 *poe3, bool device_file_creat
 	if (!of_get_property(np, "poe3_pins_mode", &tmp))
 		goto poe3_assign;
 
-	num = tmp/(sizeof(u32)*2);
+	num = tmp / (sizeof(u32) * 2);
 
 	for (i = 0; i < num; i++) {
 		of_property_read_u32_index(np, "poe3_pins_mode",
@@ -569,7 +569,7 @@ poe3_assign:
 
 	for_each_child_of_node(np, child) {
 		if (of_get_property(child, "mtu3_outputs", &tmp)) {
-			num = tmp/sizeof(u32);
+			num = tmp / sizeof(u32);
 			for (i = 0; i < num; i++) {
 				of_property_read_u32_index(child,
 					"mtu3_outputs", i, &tmp);
