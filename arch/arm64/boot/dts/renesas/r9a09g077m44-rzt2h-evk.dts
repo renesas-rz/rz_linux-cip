@@ -93,6 +93,8 @@
  */
 #define SEL_RSPI0_GMAC2		1
 
+#define POE3_SUPPORT		0
+
 #include "rzt2h-n2h-evk-common.dtsi"
 
 / {
@@ -411,6 +413,12 @@
 			pinmux = <RZT2H_PORT_PINMUX(0, 4, 0x09)>, /* GTIOC00_2A */
 				 <RZT2H_PORT_PINMUX(0, 5, 0x09)>; /* GTIOC00_2B */
 	};
+
+#if POE3_SUPPORT
+	poe3_pins: poe3 {
+			pinmux = <RZT2H_PORT_PINMUX(2, 4, 0x08)>; /* POE4# */
+	};
+#endif
 };
 
 &mtu3 {
@@ -419,6 +427,21 @@
 
 	status = "okay";
 };
+
+#if POE3_SUPPORT
+&poe3 {
+	pinctrl-0 = <&poe3_pins>;
+	pinctrl-names = "default";
+	poe3_pins_mode = <0 0>, <4 0>, <8 0>, <10 0>, <11 0>;
+	status = "okay";
+	mtu3_ch34 {
+		mtu3_outputs = <1>;
+		addition_poe3_inputs = <4>;
+		mtioc4a_pin_select = <1>;
+		mtioc4c_pin_select = <1>;
+	};
+};
+#endif
 
 &gpt0 {
 	pinctrl-0 = <&gpt0_pins>;
