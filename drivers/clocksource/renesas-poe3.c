@@ -738,8 +738,7 @@ static const struct renesas_poe3_soc_data renesas_poe3_t2h_data = {
 };
 
 static const struct of_device_id renesas_poe3_of_table[] = {
-	{ .compatible = "renesas,poe3", .data = &renesas_poe3_g2l_data },
-	{ .compatible = "renesas,rz-poe3", .data = &renesas_poe3_g2l_data },
+	{ .compatible = "renesas,rzg2l-poe3", .data = &renesas_poe3_g2l_data },
 	{ .compatible = "renesas,r9a09g077-poe3", .data = &renesas_poe3_t2h_data },
 	{ },
 };
