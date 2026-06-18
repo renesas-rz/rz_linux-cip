@@ -20,6 +20,7 @@
 #include <linux/reset.h>
 #include <linux/wait.h>
 
+#define POEGG_INV	BIT(28)
 #define POEGG_IOCE	BIT(5)
 #define POEGG_PIDE	BIT(4)
 #define POEGG_SSF	BIT(3)
@@ -40,6 +41,7 @@ enum poeg_conf {
 	POEG_GPT_BOTH_LOW = BIT(2),
 	POEG_GPT_DEAD_TIME = BIT(3),
 	POEG_EXT_PIN_CTRL = BIT(4),
+	POEG_EXT_REVERSE_PIN_CTRL = BIT(5),
 	POEG_GPT_BOTH_HIGH_LOW = BIT(1) | BIT(2),
 	POEG_GPT_BOTH_HIGH_DEAD_TIME = BIT(1) | BIT(3),
 	POEG_GPT_BOTH_LOW_DEAD_TIME = BIT(2) | BIT(3),
@@ -335,6 +337,9 @@ static int rzg2l_poeg_probe(struct platform_device *pdev)
 		break;
 	case POEG_EXT_PIN_CTRL:
 		rzg2l_poeg_write(chip, POEGG_PIDE);
+		break;
+	case POEG_EXT_REVERSE_PIN_CTRL:
+		rzg2l_poeg_write(chip, POEGG_INV | POEGG_PIDE);
 		break;
 	default:
 		ret = -EINVAL;
