@@ -833,6 +833,31 @@ static const struct rz_pcie_soc_data rzv2h_soc_data = {
 	},
 };
 
+static const struct rz_pcie_soc_data rzv2n_soc_data = {
+	.func_cfg = rzv2h_func_configs,
+	.max_channels = 1,
+	.sysc_info = {
+		.functions = {
+			[RZG3S_SYSC_FUNC_ID_INTX] = {
+				.offset = 0x1000,
+				.mask = BIT(0),
+			},
+			[RZG3S_SYSC_FUNC_ID_MSI1] = {
+				.offset = 0x1004,
+				.mask = BIT(0),
+			},
+			[RZG3S_SYSC_FUNC_ID_L1_ALLOW] = {
+				.offset = 0x1020,
+				.mask = BIT(0),
+			},
+			[RZG3S_SYSC_FUNC_ID_MODE] = {
+				.offset = 0x1024,
+				.mask = BIT(0),
+			},
+		},
+	},
+};
+
 static const struct rz_pcie_func_config rzt2h_func_configs[] = {
 	/* Function 0 */
 	{
@@ -874,10 +899,15 @@ static const struct rz_pcie_soc_data rzt2h_soc_data = {
 		},
 	},
 };
+
 static const struct of_device_id rz_pcie_ep_of_match[] = {
 	{
 		.compatible = "renesas,rzv2h-pcie-ep",
 		.data = &rzv2h_soc_data,
+	},
+	{
+		.compatible = "renesas,rzv2n-pcie-ep",
+		.data = &rzv2n_soc_data,
 	},
 	{
 		.compatible = "renesas,rzt2h-pcie-ep",
