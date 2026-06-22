@@ -34,6 +34,8 @@
 #define RSPI_SPCMD		0x14
 #define RSPI_SPDCR2		0x44
 #define RSPI_SPSR		0x52
+#define RSPI_SPTFSR		0x58
+#define RSPI_SPRFSR		0x5C
 #define RSPI_SPSRC		0x6a
 #define RSPI_SPFCR		0x6c
 
@@ -100,6 +102,7 @@ struct rzv2h_rspi_info {
 	const char *tclk_name;
 	unsigned int fifo_size;
 	unsigned int num_clks;
+	u8 fifo_mask;
 };
 
 struct rzv2h_rspi_priv {
@@ -196,6 +199,13 @@ static inline int rzv2h_rspi_wait_for_interrupt(struct rzv2h_rspi_priv *rspi,
 		return 0;
 
 	rspi_enable_irq(rspi, enable_bit);
+
+	/*
+	 * Clear the status bit to ensure the interrupt is triggered
+	 * after setting the IRQ enable bits.
+	 */
+	writew(wait_mask, rspi->base + RSPI_SPSRC);
+
 	ret = wait_event_timeout(rspi->wait, rspi->status & wait_mask, HZ);
 	if (ret == 0 && !(rspi->status & wait_mask))
 		return -ETIMEDOUT;
@@ -316,54 +326,65 @@ static bool rzv2h_rspi_can_dma(struct spi_controller *ctlr, struct spi_device *s
 	return xfer->len > rspi->info->fifo_size;
 }
 
+static inline u8 rzv2h_rspi_fifo_stages(struct rzv2h_rspi_priv *rspi, bool is_tx)
+{
+	return readb(rspi->base + (is_tx ? RSPI_SPTFSR : RSPI_SPRFSR)) &
+							rspi->info->fifo_mask;
+}
+
 static int rzv2h_rspi_transfer_pio(struct rzv2h_rspi_priv *rspi,
 				   const void *txbuf, void *rxbuf,
 				   unsigned int len, u16 *error)
 {
 	unsigned int words = len / rspi->bytes_per_word;
-	int ret, count, loop, loop_count, remained_words, words_per_loop;
+	unsigned int tx_word = 0;
+	unsigned int rx_word = 0;
+	unsigned int available_words;
+	unsigned int words_to_transfer;
+	unsigned int words_to_receive;
+	unsigned int i;
+	int ret;
 
-	if (words % rspi->info->fifo_size)
-		loop = words / rspi->info->fifo_size + 1;
-	else
-		loop = words / rspi->info->fifo_size;
+	rzv2h_rspi_clear_all_irqs(rspi);
 
-	for (loop_count = 0; loop_count < loop; loop_count++) {
-		remained_words = words - loop_count * rspi->info->fifo_size;
-		words_per_loop = (remained_words > rspi->info->fifo_size) ?
-				  rspi->info->fifo_size : remained_words;
-
-		if (txbuf) {
-			for (count = 0; count < words_per_loop; count++) {
-				writew(SPSRC_SPTEFC, rspi->base + RSPI_SPSRC);
-				ret = rspi_wait_for_tx_empty(rspi);
-				if (ret < 0) {
-					dev_err(&rspi->controller->dev, "transmit timeout\n");
-					return ret;
-				}
-				rzv2h_rspi_send(rspi, txbuf, count + loop_count * rspi->info->fifo_size);
+	while ((txbuf && tx_word < words) || (rxbuf && rx_word < words)) {
+		if (txbuf && tx_word < words) {
+			ret = rspi_wait_for_tx_empty(rspi);
+			if (ret < 0) {
+				dev_err(&rspi->controller->dev,
+					"transmit timeout\n");
+				return ret;
 			}
+
+			available_words = rzv2h_rspi_fifo_stages(rspi, true);
+			words_to_transfer = min_t(unsigned int,
+						words - tx_word,
+						available_words);
+
+			for (i = 0; i < words_to_transfer; i++)
+				rzv2h_rspi_send(rspi, txbuf, tx_word++);
 		}
 
-		if (rxbuf) {
-			ret = rspi_wait_for_communication_end(rspi);
-			for (count = 0; count < words_per_loop; count++) {
-				if (ret < 0) {
-					writew(SPSRC_SPRFC, rspi->base + RSPI_SPSRC);
-					ret = rspi_wait_for_rx_full(rspi);
-					if (ret < 0) {
-						dev_err(&rspi->controller->dev,
-							"receive timeout %d\n", count);
-						return ret;
-					}
-				}
+		if (rxbuf && rx_word < words) {
+			ret = rspi_wait_for_rx_full(rspi);
+			if (ret < 0) {
+				dev_err(&rspi->controller->dev,
+						"receive timeout\n");
+				return ret;
+			}
 
-				ret = rzv2h_rspi_receive(rspi, rxbuf,
-							count + loop_count * rspi->info->fifo_size);
+			available_words = rzv2h_rspi_fifo_stages(rspi, false);
+			words_to_receive = min_t(unsigned int,
+						words - rx_word,
+						available_words);
+
+			for (i = 0; i < words_to_receive; i++) {
+				ret = rzv2h_rspi_receive(rspi, rxbuf, rx_word);
 				if (ret) {
 					*error = SPI_TRANS_FAIL_IO;
 					return ret;
 				}
+				rx_word++;
 			}
 		}
 	}
@@ -992,6 +1013,7 @@ static const struct rzv2h_rspi_info rzv2h_info = {
 	.find_tclk_rate = rzv2h_rspi_find_rate_fixed,
 	.tclk_name = "tclk",
 	.fifo_size = 16,
+	.fifo_mask = 0x1f,
 	.num_clks = 3,
 };
 
@@ -1000,6 +1022,7 @@ static const struct rzv2h_rspi_info rzt2h_info = {
 	.find_pclk_rate = rzv2h_rspi_find_rate_fixed,
 	.tclk_name = "pclkspi",
 	.fifo_size = 4,
+	.fifo_mask = 0x7,
 	.num_clks = 2,
 };
 
