@@ -273,6 +273,10 @@
 		a2vdd-supply = <&reg_1p8v>;
 		v3p3-supply = <&reg_3p3v>;
 		v1p2-supply = <&reg_1p8v>;
+
+		interrupt-parent = <&pinctrl>;
+		interrupts = <RZV2N_GPIO(7, 1) IRQ_TYPE_EDGE_FALLING>;
+
 		adi,dsi-lanes = <4>;
 
 		ports {
