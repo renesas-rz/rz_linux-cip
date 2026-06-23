@@ -61,7 +61,7 @@ struct rz_dma_pcie_test {
 	struct dma_chan			*current_chan;
 	struct completion		transfer_complete;
 	struct dentry			*debugfs;
-	struct rz_pcie			*pcie;
+	struct rz_pcie_dma		*pcie;
 	struct rz_dma_pcie_data		*pdata;
 	dma_cookie_t			transfer_cookie;
 	enum dma_status			transfer_status;
@@ -545,7 +545,7 @@ static int rz_dma_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *p
 {
 	struct rz_dma_pcie_data *pdata = (void *)pid->driver_data;
 	struct device *dev = &pdev->dev;
-	struct rz_pcie *pcie;
+	struct rz_pcie_dma *pcie;
 	struct rz_dma_pcie_test *test;
 	int i, ret, mask, nr_irqs;
 
@@ -691,7 +691,7 @@ err_request_dma:
 static void rz_dma_pcie_remove(struct pci_dev *pdev)
 {
 	struct rz_dma_pcie_test *test = pci_get_drvdata(pdev);
-	struct rz_pcie *pcie = test->pcie;
+	struct rz_pcie_dma *pcie = test->pcie;
 
 	rz_dma_pcie_remove_debugfs(test);
 
