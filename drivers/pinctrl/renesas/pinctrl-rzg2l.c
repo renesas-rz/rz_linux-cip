@@ -145,7 +145,6 @@
 #define SMT(off)		(0x3400 + (off) * 8)
 #define SD_CH(off, ch)		((off) + (ch) * 4)
 #define ETH_POC(off, ch)	((off) + (ch) * 4)
-#define QSPI			(0x3008) /* known on RZ/{G2L,G2LC,G2UL,Five} only */
 
 #define PVDD_2500		2	/* I/O domain voltage 2.5V */
 #define PVDD_1800		1	/* I/O domain voltage <= 1.8V */
@@ -915,7 +914,7 @@ static int rzg2l_caps_to_pwr_reg(const struct rzg2l_register_offsets *regs, u32 
 	if (caps & PIN_CFG_IO_VMC_ETH1)
 		return ETH_POC(regs->eth_poc, 1);
 	if (caps & PIN_CFG_IO_VMC_QSPI)
-		return QSPI;
+		return regs->qspi;
 
 	return -EINVAL;
 }
@@ -3393,7 +3392,7 @@ static const struct rzg2l_hwcfg rzg2l_hwcfg = {
 		.sd_ch = 0x3000,
 		.eth_poc = 0x300c,
 		.oen = 0x3018,
-		.qspi = QSPI,
+		.qspi = 0x3008,
 	},
 	.iolh_groupa_ua = {
 		/* 3v3 power source */
@@ -3410,6 +3409,7 @@ static const struct rzg2l_hwcfg rzg3s_hwcfg = {
 		.sd_ch = 0x3004,
 		.eth_poc = 0x3010,
 		.oen = 0x3018,
+		.qspi = 0x300c,
 	},
 	.iolh_groupa_ua = {
 		/* 1v8 power source */
