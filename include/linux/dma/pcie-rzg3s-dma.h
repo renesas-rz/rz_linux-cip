@@ -82,8 +82,8 @@ struct rzg3s_pcie_dmac;
 /**
  * struct rzg3s_pcie_dma_region - DMA linked list/data region
  * @bar:		BAR mem that this region lives in
- * @paddr:		Physical start address of this region
- * @vaddr:		Virtual start address of this region
+ * @paddr:		Physical address of this region in EP controller
+ * @vaddr:		Virtual address of this region seen by RC controller
  * @off:		Offset from BAR address
  * @sz:			Size of this region
  */
@@ -96,7 +96,7 @@ struct rzg3s_pcie_dma_region {
 };
 
 /**
- * struct rz_pcie - holds data used to set up DMA controller
+ * struct rz_pcie_dma - holds data used to set up DMA controller
  * @dev:		Device bound with DMA engine
  * @base:		Base address of AXI Bridge Registers
  * @dmac:		Struct of internal DMA controller
@@ -106,7 +106,7 @@ struct rzg3s_pcie_dma_region {
  * @nr_irqs:		Number of MSI irqs to be allocated
  * @ch_cnt:		Channel count
  */
-struct rz_pcie {
+struct rz_pcie_dma {
 	struct device *dev;
 	void __iomem *base;
 	struct rzg3s_pcie_dmac *dmac;
@@ -119,14 +119,14 @@ struct rz_pcie {
 
 /* Export to the platform or pci drivers */
 #if IS_ENABLED(CONFIG_PCIE_RENESAS_RZG3S_DMA)
-int rzg3s_pcie_dma_probe(struct rz_pcie *pcie, bool remote_dma);
-void rzg3s_pcie_dma_remove(struct rz_pcie *pcie);
+int rzg3s_pcie_dma_probe(struct rz_pcie_dma *dmac, bool remote_dma);
+void rzg3s_pcie_dma_remove(struct rz_pcie_dma *dmac);
 #else
-static inline int rzg3s_pcie_dma_probe(struct rz_pcie *pcie, bool remote_dma)
+static inline int rzg3s_pcie_dma_probe(struct rz_pcie_dma *dmac, bool remote_dma)
 {
 	return -ENODEV;
 }
-static inline void rzg3s_pcie_dma_remove(struct rz_pcie *pcie)
+static inline void rzg3s_pcie_dma_remove(struct rz_pcie_dma *dmac)
 {
 }
 #endif /* CONFIG_PCIE_RENESAS_RZG3S_DMA */

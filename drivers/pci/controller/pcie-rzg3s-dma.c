@@ -183,7 +183,7 @@ struct rzg3s_pcie_dmac {
 	int dma_irq;
 	unsigned int n_channels;
 	struct rzg3s_pcie_dma_chan *channels;
-	struct rz_pcie *pcie;
+	struct rz_pcie_dma *pcie;
 	enum rzg3s_pcie_dma_type type;
 };
 
@@ -277,7 +277,7 @@ static void rzg3s_pcie_dma_update_bits(void __iomem *base, u32 offset, u32 mask,
 	writel(tmp, base + offset);
 }
 
-static int rzg3s_pcie_dma_translate_address(struct rz_pcie *pcie)
+static int rzg3s_pcie_dma_translate_address(struct rz_pcie_dma *pcie)
 {
 	struct rzg3s_pcie_dma_region *region;
 	u8 win;
@@ -868,7 +868,7 @@ static int rzg3s_pcie_dma_channel_setup(struct rzg3s_pcie_dmac *dmac)
 {
 	struct device *dev = dmac->dev;
 	struct dma_device *engine = &dmac->engine;
-	struct rz_pcie *pcie = dmac->pcie;
+	struct rz_pcie_dma *pcie = dmac->pcie;
 	int i, ret;
 
 	dmac->n_channels = RZG3S_PCI_DMA_MAX_CHANNEL;
@@ -923,7 +923,7 @@ err:
 	return ret;
 }
 
-int rzg3s_pcie_dma_probe(struct rz_pcie *pci, bool remote_dma)
+int rzg3s_pcie_dma_probe(struct rz_pcie_dma *pci, bool remote_dma)
 {
 	struct device *dev = pci->dev;
 	struct rzg3s_pcie_dmac *dmac;
@@ -991,7 +991,7 @@ err:
 }
 EXPORT_SYMBOL_GPL(rzg3s_pcie_dma_probe);
 
-void rzg3s_pcie_dma_remove(struct rz_pcie *pci)
+void rzg3s_pcie_dma_remove(struct rz_pcie_dma *pci)
 {
 	struct rzg3s_pcie_dmac *dmac = pci->dmac;
 	int i;
