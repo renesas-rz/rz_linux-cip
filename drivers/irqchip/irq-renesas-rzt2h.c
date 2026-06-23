@@ -222,11 +222,11 @@ static int rzt2h_icu_parse_interrupts(struct rzt2h_icu_priv *priv, struct device
 	return 0;
 }
 
-static int rzt2h_icu_init(struct device_node *node, struct device_node *parent)
+static int rzt2h_icu_probe(struct platform_device *pdev, struct device_node *parent)
 {
-	struct platform_device *pdev = of_find_device_by_node(node);
-	struct device *dev __free(put_device) = pdev ? &pdev->dev : NULL;
 	struct irq_domain *irq_domain, *parent_domain;
+	struct device_node *node = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
 	struct rzt2h_icu_priv *priv;
 	int ret;
 
@@ -273,7 +273,7 @@ static int rzt2h_icu_init(struct device_node *node, struct device_node *parent)
 }
 
 IRQCHIP_PLATFORM_DRIVER_BEGIN(rzt2h_icu)
-IRQCHIP_MATCH("renesas,r9a09g077-icu", rzt2h_icu_init)
+IRQCHIP_MATCH("renesas,r9a09g077-icu", rzt2h_icu_probe)
 IRQCHIP_PLATFORM_DRIVER_END(rzt2h_icu)
 MODULE_AUTHOR("Cosmin Tanislav <cosmin-gabriel.tanislav.xa@renesas.com>");
 MODULE_DESCRIPTION("Renesas RZ/T2H ICU Driver");
