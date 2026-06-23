@@ -664,6 +664,16 @@ static const struct rzv2h_mod_clk r9a09g047_mod_clks[] = {
 						BUS_MSTOP(2, BIT(3) | BIT(4))),
 	DEF_MOD("ssi9_clk",			CLK_PLLCLN_DIV8, 24, 10, -1, -1,
 						BUS_MSTOP(2, BIT(3) | BIT(4))),
+	DEF_MOD("lvds_top_clk_ch0",		CLK_PLLDSI0, 26, 0, 10, 22,
+						BUS_MSTOP(13, BIT(0))),
+	DEF_MOD("lvds_top_clk_ch1",		CLK_PLLDSI1, 26, 1, 10, 23,
+						BUS_MSTOP(13, BIT(0))),
+	DEF_MOD("lvds_top_clk_dot_ch0",		CLK_SMUX2_DSI0_CLK, 26, 2, 10, 24,
+						BUS_MSTOP(13, BIT(0))),
+	DEF_MOD("lvds_top_clk_dot_ch1",		CLK_SMUX2_DSI1_CLK, 26, 3, 10, 25,
+						BUS_MSTOP(13, BIT(0))),
+	DEF_MOD("lvds_top_pclk",		CLK_PLLDTY_DIV16, 26, 4, 10, 26,
+						BUS_MSTOP(13, BIT(0))),
 	DEF_MOD("lcdc_1_clk_a",			CLK_PLLDTY_ACPU_DIV2, 26, 8, 10, 30,
 						BUS_MSTOP(13, BIT(5) | BIT(4) | BIT(3))),
 	DEF_MOD("lcdc_1_clk_p",			CLK_PLLDTY_DIV16, 26, 9, 10, 31,
@@ -784,6 +794,7 @@ static const struct rzv2h_reset r9a09g047_resets[] = {
 	DEF_RST(14, 13, 6, 30),		/* DMACpp_0_ARST */
 	DEF_RST(14, 14, 6, 31),		/* ADG_0_RST_RESET_ADG */
 	DEF_RST(15, 8, 7, 9),		/* TSU_1_PRESETN */
+	DEF_RST(17, 10, 8, 11),		/* LVDS_TOP_RESET_N */
 	DEF_RST(17, 14, 8, 15),		/* LCDC_1_RESET_N */
 };
 
