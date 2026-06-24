@@ -49,6 +49,7 @@
 #define ICU_TSCLR				0x24
 #define ICU_TITSR(k)				(0x28 + (k) * 4)
 #define ICU_TSSR(k)				(0x30 + (k) * 4)
+#define ICU_IPTSR				0x60
 #define ICU_BEISR(k)				(0x70 + (k) * 4)
 #define ICU_BECLR(k)				(0x80 + (k) * 4)
 #define ICU_EREISR(k)				(0x90 + (k) * 4)
@@ -116,11 +117,13 @@
  * struct rzv2h_irqc_reg_cache - registers cache (necessary for suspend/resume)
  * @nitsr: ICU_NITSR register
  * @iitsr: ICU_IITSR register
+ * @iptsr: ICU_IPTSR register
  * @titsr: ICU_TITSR registers
  */
 struct rzv2h_irqc_reg_cache {
 	u32	nitsr;
 	u32	iitsr;
+	u32	iptsr;
 	u32	titsr[2];
 };
 
@@ -510,6 +513,7 @@ static int rzv2h_irqc_irq_suspend(void)
 
 	cache->nitsr = readl_relaxed(base + ICU_NITSR);
 	cache->iitsr = readl_relaxed(base + ICU_IITSR);
+	cache->iptsr = readl_relaxed(base + ICU_IPTSR);
 	for (unsigned int i = 0; i < 2; i++)
 		cache->titsr[i] = readl_relaxed(base + rzv2h_icu_data->info->t_offs + ICU_TITSR(i));
 
@@ -528,6 +532,7 @@ static void rzv2h_irqc_irq_resume(void)
 	 */
 	for (unsigned int i = 0; i < 2; i++)
 		writel_relaxed(cache->titsr[i], base + rzv2h_icu_data->info->t_offs + ICU_TITSR(i));
+	writel_relaxed(cache->iptsr, base + ICU_IPTSR);
 	writel_relaxed(cache->iitsr, base + ICU_IITSR);
 	writel_relaxed(cache->nitsr, base + ICU_NITSR);
 }
