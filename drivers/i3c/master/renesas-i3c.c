@@ -781,7 +781,8 @@ static int renesas_i3c_send_ccc_cmd(struct i3c_master_controller *m,
 	case I3C_CCC_SETDASA:
 		renesas_writel(i3c->regs, DATBAS(pos),
 			DATBAS_DVSTAD(ccc->dests[0].addr) |
-			DATBAS_DVDYAD(*(u8 *)ccc->dests[0].payload.data >> 1));
+			DATBAS_DVDYAD(datbas_dvdyad_with_parity(*(u8 *)
+				      ccc->dests[0].payload.data >> 1)));
 		cmd->cmd0 = NCMDQP_CMD_ATTR(NCMDQP_ADDR_ASSGN) | NCMDQP_ROC |
 			NCMDQP_TID(I3C_COMMAND_ADDRESS_ASSIGNMENT) |
 			NCMDQP_CMD(I3C_CCC_SETDASA) | NCMDQP_DEV_INDEX(pos) |
