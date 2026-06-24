@@ -1192,11 +1192,12 @@ static int rzg2l_gpt_poeg_init(struct platform_device *pdev,
 	const char *poeg_name = "renesas,poegs";
 	struct of_phandle_args of_args;
 	struct property *poegs;
-	unsigned int i;
+	struct device_node *gpt;
+	unsigned int i, j;
 	u32 poeg_grp;
 	u32 bitpos;
 	int cells;
-	int ret;
+	int ret, count;
 
 	poegs = of_find_property(pdev->dev.of_node, poeg_name, NULL);
 	if (!poegs)
@@ -1229,6 +1230,22 @@ static int rzg2l_gpt_poeg_init(struct platform_device *pdev,
 			continue;
 		}
 
+		count = of_count_phandle_with_args(of_args.np, "renesas,gpt", NULL);
+		if (count <= 0)
+			goto err_of_node;
+
+		for (j = 0; j < count; j++) {
+			gpt = of_parse_phandle(of_args.np, "renesas,gpt", j);
+			if (gpt == pdev->dev.of_node)
+				break;
+			of_node_put(gpt);
+		}
+
+		if (j == count) {
+			of_node_put(of_args.np);
+			continue;
+		};
+
 		if (!of_property_read_u32(of_args.np, "renesas,poeg-id", &poeg_grp)) {
 			if (poeg_grp > RZG2L_LAST_POEG_GROUP) {
 				dev_err(&pdev->dev, "Invalid poeg group %d > %d\n",
@@ -1247,6 +1264,7 @@ static int rzg2l_gpt_poeg_init(struct platform_device *pdev,
 					 RZG2L_GTIOR_PIN_DISABLE_SETTING);
 		}
 
+		of_node_put(gpt);
 		of_node_put(of_args.np);
 	}
 
