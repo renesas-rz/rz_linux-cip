@@ -79,15 +79,13 @@ static void renesas_sdhi_sdbuf_width(struct tmio_mmc_host *host, int width)
 		break;
 	case SDHI_VER_GEN3_SD:
 	case SDHI_VER_GEN3_SDMMC:
+	case SDHI_VER_RZ_G3L_SDMMC:
 		if (width == 64)
 			val = HOST_MODE_GEN3_64BIT;
 		else if (width == 32)
 			val = HOST_MODE_GEN3_32BIT;
 		else
 			val = HOST_MODE_GEN3_16BIT;
-		break;
-	case SDHI_VER_RZ_G3L_SDMMC:
-		val = HOST_MODE_GEN3_64BIT;
 		break;
 	default:
 		/* nothing to do */
@@ -232,9 +230,6 @@ static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
 			clk &= ~0xff;
 	}
 
-	if (((clk & CLK_CTL_DIV_MASK) != 0xff) && ((clk & CLK_CTL_DIV_MASK) != 0))
-		host->mmc->actual_clock /= (1 << (ffs (clk & CLK_CTL_DIV_MASK) + 1));
-
 	clock = clk & CLK_CTL_DIV_MASK;
 	if (clock != CLK_CTL_DIV_MASK)
 		host->mmc->actual_clock /= (1 << (ffs(clock) + 1));
@@ -335,16 +330,19 @@ static inline void sd_scc_write32(struct tmio_mmc_host *host,
 static void renesas_sdhi_set_delay(struct tmio_mmc_host *host)
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
+	bool hwadj2 = host->pdata->flags & TMIO_MMC_HWADJ2;
 
 	if (!(host->pdata->flags & TMIO_MMC_TUNING_DELAY))
 		return;
 
 	if (host->mmc->ios.signal_voltage == MMC_SIGNAL_VOLTAGE_330) {
 		sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT2, 0x0);
-		sd_scc_write32(host, priv, RZG3L_SDHI_SCC_HWADJ2, 0x3FFF);
+		if (hwadj2)
+			sd_scc_write32(host, priv, RZG3L_SDHI_SCC_HWADJ2, 0x3FFF);
 	} else {
 		sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT2, 0x1);
-		sd_scc_write32(host, priv, RZG3L_SDHI_SCC_HWADJ2, 0xFF);
+		if (hwadj2)
+			sd_scc_write32(host, priv, RZG3L_SDHI_SCC_HWADJ2, 0xFF);
 	}
 }
 
@@ -420,7 +418,8 @@ static unsigned int renesas_sdhi_init_tuning(struct tmio_mmc_host *host)
 	    (host->mmc->ios.timing == MMC_TIMING_MMC_HS200))
 		sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT2, 0x0);
 
-	sd_scc_write32(host, priv, RZG3L_SDHI_SCC_HWADJ4, 0x0);
+	if (host->pdata->flags & TMIO_MMC_INTERNAL_DIVIDER)
+		sd_scc_write32(host, priv, RZG3L_SDHI_SCC_HWADJ4, 0x0);
 
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, CLK_CTL_SCLKEN |
 			sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
