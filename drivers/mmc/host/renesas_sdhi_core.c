@@ -120,7 +120,7 @@ static int renesas_sdhi_clk_enable(struct tmio_mmc_host *host)
 	 * Minimum frequency is the minimum input clock frequency
 	 * divided by our maximum divider.
 	 */
-	mmc->f_min = max(clk_round_rate(priv->clk, 1) / (1 << priv->max_divider_bits), 1L);
+	mmc->f_min = max(clk_round_rate(priv->clk, 1) / host->pdata->max_divider, 1L);
 
 	/* enable 16bit data access on SDBUF as default */
 	renesas_sdhi_sdbuf_width(host, 16);
@@ -187,7 +187,8 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 
 	clk_set_rate(ref_clk, best_freq);
 
-	if ((priv->max_divider_bits != 9) && (host->mmc->ios.timing == MMC_TIMING_MMC_HS400))
+	if ((host->pdata->max_divider != SDHI_MAX_DIVIDER_DEFAULT) &&
+	    (host->mmc->ios.timing == MMC_TIMING_MMC_HS400))
 		clkh_shift = 1;
 
 	if (priv->clkh)
@@ -199,7 +200,6 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
 				   unsigned int new_clock)
 {
-	struct renesas_sdhi *priv = host_to_priv(host);
 	unsigned int clk_margin;
 	u64 clk = 0, clock;
 
@@ -211,8 +211,9 @@ static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
 		goto out;
 	}
 
-	host->mmc->actual_clock = renesas_sdhi_clk_update(host, new_clock) / ((priv->max_divider_bits == 11) ? 2 : 1);
-	clock = host->mmc->actual_clock / (1 << priv->max_divider_bits);
+	host->mmc->actual_clock = renesas_sdhi_clk_update(host, new_clock) /
+		((host->pdata->max_divider != SDHI_MAX_DIVIDER_DEFAULT) ? 2 : 1);
+	clock = host->mmc->actual_clock / host->pdata->max_divider;
 
 	/*
 	 * Add a margin of 1/1024 rate higher to the clock rate in order
@@ -1217,6 +1218,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		mmc_data->max_blk_count = of_data->max_blk_count;
 		mmc_data->max_segs = of_data->max_segs;
 		mmc_data->clk_mask = of_data->clk_mask;
+		mmc_data->max_divider = of_data->max_divider;
 		dma_priv->dma_buswidth = of_data->dma_buswidth;
 		host->bus_shift = of_data->bus_shift;
 		/* Fallback for old DTs */
@@ -1227,6 +1229,9 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 
 	if (!mmc_data->clk_mask)
 		mmc_data->clk_mask = SDHI_CLK_MASK_DEFAULT;
+
+	if (!mmc_data->max_divider)
+		mmc_data->max_divider = SDHI_MAX_DIVIDER_DEFAULT;
 
 	host->write16_hook = renesas_sdhi_write16_hook;
 	host->clk_enable = renesas_sdhi_clk_enable;
@@ -1364,7 +1369,6 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	}
 
 	priv->internal_divider = of_data->internal_divider && !device_property_read_bool(dev, "mmc-hs400-1_8v") ? 2 : 1;
-	priv->max_divider_bits = of_data->max_divider_bits ? of_data->max_divider_bits : 9;
 
 	sd_ctrl_write32_as_16_and_16(host, CTL_IRQ_MASK, host->sdcard_irq_mask_all);
 
