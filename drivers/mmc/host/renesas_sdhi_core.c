@@ -588,6 +588,8 @@ static void renesas_sdhi_adjust_hs400_mode_disable(struct tmio_mmc_host *host)
 static void renesas_sdhi_reset_hs400_mode(struct tmio_mmc_host *host,
 					  struct renesas_sdhi *priv)
 {
+	u32 val = ~(SH_MOBILE_SDHI_SCC_TMPPORT2_HS400EN | host->pdata->osel_tmpout);
+
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~CLK_CTL_SCLKEN &
 			sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
 
@@ -597,11 +599,11 @@ static void renesas_sdhi_reset_hs400_mode(struct tmio_mmc_host *host,
 
 	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_DT2FF, priv->scc_tappos);
 
+	if (host->pdata->flags & TMIO_MMC_HS400ES)
+		val &= ~SH_MOBILE_SDHI_SCC_HS400MODE1_ENHANCED_STROBE;
+
 	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT2,
-		       ~(SH_MOBILE_SDHI_SCC_TMPPORT2_HS400EN |
-			 host->pdata->osel_tmpout |
-			 SH_MOBILE_SDHI_SCC_HS400MODE1_ENHANCED_STROBE) &
-			sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT2));
+		       val & sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT2));
 
 	if (host->pdata->flags & TMIO_MMC_HS400MODE2)
 		sd_scc_write32(host, priv, RZG3L_SDHI_SCC_HS400MODE2, 0x0);
@@ -813,6 +815,9 @@ static void renesas_sdhi_hs400_enhanced_strobe(struct mmc_host *mmc,
 	struct renesas_sdhi *priv = host_to_priv(host);
 	u32 val = sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT2);
 
+	if (!(host->pdata->flags & TMIO_MMC_HS400ES))
+		return;
+
 	if (ios->enhanced_strobe) {
 		sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_CKSEL,
 			       ~SH_MOBILE_SDHI_SCC_CKSEL_DTSEL &
@@ -824,10 +829,13 @@ static void renesas_sdhi_hs400_enhanced_strobe(struct mmc_host *mmc,
 
 		sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT3, BIT(8) | BIT(9));
 		sd_scc_write32(host, priv, RZG3L_SDHI_SCC_HWADJ2, 0xFF);
-		sd_ctrl_write16(host, CTL_SDIF_MODE, SDIF_MODE_HS400 | sd_ctrl_read16(host, CTL_SDIF_MODE));
-		sd_scc_write32(host, priv, RZG3L_SDHI_SCC_HS400MODE2, RZG3L_SDHI_SCC_HS400MODE2_HS400EN2);
+		sd_ctrl_write16(host, CTL_SDIF_MODE, SDIF_MODE_HS400 |
+				sd_ctrl_read16(host, CTL_SDIF_MODE));
+		sd_scc_write32(host, priv, RZG3L_SDHI_SCC_HS400MODE2,
+			       RZG3L_SDHI_SCC_HS400MODE2_HS400EN2);
 
-		val |= SH_MOBILE_SDHI_SCC_TMPPORT2_HS400EN | SH_MOBILE_SDHI_SCC_HS400MODE1_ENHANCED_STROBE;
+		val |= SH_MOBILE_SDHI_SCC_TMPPORT2_HS400EN |
+		       SH_MOBILE_SDHI_SCC_HS400MODE1_ENHANCED_STROBE;
 	} else {
 		val &= ~SH_MOBILE_SDHI_SCC_HS400MODE1_ENHANCED_STROBE;
 	}
