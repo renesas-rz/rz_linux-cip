@@ -114,7 +114,7 @@ static int renesas_sdhi_clk_enable(struct tmio_mmc_host *host)
 	 * was missing, assume the current frequency is the maximum.
 	 */
 	if (!mmc->f_max)
-		mmc->f_max = clk_get_rate(priv->clk) / priv->internal_divider;
+		mmc->f_max = clk_get_rate(priv->clk);
 
 	/*
 	 * Minimum frequency is the minimum input clock frequency
@@ -192,7 +192,7 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 		clkh_shift = 1;
 
 	if (priv->clkh)
-		clk_set_rate(priv->clk, (best_freq >> clkh_shift) * priv->internal_divider);
+		clk_set_rate(priv->clk, (best_freq >> clkh_shift) * priv->divider);
 
 	return clk_get_rate(priv->clk);
 }
@@ -1300,6 +1300,12 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 
 	dev_pm_domain_start(&pdev->dev);
 
+	if ((host->pdata->flags & TMIO_MMC_INTERNAL_DIVIDER) &&
+	    !device_property_read_bool(dev, "mmc-hs400-1_8v"))
+		priv->divider = 2;
+	else
+		priv->divider = 1;
+
 	ret = renesas_sdhi_clk_enable(host);
 	if (ret)
 		goto efree;
@@ -1373,8 +1379,6 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		host->ops.hs400_complete = renesas_sdhi_hs400_complete;
 		host->ops.hs400_enhanced_strobe = renesas_sdhi_hs400_enhanced_strobe;
 	}
-
-	priv->internal_divider = of_data->internal_divider && !device_property_read_bool(dev, "mmc-hs400-1_8v") ? 2 : 1;
 
 	sd_ctrl_write32_as_16_and_16(host, CTL_IRQ_MASK, host->sdcard_irq_mask_all);
 
