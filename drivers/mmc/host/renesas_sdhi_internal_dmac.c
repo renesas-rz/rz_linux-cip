@@ -126,8 +126,6 @@ static const struct renesas_sdhi_of_data of_data_rzg3l = {
 	.max_blk_count	= UINT_MAX / TMIO_MAX_BLK_SIZE,
 	.max_segs	= 1,
 	.sdhi_flags	= SDHI_FLAG_NEED_CLKH_FALLBACK,
-	.internal_divider = true,
-	.max_divider_bits = 11,
 };
 
 static const struct renesas_sdhi_of_data of_data_rcar_gen3 = {

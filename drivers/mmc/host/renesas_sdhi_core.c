@@ -220,12 +220,6 @@ static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
 	 * provided for actual_clock in renesas_sdhi_clk_update().
 	 */
 	clk_margin = new_clock >> 10;
-	if (priv->max_divider_bits == 9) {
-		clk = 0x80000080;
-	} else {
-		clk = 0x200000200;
-	}
-
 	for (; new_clock + clk_margin >= (clock << 1); clk >>= 1)
 		clock <<= 1;
 
