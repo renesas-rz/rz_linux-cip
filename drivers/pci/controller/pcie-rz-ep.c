@@ -33,9 +33,12 @@ struct rz_pcie {
 	struct device		*dev;
 };
 
+struct rz_pcie_endpoint;
+
 struct rz_pcie_soc_data {
 	struct rzg3s_sysc_info sysc_info;
 	u8 max_channels;
+	int (*init_phy)(struct rz_pcie_endpoint *ep);
 };
 
 struct rz_pcie_endpoint {
@@ -204,11 +207,24 @@ static int rz_pcie_hw_init_ep(struct rz_pcie *pcie, int channel)
 	/* De-assert LOAD_B, CFG_B */
 	rzg3s_pcie_update_bits(pcie->base, RZG3S_PCI_RESET, mask, mask);
 
-	/* Put controller in 4 lanes mode */
+	/*
+	 * Put controller in:
+	 * - 4 lanes mode x 1 channel (RZ/V2H)
+	 * - 2 lanes mode x 1 channel (RZ/T2H)
+	 */
 	ret = rzg3s_sysc_config_func(ep->sysc, RZG3S_SYSC_FUNC_LANES_MODE, 1,
 				     ep->channel);
 	if (ret)
 		return ret;
+
+	/* Set the PHY, if any */
+	if (ep->data->init_phy) {
+		ret = ep->data->init_phy(ep);
+		if (ret) {
+			dev_err_probe(pcie->dev, ret, "Failed to set the PHY!\n");
+			return ret;
+		}
+	}
 
 	/* Enable access control to the CFGU */
 	writel_relaxed(RZG3S_PCI_PERM_CFG_HWINIT_EN,
@@ -590,6 +606,62 @@ static int rz_pcie_ep_assert_msi(struct rz_pcie_endpoint *ep,
 	return 0;
 }
 
+static int rzt2h_soc_pcie_init_phy(struct rz_pcie_endpoint *ep)
+{
+	static const u32 xcfgd_settings[RZG3S_PCI_PHY_XCFGD_NUM] = {
+		0x00002000, 0x00C00090, 0x000001E0, 0x02000000, 0x00000000,
+		0x00520154, 0x00000000, 0x00000000, 0x44440000, 0x00000000,
+		0x5DBB8000, 0x1E000000,
+	};
+	static const u32 xcfga_cmn_settings[RZG3S_PCI_PHY_XCFGA_CMN_NUM] = {
+		0x00000080, 0x60940060, 0x00C12000, 0x60000BF8, 0x80834238,
+		0x00001118, 0x32040400, 0x21914064, 0x52948A03, 0x219CE008,
+		0x0C867F02, 0x40643228, 0x010A9291, 0xE044039C, 0x08800807,
+		0x00041002,
+	};
+	static const u32 xcfga_l0_l1_settings[RZT2H_PCI_PHY_XCFGA_L0_L1_NUM] = {
+		0x08000000, 0x00050400, 0xE0003300, 0xC0400FBF, 0x960902A0,
+		0x00020860, 0x08000000, 0x00050400, 0xE0003300, 0xC0400FBF,
+		0x960902A0, 0x00020860,
+	};
+
+	unsigned int i;
+
+	/*
+	 * Enable access permission for physical layer control and status
+	 * registers.
+	 */
+	writel_relaxed(RZG3S_PCI_PERM_PIPE_PHY_REG_EN,
+		       ep->pcie.base + RZG3S_PCI_PERM);
+
+	for (i = 0; i < RZG3S_PCI_PHY_XCFGD_NUM; i++) {
+		writel_relaxed(xcfgd_settings[i],
+			       ep->pcie.base + RZG3S_PCI_PHY_XCFGD(i));
+	}
+
+	for (i = 0; i < RZG3S_PCI_PHY_XCFGA_CMN_NUM; i++) {
+		writel_relaxed(xcfga_cmn_settings[i],
+			       ep->pcie.base + RZG3S_PCI_PHY_XCFGA_CMN(i));
+	}
+
+	for (i = 0; i < RZT2H_PCI_PHY_XCFGA_L0_L1_NUM; i++) {
+		writel_relaxed(xcfga_l0_l1_settings[i],
+			       ep->pcie.base + RZG3S_PCI_PHY_XCFGA_RX(i));
+	}
+
+	/* Select PHY settings values */
+	writel_relaxed(RZG3S_PCI_PHY_XCFG_CTRL_PHYREG_SEL,
+		       ep->pcie.base + RZG3S_PCI_PHY_XCFG_CTRL);
+
+	/*
+	 * Disable access permission for physical layer control and status
+	 * registers.
+	 */
+	writel_relaxed(0, ep->pcie.base + RZG3S_PCI_PERM);
+
+	return 0;
+}
+
 static int rz_pcie_ep_raise_irq(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 				unsigned int type, u16 interrupt_num)
 {
@@ -672,10 +744,44 @@ static const struct rz_pcie_soc_data rzv2h_soc_data = {
 	},
 };
 
+static const struct rz_pcie_soc_data rzt2h_soc_data = {
+	.max_channels = 2,
+	.init_phy = rzt2h_soc_pcie_init_phy,
+	.sysc_info = {
+		.functions = {
+			[RZG3S_SYSC_FUNC_ID_INTX] = {
+				.offset = 0x2000,
+				.mask = BIT(0),
+			},
+			[RZG3S_SYSC_FUNC_ID_MSI1] = {
+				.offset = 0x2004,
+				.mask = BIT(0),
+			},
+			[RZG3S_SYSC_FUNC_ID_L1_ALLOW] = {
+				.offset = 0x2020,
+				.stride = 0x30,
+				.mask = BIT(0),
+			},
+			[RZG3S_SYSC_FUNC_ID_MODE] = {
+				.offset = 0x2024,
+				.stride = 0x30,
+				.mask = BIT(0),
+			},
+			[RZG3S_SYSC_FUNC_LANES_MODE] = {
+				.offset = 0x2060,
+				.mask = GENMASK(9, 8),
+			},
+		},
+	},
+};
 static const struct of_device_id rz_pcie_ep_of_match[] = {
 	{
 		.compatible = "renesas,rzv2h-pcie-ep",
 		.data = &rzv2h_soc_data,
+	},
+	{
+		.compatible = "renesas,rzt2h-pcie-ep",
+		.data = &rzt2h_soc_data,
 	},
 	{}, /* sentinel */
 };
