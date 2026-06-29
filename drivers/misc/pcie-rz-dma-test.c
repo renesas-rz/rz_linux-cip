@@ -11,7 +11,7 @@
 
 #define PCI_DEVICE_ID_RENESAS_R9A09057          0x003a
 
-#define DMA_CHAN_NUM	2
+#define DMA_CHAN_NUM	4
 #define DMA_IRQ_NUM	1
 
 enum rz_dma_pcie_test_mode {
@@ -77,6 +77,10 @@ static const struct rz_dma_pcie_data rzv2h_pcie_test_data = {
 		RZ_BLOCK(BAR_0, 0x00000800, 0x00001000)
 		/* Channel 1 - BAR 0, offset 0x800, size 0x1000 */
 		RZ_BLOCK(BAR_0, 0x00002000, 0x00001000)
+		/* Channel 2 - BAR 2, offset 0x0000, size 0x1000 */
+		RZ_BLOCK(BAR_2, 0x00000000, 0x00001000)
+		/* Channel 3 - BAR 2, offset 0x1000, size 0x1000 */
+		RZ_BLOCK(BAR_2, 0x00001000, 0x00001000)
 	},
 	/* DMA Data Location */
 	.dt = {
@@ -84,6 +88,10 @@ static const struct rz_dma_pcie_data rzv2h_pcie_test_data = {
 		RZ_BLOCK(BAR_0, 0x00005000, 0x00100000)
 		/* Channel 1 - BAR 0, offset 0x106000, size 0x100000 */
 		RZ_BLOCK(BAR_0, 0x00106000, 0x00100000)
+		/* Channel 2 - BAR 2, offset 0x5000, size 0x100000 */
+		RZ_BLOCK(BAR_2, 0x00005000, 0x00100000)
+		/* Channel 3 - BAR 2, offset 0x106000, size 0x100000 */
+		RZ_BLOCK(BAR_2, 0x00106000, 0x00100000)
 	},
 	/* Others */
 	.irq				= DMA_IRQ_NUM,
