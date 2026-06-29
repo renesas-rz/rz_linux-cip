@@ -278,6 +278,15 @@
 					remote-endpoint = <&dsi_to_hdmi_out>;
 				};
 			};
+
+#if (!SW_LCD_EN)
+			port@2 {
+				reg = <2>;
+				adv7535_codec_ep: endpoint {
+					remote-endpoint = <&rsnd_endpoint1>;
+				};
+			};
+#endif
 		};
 	};
 #endif
@@ -481,6 +490,14 @@
 			 <RZG3E_PORT_PINMUX(0, 2, 9)>, /* SSI3_SDATA */
 			 <RZG3E_PORT_PINMUX(0, 5, 9)>; /* SSI4_SDATA */
 	};
+
+#if (!SW_LCD_EN)
+	ssi0_pins: ssi0 {
+		pinmux = <RZG3E_PORT_PINMUX(7, 1, 9)>, /* SSI0_SCK */
+			 <RZG3E_PORT_PINMUX(7, 2, 9)>, /* SSI0_WS */
+			 <RZG3E_PORT_PINMUX(7, 0, 9)>; /* SSI0_SDATA */
+	};
+#endif
 
 	xspi_pins: xspi0 {
 		pinmux = <RZG3E_PORT_PINMUX(M, 0, 0)>, /* XSPI0_IO0 */
