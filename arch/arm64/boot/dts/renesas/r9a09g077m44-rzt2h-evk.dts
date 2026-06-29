@@ -81,6 +81,13 @@
 #define PCIE_SEL	PCIE0
 
 /*
+ * Set SEL_PCIE_EP_RC to below values to select using of:
+ * - 0: Endpoint
+ * - 1: Root complex (default)
+ */
+#define SEL_PCIE_EP_RC		1
+
+/*
  * P31_4 can be used as P31_4_HEADER_PMOD1_SCK or P31_4_ETH2_CRS
  * P31_5 can be used as P31_5_HEADER_PMOD1_MOSI or P31_5_ETH2_COL
  * To enable RSPI0, set SW2[7] = OFF

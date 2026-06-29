@@ -569,6 +569,7 @@
 	};
 
 #if (!SEL_GMAC1_OTHERS)
+#if (SEL_PCIE_EP_RC)
 #if (PCIE_SEL == PCIE0 || PCIE_SEL == PCIE0_PCIE1)
 	pcie0_pins: pcie0 {
 		pinmux = <RZT2H_PORT_PINMUX(33, 3, 0x27)>; /* PCIE_RST_OUT0B */
@@ -579,6 +580,7 @@
 	pcie1_pins: pcie1 {
 		pinmux = <RZT2H_PORT_PINMUX(33, 4, 0x27)>; /* PCIE_RST_OUT1B */
 	};
+#endif
 #endif
 #endif
 
@@ -732,6 +734,7 @@
 };
 
 #if (!SEL_GMAC1_OTHERS)
+#if (SEL_PCIE_EP_RC)
 #if (PCIE_SEL == PCIE0 || PCIE_SEL == PCIE0_PCIE1)
 &pcie0 {
 	pinctrl-0 = <&pcie0_pins>;
@@ -750,6 +753,11 @@
 	pinctrl-0 = <&pcie1_pins>;
 	pinctrl-names = "default";
 	num-lanes = <1>;
+	status = "okay";
+};
+#endif
+#else
+&pcie0_ep {
 	status = "okay";
 };
 #endif
