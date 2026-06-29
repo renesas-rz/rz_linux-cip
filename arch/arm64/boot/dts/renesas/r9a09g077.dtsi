@@ -1907,6 +1907,48 @@
 			};
 		};
 
+		pcie0_ep: pcie-ep@92100000 {
+			compatible = "renesas,rzt2h-pcie-ep";
+			reg = <0x0 0x92100000 0x0 0x10000>,
+			      <0x4 0x00000000 0x0 0x08000000>,
+			      <0x4 0x08000000 0x0 0x08000000>;
+			reg-names = "pcie-base", "memory0", "memory1";
+			interrupts = <GIC_SPI 797 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 794 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 795 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "all", "dma", "pcie_evt";
+			clocks = <&cpg CPG_MOD 1208>;
+			power-domains = <&cpg>;
+			vendor-id = <0x1912>;
+			device-id = <0x003a>;
+			resets = <&cpg 1208>;
+			reset-names = "aresetn";
+			pcie,channel = <0>;
+			renesas,sysc = <&sys0>;
+			status = "disabled";
+		};
+
+		pcie1_ep: pcie-ep@92110000 {
+			compatible = "renesas,rzt2h-pcie-ep";
+			reg = <0x0 0x92110000 0x0 0x10000>,
+			      <0x6 0x00000000 0x0 0x08000000>,
+			      <0x6 0x08000000 0x0 0x08000000>;
+			reg-names = "pcie-base", "memory0", "memory1";
+			interrupts = <GIC_SPI 817 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 814 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 815 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "all", "dma", "pcie_evt";
+			clocks = <&cpg CPG_MOD 1208>;
+			power-domains = <&cpg>;
+			vendor-id = <0x1912>;
+			device-id = <0x003a>;
+			resets = <&cpg 1208>;
+			reset-names = "aresetn";
+			pcie,channel = <1>;
+			renesas,sysc = <&sys0>;
+			status = "disabled";
+		};
+
 		du: display@920c0000 {
 			compatible = "renesas,r9a09g077-du";
 			reg = <0 0x920c0000 0 0x10000>;
