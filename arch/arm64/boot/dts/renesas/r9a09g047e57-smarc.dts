@@ -213,16 +213,20 @@
 				 <RZG3E_PORT_PINMUX(L, 3, 3)>; /* TX */
 		};
 
+#if (!SW_LCD_EN)
 		can4_pins: can4 {
 			pinmux = <RZG3E_PORT_PINMUX(5, 2, 3)>, /* RX */
 				 <RZG3E_PORT_PINMUX(5, 3, 3)>; /* TX */
 		};
+#endif
 	};
 
+#if (!SW_LCD_EN)
 	gpt0_pins: gpt0 {
 		pinmux = <RZG3E_PORT_PINMUX(5, 4, 10)>, /* GTIOC4A */
 			 <RZG3E_PORT_PINMUX(5, 5, 10)>; /* GTIOC4B */
 	};
+#endif
 
 	i2c0_pins: i2c0 {
 		pinmux = <RZG3E_PORT_PINMUX(D, 4, 4)>, /* SCL0 */
