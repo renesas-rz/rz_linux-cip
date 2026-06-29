@@ -788,13 +788,13 @@ static const struct pci_epc_features rz_pcie_epc_features = {
 	.msi_capable = true,
 	.msix_capable = false,
 	/* use 64-bit BARs so mark BAR[1,3,5] as reserved */
-	.bar[BAR_0] = { .type = BAR_FIXED, .fixed_size = SZ_1M,
+	.bar[BAR_0] = { .type = BAR_FIXED, .fixed_size = SZ_4M,
 			.only_64bit = true, },
 	.bar[BAR_1] = { .type = BAR_RESERVED, },
-	.bar[BAR_2] = { .type = BAR_FIXED, .fixed_size = SZ_4K,
+	.bar[BAR_2] = { .type = BAR_FIXED, .fixed_size = SZ_4M,
 			.only_64bit = true, },
 	.bar[BAR_3] = { .type = BAR_RESERVED, },
-	.bar[BAR_4] = { .type = BAR_FIXED, .fixed_size = SZ_256,
+	.bar[BAR_4] = { .type = BAR_FIXED, .fixed_size = SZ_8K,
 			.only_64bit = true, },
 	.bar[BAR_5] = { .type = BAR_RESERVED, },
 };
