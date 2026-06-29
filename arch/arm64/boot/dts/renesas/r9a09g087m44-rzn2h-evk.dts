@@ -103,6 +103,13 @@
 #define PCIE0_PCIE1	2
 #define PCIE_SEL	PCIE0
 
+/*
+ * Set SEL_PCIE_EP_RC to below values to select using of:
+ * - 0: Endpoint
+ * - 1: Root complex (default)
+ */
+#define SEL_PCIE_EP_RC		1
+
 #include "rzt2h-n2h-evk-common.dtsi"
 
 /*
