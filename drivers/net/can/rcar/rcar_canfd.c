@@ -2253,7 +2253,7 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 
 	err = rcar_canfd_global_init(gpriv);
 	if (err)
-		goto fail_mode;
+		goto fail_dev;
 
 	for_each_set_bit(ch, &gpriv->channels_mask, info->max_channels) {
 		err = rcar_canfd_channel_probe(gpriv, ch, fcan_freq,
@@ -2271,7 +2271,7 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 fail_channel:
 	for_each_set_bit(ch, &gpriv->channels_mask, info->max_channels)
 		rcar_canfd_channel_remove(gpriv, ch);
-fail_mode:
+
 	rcar_canfd_global_deinit(gpriv, false);
 fail_dev:
 	return err;
