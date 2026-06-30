@@ -366,8 +366,14 @@
 &gpt1 {
 	pinctrl-0 = <&gpt1_pins>;
 	pinctrl-names = "default";
+	renesas,poegs = <&poeg0ga 0>;
 
 	status = "okay";
+};
+
+&poeg0ga {
+	status = "okay";
+	renesas,poeg-config = <1>;
 };
 
 #if (!SEL_GMAC1_OTHERS)
