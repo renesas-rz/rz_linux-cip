@@ -635,6 +635,12 @@ static const struct rzv2h_mod_clk r9a09g047_mod_clks[] = {
 						BUS_MSTOP(2, BIT(2))),
 	DEF_MOD("adg_0_audio_clkc",		CLK_AUDIO_CLKC, 15, 13, 7, 29,
 						BUS_MSTOP(2, BIT(2))),
+	DEF_MOD("spdif_0_clkp",			CLK_PLLDTY_DIV16, 15, 14, 7, 30,
+						BUS_MSTOP(1, BIT(9))),
+	DEF_MOD("spdif_1_clkp",			CLK_PLLDTY_DIV16, 15, 15, 7, 31,
+						BUS_MSTOP(1, BIT(10))),
+	DEF_MOD("spdif_2_clkp",			CLK_PLLDTY_DIV16, 16, 0, 8, 0,
+						BUS_MSTOP(1, BIT(11))),
 	DEF_MOD("pdm_0_pclk",			CLK_PLLCM33_DIV4_DDIV2_DIV2, 16, 1, 8, 1,
 						BUS_MSTOP(5, BIT(6))),
 	DEF_MOD("pdm_0_pclk_sfr",		CLK_PLLCM33_DIV4_DDIV2_DIV2, 16, 2, 8, 2,
@@ -672,6 +678,12 @@ static const struct rzv2h_mod_clk r9a09g047_mod_clks[] = {
 	DEF_MOD("adg_ssi8_clk",			CLK_PLLCLN_DIV8, 22, 8, -1, -1,
 						BUS_MSTOP(2, BIT(2))),
 	DEF_MOD("adg_ssi9_clk",			CLK_PLLCLN_DIV8, 22, 9, -1, -1,
+						BUS_MSTOP(2, BIT(2))),
+	DEF_MOD("adg_spdif0_clk",		CLK_PLLCLN_DIV8, 22, 10, -1, -1,
+						BUS_MSTOP(2, BIT(2))),
+	DEF_MOD("adg_spdif1_clk",		CLK_PLLCLN_DIV8, 22, 11, -1, -1,
+						BUS_MSTOP(2, BIT(2))),
+	DEF_MOD("adg_spdif2_clk",		CLK_PLLCLN_DIV8, 22, 12, -1, -1,
 						BUS_MSTOP(2, BIT(2))),
 	DEF_MOD("dvc0_clk",			CLK_PLLCLN_DIV8, 23, 0, -1, -1,
 						BUS_MSTOP(2, BIT(0) | BIT(1))),
@@ -873,6 +885,9 @@ static const struct rzv2h_reset r9a09g047_resets[] = {
 	DEF_RST(14, 12, 6, 29),		/* SCU_0_RESET_SRU */
 	DEF_RST(14, 13, 6, 30),		/* DMACpp_0_ARST */
 	DEF_RST(14, 14, 6, 31),		/* ADG_0_RST_RESET_ADG */
+	DEF_RST(14, 15, 7, 0),		/* SPDIF0_RST */
+	DEF_RST(15, 0, 7, 1),		/* SPDIF1_RST */
+	DEF_RST(15, 1, 7, 2),		/* SPDIF2_RST */
 	DEF_RST(15, 2, 7, 3),		/* PDM0_PRESETN */
 	DEF_RST(15, 3, 7, 4),		/* PDM0_CRESETN */
 	DEF_RST(15, 4, 7, 5),		/* PDM1_PRESETN */
