@@ -204,12 +204,17 @@ static const struct rzg2l_poeg_hw_info rzg2l_poeg_info = {
 	.num_hw_channels = 1,
 };
 
+static const struct rzg2l_poeg_hw_info rzg3e_poeg_info = {
+	.num_hw_channels = 2,
+};
+
 static const struct rzg2l_poeg_hw_info rzt2h_poeg_info = {
 	.num_hw_channels = 3,
 };
 
 static const struct of_device_id rzg2l_poeg_of_table[] = {
 	{ .compatible = "renesas,rzg2l-poeg", .data = &rzg2l_poeg_info },
+	{ .compatible = "renesas,r9a09g047-poeg", .data = &rzg3e_poeg_info },
 	{ .compatible = "renesas,r9a09g077-poeg", .data = &rzt2h_poeg_info },
 	{ /* Sentinel */ }
 };
