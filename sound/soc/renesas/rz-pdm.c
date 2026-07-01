@@ -146,7 +146,6 @@ struct rz_pdm_stream {
 	int buffer_pos;
 
 	/* For DMA */
-	int dma_buffer_pos;
 	struct dma_chan *dma_ch[MAX_CHANNELS];
 	u32 ch;
 
@@ -203,9 +202,9 @@ static const unsigned int rz_pdm_lpf[] = {
 };
 
 static int rz_pdm_dma_slave_config(struct rz_pdm_priv *pdm, u32 ch);
-static void rz_pdm_dma_complete(void *data);
-static int rz_pdm_dma_transfer(struct rz_pdm_priv *pdm,
-			       struct rz_pdm_stream *strm);
+static void rz_pdm_dma_period_complete(void *data);
+static int rz_pdm_dma_start_cyclic(struct rz_pdm_priv *pdm,
+					struct rz_pdm_stream *strm, u32 ch);
 
 static void rz_pdm_set_substream(struct rz_pdm_stream *strm,
 				 struct snd_pcm_substream *substream)
@@ -359,14 +358,25 @@ static int rz_pdm_start(struct rz_pdm_priv *pdm, struct rz_pdm_stream *strm)
 			/* Config the channelx's dma */
 			ret = rz_pdm_dma_slave_config(pdm, ch);
 			if (ret < 0)
-				return ret;
+				goto err_terminate;
 
-			rz_pdm_dma_transfer(pdm, strm);
+			ret = rz_pdm_dma_start_cyclic(pdm, strm, ch);
+			if (ret < 0)
+				goto err_terminate;
 		}
 	}
+
 	pdm->is_running = 1;
 
 	return 0;
+
+err_terminate:
+	/* Stop any already started channels */
+	for_each_set_bit(ch, &pdm->ch_mask, MAX_CHANNELS) {
+		if (rz_pdm_is_dma_enabled(pdm, ch))
+			dmaengine_terminate_async(strm->dma_ch[ch]);
+	}
+	return ret;
 }
 
 static int rz_pdm_stop(struct rz_pdm_priv *pdm, struct rz_pdm_stream *strm)
@@ -478,7 +488,6 @@ static void rz_pdm_stream_init(struct rz_pdm_stream *strm,
 	rz_pdm_set_substream(strm, substream);
 	strm->period_counter = 0;
 	strm->buffer_pos = 0;
-	strm->dma_buffer_pos = 0;
 
 	/* Calculate the start channel for DMA */
 	strm->ch = ffs(strm->priv->ch_mask) - 1;
@@ -749,77 +758,53 @@ static irqreturn_t rz_pdm_sdet_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int rz_pdm_dma_transfer(struct rz_pdm_priv *pdm,
-			       struct rz_pdm_stream *strm)
+static int rz_pdm_dma_start_cyclic(struct rz_pdm_priv *pdm,
+			       struct rz_pdm_stream *strm, u32 ch)
 {
 	struct snd_pcm_substream *substream = strm->substream;
 	struct dma_async_tx_descriptor *desc;
 	struct snd_pcm_runtime *runtime;
-	u32 dma_paddr, dma_size, ch;
-	int amount;
+	int ret = 0;
 
 	if (!rz_pdm_stream_is_valid(pdm, strm))
 		return -EINVAL;
 
 	runtime = substream->runtime;
-	if (runtime->state == SNDRV_PCM_STATE_DRAINING)
-		/*
-		 * Stream is ending, so do not queue up any more DMA
-		 * transfers otherwise we play partial sound clips
-		 * because we can't shut off the DMA quick enough.
-		 */
-		return 0;
-
-	ch = strm->ch;
-	/* Update the DMA channel after completed */
-	do {
-		strm->ch = (strm->ch + 1) % MAX_CHANNELS;
-	} while (!(pdm->ch_mask & (1 << strm->ch)));
-
-	/* Always transfer 1 period */
-	amount = runtime->period_size;
-
-	/* DMA physical address and size */
-	dma_paddr = runtime->dma_addr + frames_to_bytes(runtime,
-							strm->dma_buffer_pos);
-	dma_size = frames_to_bytes(runtime, amount);
-	desc = dmaengine_prep_slave_single(strm->dma_ch[ch], dma_paddr, dma_size,
-					   DMA_DEV_TO_MEM,
-					   DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	/* Prepare a DMA cyclic transaction */
+	desc = dmaengine_prep_dma_cyclic(strm->dma_ch[ch],
+					runtime->dma_addr,
+					frames_to_bytes(runtime, runtime->buffer_size),
+					frames_to_bytes(runtime, runtime->period_size),
+					DMA_DEV_TO_MEM,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
-		dev_err(pdm->dev, "dmaengine_prep_slave_single() fail\n");
-		return -ENOMEM;
+		dev_err(pdm->dev, "dmaengine_prep_dma_cyclic() fail for ch%d\n", ch);
+		ret = -ENOMEM;
 	}
 
-	desc->callback = rz_pdm_dma_complete;
+	desc->callback = rz_pdm_dma_period_complete;
 	desc->callback_param = strm;
 
 	if (dmaengine_submit(desc) < 0) {
-		dev_err(pdm->dev, "dmaengine_submit() fail\n");
-		return -EIO;
+		dev_err(pdm->dev, "dmaengine_submit() fail for ch%d\n", ch);
+		ret = -EIO;
 	}
 
-	/* Update DMA pointer */
-	strm->dma_buffer_pos += amount;
-	if (strm->dma_buffer_pos >= runtime->buffer_size)
-		strm->dma_buffer_pos = 0;
-
-	/* Start DMA */
+	/* Start cyclic DMA */
 	dma_async_issue_pending(strm->dma_ch[ch]);
 
-	return 0;
+	return ret;
 }
 
-static void rz_pdm_dma_complete(void *data)
+static void rz_pdm_dma_period_complete(void *data)
 {
 	struct rz_pdm_stream *strm = (struct rz_pdm_stream *)data;
 
 	if (!strm->substream || !strm->substream->runtime)
 		return;
 
+	/* Update buffer position and notify ALSA */
 	rz_pdm_pointer_update(strm, strm->substream->runtime->period_size);
-	/* Queue up another DMA transaction */
-	rz_pdm_dma_transfer(strm->priv, strm);
 }
 
 static void rz_pdm_release_dma_channels(struct rz_pdm_priv *pdm)
