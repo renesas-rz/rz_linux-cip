@@ -221,6 +221,9 @@ enum {
 #define SEMR_BRME	BIT(5)	/* Bit Rate Modulation Enable */
 #define SEMR_MDDRS	BIT(4)	/* Modulation Duty Register Select */
 
+/* Serial Extended Mode Register, RZ/G2UL SCI only bits */
+#define SEMR_SCI_BRME	BIT(2)
+
 #define SCxSR_TEND(port)	(((port)->type == PORT_SCI) ? SCI_TEND   : SCIF_TEND)
 #define SCxSR_RDxF(port)	(((port)->type == PORT_SCI) ? SCI_RDRF   : SCIF_DR | SCIF_RDF)
 #define SCxSR_TDxE(port)	(((port)->type == PORT_SCI) ? SCI_TDRE   : SCIF_TDFE)
@@ -313,6 +316,8 @@ static const struct sci_port_params sci_port_params[SCIx_NR_REGTYPES] = {
 			[SCxTDR]	= { 0x03,  8 },
 			[SCxSR]		= { 0x04,  8 },
 			[SCxRDR]	= { 0x05,  8 },
+			[SEMR]		= { 0x07,  8 },
+			[MDDR]		= { 0x12,  8 },
 		},
 		.fifosize = 1,
 		.overrun_reg = SCxSR,
@@ -2842,6 +2847,9 @@ done:
 			unsigned long freq = s->port.type != PORT_HSCIF ?
 				s->clk_rates[SCI_FCK]*2 : s->clk_rates[SCI_FCK];
 
+			u8 semr = sci_serial_in(port, SEMR);
+			semr |= (s->type == PORT_SCI) ? SEMR_SCI_BRME :
+							(SEMR_BRME | SEMR_MDDRS);
 
 			prediv = (srr + 1) * (1 << (2 * cks + 1));
 			mddr = DIV_ROUND_CLOSEST((long)prediv * baud * 256 * (brr + 1), freq);
@@ -2853,8 +2861,9 @@ done:
 			mddr = clamp(mddr, 128U, 256U);
 
 			sci_serial_out(port, SCBRR, brr);
-			sci_serial_out(port, SEMR,
-					sci_serial_in(port, SEMR) | (SEMR_BRME | SEMR_MDDRS));
+
+			sci_serial_out(port, SEMR, semr);
+
 			sci_serial_out(port, SCSCR,
 					sci_serial_in(port, SCSCR) & (~(SCSCR_TE | SCSCR_RE)));
 
