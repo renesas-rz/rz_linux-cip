@@ -65,8 +65,31 @@ struct rz_pcie_soc_data {
 	int (*init_phy)(struct rz_pcie_endpoint *ep);
 };
 
+struct rz_pci_saved_regs {
+	u32 cfg_regs[PCI_EP_CFG_REG_NUM];
+
+	struct {
+		u32 base_L[RZG3S_MAX_WINDOWS];
+		u32 base_U[RZG3S_MAX_WINDOWS];
+		u32 mask_L[RZG3S_MAX_WINDOWS];
+		u32 mask_U[RZG3S_MAX_WINDOWS];
+		u32 dest_L[RZG3S_MAX_WINDOWS];
+		u32 dest_U[RZG3S_MAX_WINDOWS];
+	} axi_win_regs;
+
+	struct {
+		u32 base_L[RZ_PCI_EP_MAX_RESOURCES];
+		u32 base_U[RZ_PCI_EP_MAX_RESOURCES];
+		u32 mask_L[RZ_PCI_EP_MAX_RESOURCES];
+		u32 mask_U[RZ_PCI_EP_MAX_RESOURCES];
+		u32 dest_L[RZ_PCI_EP_MAX_RESOURCES];
+		u32 dest_U[RZ_PCI_EP_MAX_RESOURCES];
+	} pci_win_regs;
+};
+
 struct rz_pcie_endpoint {
 	struct rz_pcie			pcie;
+	struct rz_pci_saved_regs	*saved_regs;
 	phys_addr_t			*ob_mapped_addr;
 	struct pci_epc_mem_window	*ob_window;
 	u8				max_functions;
@@ -936,6 +959,11 @@ static int rz_pcie_ep_probe(struct platform_device *pdev)
 	if (!ep)
 		return -ENOMEM;
 
+	ep->saved_regs = devm_kzalloc(dev, sizeof(struct rz_pci_saved_regs), GFP_KERNEL);
+	if (!ep->saved_regs)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, ep);
 	pcie = &ep->pcie;
 	pcie->dev = dev;
 	ep->data = device_get_match_data(dev);
@@ -1059,10 +1087,108 @@ err_pm_disable:
 	return err;
 }
 
+static int rz_pcie_ep_suspend_noirq(struct device *dev)
+{
+	struct rz_pcie_endpoint *ep = dev_get_drvdata(dev);
+	struct rz_pci_saved_regs *saved_regs = ep->saved_regs;
+	struct rz_pcie *pcie = &ep->pcie;
+	int i, ret;
+
+	for (i = 0; i < PCI_EP_CFG_REG_NUM; i++)
+		saved_regs->cfg_regs[i] = rz_read_conf_ep(pcie, i * 4, 0);
+
+	for (i = 0; i < RZG3S_MAX_WINDOWS; i++) {
+		saved_regs->axi_win_regs.base_L[i] = readl_relaxed(pcie->base + RZG3S_PCI_AWBASEL(i));
+		saved_regs->axi_win_regs.base_U[i] = readl_relaxed(pcie->base + RZG3S_PCI_AWBASEU(i));
+		saved_regs->axi_win_regs.mask_L[i] = readl_relaxed(pcie->base + RZG3S_PCI_AWMASKL(i));
+		saved_regs->axi_win_regs.mask_U[i] = readl_relaxed(pcie->base + RZG3S_PCI_AWMASKU(i));
+		saved_regs->axi_win_regs.dest_L[i] = readl_relaxed(pcie->base + RZG3S_PCI_ADESTL(i));
+		saved_regs->axi_win_regs.dest_U[i] = readl_relaxed(pcie->base + RZG3S_PCI_ADESTU(i));
+	}
+
+	for (i = 0; i < RZ_PCI_EP_MAX_RESOURCES; i++) {
+		saved_regs->pci_win_regs.base_L[i] = readl_relaxed(pcie->base + RZG3S_PCI_PWBASEL(i));
+		saved_regs->pci_win_regs.base_U[i] = readl_relaxed(pcie->base + RZG3S_PCI_PWBASEU(i));
+		saved_regs->pci_win_regs.mask_L[i] = readl_relaxed(pcie->base + RZG3S_PCI_PWMASKL(i));
+		saved_regs->pci_win_regs.mask_U[i] = readl_relaxed(pcie->base + RZG3S_PCI_PWMASKU(i));
+		saved_regs->pci_win_regs.dest_L[i] = readl_relaxed(pcie->base + RZG3S_PCI_PDESTL(i));
+		saved_regs->pci_win_regs.dest_U[i] = readl_relaxed(pcie->base + RZG3S_PCI_PDESTU(i));
+	}
+
+	ret = pm_runtime_put_sync(dev);
+	if (ret)
+		return ret;
+
+	ret = reset_control_assert(ep->rst);
+	if (ret)
+		goto rpm_restore;
+
+	return 0;
+
+rpm_restore:
+	pm_runtime_resume_and_get(dev);
+	return ret;
+}
+
+static int rz_pcie_ep_resume_noirq(struct device *dev)
+{
+	struct rz_pcie_endpoint *ep = dev_get_drvdata(dev);
+	struct rz_pci_saved_regs *saved_regs = ep->saved_regs;
+	struct rz_pcie *pcie = &ep->pcie;
+	int i, ret;
+
+	ret = reset_control_deassert(ep->rst);
+	if (ret)
+		return ret;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret)
+		goto assert_resets;
+
+	ret = rz_pcie_hw_init_ep(pcie, ep->channel);
+	if (ret)
+		goto rpm_put;
+
+	for (i = PCI_EP_CFG_REG_NUM - 1; i >= 0; i--) {
+		rz_write_conf_ep(pcie, saved_regs->cfg_regs[i], i * 4);
+	}
+
+	for (i = 0; i < RZG3S_MAX_WINDOWS; i++) {
+		writel_relaxed(saved_regs->axi_win_regs.base_L[i], pcie->base + RZG3S_PCI_AWBASEL(i));
+		writel_relaxed(saved_regs->axi_win_regs.base_U[i], pcie->base + RZG3S_PCI_AWBASEU(i));
+		writel_relaxed(saved_regs->axi_win_regs.mask_L[i], pcie->base + RZG3S_PCI_AWMASKL(i));
+		writel_relaxed(saved_regs->axi_win_regs.mask_U[i], pcie->base + RZG3S_PCI_AWMASKU(i));
+		writel_relaxed(saved_regs->axi_win_regs.dest_L[i], pcie->base + RZG3S_PCI_ADESTL(i));
+		writel_relaxed(saved_regs->axi_win_regs.dest_U[i], pcie->base + RZG3S_PCI_ADESTU(i));
+	}
+
+	for (i = 0; i < RZ_PCI_EP_MAX_RESOURCES; i++) {
+		writel_relaxed(saved_regs->pci_win_regs.base_L[i], pcie->base + RZG3S_PCI_PWBASEL(i));
+		writel_relaxed(saved_regs->pci_win_regs.base_U[i], pcie->base + RZG3S_PCI_PWBASEU(i));
+		writel_relaxed(saved_regs->pci_win_regs.mask_L[i], pcie->base + RZG3S_PCI_PWMASKL(i));
+		writel_relaxed(saved_regs->pci_win_regs.mask_U[i], pcie->base + RZG3S_PCI_PWMASKU(i));
+		writel_relaxed(saved_regs->pci_win_regs.dest_L[i], pcie->base + RZG3S_PCI_PDESTL(i));
+		writel_relaxed(saved_regs->pci_win_regs.dest_U[i], pcie->base + RZG3S_PCI_PDESTU(i));
+	}
+
+	return 0;
+rpm_put:
+	pm_runtime_put_sync(dev);
+assert_resets:
+	reset_control_assert(ep->rst);
+	return ret;
+}
+
+static const struct dev_pm_ops rz_pcie_ep_pm_ops = {
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(rz_pcie_ep_suspend_noirq,
+				  rz_pcie_ep_resume_noirq)
+};
+
 static struct platform_driver rz_pcie_ep_driver = {
 	.driver = {
 		.name = "rz-pcie-ep",
 		.of_match_table = rz_pcie_ep_of_match,
+		.pm = pm_ptr(&rz_pcie_ep_pm_ops),
 		.suppress_bind_attrs = true,
 	},
 	.probe = rz_pcie_ep_probe,
