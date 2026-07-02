@@ -120,6 +120,13 @@
  */
 #define SEL_I2C1_MTU3		1
 
+/*
+ * Set SEL_POE3_GMAC2 to below values to select using of:
+ * - 0: POE3
+ * - 1: GMAC2 (default)
+ */
+#define SEL_POE3_GMAC2		1
+
 / {
 	model = "Renesas RZ/N2H EVK Board based on r9a09g087m44";
 	compatible = "renesas,rzn2h-evk", "renesas,r9a09g087m44", "renesas,r9a09g087";
@@ -399,6 +406,30 @@
 };
 #endif
 
+#if (!SEL_POE3_GMAC2)
+&poe3 {
+	pinctrl-0 = <&poe3_pins>;
+	pinctrl-names = "default";
+	poe3_pins_mode = <0 0>, <4 0>, <8 0>, <10 0>;
+	oscillation_detection = <1>;
+	status = "okay";
+	mtu3_ch67 {
+		mtu3_outputs = <0>;
+		addition_poe3_inputs = <0>;
+		mtioc6b_pin_select = <2>;
+		mtioc6d_pin_select = <2>;
+		dsmif_error_detection = <0 0>, <0 5>, <1 0>, <1 9>;
+	};
+};
+
+&gmac2 {
+	/delete-property/ pinctrl-0;
+	/delete-property/ pinctrl-names;
+
+	status = "disabled";
+};
+#endif
+
 &pinctrl {
 	/*
 	 * CAN1 Pin Configuration:
@@ -450,6 +481,7 @@
 	 * P31_2, P31_4 and P31_5 are used for Ethernet port 2
 	 * DSW13[7] OFF; DSW13[8] ON - use pin P13_7 for IRQ14
 	 */
+#if SEL_POE3_GMAC2
 	gmac2_pins: gmac2-pins {
 		pinmux = <RZT2H_PORT_PINMUX(29, 1, 0xf)>, /* ETH2_TXCLK */
 			 <RZT2H_PORT_PINMUX(29, 2, 0xf)>, /* ETH2_TXD0 */
@@ -473,6 +505,7 @@
 			 <RZT2H_PORT_PINMUX(13, 7, 0x0)>; /* IRQ14 */
 
 	};
+#endif
 
 	/*
 	 * I2C0 Pin Configuration:
@@ -558,6 +591,17 @@
 		mtu3-zphase-clk {
 			pinmux = <RZT2H_PORT_PINMUX(10, 4, 0x06)>; /* MTIOC1A */
 		};
+	};
+#endif
+
+	/*
+	 * POE3 Pin Configuration:
+	 *
+	 * DSW5[7] OFF - use pin P31_2 for POE0#
+	 */
+#if (!SEL_POE3_GMAC2)
+	poe3_pins: poe3 {
+		pinmux = <RZT2H_PORT_PINMUX(31, 2, 0x08)>; /* POE3 : POE0#/P31_2 */
 	};
 #endif
 };
