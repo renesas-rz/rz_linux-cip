@@ -2959,6 +2959,78 @@
 			};
 		};
 
+		spdif0: spdif@14402400 {
+			compatible = "renesas,r9a09g057-spdif",
+				     "renesas,r9a09g056-spdif";
+			reg = <0 0x14402400 0 0x400>;
+			renesas,channel-id = <0>;
+			interrupts = <GIC_SPI 899 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "spdif-0";
+			clocks = <&cpg CPG_MOD 0xfe>;	/* spdif-0 */
+			clock-names = "spdif-0";
+			resets = <&cpg 0xef>;		/* spdif-0 */
+			reset-names = "spdif-0";
+			dmas = <&dmac0 0x1d99>, <&dmac0 0x1d9a>,
+			       <&dmac1 0x1d99>, <&dmac1 0x1d9a>,
+			       <&dmac2 0x1d99>, <&dmac2 0x1d9a>,
+			       <&dmac3 0x1d99>, <&dmac3 0x1d9a>,
+			       <&dmac4 0x1d99>, <&dmac4 0x1d9a>;
+			dma-names = "tx", "rx", "tx", "rx", "tx", "rx",
+				    "tx", "rx", "tx", "rx";
+			renesas,adg = <&snd_rzv2n>;
+			power-domains = <&cpg>;
+			#sound-dai-cells = <0>;
+			status = "disabled";
+		};
+
+		spdif1: spdif@14402800 {
+			compatible = "renesas,r9a09g057-spdif",
+				     "renesas,r9a09g056-spdif";
+			reg = <0 0x14402800 0 0x400>;
+			renesas,channel-id = <1>;
+			interrupts = <GIC_SPI 900 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "spdif-1";
+			clocks = <&cpg CPG_MOD 0xff>;	/* spdif-1 */
+			clock-names = "spdif-1";
+			resets = <&cpg 0xf0>;		/* spdif-1 */
+			reset-names = "spdif-1";
+			dmas = <&dmac1 0x1d9b>, <&dmac1 0x1d9c>,
+			       <&dmac1 0x1d9b>, <&dmac1 0x1d9c>,
+			       <&dmac2 0x1d9b>, <&dmac2 0x1d9c>,
+			       <&dmac3 0x1d9b>, <&dmac3 0x1d9c>,
+			       <&dmac4 0x1d9b>, <&dmac4 0x1d9c>;
+			dma-names = "tx", "rx", "tx", "rx", "tx", "rx",
+				    "tx", "rx", "tx", "rx";
+			renesas,adg = <&snd_rzv2n>;
+			power-domains = <&cpg>;
+			#sound-dai-cells = <0>;
+			status = "disabled";
+		};
+
+		spdif2: spdif@14402c00 {
+			compatible = "renesas,r9a09g057-spdif",
+				     "renesas,r9a09g056-spdif";
+			reg = <0 0x14402c00 0 0x400>;
+			renesas,channel-id = <2>;
+			interrupts = <GIC_SPI 901 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "spdif-2";
+			clocks = <&cpg CPG_MOD 0x100>;	/* spdif-2 */
+			clock-names = "spdif-2";
+			resets = <&cpg 0xf1>;		/* spdif-2 */
+			reset-names = "spdif-2";
+			dmas = <&dmac1 0x1d9d>, <&dmac1 0x1d9e>,
+			       <&dmac1 0x1d9d>, <&dmac1 0x1d9e>,
+			       <&dmac2 0x1d9d>, <&dmac2 0x1d9e>,
+			       <&dmac3 0x1d9d>, <&dmac3 0x1d9e>,
+			       <&dmac4 0x1d9d>, <&dmac4 0x1d9e>;
+			dma-names = "tx", "rx", "tx", "rx", "tx", "rx",
+				    "tx", "rx", "tx", "rx";
+			renesas,adg = <&snd_rzv2n>;
+			power-domains = <&cpg>;
+			#sound-dai-cells = <0>;
+			status = "disabled";
+		};
+
 		tsu0: thermal@11000000 {
 			compatible = "renesas,r9a09g056-tsu", "renesas,r9a09g047-tsu";
 			reg = <0 0x11000000 0 0x1000>;
