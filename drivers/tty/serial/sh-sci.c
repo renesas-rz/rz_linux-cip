@@ -477,6 +477,7 @@ static const struct sci_port_params sci_port_params[SCIx_NR_REGTYPES] = {
 		.regs = {
 			[SCSMR]		= { 0x00, 16 },
 			[SCBRR]		= { 0x02,  8 },
+			[MDDR]		= { 0x02,  8 },
 			[SCSCR]		= { 0x04, 16 },
 			[SCxTDR]	= { 0x06,  8 },
 			[SCxSR]		= { 0x08, 16 },
