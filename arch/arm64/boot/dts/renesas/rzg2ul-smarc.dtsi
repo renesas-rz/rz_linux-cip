@@ -118,10 +118,20 @@
 	status = "okay";
 };
 
+#if POE3_SUPPORT
+&poe3 {
+	status = "okay";
+
+	mtu3_ch34 {
+		mtu3_outputs = <0>; /* MTIOC3B-MTIOC3D */
+	};
+};
+#endif /* POE3_SUPPORT */
+
 &spi1 {
 	status = "disabled";
 };
-#endif
+#endif /* PMOD_MTU3 */
 
 #if (SW_ET0_EN_N)
 &ssi1 {
