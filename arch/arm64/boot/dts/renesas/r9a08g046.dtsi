@@ -387,7 +387,6 @@
 				     <GIC_SPI 364 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 369 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 370 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 372 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 373 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 374 IRQ_TYPE_LEVEL_HIGH>,
@@ -395,7 +394,7 @@
 				     <GIC_SPI 376 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "ierr", "terr", "abort", "resp", "cmd",
 					  "ibi", "rx", "tx", "rcv","st", "sp",
-					  "tend", "nack", "al", "tmo", "wu", "exit";
+					  "tend", "nack", "al", "tmo", "wu";
 			resets = <&cpg R9A08G046_I3C_PRESETN>,
 				 <&cpg R9A08G046_I3C_TRESETN>;
 			reset-names = "presetn", "tresetn";
