@@ -78,11 +78,6 @@ struct pcie_leqctl {
 	u32 value;
 };
 
-static const struct pcie_leqctl rzt2h_pcie_leqctl[] = {
-	{ 2, 0x1BC, 0x78787878 },
-	{ 1, 0x1BC, 0x7F7F7878 },
-};
-
 struct rzg3s_pcie_host;
 static int pcie_thread_status;
 static int pcie_receiver_detection;
@@ -2042,6 +2037,10 @@ static const struct rzg3s_pcie_soc_data rzg3s_soc_data = {
 
 static const char * const rzg3e_soc_power_resets[] = { "aresetn" };
 
+static const struct pcie_leqctl rzg3e_pcie_leqctl[] = {
+	{ 0, 0x1BC, 0x08080808 },
+};
+
 static const struct rzg3s_pcie_soc_data rzg3e_soc_data = {
 	.power_resets = rzg3e_soc_power_resets,
 	.num_power_resets = ARRAY_SIZE(rzg3e_soc_power_resets),
@@ -2061,6 +2060,13 @@ static const struct rzg3s_pcie_soc_data rzg3e_soc_data = {
 			},
 		},
 	},
+	.leqctl = rzg3e_pcie_leqctl,
+	.num_pcie_leqctl = ARRAY_SIZE(rzg3e_pcie_leqctl),
+};
+
+static const struct pcie_leqctl rzv2h_pcie_leqctl[] = {
+	{ 0, 0x1BC, 0x08080808 },
+	{ 4, 0x1C0, 0x08080808 },
 };
 
 static const struct rzg3s_pcie_soc_data rzv2h_soc_data = {
@@ -2088,6 +2094,13 @@ static const struct rzg3s_pcie_soc_data rzv2h_soc_data = {
 			},
 		},
 	},
+	.leqctl = rzv2h_pcie_leqctl,
+	.num_pcie_leqctl = ARRAY_SIZE(rzv2h_pcie_leqctl),
+};
+
+static const struct pcie_leqctl rzt2h_pcie_leqctl[] = {
+	{ 2, 0x1BC, 0x78787878 },
+	{ 1, 0x1BC, 0x7F7F7878 },
 };
 
 static const struct rzg3s_pcie_soc_data rzt2h_soc_data = {
