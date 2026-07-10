@@ -281,14 +281,10 @@ static int rtca3_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static int rtca3_set_time(struct device *dev, struct rtc_time *tm)
+static int __rtca3_set_time(struct rtca3_priv *priv, struct rtc_time *tm)
 {
-	struct rtca3_priv *priv = dev_get_drvdata(dev);
 	u8 rcr2, tmp;
 	int ret;
-
-	guard(spinlock_irqsave)(&priv->lock);
-
 	/* Stop the RTC. */
 	rcr2 = readb(priv->base + RTCA3_RCR2);
 	writeb(rcr2 & ~RTCA3_RCR2_START, priv->base + RTCA3_RCR2);
@@ -315,6 +311,15 @@ static int rtca3_set_time(struct device *dev, struct rtc_time *tm)
 	return readb_poll_timeout_atomic(priv->base + RTCA3_RCR2, tmp,
 					 (tmp & RTCA3_RCR2_START),
 					 10, RTCA3_DEFAULT_TIMEOUT_US);
+}
+
+static int rtca3_set_time(struct device *dev, struct rtc_time *tm)
+{
+	struct rtca3_priv *priv = dev_get_drvdata(dev);
+
+	guard(spinlock_irqsave)(&priv->lock);
+
+	return __rtca3_set_time(priv, tm);
 }
 
 static int rtca3_alarm_irq_set_helper(struct rtca3_priv *priv,
@@ -570,6 +575,8 @@ static int rtca3_initial_setup(struct clk *clk, struct rtca3_priv *priv)
 	u8 val, tmp, mask;
 	u32 sleep_us;
 	int ret;
+	struct rtc_time tm;
+	struct timespec64 stime;
 
 	osc32k_rate = clk_get_rate(clk);
 	if (!osc32k_rate)
@@ -655,8 +662,23 @@ static int rtca3_initial_setup(struct clk *clk, struct rtca3_priv *priv)
 	/* Set period interrupt to 1/64 seconds. It is necessary for alarm setup. */
 	val = FIELD_PREP(RTCA3_RCR1_PES, RTCA3_RCR1_PES_1_64_SEC);
 	rtca3_byte_update_bits(priv, RTCA3_RCR1, RTCA3_RCR1_PES, val);
-	return readb_poll_timeout(priv->base + RTCA3_RCR1, tmp, ((tmp & RTCA3_RCR1_PES) == val),
+	ret = readb_poll_timeout(priv->base + RTCA3_RCR1, tmp, ((tmp & RTCA3_RCR1_PES) == val),
 				  10, RTCA3_DEFAULT_TIMEOUT_US);
+	if (ret)
+		return ret;
+	/*
+	 * If the RTC is not started before booting, its default date is set to 1/1/2000.
+	 * But day of the week value is wrong. It is Sunday instead of Saturday.
+	 * So, use the system time for the initial setup.
+	 */
+	ktime_get_real_ts64(&stime);
+	if ((stime.tv_sec < RTC_TIMESTAMP_BEGIN_2000) ||
+	    (stime.tv_sec > RTC_TIMESTAMP_END_2099))
+		rtc_time64_to_tm(RTC_TIMESTAMP_BEGIN_2000, &tm);
+	else
+		rtc_time64_to_tm(stime.tv_sec, &tm);
+	
+	return __rtca3_set_time(priv, &tm);
 }
 
 static int rtca3_request_irqs(struct platform_device *pdev, struct rtca3_priv *priv)
