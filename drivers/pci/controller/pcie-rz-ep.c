@@ -20,6 +20,7 @@
 #include <linux/regmap.h>
 #include <linux/of.h>
 #include <linux/container_of.h>
+#include <linux/dma/pcie-rzg3s-dma.h>
 
 #include "../pci.h"
 #include "pcie-rzg3s.h"
@@ -90,6 +91,7 @@ struct rz_pci_saved_regs {
 struct rz_pcie_endpoint {
 	struct rz_pcie			pcie;
 	struct rz_pci_saved_regs	*saved_regs;
+	struct rz_pcie_dma		dmac;
 	phys_addr_t			*ob_mapped_addr;
 	struct pci_epc_mem_window	*ob_window;
 	u8				max_functions;
@@ -943,6 +945,7 @@ static int rz_pcie_ep_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rz_pcie_endpoint *ep;
+	struct rz_pcie_dma *dmac;
 	struct device_node *np = dev->of_node;
 	struct device_node *sysc_np __free(device_node) =
 		of_parse_phandle(np, "renesas,sysc", 0);
@@ -1073,6 +1076,15 @@ static int rz_pcie_ep_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to initialize the epc memory space\n");
 		goto err_pm_put;
 	}
+
+	/* Don't failed if PCIe DMA not enabled */
+	dmac = &ep->dmac;
+	dmac->dev = dev;
+	dmac->base = pcie->base;
+
+	err = rzg3s_pcie_dma_probe(dmac, false);
+	if (err && err != -ENODEV)
+		goto err_pm_put;
 
 	pci_epc_init_notify(epc);
 
