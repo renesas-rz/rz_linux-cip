@@ -35,7 +35,31 @@ struct rz_pcie {
 
 struct rz_pcie_endpoint;
 
+/**
+ * struct rz_pcie_window_config - BAR to window mapping configuration
+ * @start: Starting window index
+ * @num: Number of windows available
+ *
+ * Defines which AXI windows can be used for a specific BAR.
+ */
+struct rz_pcie_window_config {
+	u8 start;
+	u8 num;
+};
+
+/**
+ * struct rz_pcie_func_config - Per-function configuration
+ * @bar_win: Window configuration for each BAR
+ *
+ * Defines the window mapping for all BARs of a single function.
+ */
+
+struct rz_pcie_func_config {
+	struct rz_pcie_window_config bar_win[PCI_STD_NUM_BARS];
+};
+
 struct rz_pcie_soc_data {
+	const struct rz_pcie_func_config *func_cfg;
 	struct rzg3s_sysc_info sysc_info;
 	u8 max_channels;
 	int (*init_phy)(struct rz_pcie_endpoint *ep);
@@ -46,7 +70,6 @@ struct rz_pcie_endpoint {
 	phys_addr_t			*ob_mapped_addr;
 	struct pci_epc_mem_window	*ob_window;
 	u8				max_functions;
-	unsigned int			bar_to_atu[PCI_STD_NUM_BARS];
 	unsigned long			*ib_window_map;
 	u32				num_ib_windows;
 	u32				num_ob_windows;
@@ -101,29 +124,25 @@ static void rz_pcie_set_outbound_ep(struct rz_pcie *pcie, int win,
 }
 
 static void rz_pcie_set_inbound_ep(struct rz_pcie *pcie, u64 cpu_addr,
-			   u64 pci_addr, u64 flags, int idx, u8 fn)
+				   u64 pci_addr, u64 mask, u8 idx, u8 fn)
 {
-
-	/* AW base */
-	writel_relaxed(lower_32_bits(pci_addr),
-		       pcie->base + RZG3S_PCI_AWBASEL(idx));
-	writel_relaxed(upper_32_bits(pci_addr),
-		       pcie->base + RZG3S_PCI_AWBASEU(idx));
-
-	/* AW dest */
+	/* Set CPU window base address */
 	writel_relaxed(lower_32_bits(cpu_addr),
 		       pcie->base + RZG3S_PCI_ADESTL(idx));
 	writel_relaxed(upper_32_bits(cpu_addr),
 		       pcie->base + RZG3S_PCI_ADESTU(idx));
 
-	/* AW base */
-	writel_relaxed(lower_32_bits(flags),
+	/* Set window size */
+	writel_relaxed(lower_32_bits(mask),
 		       pcie->base + RZG3S_PCI_AWMASKL(idx));
-	writel_relaxed(upper_32_bits(flags),
+	writel_relaxed(upper_32_bits(mask),
 		       pcie->base + RZG3S_PCI_AWMASKU(idx));
-	rzg3s_pcie_update_bits(pcie->base, RZG3S_PCI_AWBASEL(idx),
-			       RZG3S_PCI_AWBASEL_WIN_ENA,
-			       RZG3S_PCI_AWBASEL_WIN_ENA);
+
+	/* Set PCIe window base address and enable the window */
+	writel_relaxed(lower_32_bits(pci_addr) | RZG3S_PCI_AWBASEL_WIN_ENA,
+		       pcie->base + RZG3S_PCI_AWBASEL(idx));
+	writel_relaxed(upper_32_bits(pci_addr),
+		       pcie->base + RZG3S_PCI_AWBASEU(idx));
 }
 
 
@@ -388,59 +407,127 @@ static int rz_pcie_ep_write_header(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 }
 
 static int rz_pcie_ep_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
-				struct pci_epf_bar *epf_bar)
+			      struct pci_epf_bar *epf_bar)
 {
-	int flags = epf_bar->flags;
 	struct rz_pcie_endpoint *ep = epc_get_drvdata(epc);
+	const struct rz_pcie_soc_data *data = ep->data;
+	const struct rz_pcie_window_config *win_cfg;
+	u64 cpu_end, mask, align_limit, pci_addr = 0;
 	u64 size = 1ULL << fls64(epf_bar->size - 1);
 	dma_addr_t cpu_addr = epf_bar->phys_addr;
 	enum pci_barno bar = epf_bar->barno;
 	struct rz_pcie *pcie = &ep->pcie;
-	u32 mask;
-	int idx;
+	int flags = epf_bar->flags;
+	int idx, idx_base, idx_end;
+	int i;
 
-	idx = find_first_zero_bit(ep->ib_window_map, ep->num_ib_windows);
-	if (idx >= ep->num_ib_windows) {
-		dev_err(pcie->dev, "no free inbound window\n");
+	if (flags & PCI_BASE_ADDRESS_SPACE_IO)
 		return -EINVAL;
+
+	if (!cpu_addr)
+		return -EINVAL;
+
+	/* Do not configure BAR1, 3 and 5 as they are used to form 64-bit BAR */
+	if ((flags & PCI_BASE_ADDRESS_MEM_TYPE_64) && (bar & 1))
+		return -EINVAL;
+
+	if (flags & PCI_BASE_ADDRESS_MEM_TYPE_64) {
+		mask = size - 1;
+		rz_write_conf_ep(pcie, lower_32_bits(mask),
+				 RZ_PCI_EP_CFG_BARMSK(bar));
+		rz_write_conf_ep(pcie, upper_32_bits(mask),
+				 RZ_PCI_EP_CFG_BARMSK(bar + 1));
 	}
 
-	ep->bar_to_atu[bar] = idx;
-	/* use 64-bit BARs */
-	set_bit(idx, ep->ib_window_map);
-	set_bit(idx + 1, ep->ib_window_map);
+	win_cfg = &data->func_cfg[func_no].bar_win[bar];
+	if (!win_cfg->num)
+		return 0;
 
-	if (cpu_addr > 0) {
-		unsigned long nr_zeros = __ffs64(cpu_addr);
-		u64 alignment = 1ULL << nr_zeros;
+	idx_base = win_cfg->start;
+	idx_end  = win_cfg->start + win_cfg->num;
 
-		size = min(size, alignment);
+	/*
+	 * The "no bit carry" rule requires base addresses to be
+	 * aligned to the window size. Find the maximum window size
+	 * that both addresses can support based on their natural
+	 * alignment (lowest set bit).
+	 */
+	align_limit = 1ULL << __ffs64(cpu_addr);
+	align_limit = min(align_limit, size);
+
+	/*
+	 * Minimum window size is 4KB.
+	 * See RZ/V2H HW manual (Rev.1.30, section 6.6.4.2.3.67)
+	 */
+	align_limit = max(align_limit, SZ_4K);
+	mask = roundup_pow_of_two(align_limit) - 1;
+
+	cpu_end = cpu_addr + size - 1;
+	idx = idx_base;
+	while (cpu_addr < cpu_end) {
+		if (idx >= idx_end) {
+			dev_err(pcie->dev,
+				"BAR%d: exceeded inbound window range [%d~%d]\n",
+				bar, idx_base, idx_end - 1);
+			goto err_set_ib;
+		}
+
+		if (test_bit(idx, ep->ib_window_map)) {
+			dev_err(pcie->dev,
+				"BAR%d: inbound window %d already in use\n",
+				bar, idx);
+			goto err_set_ib;
+		}
+
+		rz_pcie_set_inbound_ep(pcie, cpu_addr, pci_addr, mask,
+				       idx, func_no);
+		set_bit(idx, ep->ib_window_map);
+		cpu_addr += align_limit;
+		pci_addr += align_limit;
+		idx++;
 	}
-
-	size = min(size, 1ULL << 32);
-	mask = roundup_pow_of_two(size) - 1;
-
-	/* setup BAR */
-	rz_write_conf_ep(pcie, mask, RZ_PCI_EP_CFG_BARMSK(idx));
-
-	mask &= ~0xf;
-	rz_pcie_set_inbound_ep(pcie, cpu_addr,
-			      0x0, mask | flags, idx, func_no);
 
 	return 0;
+
+err_set_ib:
+	for (i = idx_base; i < idx; i++)
+		clear_bit(i, ep->ib_window_map);
+
+	return -EINVAL;
 }
 
 static void rz_pcie_ep_clear_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
-				   struct pci_epf_bar *epf_bar)
+				 struct pci_epf_bar *epf_bar)
 {
 	struct rz_pcie_endpoint *ep = epc_get_drvdata(epc);
+	const struct rz_pcie_window_config *win_cfg;
+	struct rz_pcie *pcie = &ep->pcie;
 	enum pci_barno bar = epf_bar->barno;
-	u32 atu_index = ep->bar_to_atu[bar];
+	int flags = epf_bar->flags;
+	int idx, idx_base, idx_end;
 
-	rz_pcie_set_inbound_ep(&ep->pcie, 0x0, 0x0, 0x0, bar, func_no);
+	if ((flags & PCI_BASE_ADDRESS_MEM_TYPE_64) && (bar & 1))
+		return;
 
-	clear_bit(atu_index, ep->ib_window_map);
-	clear_bit(atu_index + 1, ep->ib_window_map);
+	if (flags & PCI_BASE_ADDRESS_MEM_TYPE_64) {
+		rz_write_conf_ep(pcie, 0, RZ_PCI_EP_CFG_BARMSK(bar));
+		rz_write_conf_ep(pcie, 0, RZ_PCI_EP_CFG_BARMSK(bar + 1));
+	}
+
+	win_cfg = &ep->data->func_cfg[func_no].bar_win[bar];
+	if (!win_cfg->num)
+		return;
+
+	idx_base = win_cfg->start;
+	idx_end  = win_cfg->start + win_cfg->num;
+
+	for (idx = idx_base; idx < idx_end; idx++) {
+		if (!test_bit(idx, ep->ib_window_map))
+			continue;
+
+		rz_pcie_set_inbound_ep(pcie, 0, 0, 0, idx, func_no);
+		clear_bit(idx, ep->ib_window_map);
+	}
 }
 
 static int rz_pcie_ep_set_msi(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
@@ -705,7 +792,18 @@ static const struct pci_epc_ops rz_pcie_epc_ops = {
 	.get_features	= rz_pcie_ep_get_features,
 };
 
+static const struct rz_pcie_func_config rzv2h_func_configs[] = {
+	/* Function 0 */
+	{
+		.bar_win = {
+			[BAR_0] = { .start = 0, .num = 4 },
+			[BAR_2] = { .start = 4, .num = 4 },
+		},
+	},
+};
+
 static const struct rz_pcie_soc_data rzv2h_soc_data = {
+	.func_cfg = rzv2h_func_configs,
 	.max_channels = 2,
 	.sysc_info = {
 		.functions = {
@@ -735,7 +833,18 @@ static const struct rz_pcie_soc_data rzv2h_soc_data = {
 	},
 };
 
+static const struct rz_pcie_func_config rzt2h_func_configs[] = {
+	/* Function 0 */
+	{
+		.bar_win = {
+			[BAR_0] = { .start = 0, .num = 4 },
+			[BAR_2] = { .start = 4, .num = 4 },
+		},
+	},
+};
+
 static const struct rz_pcie_soc_data rzt2h_soc_data = {
+	.func_cfg = rzt2h_func_configs,
 	.max_channels = 2,
 	.init_phy = rzt2h_soc_pcie_init_phy,
 	.sysc_info = {
