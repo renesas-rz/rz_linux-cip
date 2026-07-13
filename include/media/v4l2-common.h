@@ -586,6 +586,10 @@ void v4l2_simplify_fraction(u32 *numerator, u32 *denominator,
 		unsigned int n_terms, unsigned int threshold);
 u32 v4l2_fraction_to_interval(u32 numerator, u32 denominator);
 
+struct clk *__devm_v4l2_sensor_clk_get(struct device *dev, const char *id,
+				       bool legacy, bool fixed_rate,
+				       unsigned long clk_rate);
+
 /**
  * devm_v4l2_sensor_clk_get - lookup and obtain a reference to a clock producer
  * for a camera sensor
@@ -618,7 +622,42 @@ u32 v4l2_fraction_to_interval(u32 numerator, u32 denominator);
  *
  * Returns a pointer to a struct clk on success or an error pointer on failure.
  */
-struct clk *devm_v4l2_sensor_clk_get(struct device *dev, const char *id);
+static inline struct clk *
+devm_v4l2_sensor_clk_get(struct device *dev, const char *id)
+{
+	return __devm_v4l2_sensor_clk_get(dev, id, false, false, 0);
+}
+
+/**
+ * devm_v4l2_sensor_clk_get_legacy - lookup and obtain a reference to a clock
+ *	producer for a camera sensor.
+ *
+ * @dev: device for v4l2 sensor clock "consumer"
+ * @id: clock consumer ID
+ * @fixed_rate: interpret the @clk_rate as a fixed rate or default rate
+ * @clk_rate: the clock rate
+ *
+ * This function behaves the same way as devm_v4l2_sensor_clk_get() except that
+ * it extends the behaviour on ACPI platforms to all platforms.
+ *
+ * The function also provides the ability to set the clock rate to a fixed
+ * frequency by setting @fixed_rate to true and specifying the fixed frequency
+ * in @clk_rate, or to use a default clock rate when the "clock-frequency"
+ * property is absent by setting @fixed_rate to false and specifying the default
+ * frequency in @clk_rate. Setting @fixed_rate to true and @clk_rate to 0 is an
+ * error.
+ *
+ * This function is meant to support legacy behaviour in existing drivers only.
+ * It must not be used in any new driver.
+ *
+ * Returns a pointer to a struct clk on success or an error pointer on failure.
+ */
+static inline struct clk *
+devm_v4l2_sensor_clk_get_legacy(struct device *dev, const char *id,
+				bool fixed_rate, unsigned long clk_rate)
+{
+	return __devm_v4l2_sensor_clk_get(dev, id, true, fixed_rate, clk_rate);
+}
 
 static inline u64 v4l2_buffer_get_timestamp(const struct v4l2_buffer *buf)
 {
