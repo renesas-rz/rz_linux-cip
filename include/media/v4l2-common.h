@@ -97,6 +97,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl,
 
 /* ------------------------------------------------------------------------- */
 
+struct clk;
 struct v4l2_device;
 struct v4l2_subdev;
 struct v4l2_subdev_ops;
@@ -593,6 +594,32 @@ s64 __v4l2_get_link_freq_ctrl(struct v4l2_ctrl_handler *handler,
 void v4l2_simplify_fraction(u32 *numerator, u32 *denominator,
 		unsigned int n_terms, unsigned int threshold);
 u32 v4l2_fraction_to_interval(u32 numerator, u32 denominator);
+
+/**
+ * devm_v4l2_sensor_clk_get - lookup and obtain a reference to a clock producer
+ *	for a camera sensor.
+ *
+ * @dev: device for v4l2 sensor clock "consumer"
+ * @id: clock consumer ID
+ *
+ * This function behaves the same way as devm_clk_get() except where there
+ * is no clock producer like in ACPI-based platforms.
+ *
+ * For ACPI-based platforms, the function will read the "clock-frequency"
+ * ACPI _DSD property and register a fixed-clock with the frequency indicated
+ * in the property.
+ *
+ * This function also handles the special ACPI-based system case where:
+ *
+ * * The clock-frequency _DSD property is present.
+ * * A reference to the clock producer is present, where the clock is provided
+ *   by a camera sensor PMIC driver (e.g. int3472/tps68470.c)
+ *
+ * In this case try to set the clock-frequency value to the provided clock.
+ *
+ * Returns a pointer to a struct clk on success or an error pointer on failure.
+ */
+struct clk *devm_v4l2_sensor_clk_get(struct device *dev, const char *id);
 
 static inline u64 v4l2_buffer_get_timestamp(const struct v4l2_buffer *buf)
 {
