@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 #include <linux/units.h>
 #include <linux/kthread.h>
+#include <linux/dma/pcie-rzg3s-dma.h>
 
 #include "../pci.h"
 #include "pcie-rzg3s.h"
@@ -156,6 +157,7 @@ struct rzg3s_pcie_host {
 	const struct rzg3s_pcie_soc_data *data;
 	struct rzg3s_pcie_msi msi;
 	struct rzg3s_pcie_port port;
+	struct rz_pcie_dma dmac;
 	raw_spinlock_t hw_lock;
 	int intx_irqs[PCI_NUM_INTX];
 	int max_link_speed;
@@ -1746,6 +1748,7 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 	struct device_node *sysc_np __free(device_node) =
 		of_parse_phandle(np, "renesas,sysc", 0);
 	struct rzg3s_pcie_host *host;
+	struct rz_pcie_dma *dmac;
 	struct rzg3s_sysc *sysc;
 	struct device_node *companion;
 	int ret, channel, num_lanes;
@@ -1876,6 +1879,15 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 
 	ret = rz_pcie_enable_dl_updown(host);
 	if (ret)
+		goto rpm_put;
+
+	/* Don't failed if PCIe DMA not enabled */
+	dmac = &host->dmac;
+	dmac->dev = dev;
+	dmac->base = host->axi;
+
+	ret = rzg3s_pcie_dma_probe(dmac, false);
+	if (ret && ret != -ENODEV)
 		goto rpm_put;
 
 	bridge->sysdata = host;
