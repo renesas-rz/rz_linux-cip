@@ -71,6 +71,7 @@ properties:
         <12> : GPT both output low + GPT dead time error
         <14> : GPT both output {high, low} + GPT dead time error
         <16> : External pin control
+        <32> : External reverse pin control
 
 required:
   - compatible
