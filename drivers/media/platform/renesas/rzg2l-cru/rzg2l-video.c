@@ -421,27 +421,18 @@ static void rzg2l_cru_initialize_axi(struct rzg2l_cru_dev *cru)
 	rzg2l_cru_write(cru, AMnFIFO, 0);
 }
 
-void rzg3e_cru_csi2_setup(struct rzg2l_cru_dev *cru,
-			  const struct rzg2l_cru_ip_format *ip_fmt,
-			  u8 csi_vc)
+static void rzg2l_cru_csi2_setup(struct rzg2l_cru_dev *cru,
+				const struct rzg2l_cru_ip_format *ip_fmt,
+				u8 csi_vc)
 {
 	const struct rzg2l_cru_info *info = cru->info;
 	u32 icnmc = ICnMC_INF(ip_fmt->datatype);
 
-	icnmc |= rzg2l_cru_read(cru, info->image_conv) & ~ICnMC_INF_MASK;
-
-	rzg2l_cru_write(cru, ICnSVCNUM, csi_vc);
-	rzg2l_cru_write(cru, ICnSVC, ICnSVC_SVC0(0) | ICnSVC_SVC1(1) |
-			ICnSVC_SVC2(2) | ICnSVC_SVC3(3));
-	rzg2l_cru_write(cru, info->image_conv, icnmc);
-}
-
-void rzg2l_cru_csi2_setup(struct rzg2l_cru_dev *cru,
-			  const struct rzg2l_cru_ip_format *ip_fmt,
-			  u8 csi_vc)
-{
-	const struct rzg2l_cru_info *info = cru->info;
-	u32 icnmc = ICnMC_INF(ip_fmt->datatype);
+	if (cru->info->regs[ICnSVC]) {
+		rzg2l_cru_write(cru, ICnSVCNUM, csi_vc);
+		rzg2l_cru_write(cru, ICnSVC, ICnSVC_SVC0(0) | ICnSVC_SVC1(1) |
+				ICnSVC_SVC2(2) | ICnSVC_SVC3(3));
+	}
 
 	icnmc |= rzg2l_cru_read(cru, info->image_conv) & ~ICnMC_INF_MASK;
 
@@ -463,7 +454,7 @@ static int rzg2l_cru_initialize_image_conv(struct rzg2l_cru_dev *cru,
 
 	cru_ip_fmt = rzg2l_cru_ip_code_to_fmt(ip_sd_fmt->code);
 	if (cru->is_csi)
-		info->csi_setup(cru, cru_ip_fmt, csi_vc);
+		rzg2l_cru_csi2_setup(cru, cru_ip_fmt, csi_vc);
 	else
 		rzg2l_cru_parallel_setup(cru, cru_ip_fmt);
 
