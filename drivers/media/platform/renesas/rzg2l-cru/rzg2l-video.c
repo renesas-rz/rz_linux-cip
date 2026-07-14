@@ -147,7 +147,6 @@ static void rzg2l_cru_linear_setting(struct rzg2l_cru_dev *cru)
 			ICnLMXBC2_BB(cru->linear_matrix_b[2]));
 }
 
-/* Need to hold qlock before calling */
 static void return_unused_buffers(struct rzg2l_cru_dev *cru,
 				  enum vb2_buffer_state state)
 {
