@@ -381,6 +381,11 @@ struct rzg2l_cru_info {
  * @mdev_lock:		protects the count, notifier and csi members
  * @pad:		media pad for the video device entity
  *
+ * @hw_lock:		protects the slot counter, hardware programming of
+ * 			slot addresses and the @buf_addr[] list
+ *
+ * @buf_addr:		Memory addresses where current video data is written
+ *
  * @is_csi:		flag to mark the CRU as using a CSI-2 subdevice
  *
  * @lock:		protects @queue
@@ -413,8 +418,6 @@ struct rzg2l_cru_dev {
 
 	u8 bpp;
 	u8 svc_channel;
-	dma_addr_t buf_addr[RZG2L_CRU_HW_BUFFER_MAX];
-
 	u32 code;
 	struct v4l2_async_notifier notifier;
 
@@ -426,6 +429,9 @@ struct rzg2l_cru_dev {
 	struct media_device mdev;
 	struct mutex mdev_lock;
 	struct media_pad pad;
+
+	spinlock_t hw_lock;
+	dma_addr_t buf_addr[RZG2L_CRU_HW_BUFFER_DEFAULT];
 
 	bool is_csi;
 
