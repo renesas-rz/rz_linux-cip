@@ -646,23 +646,19 @@ bool rzg2l_fifo_empty(struct rzg2l_cru_dev *cru)
 void rzg2l_cru_stop_image_processing(struct rzg2l_cru_dev *cru)
 {
 	unsigned int retries = 0;
-	unsigned long flags;
 	u32 icnms;
 
-	spin_lock_irqsave(&cru->qlock, flags);
-
-	/* Disable and clear the interrupt */
-	cru->info->disable_interrupts(cru);
+	scoped_guard(spinlock_irq, &cru->qlock) {
+		/* Disable and clear the interrupt */
+		cru->info->disable_interrupts(cru);
+	}
 
 	/* Stop the operation of image conversion */
 	rzg2l_cru_write(cru, ICnEN, 0);
 
 	/* Wait for streaming to stop */
-	while ((rzg2l_cru_read(cru, ICnMS) & ICnMS_IA) && retries++ < RZG2L_RETRIES) {
-		spin_unlock_irqrestore(&cru->qlock, flags);
+	while ((rzg2l_cru_read(cru, ICnMS) & ICnMS_IA) && retries++ < RZG2L_RETRIES)
 		msleep(RZG2L_TIMEOUT_MS);
-		spin_lock_irqsave(&cru->qlock, flags);
-	}
 
 	icnms = rzg2l_cru_read(cru, ICnMS) & ICnMS_IA;
 	if (icnms)
@@ -748,8 +744,6 @@ void rzg2l_cru_stop_image_processing(struct rzg2l_cru_dev *cru)
 
 	/* Resets the image processing module */
 	rzg2l_cru_write(cru, CRUnRST, 0);
-
-	spin_unlock_irqrestore(&cru->qlock, flags);
 }
 
 static int rzg2l_cru_get_virtual_channel(struct rzg2l_cru_dev *cru)
@@ -816,8 +810,6 @@ int rzg2l_cru_start_image_processing(struct rzg2l_cru_dev *cru)
 		return ret;
 	csi_vc = ret;
 	cru->svc_channel = csi_vc;
-
-	guard(spinlock_irqsave)(&cru->qlock);
 
 	/* Select a video input */
 	if (cru->is_csi)
