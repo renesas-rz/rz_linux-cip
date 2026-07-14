@@ -1037,83 +1037,83 @@ irqreturn_t rzg3e_cru_irq(int irq, void *data)
 	u32 irq_status;
 	int slot;
 
-	scoped_guard(spinlock, &cru->qlock) {
-		irq_status = rzg2l_cru_read(cru, CRUnINTS2);
-		if (!irq_status)
-			return IRQ_NONE;
+	guard(spinlock)(&cru->qlock);
 
-		dev_dbg(cru->dev, "CRUnINTS2 0x%x\n", irq_status);
+	irq_status = rzg2l_cru_read(cru, CRUnINTS2);
+	if (!irq_status)
+		return IRQ_NONE;
 
-		rzg2l_cru_write(cru, CRUnINTS2, rzg2l_cru_read(cru, CRUnINTS2));
+	dev_dbg(cru->dev, "CRUnINTS2 0x%x\n", irq_status);
 
-		/* Nothing to do if capture status is 'RZG2L_CRU_DMA_STOPPED' */
-		if (cru->state == RZG2L_CRU_DMA_STOPPED) {
-			dev_dbg(cru->dev, "IRQ while state stopped\n");
-			return IRQ_HANDLED;
-		}
+	rzg2l_cru_write(cru, CRUnINTS2, rzg2l_cru_read(cru, CRUnINTS2));
 
-		if (cru->state == RZG2L_CRU_DMA_STOPPING ||
-		    cru->state == RZG2L_CRU_DMA_SUSPEND) {
-			if (irq_status & CRUnINTS2_FExS(0) ||
-			    irq_status & CRUnINTS2_FExS(1) ||
-			    irq_status & CRUnINTS2_FExS(2) ||
-			    irq_status & CRUnINTS2_FExS(3))
-				dev_dbg(cru->dev, "IRQ while state stopping or suspending\n");
-			return IRQ_HANDLED;
-		}
-
-		/* Support realtime update for Linear Matrix setting */
-		if (!(rzg2l_cru_read(cru, ICnIPMC_C0) & ICnMC_LMXTHR)) {
-			rzg2l_cru_linear_setting(cru);
-			rzg2l_cru_write(cru, ICnREGC, ICnREGC_REFEN);
-		}
-
-		slot = rzg3e_cru_get_current_slot(cru);
-		if (slot < 0)
-			return IRQ_HANDLED;
-
-		dev_dbg(cru->dev, "Current written slot: %d\n", slot);
-
-		/*
-		 * To hand buffers back in a known order to userspace start
-		 * to capture first from slot 0.
-		 */
-		if (cru->state == RZG2L_CRU_DMA_STARTING) {
-			if (cru->frame_skip && (cru->sequence < cru->frame_skip)) {
-				dev_dbg(cru->dev, "Skipping %d frame\n",
-						cru->sequence);
-				cru->sequence++;
-				return IRQ_HANDLED;
-			} else {
-				if (slot != 0) {
-					dev_dbg(cru->dev, "Starting sync slot: %d\n", slot);
-					return IRQ_HANDLED;
-				}
-			}
-
-			dev_dbg(cru->dev, "Capture start synced!\n");
-			cru->state = RZG2L_CRU_DMA_RUNNING;
-		}
-
-		/* Capture frame */
-		if (cru->queue_buf[slot]) {
-			struct vb2_v4l2_buffer *buf = cru->queue_buf[slot];
-
-			buf->field = cru->format.field;
-			buf->sequence = cru->sequence;
-			buf->vb2_buf.timestamp = ktime_get_ns();
-			vb2_buffer_done(&buf->vb2_buf, VB2_BUF_STATE_DONE);
-			cru->queue_buf[slot] = NULL;
-		} else {
-			/* Scratch buffer was used, dropping frame. */
-			dev_dbg(cru->dev, "Dropping frame %u\n", cru->sequence);
-		}
-
-		cru->sequence++;
-
-		/* Prepare for next frame */
-		rzg2l_cru_fill_hw_slot(cru, slot);
+	/* Nothing to do if capture status is 'RZG2L_CRU_DMA_STOPPED' */
+	if (cru->state == RZG2L_CRU_DMA_STOPPED) {
+		dev_dbg(cru->dev, "IRQ while state stopped\n");
+		return IRQ_HANDLED;
 	}
+
+	if (cru->state == RZG2L_CRU_DMA_STOPPING ||
+	    cru->state == RZG2L_CRU_DMA_SUSPEND) {
+		if (irq_status & CRUnINTS2_FExS(0) ||
+		    irq_status & CRUnINTS2_FExS(1) ||
+		    irq_status & CRUnINTS2_FExS(2) ||
+		    irq_status & CRUnINTS2_FExS(3))
+			dev_dbg(cru->dev, "IRQ while state stopping or suspending\n");
+		return IRQ_HANDLED;
+	}
+
+	/* Support realtime update for Linear Matrix setting */
+	if (!(rzg2l_cru_read(cru, ICnIPMC_C0) & ICnMC_LMXTHR)) {
+		rzg2l_cru_linear_setting(cru);
+		rzg2l_cru_write(cru, ICnREGC, ICnREGC_REFEN);
+	}
+
+	slot = rzg3e_cru_get_current_slot(cru);
+	if (slot < 0)
+		return IRQ_HANDLED;
+
+	dev_dbg(cru->dev, "Current written slot: %d\n", slot);
+
+	/*
+	 * To hand buffers back in a known order to userspace start
+	 * to capture first from slot 0.
+	 */
+	if (cru->state == RZG2L_CRU_DMA_STARTING) {
+		if (cru->frame_skip && (cru->sequence < cru->frame_skip)) {
+			dev_dbg(cru->dev, "Skipping %d frame\n",
+					cru->sequence);
+			cru->sequence++;
+			return IRQ_HANDLED;
+		} else {
+			if (slot != 0) {
+				dev_dbg(cru->dev, "Starting sync slot: %d\n", slot);
+				return IRQ_HANDLED;
+			}
+		}
+
+		dev_dbg(cru->dev, "Capture start synced!\n");
+		cru->state = RZG2L_CRU_DMA_RUNNING;
+	}
+
+	/* Capture frame */
+	if (cru->queue_buf[slot]) {
+		struct vb2_v4l2_buffer *buf = cru->queue_buf[slot];
+
+		buf->field = cru->format.field;
+		buf->sequence = cru->sequence;
+		buf->vb2_buf.timestamp = ktime_get_ns();
+		vb2_buffer_done(&buf->vb2_buf, VB2_BUF_STATE_DONE);
+		cru->queue_buf[slot] = NULL;
+	} else {
+		/* Scratch buffer was used, dropping frame. */
+		dev_dbg(cru->dev, "Dropping frame %u\n", cru->sequence);
+	}
+
+	cru->sequence++;
+
+	/* Prepare for next frame */
+	rzg2l_cru_fill_hw_slot(cru, slot);
 
 	return IRQ_HANDLED;
 }
