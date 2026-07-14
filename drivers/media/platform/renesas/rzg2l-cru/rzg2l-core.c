@@ -714,7 +714,6 @@ static const struct rzg2l_cru_info rzg3e_cru_info = {
 	.enable_interrupts = rzg3e_cru_enable_interrupts,
 	.disable_interrupts = rzg3e_cru_disable_interrupts,
 	.fifo_empty = rzg3e_fifo_empty,
-	.csi_setup = rzg3e_cru_csi2_setup,
 	.max_cru_channels = 1,
 };
 
@@ -729,7 +728,6 @@ static const struct rzg2l_cru_info rzv2h_cru_info = {
 	.enable_interrupts = rzg3e_cru_enable_interrupts,
 	.disable_interrupts = rzg3e_cru_disable_interrupts,
 	.fifo_empty = rzg3e_fifo_empty,
-	.csi_setup = rzg3e_cru_csi2_setup,
 	.max_cru_channels = 4,
 };
 
@@ -744,7 +742,6 @@ static const struct rzg2l_cru_info rzv2n_cru_info = {
 	.enable_interrupts = rzg3e_cru_enable_interrupts,
 	.disable_interrupts = rzg3e_cru_disable_interrupts,
 	.fifo_empty = rzg3e_fifo_empty,
-	.csi_setup = rzg3e_cru_csi2_setup,
 	.max_cru_channels = 2,
 };
 
@@ -827,7 +824,6 @@ static const struct rzg2l_cru_info rzg2l_cru_info = {
 	.enable_interrupts = rzg2l_cru_enable_interrupts,
 	.disable_interrupts = rzg2l_cru_disable_interrupts,
 	.fifo_empty = rzg2l_fifo_empty,
-	.csi_setup = rzg2l_cru_csi2_setup,
 	.max_cru_channels = 1,
 };
 
