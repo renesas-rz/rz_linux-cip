@@ -4007,7 +4007,8 @@ static int sci_suspend(struct device *dev)
 				sport->ops->console_save(&sport->port);
 
 			/* Setting Receive FIFO Data Trigger to 1 for wakeup early */
-			sport->ops->set_rtrg(&sport->port, 1);
+			if (sport->port.fifosize > 1)
+				sport->ops->set_rtrg(&sport->port, 1);
 			spin_unlock_irqrestore(&sport->port.lock, flags);
 		} else
 			return reset_control_assert(sport->rstc);
