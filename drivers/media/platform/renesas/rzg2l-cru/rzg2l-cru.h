@@ -354,6 +354,7 @@ struct rzg2l_cru_info {
  * @buf_addr:		Memory addresses where current video data is written.
  * @notifier:		V4L2 asynchronous subdevs notifier
  *
+ * @ctrl:              V4L2 control for streaming flow management
  * @ctrl_handler:	V4L2 control handler associated with CRU
  *
  * @ip:			Image processing subdev info
@@ -403,6 +404,7 @@ struct rzg2l_cru_dev {
 	u32 code;
 	struct v4l2_async_notifier notifier;
 
+	struct v4l2_ctrl *ctrl;
 	struct v4l2_ctrl_handler ctrl_handler;
 
 	struct rzg2l_cru_parallel *parallel;
