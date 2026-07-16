@@ -968,6 +968,9 @@ irqreturn_t rzg2l_cru_irq(int irq, void *data)
 	else
 		slot = cru->active_slot - 1;
 
+	if (cru->frame_skip && ((cru->sequence++) < cru->frame_skip))
+		return IRQ_HANDLED;
+
 	/* Capture frame */
 	if (cru->queue_buf[slot]) {
 		cru->queue_buf[slot]->field = cru->format.field;
@@ -1011,6 +1014,9 @@ irqreturn_t rzg3e_cru_irq(int irq, void *data)
 
 	slot = cru->active_slot;
 	cru->active_slot = rzg2l_cru_slot_next(cru, cru->active_slot);
+
+	if (cru->frame_skip && ((cru->sequence++) < cru->frame_skip))
+		return IRQ_HANDLED;
 
 	dev_dbg(cru->dev, "Current written slot: %d\n", slot);
 
