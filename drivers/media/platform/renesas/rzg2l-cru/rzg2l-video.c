@@ -893,6 +893,7 @@ static int rzg2l_cru_set_stream(struct rzg2l_cru_dev *cru, int on)
 			stream_off_ret = ret;
 
 		video_device_pipeline_stop(&cru->vdev);
+		v4l2_ctrl_activate(cru->ctrl, false);
 
 		return stream_off_ret;
 	}
@@ -909,6 +910,8 @@ static int rzg2l_cru_set_stream(struct rzg2l_cru_dev *cru, int on)
 	ret = v4l2_subdev_call(sd, video, s_stream, 1);
 	if (ret && ret != -ENOIOCTLCMD)
 		goto err_s_stream;
+
+	v4l2_ctrl_activate(cru->ctrl, true);
 
 	return 0;
 

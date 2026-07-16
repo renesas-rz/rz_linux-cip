@@ -328,8 +328,7 @@ static int rzg2l_cru_s_ctrl(struct v4l2_ctrl *ctrl)
 		cru->linear_matrix_b[order] = ctrl->val;
 		break;
 	default:
-		if ((cru->state == RZG2L_CRU_DMA_STOPPED) ||
-		   (cru->state == RZG2L_CRU_DMA_STOPPING)) {
+		if (cru->ctrl->flags & V4L2_CTRL_FLAG_INACTIVE) {
 			switch (ctrl->id) {
 			case V4L2_CID_CRU_LINEAR_MATRIX:
 				cru->is_linear_matrix_enable = ctrl->val;
@@ -358,7 +357,6 @@ static int rzg2l_cru_s_ctrl(struct v4l2_ctrl *ctrl)
 			}
 		} else {
 			ret = -EBUSY;
-
 			break;
 		}
 	};
@@ -501,7 +499,6 @@ static int rzg2l_cru_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rzg2l_cru_dev *cru;
-	struct v4l2_ctrl *ctrl;
 	int irq, ret, i;
 	int num_ctrls;
 
@@ -564,12 +561,13 @@ static int rzg2l_cru_probe(struct platform_device *pdev)
 	/* Add the control about minimum amount of buffers */
 	num_ctrls = ARRAY_SIZE(rzg2l_cru_ctrls);
 	v4l2_ctrl_handler_init(&cru->ctrl_handler, num_ctrls + 1);
-	ctrl = v4l2_ctrl_new_std(&cru->ctrl_handler, &rzg2l_cru_ctrl_ops,
-				 V4L2_CID_MIN_BUFFERS_FOR_CAPTURE,
-				 1, RZG2L_CRU_HW_BUFFER_MAX, 1,
-				 RZG2L_CRU_HW_BUFFER_DEFAULT);
+	cru->ctrl = v4l2_ctrl_new_std(&cru->ctrl_handler, &rzg2l_cru_ctrl_ops,
+				      V4L2_CID_MIN_BUFFERS_FOR_CAPTURE,
+				      1, RZG2L_CRU_HW_BUFFER_MAX, 1,
+				      RZG2L_CRU_HW_BUFFER_DEFAULT);
 
-	ctrl->flags &= ~V4L2_CTRL_FLAG_READ_ONLY;
+	cru->ctrl->flags &= ~V4L2_CTRL_FLAG_READ_ONLY;
+	cru->ctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 
 	for (i = 0; i < num_ctrls; i++) {
 		if ((cru->info->cru_type == RZV2H_CRU_TYPE) &&
