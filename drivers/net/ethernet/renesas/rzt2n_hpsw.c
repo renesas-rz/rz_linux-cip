@@ -361,6 +361,8 @@ static ssize_t REDHsrPrpMode_store(struct device *dev,
 	else if (sysfs_streq(buf, "prp") || sysfs_streq(buf, "PRP") ||
 		 sysfs_streq(buf, "1"))
 		new_mode = 1;
+	else if (sysfs_streq(buf, "0"))
+		new_mode = 0;
 	else
 		return -EINVAL;
 
@@ -435,7 +437,7 @@ static int rzt2n_hpsw_init(struct rzt2n_hpsw *hpsw)
 	u32 cfg = 0;
 
 	/* defaults */
-	hpsw->mode		= 2;	/* HPSW Operating Profile: HSR */
+	hpsw->mode		= 0;	/* HPSW Operating Profile */
 	hpsw->cut_through	= 1;	/* Enable Cut Through Frame */
 	hpsw->no_forward	= 0;	/* Enable Forward between Port A/B */
 
