@@ -39,8 +39,6 @@ struct rzg2l_cru_buffer {
 	struct list_head list;
 };
 
-static void rzg2l_cru_initialize_axi(struct rzg2l_cru_dev *cru);
-
 #define to_buf_list(vb2_buffer) \
 	(&container_of(vb2_buffer, struct rzg2l_cru_buffer, vb)->list)
 
@@ -233,17 +231,6 @@ static void rzg2l_cru_buffer_queue(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct rzg2l_cru_dev *cru = vb2_get_drv_priv(vb->vb2_queue);
-
-	if (cru->state == RZG2L_CRU_DMA_SUSPEND) {
-		if (!wait_event_timeout(cru->setup_wait,
-					cru->state != RZG2L_CRU_DMA_SUSPEND,
-					msecs_to_jiffies(SETUP_WAIT_TIME))) {
-			dev_warn(cru->dev, "set up timeout\n");
-			rzg2l_cru_return_buffers(cru, VB2_BUF_STATE_ERROR);
-		}
-
-		rzg2l_cru_initialize_axi(cru);
-	}
 
 	guard(spinlock_irq)(&cru->qlock);
 	list_add_tail(to_buf_list(vbuf), &cru->buf_list);
@@ -705,8 +692,7 @@ void rzg2l_cru_stop_image_processing(struct rzg2l_cru_dev *cru)
 	if (icnms)
 		dev_err(cru->dev, "Failed stop HW, something is seriously broken\n");
 
-	if (cru->state != RZG2L_CRU_DMA_SUSPEND)
-		cru->state = RZG2L_CRU_DMA_STOPPED;
+	cru->state = RZG2L_CRU_DMA_STOPPED;
 
 	/* Wait until the FIFO becomes empty */
 	for (retries = 5; retries > 0; retries--) {
@@ -971,10 +957,9 @@ irqreturn_t rzg2l_cru_irq(int irq, void *data)
 	}
 
 	/* Increase stop retries if capture status is 'RZG2L_CRU_DMA_STOPPING' */
-	if (cru->state == RZG2L_CRU_DMA_STOPPING ||
-	    cru->state == RZG2L_CRU_DMA_SUSPEND) {
+	if (cru->state == RZG2L_CRU_DMA_STOPPING) {
 		if (irq_status & CRUnINTS_EFS)
-			dev_dbg(cru->dev, "IRQ while state stopping or suspending\n");
+			dev_dbg(cru->dev, "IRQ while state stopping\n");
 		return IRQ_RETVAL(handled);
 	}
 
@@ -1061,13 +1046,12 @@ irqreturn_t rzg3e_cru_irq(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	if (cru->state == RZG2L_CRU_DMA_STOPPING ||
-	    cru->state == RZG2L_CRU_DMA_SUSPEND) {
+	if (cru->state == RZG2L_CRU_DMA_STOPPING) {
 		if (irq_status & CRUnINTS2_FExS(0) ||
 		    irq_status & CRUnINTS2_FExS(1) ||
 		    irq_status & CRUnINTS2_FExS(2) ||
 		    irq_status & CRUnINTS2_FExS(3))
-			dev_dbg(cru->dev, "IRQ while state stopping or suspending\n");
+			dev_dbg(cru->dev, "IRQ while state stopping\n");
 		return IRQ_HANDLED;
 	}
 
@@ -1129,7 +1113,6 @@ static int rzg2l_cru_start_streaming_vq(struct vb2_queue *vq, unsigned int count
 {
 	struct rzg2l_cru_dev *cru = vb2_get_drv_priv(vq);
 	int ret;
-	int i;
 
 	ret = pm_runtime_resume_and_get(cru->dev);
 	if (ret)
@@ -1162,9 +1145,6 @@ static int rzg2l_cru_start_streaming_vq(struct vb2_queue *vq, unsigned int count
 		ret = -ENOMEM;
 		goto assert_presetn;
 	}
-
-	for (i = 0; i < RZG2L_CRU_HW_BUFFER_MAX; i++)
-		cru->queue_buf[i] = NULL;
 
 	cru->active_slot = 0;
 	cru->sequence = 0;
@@ -1216,37 +1196,6 @@ static void rzg2l_cru_stop_streaming_vq(struct vb2_queue *vq)
 	pm_runtime_put_sync(cru->dev);
 }
 
-void rzg2l_cru_resume_start_streaming(struct work_struct *work)
-{
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct rzg2l_cru_dev *cru =
-			container_of(dwork, struct rzg2l_cru_dev, rzg2l_cru_resume);
-	unsigned long flags;
-	int ret;
-
-	ret = rzg2l_cru_set_stream(cru, 1);
-	if (ret) {
-		dev_warn(cru->dev, "Warning at streaming when resuming.\n");
-		rzg2l_cru_return_buffers(cru, VB2_BUF_STATE_ERROR);
-	}
-
-	spin_lock_irqsave(&cru->qlock, flags);
-	cru->sequence = 0;
-	cru->state = RZG2L_CRU_DMA_STARTING;
-	spin_unlock_irqrestore(&cru->qlock, flags);
-
-	wake_up(&cru->setup_wait);
-}
-
-void rzg2l_cru_suspend_stop_streaming(struct rzg2l_cru_dev *cru)
-{
-	cru->state = RZG2L_CRU_DMA_SUSPEND;
-	rzg2l_cru_set_stream(cru, 0);
-
-	/* Release all active buffers */
-	rzg2l_cru_return_buffers(cru, VB2_BUF_STATE_ERROR);
-}
-
 static const struct vb2_ops rzg2l_cru_qops = {
 	.queue_setup		= rzg2l_cru_queue_setup,
 	.buf_prepare		= rzg2l_cru_buffer_prepare,
@@ -1283,7 +1232,6 @@ int rzg2l_cru_dma_register(struct rzg2l_cru_dev *cru)
 	spin_lock_init(&cru->qlock);
 
 	cru->state = RZG2L_CRU_DMA_STOPPED;
-	init_waitqueue_head(&cru->setup_wait);
 
 	for (i = 0; i < RZG2L_CRU_HW_BUFFER_MAX; i++)
 		cru->queue_buf[i] = NULL;
