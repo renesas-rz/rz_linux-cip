@@ -195,6 +195,23 @@ static void rzg2l_cru_return_buffers(struct rzg2l_cru_dev *cru,
 	}
 }
 
+void rzg2l_cru_requeue_active_buffers(struct rzg2l_cru_dev *cru)
+{
+	unsigned int i;
+
+	scoped_guard(spinlock_irqsave, &cru->hw_lock) {
+		for (i = 0; i < cru->num_buf; i++) {
+			if (!cru->queue_buf[i])
+				continue;
+			scoped_guard(spinlock_irqsave, &cru->qlock) {
+				list_add_tail(to_buf_list(cru->queue_buf[i]),
+					      &cru->buf_list);
+			}
+			cru->queue_buf[i] = NULL;
+		}
+	}
+}
+
 static int rzg2l_cru_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 				 unsigned int *nplanes, unsigned int sizes[],
 				 struct device *alloc_devs[])
@@ -866,7 +883,7 @@ int rzg2l_cru_start_image_processing(struct rzg2l_cru_dev *cru)
 	return 0;
 }
 
-static int rzg2l_cru_set_stream(struct rzg2l_cru_dev *cru, int on)
+int rzg2l_cru_set_stream(struct rzg2l_cru_dev *cru, int on)
 {
 	struct media_pipeline *pipe;
 	struct v4l2_subdev *sd;
@@ -1069,6 +1086,7 @@ static int rzg2l_cru_start_streaming_vq(struct vb2_queue *vq, unsigned int count
 		goto out;
 	}
 
+	cru->running = true;
 	dev_dbg(cru->dev, "Starting to capture\n");
 	return 0;
 
@@ -1092,7 +1110,10 @@ static void rzg2l_cru_stop_streaming_vq(struct vb2_queue *vq)
 {
 	struct rzg2l_cru_dev *cru = vb2_get_drv_priv(vq);
 
-	rzg2l_cru_set_stream(cru, 0);
+	if (cru->running) {
+		rzg2l_cru_set_stream(cru, 0);
+		cru->running = false;
+	}
 
 	/* Free scratch buffer */
 	dma_free_coherent(cru->dev, cru->format.sizeimage,
