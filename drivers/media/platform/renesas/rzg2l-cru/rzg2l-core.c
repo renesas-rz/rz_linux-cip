@@ -264,6 +264,7 @@ static void rzg2l_cru_group_notify_unbind(struct v4l2_async_notifier *notifier,
 	mutex_lock(&cru->mdev_lock);
 
 	if (cru->csi.asd == asd) {
+		device_link_remove(cru->dev, subdev->dev);
 		cru->csi.subdev = NULL;
 		dev_dbg(cru->dev, "Unbind CSI-2 %s\n", subdev->name);
 	}
@@ -281,6 +282,12 @@ static int rzg2l_cru_group_notify_bound(struct v4l2_async_notifier *notifier,
 
 	if (cru->csi.asd == asd) {
 		cru->csi.subdev = subdev;
+		if (!device_link_add(cru->dev, subdev->dev, DL_FLAG_STATELESS)) {
+			dev_err(cru->dev, "Failed to create device link to CSI-2 %s\n",
+				subdev->name);
+			mutex_unlock(&cru->mdev_lock);
+			return -EINVAL;
+		}
 		dev_dbg(cru->dev, "Bound CSI-2 %s\n", subdev->name);
 	}
 
