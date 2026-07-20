@@ -502,6 +502,72 @@ static int rzg2l_cru_media_init(struct rzg2l_cru_dev *cru)
 	return 0;
 }
 
+static int rzg2l_cru_pm_suspend(struct device *dev)
+{
+	struct rzg2l_cru_dev *cru = dev_get_drvdata(dev);
+	struct reset_control_bulk_data resets[] = {
+		{ .rstc = cru->aresetn },
+		{ .rstc = cru->presetn },
+	};
+	int ret;
+
+	if (!cru->running)
+		return 0;
+
+	ret = rzg2l_cru_set_stream(cru, 0);
+	if (ret)
+		return ret;
+
+	rzg2l_cru_requeue_active_buffers(cru);
+
+	ret = reset_control_bulk_assert(ARRAY_SIZE(resets), resets);
+	if (ret) {
+		if (rzg2l_cru_set_stream(cru, 1))
+			vb2_queue_error(&cru->queue);
+
+		return ret;
+	}
+
+	return 0;
+}
+
+static int rzg2l_cru_pm_resume(struct device *dev)
+{
+	struct rzg2l_cru_dev *cru = dev_get_drvdata(dev);
+	struct reset_control_bulk_data resets[] = {
+		{ .rstc = cru->aresetn },
+		{ .rstc = cru->presetn },
+	};
+	int ret;
+
+	if (!cru->running)
+		return 0;
+
+	ret = reset_control_bulk_deassert(ARRAY_SIZE(resets), resets);
+	if (ret)
+		goto err_running;
+
+	ret = rzg2l_cru_set_stream(cru, 1);
+	if (ret) {
+		dev_err(cru->dev, "Failed to restart streaming: %d\n", ret);
+		goto err_reset_assert;
+	}
+
+	return 0;
+
+err_reset_assert:
+	reset_control_bulk_assert(ARRAY_SIZE(resets), resets);
+err_running:
+	cru->running = false;
+	vb2_queue_error(&cru->queue);
+
+	return ret;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(rzg2l_cru_pm_ops,
+				rzg2l_cru_pm_suspend,
+				rzg2l_cru_pm_resume);
+
 static int rzg2l_cru_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -850,6 +916,7 @@ static struct platform_driver rzg2l_cru_driver = {
 	.driver = {
 		.name = "rzg2l-cru",
 		.of_match_table = rzg2l_cru_of_id_table,
+		.pm = pm_sleep_ptr(&rzg2l_cru_pm_ops),
 	},
 	.probe = rzg2l_cru_probe,
 	.remove = rzg2l_cru_remove,
