@@ -909,15 +909,30 @@ static int rzg2l_csi2_notify_bound(struct v4l2_async_notifier *notifier,
 				   struct v4l2_async_subdev *asd)
 {
 	struct rzg2l_csi2 *csi2 = notifier_to_csi2(notifier);
+	int ret;
 
-	csi2->remote_source = subdev;
+
+	if (!device_link_add(csi2->dev, subdev->dev, DL_FLAG_STATELESS)) {
+		dev_err(csi2->dev, "Failed to create device link to sensor %s\n",
+			subdev->name);
+		return -EINVAL;
+	}
 
 	dev_dbg(csi2->dev, "Bound subdev: %s pad\n", subdev->name);
 
-	return media_create_pad_link(&subdev->entity, RZG2L_CSI2_SINK,
-				     &csi2->subdev.entity, 0,
-				     MEDIA_LNK_FL_ENABLED |
-				     MEDIA_LNK_FL_IMMUTABLE);
+
+	ret = media_create_pad_link(&subdev->entity, RZG2L_CSI2_SINK,
+				    &csi2->subdev.entity, 0,
+				    MEDIA_LNK_FL_ENABLED |
+				    MEDIA_LNK_FL_IMMUTABLE);
+	if (ret) {
+		device_link_remove(csi2->dev, subdev->dev);
+		return ret;
+	}
+
+	csi2->remote_source = subdev;
+
+	return 0;
 }
 
 static void rzg2l_csi2_notify_unbind(struct v4l2_async_notifier *notifier,
@@ -926,6 +941,7 @@ static void rzg2l_csi2_notify_unbind(struct v4l2_async_notifier *notifier,
 {
 	struct rzg2l_csi2 *csi2 = notifier_to_csi2(notifier);
 
+	device_link_remove(csi2->dev, subdev->dev);
 	csi2->remote_source = NULL;
 
 	dev_dbg(csi2->dev, "Unbind subdev %s\n", subdev->name);
