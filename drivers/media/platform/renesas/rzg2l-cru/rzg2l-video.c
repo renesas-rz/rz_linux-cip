@@ -924,11 +924,6 @@ pipe_line_stop:
 	return ret;
 }
 
-static void rzg2l_cru_stop_streaming(struct rzg2l_cru_dev *cru)
-{
-	rzg2l_cru_set_stream(cru, 0);
-}
-
 irqreturn_t rzg2l_cru_irq(int irq, void *data)
 {
 	struct rzg2l_cru_dev *cru = data;
@@ -1097,7 +1092,7 @@ static void rzg2l_cru_stop_streaming_vq(struct vb2_queue *vq)
 {
 	struct rzg2l_cru_dev *cru = vb2_get_drv_priv(vq);
 
-	rzg2l_cru_stop_streaming(cru);
+	rzg2l_cru_set_stream(cru, 0);
 
 	/* Free scratch buffer */
 	dma_free_coherent(cru->dev, cru->format.sizeimage,
