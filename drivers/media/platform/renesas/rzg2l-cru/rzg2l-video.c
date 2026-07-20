@@ -1034,6 +1034,10 @@ irqreturn_t rzg3e_cru_irq(int irq, void *data)
 static int rzg2l_cru_start_streaming_vq(struct vb2_queue *vq, unsigned int count)
 {
 	struct rzg2l_cru_dev *cru = vb2_get_drv_priv(vq);
+	struct reset_control_bulk_data resets[] = {
+		{ .rstc = cru->aresetn },
+		{ .rstc = cru->presetn },
+	};
 	int ret;
 
 	ret = pm_runtime_resume_and_get(cru->dev);
@@ -1045,17 +1049,10 @@ static int rzg2l_cru_start_streaming_vq(struct vb2_queue *vq, unsigned int count
 		goto err_pm_put;
 
 	/* Release reset state */
-	ret = reset_control_deassert(cru->aresetn);
+	ret = reset_control_bulk_deassert(ARRAY_SIZE(resets), resets);
 	if (ret) {
-		dev_err(cru->dev, "failed to deassert aresetn\n");
+		dev_err(cru->dev, "failed to deassert resets\n");
 		goto err_vclk_disable;
-	}
-
-	ret = reset_control_deassert(cru->presetn);
-	if (ret) {
-		reset_control_assert(cru->aresetn);
-		dev_err(cru->dev, "failed to deassert presetn\n");
-		goto assert_aresetn;
 	}
 
 	/* Allocate scratch buffer */
@@ -1065,7 +1062,7 @@ static int rzg2l_cru_start_streaming_vq(struct vb2_queue *vq, unsigned int count
 		rzg2l_cru_return_buffers(cru, VB2_BUF_STATE_QUEUED);
 		dev_err(cru->dev, "Failed to allocate scratch buffer\n");
 		ret = -ENOMEM;
-		goto assert_presetn;
+		goto err_assert_resets;
 	}
 
 	cru->active_slot = 0;
@@ -1084,11 +1081,8 @@ out:
 	if (ret)
 		dma_free_coherent(cru->dev, cru->format.sizeimage, cru->scratch,
 				  cru->scratch_phys);
-assert_presetn:
-	reset_control_assert(cru->presetn);
-
-assert_aresetn:
-	reset_control_assert(cru->aresetn);
+err_assert_resets:
+	reset_control_bulk_assert(ARRAY_SIZE(resets), resets);
 
 err_vclk_disable:
 	clk_disable_unprepare(cru->vclk);
