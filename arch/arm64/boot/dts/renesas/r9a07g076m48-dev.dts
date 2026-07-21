@@ -554,11 +554,8 @@
 #endif
 
 #if (!SEL_PCIE_RC_EP)
-	pcie_rstout {
-		gpio-hog;
-		gpios = <RZT2_GPIO(24, 5) GPIO_ACTIVE_HIGH>; /* PCIE: RSTOUT/P24_5 */
-		output-high;
-		line-name = "pcie_rstout";
+	pcie0_pins: pcie0 {
+		pinmux = <RZT2_PORT_PINMUX(24, 5, 0x2B)>; /* PCIE : PCIE_RSTOUTB/P24_5 */
 	};
 #endif
 
@@ -862,6 +859,8 @@
 
 #if (!SEL_PCIE_RC_EP)
 &pcie0 {
+	pinctrl-0 = <&pcie0_pins>;
+	pinctrl-names = "default";
 	pcie-lane = <1>;
 	status = "okay";
 };
