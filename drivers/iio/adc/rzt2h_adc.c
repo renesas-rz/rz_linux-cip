@@ -38,10 +38,24 @@
 #define RZT2H_ADC_NEED_CALIBRATION	BIT(0)
 #define RZT2H_ADC_CFG_SYS		BIT(1)
 
-struct adc_mstp_ada_b {
-	struct regmap *regmap;
+enum rzt2h_adc_sysc_func_id {
+	RZT2H_SYSC_FUNC_ID_MSTP_ADA_B,
+	RZT2H_ADC_SYSC_FUNC_MAX,
+};
+
+struct rzt2h_adc_sysc_function {
 	u32 offset;
 	u32 mask;
+};
+
+struct rzt2h_adc_sysc_info {
+	const struct rzt2h_adc_sysc_function
+		functions[RZT2H_ADC_SYSC_FUNC_MAX];
+};
+
+struct rzt2h_adc_sysc {
+	struct regmap *regmap;
+	const struct rzt2h_adc_sysc_info *info;
 };
 
 struct rzt2h_adc_data {
@@ -50,6 +64,7 @@ struct rzt2h_adc_data {
 	unsigned long timeout;
 	const struct iio_chan_spec *channel_template;
 	const struct rzt2h_adc_ops *ops;
+	const struct rzt2h_adc_sysc_info sysc_info;
 };
 
 struct rzt2h_adc {
@@ -64,13 +79,34 @@ struct rzt2h_adc {
 	unsigned int num_channels;
 	unsigned int max_channels;
 	const struct rzt2h_adc_data *data;
-	struct adc_mstp_ada_b *mstp_ada_b;
+	struct rzt2h_adc_sysc *sysc;
 };
 
 struct rzt2h_adc_ops {
 	int (*init)(struct rzt2h_adc *adc);
 	int (*deinit)(struct rzt2h_adc *adc);
 };
+
+static int rzt2h_sysc_config_func(struct rzt2h_adc_sysc *sysc,
+				  enum rzt2h_adc_sysc_func_id fid, u32 val)
+{
+	if (!sysc)
+		return 0;
+	else {
+		const struct rzt2h_adc_sysc_info *info = sysc->info;
+		const struct rzt2h_adc_sysc_function *functions = info->functions;
+
+		if (fid >= RZT2H_ADC_SYSC_FUNC_MAX)
+			return -EINVAL;
+
+		if (!functions[fid].mask)
+			return 0;
+
+		return regmap_update_bits(sysc->regmap, functions[fid].offset,
+					  functions[fid].mask,
+					  field_prep(functions[fid].mask, val));
+	}
+}
 
 static void rzt2h_adc_start(struct rzt2h_adc *adc, unsigned int conversion_type)
 {
@@ -229,40 +265,6 @@ static int rzt2h_adc_parse_properties(struct rzt2h_adc *adc)
 	return 0;
 }
 
-static int rzt2h_adc_parse_dt(struct rzt2h_adc *adc)
-{
-	struct device *dev = adc->dev;
-	const struct rzt2h_adc_data *data = adc->data;
-	struct of_phandle_args args;
-	struct adc_mstp_ada_b *mstp_ada_b = NULL;
-	int ret;
-
-	if (data->flags & RZT2H_ADC_CFG_SYS) {
-		mstp_ada_b = devm_kzalloc(dev, sizeof(*mstp_ada_b), GFP_KERNEL);
-
-		if (!mstp_ada_b)
-			return -ENOMEM;
-
-		ret = of_parse_phandle_with_args(dev->of_node, "renesas,sysc-signal",
-						"#renesas,sysc-signal-cells", 0, &args);
-
-		if (ret)
-			return ret;
-
-		mstp_ada_b->regmap = syscon_node_to_regmap(args.np);
-		mstp_ada_b->offset = args.args[0];
-		mstp_ada_b->mask = args.args[1];
-
-		of_node_put(args.np);
-		if (IS_ERR(mstp_ada_b->regmap))
-			return PTR_ERR(mstp_ada_b->regmap);
-	}
-
-	adc->mstp_ada_b = mstp_ada_b;
-
-	return 0;
-}
-
 static void rzt2h_adc_reset_assert(void *data)
 {
 	struct rzt2h_adc *adc = data;
@@ -270,36 +272,26 @@ static void rzt2h_adc_reset_assert(void *data)
 	reset_control_assert(adc->rstc);
 }
 
-static void rzv2h_adc_set_mstp_ada_b(struct rzt2h_adc *adc, bool act)
-{
-	struct adc_mstp_ada_b *mstp_ada_b = adc->mstp_ada_b;
-
-	if (!mstp_ada_b)
-		return;
-
-	regmap_update_bits(mstp_ada_b->regmap, mstp_ada_b->offset, mstp_ada_b->mask, act);
-}
-
 static int rzv2h_adc_init(struct rzt2h_adc *adc)
 {
-	rzv2h_adc_set_mstp_ada_b(adc, false);
-
-	return 0;
+	return rzt2h_sysc_config_func(adc->sysc,
+			      RZT2H_SYSC_FUNC_ID_MSTP_ADA_B, 0);
 }
 
 static int rzv2h_adc_deinit(struct rzt2h_adc *adc)
 {
-	rzv2h_adc_set_mstp_ada_b(adc, true);
-
-	return 0;
+	return rzt2h_sysc_config_func(adc->sysc,
+			      RZT2H_SYSC_FUNC_ID_MSTP_ADA_B, 1);
 }
 
 static int rzt2h_adc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct device_node *sysc_np __free(device_node) = NULL;
 	struct iio_dev *indio_dev;
 	struct rzt2h_adc *adc;
 	const struct rzt2h_adc_data *data;
+	struct rzt2h_adc_sysc *sysc;
 	int ret, irq;
 
 	data = device_get_match_data(dev);
@@ -325,9 +317,25 @@ static int rzt2h_adc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = rzt2h_adc_parse_dt(adc);
-	if (ret)
-		return ret;
+	if (data->flags & RZT2H_ADC_CFG_SYS) {
+		sysc_np = of_parse_phandle(dev->of_node, "renesas,sysc", 0);
+		if (!sysc_np)
+			return -ENODEV;
+
+		adc->sysc = devm_kzalloc(dev, sizeof(*adc->sysc), GFP_KERNEL);
+		if (!adc->sysc) {
+			of_node_put(sysc_np);
+			return -ENOMEM;
+		}
+
+		sysc = adc->sysc;
+		sysc->info = &adc->data->sysc_info;
+		sysc->regmap = syscon_node_to_regmap(sysc_np);
+		of_node_put(sysc_np);
+		if (IS_ERR(sysc->regmap))
+			return dev_err_probe(dev, PTR_ERR(sysc->regmap),
+					     "failed to get sysc regmap\n");
+	}
 
 	adc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(adc->base))
@@ -417,6 +425,14 @@ static struct rzt2h_adc_data rzv2h_pdata = {
 	.timeout = 100,
 	.channel_template = &rzv2h_adc_chan_template,
 	.ops = &rzv2h_ops,
+	.sysc_info = {
+		.functions = {
+			[RZT2H_SYSC_FUNC_ID_MSTP_ADA_B] = {
+				.offset = 0x1600,
+				.mask = BIT(0),
+			},
+		},
+	},
 };
 
 static const struct of_device_id rzt2h_adc_match[] = {
