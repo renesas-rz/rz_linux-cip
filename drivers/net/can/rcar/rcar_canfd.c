@@ -1973,6 +1973,7 @@ fail_candev:
 	netif_napi_del(&priv->napi);
 fail:
 	free_candev(ndev);
+	gpriv->ch[priv->channel] = NULL;
 	return err;
 }
 
