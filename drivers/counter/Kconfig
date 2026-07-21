@@ -25,6 +25,13 @@ menuconfig COUNTER
 	  interface. You only need to enable this, if you also want to enable
 	  one or more of the counter device drivers below.
 
+config RZG2L_GPT_CNT
+	tristate "Renesas RZ/G2L GPT counter driver"
+	depends on RZG2L_GPT
+	select COUNTER
+	help
+	  Enable Counter framework support for the Renesas RZ/G2L GPT.
+
 if COUNTER
 
 config 104_QUAD_8

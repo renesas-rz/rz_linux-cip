@@ -65,6 +65,7 @@ static u8 rzg3e_gpt_calculate_prescale(u64 period_ticks)
 
 static const struct mfd_cell rzg2l_gpt_devs[] = {
 	{ .name = "pwm-rzg2l-gpt" },
+	{ .name = "rzg2l-gpt-counter" },
 };
 
 static int rzg2l_gpt_probe(struct platform_device *pdev)
