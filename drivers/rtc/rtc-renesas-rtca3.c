@@ -18,6 +18,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/rtc.h>
+#include <linux/suspend.h>
+#include <linux/sys_soc.h>
 
 /* Counter registers. */
 #define RTCA3_RSECCNT			0x2
@@ -120,7 +122,9 @@ struct rtca3_ppb_per_cycle {
  * @alrm_sstep: alarm setup step (see enum rtca3_alrm_set_step)
  * @lock: device lock
  * @ppb: ppb per cycle for each the available adjustment modes
+ * @clk: counter clock
  * @wakeup_irq: wakeup IRQ
+ * @loses_power_on_suspend: RTC loses power on suspend-to-RAM
  */
 struct rtca3_priv {
 	void __iomem *base;
@@ -130,7 +134,9 @@ struct rtca3_priv {
 	atomic_t alrm_sstep;
 	spinlock_t lock;
 	struct rtca3_ppb_per_cycle ppb;
+	struct clk *clk;
 	int wakeup_irq;
+	bool loses_power_on_suspend;
 };
 
 static void rtca3_byte_update_bits(struct rtca3_priv *priv, u8 off, u8 mask, u8 val)
@@ -733,6 +739,11 @@ static void rtca3_action(void *data)
 		dev_err(dev, "Failed to runtime suspend!");
 }
 
+static const struct soc_device_attribute rtca3_quirks_match[] = {
+	{ .soc_id = "r9a09g047" },
+	{ /* sentinel */ }
+};
+
 static int rtca3_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -779,6 +790,8 @@ static int rtca3_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
+	priv->clk = clk;
+
 	spin_lock_init(&priv->lock);
 	atomic_set(&priv->alrm_sstep, RTCA3_ALRM_SSTEP_DONE);
 	init_completion(&priv->set_alarm_completion);
@@ -792,6 +805,9 @@ static int rtca3_probe(struct platform_device *pdev)
 		return ret;
 
 	device_init_wakeup(&pdev->dev, true);
+
+	if (soc_device_match(rtca3_quirks_match))
+		priv->loses_power_on_suspend = true;
 
 	priv->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(priv->rtc_dev))
@@ -820,6 +836,7 @@ static void rtca3_remove(struct platform_device *pdev)
 static int rtca3_suspend(struct device *dev)
 {
 	struct rtca3_priv *priv = dev_get_drvdata(dev);
+	int ret;
 
 	if (!device_may_wakeup(dev))
 		return 0;
@@ -828,7 +845,18 @@ static int rtca3_suspend(struct device *dev)
 	if (atomic_read(&priv->alrm_sstep) != RTCA3_ALRM_SSTEP_DONE)
 		return -EBUSY;
 
-	enable_irq_wake(priv->wakeup_irq);
+	if (priv->loses_power_on_suspend &&
+	    pm_suspend_target_state == PM_SUSPEND_MEM) {
+		ret = reset_control_assert(priv->rstc);
+		if (ret)
+			return ret;
+
+		return pm_runtime_force_suspend(dev);
+	}
+
+	ret = enable_irq_wake(priv->wakeup_irq);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -876,9 +904,33 @@ static int rtca3_clean_alarm(struct rtca3_priv *priv)
 static int rtca3_resume(struct device *dev)
 {
 	struct rtca3_priv *priv = dev_get_drvdata(dev);
+	int ret;
 
 	if (!device_may_wakeup(dev))
 		return 0;
+
+	if (priv->loses_power_on_suspend &&
+	    pm_suspend_target_state == PM_SUSPEND_MEM) {
+		ret = pm_runtime_force_resume(dev);
+		if (ret) {
+			dev_err(dev, "Failed to force runtime resume: %d\n", ret);
+			return ret;
+		}
+
+		ret = reset_control_deassert(priv->rstc);
+		if (ret) {
+			dev_err(dev, "Failed to deassert reset: %d\n", ret);
+			return ret;
+		}
+
+		ret = rtca3_initial_setup(priv->clk, priv);
+		if (ret) {
+			dev_err(dev, "Failed to reinitialize RTC: %d\n", ret);
+			return ret;
+		}
+
+		return rtca3_clean_alarm(priv);
+	}
 
 	disable_irq_wake(priv->wakeup_irq);
 
