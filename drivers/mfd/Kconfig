@@ -1406,6 +1406,14 @@ config RZ_MTU3
 	  register access for the other child devices like Counter, PWM,
 	  Clock Source, and Clock event.
 
+config RZG2L_GPT
+	tristate "Renesas RZ/G2L GPT core driver"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select MFD_CORE
+	help
+	  Core driver for Renesas RZ/G2L General PWM Timer. It creates
+	  child devices for PWM and Counter support.
+
 config ABX500_CORE
 	bool "ST-Ericsson ABX500 Mixed Signal Circuit register functions"
 	depends on ARCH_U8500 || COMPILE_TEST

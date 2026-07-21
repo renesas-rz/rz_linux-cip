@@ -1,0 +1,174 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+#ifndef __LINUX_MFD_RZG2L_GPT_H__
+#define __LINUX_MFD_RZG2L_GPT_H__
+
+#include <linux/bitfield.h>
+#include <linux/bits.h>
+#include <linux/device.h>
+#include <linux/mutex.h>
+#include <linux/platform_device.h>
+#include <linux/types.h>
+#include <linux/units.h>
+
+#define RZG2L_GET_CH(hwpwm)	((hwpwm) / 2)
+#define RZG2L_GET_HWPWM(ch, sub_ch) ((ch) * 2 + (sub_ch))
+#define RZG2L_GET_CH_OFFS(ch)	(0x100 * (ch))
+
+#define RZG2L_GTICxSR(ch, sub_ch)	(0x24 + RZG2L_GET_CH_OFFS(ch) + 4 * (sub_ch))
+#define RZG2L_GTCR(ch)		(0x2c + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTUDDTYC(ch)	(0x30 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTIOR(ch)		(0x34 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTINTAD(ch)	(0x38 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTST(ch)		(0x3c + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTBER(ch)		(0x40 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTCNT(ch)		(0x48 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTCCRAB(ch, sub_ch)	(0x4c + RZG2L_GET_CH_OFFS(ch) + 4 * (sub_ch))
+#define RZG2L_GTCCRCE(ch, sub_ch)	(0x54 + RZG2L_GET_CH_OFFS(ch) + 4 * (sub_ch))
+#define RZG2L_GTCCRDF(ch, sub_ch)	(0x5c + RZG2L_GET_CH_OFFS(ch) + 4 * (sub_ch))
+#define RZG2L_GTPR(ch)		(0x64 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTDTCR(ch)	(0x88 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTDVU(ch)		(0x8C + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTDVD(ch)		(0x90 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTDBU(ch)		(0x94 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTDBD(ch)		(0x98 + RZG2L_GET_CH_OFFS(ch))
+
+#define RZG2L_GTDTCR_TDBUE	BIT(4)
+#define RZG2L_GTDTCR_TDBDE	BIT(5)
+
+#define RZG2L_GTCCRx_BUFFER_MASK(sub_ch)	((sub_ch) ? GENMASK(19, 18) : GENMASK(17, 16))
+#define RZG2L_GTCCRx_SINGLE_BUFFER(sub_ch)	((sub_ch) ? BIT(18) : BIT(16))
+#define RZG2L_GTCCRx_DOUBLE_BUFFER(sub_ch)	((sub_ch) ? BIT(19) : BIT(17))
+
+#define RZG2L_GTST_TCFA		BIT(0)
+#define RZG2L_GTST_TCFB		BIT(1)
+#define RZG2L_GTST_TCFPO	BIT(6)
+
+#define RZG2L_GTINTAD_GTINTPR_MASK	GENMASK(7, 6)
+#define RZG2L_GTINTAD_GTINTPR_OVF	BIT(6)
+#define RZG2L_GTINTAD_GTINTPR_UDF	BIT(7)
+#define RZG2L_GTINTAD_GTINTPR_OVF_UDF	RZG2L_GTINTAD_GTINTPR_MASK
+
+#define RZG2L_GTBER_CCRSWT		BIT(22)
+#define RZG2L_GTDTCR_DEADTIME_MODE	BIT(0)
+
+#define RZG2L_GTINTAD_GTINTA	BIT(0)
+#define RZG2L_GTINTAD_GTINTB	BIT(1)
+#define RZG2L_GTINTAD_GTINTx(sub_ch)	((sub_ch) ? RZG2L_GTINTAD_GTINTB : RZG2L_GTINTAD_GTINTA)
+#define RZG2L_GTCR_CST		BIT(0)
+#define RZG2L_GTCR_MD		GENMASK(18, 16)
+#define RZG2L_GTCR_TPCS		GENMASK(26, 24)
+#define RZG3E_GTCR_TPCS		GENMASK(26, 23)
+
+#define RZG2L_GTCR_MD_SAW_WAVE_PWM_MODE	FIELD_PREP(RZG2L_GTCR_MD, 0)
+#define RZG2L_GTCR_MD_SAW_WAVE_ONE_SHOT	FIELD_PREP(RZG2L_GTCR_MD, 1)
+#define RZG2L_GTCR_TPCS_P0_1024		0x05
+#define RZG3E_GTCR_TPCS_P0_1024		0x0A
+
+#define RZG2L_GTUDDTYC_UP	BIT(0)
+#define RZG2L_GTUDDTYC_UDF	BIT(1)
+#define RZG2L_GTUDDTYC_UP_COUNTING	(RZG2L_GTUDDTYC_UP | RZG2L_GTUDDTYC_UDF)
+
+#define RZG2L_GTIOR_GTIOA	GENMASK(4, 0)
+#define RZG2L_GTIOR_OADF	GENMASK(10, 9)
+#define RZG2L_GTIOR_GTIOB	GENMASK(20, 16)
+#define RZG2L_GTIOR_OBDF	GENMASK(26, 25)
+#define RZG2L_GTIOR_GTIOx(sub_ch)	((sub_ch) ? RZG2L_GTIOR_GTIOB : RZG2L_GTIOR_GTIOA)
+#define RZG2L_GTIOR_GTIOxINIT_OUT(sub_ch)	((sub_ch) ? BIT(20) : BIT(4))
+#define RZG2L_GTIOR_OAE		BIT(8)
+#define RZG2L_GTIOR_OBE		BIT(24)
+#define RZG2L_GTIOR_OxE(sub_ch)		((sub_ch) ? RZG2L_GTIOR_OBE : RZG2L_GTIOR_OAE)
+
+#define RZG2L_GTIOR_OADF_HIGH_IMP_ON_OUT_DISABLE	BIT(9)
+#define RZG2L_GTIOR_OBDF_HIGH_IMP_ON_OUT_DISABLE	BIT(25)
+#define RZG2L_GTIOR_PIN_DISABLE_SETTING \
+	(RZG2L_GTIOR_OADF_HIGH_IMP_ON_OUT_DISABLE | RZG2L_GTIOR_OBDF_HIGH_IMP_ON_OUT_DISABLE)
+
+#define RZG2L_GTIOR_NFAEN	BIT(13)
+#define RZG2L_GTIOR_NFBEN	BIT(29)
+#define RZG2L_GTIOR_NFCSA	GENMASK(15, 14)
+#define RZG2L_GTIOR_NFCSB	GENMASK(31, 30)
+#define RZG2L_GTIOR_NFCSx(sub_ch)	((sub_ch) ? RZG2L_GTIOR_NFCSB : RZG2L_GTIOR_NFCSA)
+#define RZG2L_GTIOR_NFCSx_P0_64		0x3
+
+#define RZG2L_INIT_OUT_HI_OUT_HI_END_TOGGLE	0x1b
+#define RZG2L_INIT_OUT_LOW_OUT_LOW_END_TOGGLE	0x07
+
+#define RZG2L_GTIOR_GTIOA_OUT_HI_END_TOGGLE_CMP_MATCH \
+	(RZG2L_INIT_OUT_HI_OUT_HI_END_TOGGLE | RZG2L_GTIOR_OAE)
+#define RZG2L_GTIOR_GTIOB_OUT_HI_END_TOGGLE_CMP_MATCH \
+	(FIELD_PREP(RZG2L_GTIOR_GTIOB, RZG2L_INIT_OUT_HI_OUT_HI_END_TOGGLE) | RZG2L_GTIOR_OBE)
+
+#define RZG2L_GTIOR_GTIOA_OUT_LOW_END_TOGGLE_CMP_MATCH \
+	(RZG2L_INIT_OUT_LOW_OUT_LOW_END_TOGGLE | RZG2L_GTIOR_OAE)
+#define RZG2L_GTIOR_GTIOB_OUT_LOW_END_TOGGLE_CMP_MATCH \
+	(FIELD_PREP(RZG2L_GTIOR_GTIOB, RZG2L_INIT_OUT_LOW_OUT_LOW_END_TOGGLE) | RZG2L_GTIOR_OBE)
+
+#define RZG2L_DEADTIME_A	0x3
+#define RZG2L_DEADTIME_B	0x13
+#define RZG2L_GTIOR_DEADTIME_A	(RZG2L_DEADTIME_A | RZG2L_GTIOR_OAE)
+#define RZG2L_GTIOR_DEADTIME_B	(FIELD_PREP(RZG2L_GTIOR_GTIOB, RZG2L_DEADTIME_B) | RZG2L_GTIOR_OBE)
+#define RZG2L_GTIOR_OAE_OBE	(RZG2L_GTIOR_OAE | RZG2L_GTIOR_OBE)
+#define RZG2L_GTIOR_GTIOxDEADTIME	(RZG2L_GTIOR_DEADTIME_B | RZG2L_GTIOR_DEADTIME_A)
+
+#define RZG2L_GTIOR_GTIOx_OUT_HI_END_TOGGLE_CMP_MATCH(sub_ch) \
+	((sub_ch) ? RZG2L_GTIOR_GTIOB_OUT_HI_END_TOGGLE_CMP_MATCH : \
+	 RZG2L_GTIOR_GTIOA_OUT_HI_END_TOGGLE_CMP_MATCH)
+
+#define RZG2L_GTIOR_GTIOx_OUT_LOW_END_TOGGLE_CMP_MATCH(sub_ch) \
+	((sub_ch) ? RZG2L_GTIOR_GTIOB_OUT_LOW_END_TOGGLE_CMP_MATCH : \
+	 RZG2L_GTIOR_GTIOA_OUT_LOW_END_TOGGLE_CMP_MATCH)
+
+#define RZG2L_GTINTAD_GRP_MASK	GENMASK(25, 24)
+
+#define RZG2L_MAX_HW_CHANNELS	8
+#define RZG2L_CHANNELS_PER_IO	2
+#define RZG2L_MAX_SCALE_FACTOR	1024
+#define RZG2L_MAX_TICKS		((u64)U32_MAX * RZG2L_MAX_SCALE_FACTOR)
+#define RZG2L_GPT_HAS_OVF_IRQ	BIT(0)
+
+#define RZG2L_MAX_POEG_GROUPS	4
+#define RZG2L_LAST_POEG_GROUP	3
+#define RZG2L_GTPR_MAX_VALUE	0xFFFFFFFF
+#define RZG2L_INPUT_CAP_GTIOB_BOTH_EDGE		0x0000F000
+#define RZG2L_INPUT_CAP_GTIOB_RISING_EDGE	0x00003000
+#define RZG2L_INPUT_CAP_GTIOB_FALLING_EDGE	0x0000C000
+#define RZG2L_INPUT_CAP_GTIOA_BOTH_EDGE		0x00000F00
+#define RZG2L_INPUT_CAP_GTIOA_RISING_EDGE	0x00000300
+#define RZG2L_tmp				0x0100
+#define RZG2L_INPUT_CAP_GTIOA_FALLING_EDGE	0x00000C00
+#define RZG2L_INPUT_CAP_GTIOx_BOTH_EDGE(sub_ch) \
+	((sub_ch) ? RZG2L_INPUT_CAP_GTIOB_BOTH_EDGE : RZG2L_INPUT_CAP_GTIOA_BOTH_EDGE)
+#define RZG2L_INPUT_CAP_GTIOx_RISING_EDGE(sub_ch) \
+	((sub_ch) ? RZG2L_INPUT_CAP_GTIOB_RISING_EDGE : RZG2L_INPUT_CAP_GTIOA_RISING_EDGE)
+#define RZG2L_INPUT_CAP_GTIOx_FALLING_EDGE(sub_ch) \
+	((sub_ch) ? RZG2L_INPUT_CAP_GTIOB_FALLING_EDGE : RZG2L_INPUT_CAP_GTIOA_FALLING_EDGE)
+
+struct rzg2l_gpt_info {
+	u32 flags;
+	u8 (*calculate_prescale)(u64 period);
+	u32 gtcr_tpcs;
+	u32 gtcr_tpcs_value;
+	u8 prescale_mult;
+	u8 max_hw_channels;
+};
+
+struct rzg2l_gpt {
+	struct device *dev;
+	struct platform_device *pdev;
+	void __iomem *mmio;
+	struct mutex mutex; /* lock to protect shared channel resources */
+	const struct rzg2l_gpt_info *info;
+	unsigned long rate_khz;
+	u8 max_hw_channels;
+	unsigned int id;
+	struct clk *clk;
+	struct clk *clk_bus;
+	struct reset_control *rstc;
+	struct reset_control *rstc_s;
+};
+
+u32 rzg2l_gpt_read(struct rzg2l_gpt *gpt, u32 reg);
+void rzg2l_gpt_write(struct rzg2l_gpt *gpt, u32 reg, u32 val);
+void rzg2l_gpt_modify(struct rzg2l_gpt *gpt, u32 reg, u32 mask, u32 val);
+
+#endif /* __LINUX_MFD_RZG2L_GPT_H__ */
