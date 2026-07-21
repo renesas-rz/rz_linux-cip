@@ -92,8 +92,6 @@ struct rzg2l_gpt_chip {
 	struct reset_control *rstc;
 	struct reset_control *rstc_s;
 	u32 period_ticks[RZG2L_MAX_HW_CHANNELS];
-	u32 channel_request_count[RZG2L_MAX_HW_CHANNELS];
-	u32 channel_enable_count[RZG2L_MAX_HW_CHANNELS];
 	DECLARE_BITMAP(poeg_gpt_link, RZG2L_MAX_POEG_GROUPS * RZG2L_MAX_HW_CHANNELS);
 	unsigned int irq_map[RZG2L_MAX_HW_CHANNELS][NR_IRQ_TYPE];
 	struct rz_gpt_pwm_channel channel_data[RZG2L_MAX_HW_CHANNELS];
@@ -105,16 +103,6 @@ struct rzg2l_gpt_chip {
 static inline struct rzg2l_gpt_chip *to_rzg2l_gpt_chip(struct pwm_chip *chip)
 {
 	return pwmchip_get_drvdata(chip);
-}
-
-static inline unsigned int rzg2l_gpt_subchannel(unsigned int hwpwm)
-{
-	return hwpwm & 0x1;
-}
-
-static inline unsigned int rzg2l_gpt_sibling(unsigned int hwpwm)
-{
-	return hwpwm ^ 0x1;
 }
 
 static void rzg2l_gpt_pwm_write(struct rzg2l_gpt_chip *rzg2l_gpt, u32 reg, u32 data)
@@ -167,11 +155,19 @@ static int rzg2l_gpt_request(struct pwm_chip *chip, struct pwm_device *pwm)
 	int ret;
 
 	guard(mutex)(&rzg2l_gpt->gpt->mutex);
-	rzg2l_gpt->channel_request_count[ch]++;
+	rzg2l_gpt->gpt->channel_request_count[ch]++;
+
+	if (rzg2l_gpt->gpt->counter_enabled[ch]) {
+		rzg2l_gpt->gpt->channel_request_count[ch]--;
+		dev_err(&rzg2l_gpt->chip->dev,
+				"Please not enable counter%d when request pwm%u and pwm%u\n",
+				ch, pwm->hwpwm, rzg2l_gpt_sibling(pwm->hwpwm));
+		return -EBUSY;
+	}
 
 	if (rzg2l_gpt_subchannel(pwm->hwpwm)) {
 		if (rzg2l_gpt->channel_data[ch].deadtime_first) {
-			rzg2l_gpt->channel_request_count[ch]--;
+			rzg2l_gpt->gpt->channel_request_count[ch]--;
 			dev_err(&rzg2l_gpt->chip->dev,
 				"Please not request pwm%d while pwm%d enabled deadtime.\n",
 				pwm->hwpwm, rzg2l_gpt_sibling(pwm->hwpwm));
@@ -186,7 +182,7 @@ static int rzg2l_gpt_request(struct pwm_chip *chip, struct pwm_device *pwm)
 		ret = sysfs_create_group(&rzg2l_gpt->chip->dev.parent->kobj, &bs->group);
 		if (ret) {
 			bs->refcnt--;
-			rzg2l_gpt->channel_request_count[ch]--;
+			rzg2l_gpt->gpt->channel_request_count[ch]--;
 			return ret;
 		}
 		bs->created = true;
@@ -201,7 +197,7 @@ static void rzg2l_gpt_free(struct pwm_chip *chip, struct pwm_device *pwm)
 	struct rzg2l_gpt_base_sysfs *bs;
 
 	guard(mutex)(&rzg2l_gpt->gpt->mutex);
-	rzg2l_gpt->channel_request_count[ch]--;
+	rzg2l_gpt->gpt->channel_request_count[ch]--;
 
 	if (rzg2l_gpt_subchannel(pwm->hwpwm))
 		return;
@@ -288,10 +284,10 @@ static void rzg2l_gpt_enable(struct rzg2l_gpt_chip *rzg2l_gpt,
 {
 	u8 ch = RZG2L_GET_CH(pwm->hwpwm);
 
-	if (!rzg2l_gpt->channel_enable_count[ch])
+	if (!rzg2l_gpt->gpt->channel_enable_count[ch])
 		rzg2l_gpt_pwm_modify(rzg2l_gpt, RZG2L_GTCR(ch), 0, RZG2L_GTCR_CST);
 
-	rzg2l_gpt->channel_enable_count[ch]++;
+	rzg2l_gpt->gpt->channel_enable_count[ch]++;
 }
 
 /* Caller holds the lock while calling rzg2l_gpt_disable() */
@@ -303,7 +299,7 @@ static void rzg2l_gpt_disable(struct rzg2l_gpt_chip *rzg2l_gpt,
 	u32 val = RZG2L_GTIOR_GTIOx(sub_ch) | RZG2L_GTIOR_OxE(sub_ch);
 
 	/* Stop count, Output low on GTIOCx pin when counting stops */
-	rzg2l_gpt->channel_enable_count[ch]--;
+	rzg2l_gpt->gpt->channel_enable_count[ch]--;
 
 	/* Set Negative-Phase Waveform by default */
 	if (rzg2l_gpt_is_deadtime_mode(rzg2l_gpt, pwm->hwpwm)) {
@@ -312,7 +308,7 @@ static void rzg2l_gpt_disable(struct rzg2l_gpt_chip *rzg2l_gpt,
 		rzg2l_gpt_pwm_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_MD, 0);
 	}
 
-	if (!rzg2l_gpt->channel_enable_count[ch])
+	if (!rzg2l_gpt->gpt->channel_enable_count[ch])
 		rzg2l_gpt_pwm_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, 0);
 
 	/* Disable pin output */
@@ -452,7 +448,7 @@ static int rzg2l_gpt_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * prescale and period can NOT be modified when there are multiple IOs
 	 * in use with different settings.
 	 */
-	if (rzg2l_gpt->channel_request_count[ch] > 1) {
+	if (rzg2l_gpt->gpt->channel_request_count[ch] > 1) {
 		u8 sibling_ch = rzg2l_gpt_sibling(pwm->hwpwm);
 
 		if (rzg2l_gpt_is_ch_enabled(rzg2l_gpt, sibling_ch)) {
@@ -510,7 +506,7 @@ static int rzg2l_gpt_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * between both channels. So allow updating these registers only for the
 	 * first enabled channel.
 	 */
-	if (rzg2l_gpt->channel_enable_count[ch] <= 1) {
+	if (rzg2l_gpt->gpt->channel_enable_count[ch] <= 1) {
 		rzg2l_gpt_pwm_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, 0);
 
 		/* GPT set operating mode (saw-wave up-counting) or
@@ -541,7 +537,7 @@ static int rzg2l_gpt_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 	}
 
-	if (rzg2l_gpt->channel_enable_count[ch] <= 1) {
+	if (rzg2l_gpt->gpt->channel_enable_count[ch] <= 1) {
 		/* Set initial value for counter */
 		rzg2l_gpt_pwm_write(rzg2l_gpt, RZG2L_GTCNT(ch), 0);
 
@@ -702,7 +698,7 @@ static int rzg2l_gpt_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 	unsigned int effective_ticks;
 	int ret;
 
-	if (rzg2l_gpt->channel_enable_count[ch]) {
+	if (rzg2l_gpt->gpt->channel_enable_count[ch]) {
 		dev_err(&rzg2l_gpt->chip->dev,
 			"Please keep pwm%d and pwm%d are not enabled to use input capture\n",
 			pwm->hwpwm, rzg2l_gpt_sibling(pwm->hwpwm));
@@ -964,7 +960,7 @@ static ssize_t deadtime_first_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	if (rzg2l_gpt->channel_request_count[ch] != 1) {
+	if (rzg2l_gpt->gpt->channel_request_count[ch] != 1) {
 		dev_err(&rzg2l_gpt->chip->dev,
 			"Please keep pwm%d not requested.\n", rzg2l_gpt_sibling(pwm_id));
 		return -EINVAL;

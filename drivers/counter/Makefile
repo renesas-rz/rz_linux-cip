@@ -10,6 +10,7 @@ obj-$(CONFIG_I8254)		+= i8254.o
 obj-$(CONFIG_104_QUAD_8)	+= 104-quad-8.o
 obj-$(CONFIG_INTERRUPT_CNT)		+= interrupt-cnt.o
 obj-$(CONFIG_RZ_MTU3_CNT)	+= rz-mtu3-cnt.o
+obj-$(CONFIG_RZG2L_GPT_CNT)	+= rzg2l-gpt-cnt.o
 obj-$(CONFIG_STM32_TIMER_CNT)	+= stm32-timer-cnt.o
 obj-$(CONFIG_STM32_LPTIMER_CNT)	+= stm32-lptimer-cnt.o
 obj-$(CONFIG_TI_EQEP)		+= ti-eqep.o

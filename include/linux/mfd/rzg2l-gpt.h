@@ -14,6 +14,11 @@
 #define RZG2L_GET_HWPWM(ch, sub_ch) ((ch) * 2 + (sub_ch))
 #define RZG2L_GET_CH_OFFS(ch)	(0x100 * (ch))
 
+#define RZG2L_GTSSR(ch)		(0x10 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTPSR(ch)		(0x14 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTCSR(ch)		(0x18 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTUPSR(ch)	(0x1c + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTDNSR(ch)	(0x20 + RZG2L_GET_CH_OFFS(ch))
 #define RZG2L_GTICxSR(ch, sub_ch)	(0x24 + RZG2L_GET_CH_OFFS(ch) + 4 * (sub_ch))
 #define RZG2L_GTCR(ch)		(0x2c + RZG2L_GET_CH_OFFS(ch))
 #define RZG2L_GTUDDTYC(ch)	(0x30 + RZG2L_GET_CH_OFFS(ch))
@@ -165,10 +170,25 @@ struct rzg2l_gpt {
 	struct clk *clk_bus;
 	struct reset_control *rstc;
 	struct reset_control *rstc_s;
+	bool counter_enabled[RZG2L_MAX_HW_CHANNELS];
+	u32 channel_request_count[RZG2L_MAX_HW_CHANNELS];
+	u32 channel_enable_count[RZG2L_MAX_HW_CHANNELS];
 };
+
+#define PHASE_COUNTING_PARAM(_up, _down) \
+	{ .gtupsr = (_up), .gtdnsr = (_down), }
+#define RESET_COUNTER_PARAM(_gtssr, _gtpsr, _gtcsr) \
+	{ .gtssr = (_gtssr), .gtpsr = (_gtpsr), .gtcsr = (_gtcsr), }
 
 u32 rzg2l_gpt_read(struct rzg2l_gpt *gpt, u32 reg);
 void rzg2l_gpt_write(struct rzg2l_gpt *gpt, u32 reg, u32 val);
 void rzg2l_gpt_modify(struct rzg2l_gpt *gpt, u32 reg, u32 mask, u32 val);
-
+static inline unsigned int rzg2l_gpt_subchannel(unsigned int hwpwm)
+{
+	return hwpwm & 0x1;
+}
+static inline unsigned int rzg2l_gpt_sibling(unsigned int hwpwm)
+{
+	return hwpwm ^ 0x1;
+}
 #endif /* __LINUX_MFD_RZG2L_GPT_H__ */
