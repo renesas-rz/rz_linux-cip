@@ -101,6 +101,7 @@ rzg2l_cru_parallel_notify_unbind(struct v4l2_async_notifier *notifier,
 	mutex_lock(&cru->mdev_lock);
 
 	if (cru->parallel.asd == asd) {
+		device_link_remove(cru->dev, subdev->dev);
 		cru->parallel.subdev = NULL;
 		dev_dbg(cru->dev, "Unbind Parallel %s\n", subdev->name);
 	}
@@ -118,6 +119,12 @@ static int rzg2l_cru_parallel_notify_bound(struct v4l2_async_notifier *notifier,
 
 	if (cru->parallel.asd == asd) {
 		cru->parallel.subdev = subdev;
+		if (!device_link_add(cru->dev, subdev->dev, DL_FLAG_STATELESS)) {
+			dev_err(cru->dev, "Failed to create device link to Parallel %s\n",
+				subdev->name);
+			mutex_unlock(&cru->mdev_lock);
+			return -EINVAL;
+		}
 		dev_dbg(cru->dev, "Bound Parallel %s\n", subdev->name);
 	}
 
