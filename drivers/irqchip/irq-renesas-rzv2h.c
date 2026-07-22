@@ -12,6 +12,7 @@
 #include <linux/bitfield.h>
 #include <linux/cleanup.h>
 #include <linux/err.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irqchip.h>
 #include <linux/irqchip/irq-renesas-rzv2h.h>
@@ -25,9 +26,30 @@
 /* DT "interrupts" indexes */
 #define ICU_IRQ_START				1
 #define ICU_IRQ_COUNT				16
-#define ICU_TINT_START				(ICU_IRQ_START + ICU_IRQ_COUNT)
+#define ICU_IRQ_LAST				(ICU_IRQ_START + ICU_IRQ_COUNT - 1)
+#define ICU_TINT_START				(ICU_IRQ_LAST + 1)
 #define ICU_TINT_COUNT				32
-#define ICU_NUM_IRQ				(ICU_TINT_START + ICU_TINT_COUNT)
+#define ICU_TINT_LAST				(ICU_TINT_START + ICU_TINT_COUNT - 1)
+#define ICU_CA55_INT_START			(ICU_TINT_LAST + 1)
+#define ICU_CA55_INT_COUNT			4
+#define ICU_CA55_INT_LAST			(ICU_CA55_INT_START + ICU_CA55_INT_COUNT - 1)
+#define ICU_ERR_INT_START			(ICU_CA55_INT_LAST + 1)
+#define ICU_ERR_INT_COUNT			1
+#define ICU_ERR_INT_LAST			(ICU_ERR_INT_START + ICU_ERR_INT_COUNT - 1)
+
+#define ICU_NUM_DT_IRQ				(ICU_ERR_INT_LAST + 1)
+
+#define GPT_MAX_CHANNELS			2
+#define ICU_GPT_OVF_COUNT			16
+#define ICU_GPT_OVF_INT_START			ICU_NUM_DT_IRQ
+#define ICU_GPT_OVF_INT_LAST			(ICU_GPT_OVF_INT_START + \
+						(GPT_MAX_CHANNELS * ICU_GPT_OVF_COUNT) - 1)
+
+#define ICU_NUM_IRQ				(ICU_GPT_OVF_INT_LAST + 1)
+
+#define ICU_GPT_MIN_INDEX(ch)			((ch) ? 10 : 18)
+#define GPT_OVF_MASK(ch)			((ch) ? GENMASK(17, 10) : GENMASK(25, 18))
+#define GPT_BANK(ch)				((ch) ? 2 : 1)
 
 /* Registers */
 #define ICU_NSCNT				0x00
@@ -40,6 +62,9 @@
 #define ICU_TSCLR				0x24
 #define ICU_TITSR(k)				(0x28 + (k) * 4)
 #define ICU_TSSR(k)				(0x30 + (k) * 4)
+#define ICU_ERINTA55CTL(k)			(0x338 + (k) * 4)
+#define ICU_ERINTA55CRL(k)			(0x348 + (k) * 4)
+#define ICU_ERINTA55MSK(k)			(0x358 + (k) * 4)
 #define ICU_IPTSR				0x60
 #define ICU_DMkSELy(k, y)			(0x420 + (k) * 0x20 + (y) * 4)
 #define ICU_DMACKSELk(k)			(0x500 + (k) * 4)
@@ -131,6 +156,7 @@ struct rzv2h_icu_priv {
 	void __iomem			*base;
 	struct irq_fwspec		fwspec[ICU_NUM_IRQ];
 	raw_spinlock_t			lock;
+	struct irq_domain               *domain;
 	const struct rzv2h_hw_info	*info;
 };
 
@@ -526,14 +552,48 @@ static const struct irq_chip rzv2h_icu_chip = {
 				  IRQCHIP_SKIP_SET_WAKE,
 };
 
+static const struct irq_chip rzv2h_icu_gpt_err_chip = {
+	.name			= "rzv2h-icu",
+	.irq_eoi		= irq_chip_eoi_parent,
+	.irq_mask		= irq_chip_mask_parent,
+	.irq_unmask		= irq_chip_unmask_parent,
+	.irq_disable		= irq_chip_disable_parent,
+	.irq_enable		= irq_chip_enable_parent,
+	.irq_get_irqchip_state	= irq_chip_get_parent_state,
+	.irq_set_irqchip_state	= irq_chip_set_parent_state,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
+	.irq_set_type		= irq_chip_set_type_parent,
+	.irq_set_affinity	= irq_chip_set_affinity_parent,
+	.flags			= IRQCHIP_MASK_ON_SUSPEND |
+				  IRQCHIP_SET_TYPE_MASKED |
+				  IRQCHIP_SKIP_SET_WAKE,
+};
+
+static int rzv2h_icu_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hwirq)
+{
+	struct rzv2h_icu_priv *priv = d->host_data;
+
+	/* Only map the virtual GPT OVF sub-IRQs via .map() */
+	if (hwirq < ICU_GPT_OVF_INT_START || hwirq > ICU_GPT_OVF_INT_LAST)
+		return -EINVAL;
+
+	irq_set_chip_data(irq, priv);
+	irq_set_chip_and_handler(irq, &dummy_irq_chip, handle_simple_irq);
+
+	return 0;
+}
+
+#define hwirq_within(hwirq, which)	((hwirq) >= which##_START && (hwirq) <= which##_LAST)
+
 static int rzv2h_icu_alloc(struct irq_domain *domain, unsigned int virq, unsigned int nr_irqs,
 			   void *arg)
 {
 	struct rzv2h_icu_priv *priv = domain->host_data;
+	const struct irq_chip *chip;
 	unsigned long tint = 0;
 	irq_hw_number_t hwirq;
 	unsigned int type;
-	int ret;
+	int ret, i;
 
 	ret = irq_domain_translate_twocell(domain, arg, &hwirq, &type);
 	if (ret)
@@ -545,16 +605,27 @@ static int rzv2h_icu_alloc(struct irq_domain *domain, unsigned int virq, unsigne
 	 * hwirq is embedded in bits 0-15.
 	 * TINT is embedded in bits 16-31.
 	 */
-	if (hwirq >= ICU_TINT_START) {
-		tint = ICU_TINT_EXTRACT_GPIOINT(hwirq);
+	tint = ICU_TINT_EXTRACT_GPIOINT(hwirq);
+	if (tint || (hwirq >= ICU_TINT_START && hwirq <= ICU_TINT_LAST)) {
 		hwirq = ICU_TINT_EXTRACT_HWIRQ(hwirq);
 
-		if (hwirq < ICU_TINT_START)
+		if (hwirq < ICU_TINT_START || hwirq > ICU_TINT_LAST)
 			return -EINVAL;
+	} else if (hwirq_within(hwirq, ICU_ERR_INT)) {
+		chip = &rzv2h_icu_gpt_err_chip;
 	}
 
 	if (hwirq > (ICU_NUM_IRQ - 1))
 		return -EINVAL;
+
+	if (hwirq >= ICU_GPT_OVF_INT_START &&
+	    hwirq + nr_irqs - 1 <= ICU_GPT_OVF_INT_LAST) {
+		for (i = 0; i < nr_irqs; i++)
+			irq_domain_set_info(domain, virq + i, hwirq + i,
+					    &dummy_irq_chip, priv,
+					    handle_simple_irq, NULL, NULL);
+		return 0;
+	}
 
 	ret = irq_domain_set_hwirq_and_chip(domain, virq, hwirq, &rzv2h_icu_chip,
 					    (void *)(uintptr_t)tint);
@@ -565,6 +636,7 @@ static int rzv2h_icu_alloc(struct irq_domain *domain, unsigned int virq, unsigne
 }
 
 static const struct irq_domain_ops rzv2h_icu_domain_ops = {
+	.map		= rzv2h_icu_map,
 	.alloc		= rzv2h_icu_alloc,
 	.free		= irq_domain_free_irqs_common,
 	.translate	= irq_domain_translate_twocell,
@@ -576,13 +648,97 @@ static int rzv2h_icu_parse_interrupts(struct rzv2h_icu_priv *priv, struct device
 	unsigned int i;
 	int ret;
 
-	for (i = 0; i < ICU_NUM_IRQ; i++) {
+	for (i = 0; i < ICU_NUM_DT_IRQ; i++) {
 		ret = of_irq_parse_one(np, i, &map);
 		if (ret)
 			return ret;
 
 		of_phandle_args_to_fwspec(np, map.args, map.args_count, &priv->fwspec[i]);
 	}
+
+	return 0;
+}
+
+static irqreturn_t rzv2h_icu_error_irq(int irq, void *data)
+{
+	struct rzv2h_icu_priv *priv = data;
+	void __iomem *base = priv->base;
+	unsigned int ch;
+	u32 st;
+
+	for (ch = 0; ch < GPT_MAX_CHANNELS; ch++) {
+		u32 gpt, tmp;
+
+		st = readl(base + ICU_ERINTA55CTL(GPT_BANK(ch)));
+		gpt = st & GPT_OVF_MASK(ch);
+		if (!gpt)
+			continue;
+
+		tmp = gpt;
+		while (tmp) {
+			unsigned int bit = __ffs(tmp);
+			unsigned int idx;
+			unsigned int hwirq;
+			unsigned int virq;
+
+			tmp &= ~BIT(bit);
+			idx = bit - ICU_GPT_MIN_INDEX(ch);
+			hwirq = ICU_GPT_OVF_INT_START + (ch * ICU_GPT_OVF_COUNT) + idx;
+			virq = irq_find_mapping(priv->domain, hwirq);
+			if (virq)
+				generic_handle_irq(virq);
+		}
+
+		writel_relaxed(0xffffffff, base + ICU_ERINTA55CRL(GPT_BANK(ch)));
+	}
+
+	return IRQ_HANDLED;
+}
+
+
+int rzv2h_icu_gpt_irq_mapping(struct device_node *node, unsigned int ovf_idx,
+			      unsigned int channel_id)
+{
+	struct irq_domain *d;
+	unsigned int hwirq;
+
+	d = irq_find_host(node);
+	if (!d)
+		return -ENODEV;
+
+	if (channel_id >= GPT_MAX_CHANNELS || ovf_idx >= ICU_GPT_OVF_COUNT)
+		return -EINVAL;
+
+	hwirq = ICU_GPT_OVF_INT_START + (channel_id * ICU_GPT_OVF_COUNT) + ovf_idx;
+
+	/* Virtual IRQ: create mapping via domain .map() */
+	return irq_create_mapping(d, hwirq);
+}
+EXPORT_SYMBOL_GPL(rzv2h_icu_gpt_irq_mapping);
+
+static int rzv2h_icu_setup_irqs(struct platform_device *pdev, struct irq_domain *irq_domain)
+{
+	static const char *icu_err = "icu-error-ca55";
+	struct device *dev = &pdev->dev;
+	struct rzv2h_icu_priv *priv = irq_domain->host_data;
+	struct irq_fwspec fwspec;
+	unsigned int virq;
+	int ret;
+
+	fwspec.fwnode = irq_domain->fwnode;
+	fwspec.param_count = 2;
+	fwspec.param[0] = ICU_ERR_INT_START;
+	fwspec.param[1] = IRQ_TYPE_LEVEL_HIGH;
+
+	virq = irq_create_fwspec_mapping(&fwspec);
+	if (!virq) {
+		return dev_err_probe(dev, -EINVAL, "failed to create IRQ mapping for %s\n",
+				     icu_err);
+	}
+
+	ret = devm_request_irq(dev, virq, rzv2h_icu_error_irq, 0, dev_name(dev), priv);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to request %s IRQ\n", icu_err);
 
 	return 0;
 }
@@ -667,8 +823,13 @@ static int rzv2h_icu_init_common(struct device_node *node, struct device_node *p
 		goto pm_put;
 	}
 
+	rzv2h_icu_data->domain = irq_domain;
 	rzv2h_icu_data->info = hw_info;
 	register_syscore_ops(&rzv2h_irqc_syscore_ops);
+
+	ret = rzv2h_icu_setup_irqs(pdev, irq_domain);
+	if (ret)
+		goto pm_put;
 
 	/*
 	 * coccicheck complains about a missing put_device call before returning, but it's a false
