@@ -321,10 +321,12 @@
 &ehci0 {
 	dr_mode = "otg";
 	status = "okay";
+	memory-region = <&global_cma>;
 };
 
 &ehci1 {
 	status = "okay";
+	memory-region = <&global_cma>;
 };
 
 &eth0 {
@@ -851,10 +853,12 @@
 &ohci0 {
 	dr_mode = "otg";
 	status = "okay";
+	memory-region = <&global_cma>;
 };
 
 &ohci1 {
 	status = "okay";
+	memory-region = <&global_cma>;
 };
 
 &ostm0 {
@@ -1209,12 +1213,14 @@
 	pinctrl-0 = <&usb30_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+	memory-region = <&global_cma>;
 };
 
 &xhci1 {
 	pinctrl-0 = <&usb31_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+	memory-region = <&global_cma>;
 };
 
 &wdt1 {
