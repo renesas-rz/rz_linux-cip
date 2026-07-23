@@ -113,6 +113,7 @@
 	pinctrl-0 = <&gpt_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+	renesas,poegs = <&poeggd 4>;
 };
 #endif /* PMOD0_GPT */
 
@@ -173,6 +174,11 @@
 &ov5645 {
 	enable-gpios = <&pinctrl RZG2L_GPIO(2, 0) GPIO_ACTIVE_HIGH>;
 	reset-gpios = <&pinctrl RZG2L_GPIO(40, 2) GPIO_ACTIVE_LOW>;
+};
+
+&poeggd {
+	status = "okay";
+	renesas,poeg-config = <1>;
 };
 
 /*
