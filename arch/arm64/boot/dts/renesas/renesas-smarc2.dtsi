@@ -142,4 +142,6 @@
 
 &xhci {
 	status = "okay";
+
+	memory-region = <&global_cma>;
 };
