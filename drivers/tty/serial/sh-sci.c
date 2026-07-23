@@ -3493,8 +3493,12 @@ static void serial_console_write(struct console *co, const char *s,
 	/* restore the SCSCR */
 	if (sci_port->ops->finish_console_write)
 		sci_port->ops->finish_console_write(port, ctrl);
-	else
+	else {
+		if (to_sci_port(port)->type == PORT_SCI)
+			sci_port->ops->write_reg(port, regs->control, ctrl & ~SCSCR_TE);
+
 		sci_port->ops->write_reg(port, regs->control, ctrl);
+	}
 
 	if (locked)
 		uart_port_unlock_irqrestore(port, flags);
