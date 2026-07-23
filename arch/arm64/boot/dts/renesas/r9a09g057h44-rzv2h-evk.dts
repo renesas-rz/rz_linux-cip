@@ -183,6 +183,19 @@
 		};
 	};
 
+	mmngr {
+		compatible = "renesas,mmngr";
+		memory-region = <&mmp_reserved>;
+	};
+
+	mmngrbuf {
+		compatible = "renesas,mmngrbuf";
+	};
+
+	vspm_if {
+		compatible = "renesas,vspm_if";
+	};
+
 	pcie_refclk: clock-pcie-ref {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
