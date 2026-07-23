@@ -27,6 +27,92 @@
 
 #include "rzt2n_hpsw.h"
 
+static int rzt2n_hpsw_init_nvmem(struct rzt2n_hpsw *hpsw)
+{
+	struct device *dev = hpsw->dev;
+	struct nvmem_cell *cell;
+	int ret;
+
+	cell = devm_nvmem_cell_get(dev, "hpsw-mode");
+	if (IS_ERR(cell)) {
+		ret = PTR_ERR(cell);
+
+		if (ret == -ENOENT || ret == -ENODEV) {
+			hpsw->mode_cell = NULL;
+			return 0;
+		}
+
+		return ret;
+	}
+
+	hpsw->mode_cell = cell;
+
+	return 0;
+}
+
+static int rzt2n_hpsw_mode_load_nvmem(struct rzt2n_hpsw *hpsw, u32 *mode)
+{
+	struct device *dev = hpsw->dev;
+	size_t len;
+	u8 *buf;
+	int ret = 0;
+
+	if (!hpsw->mode_cell)
+		return -ENODEV;
+
+	buf = nvmem_cell_read(hpsw->mode_cell, &len);
+	if (IS_ERR(buf)) {
+		ret = PTR_ERR(buf);
+		dev_err(dev, "failed to read HPSW mode from NVMEM: %d\n", ret);
+		return ret;
+	}
+
+	if (len < 1) {
+		dev_err(dev, "invalid HPSW NVMEM cell size: %zu\n", len);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (buf[0] == 0xff) {
+		ret = -ENODATA;
+		goto out;
+	}
+
+	if (buf[0] > HPSW_CFGMODE_HSR) {
+		dev_warn(dev, "invalid HPSW mode 0x%x in NVMEM\n", buf[0]);
+		ret = 0;
+		goto out;
+	}
+
+	*mode = (u32)buf[0];
+
+out:
+	kfree(buf);
+	return ret;
+}
+
+static int rzt2n_hpsw_mode_save_nvmem(struct rzt2n_hpsw *hpsw, u32 mode)
+{
+	u8 buf;
+	int ret;
+
+	if (!hpsw->mode_cell)
+		return -ENODEV;
+
+	if (mode > HPSW_CFGMODE_HSR)
+		return -EINVAL;
+
+	buf = (u8)mode;
+
+	ret = nvmem_cell_write(hpsw->mode_cell, &buf, sizeof(buf));
+	if (ret < 0) {
+		dev_err(hpsw->dev, "failed to write HPSW mode %u to NVMEM: %d\n", mode, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int rzt2n_hpsw_release_bus_stop(struct device *dev)
 {
 	void __iomem *base;
@@ -352,8 +438,8 @@ static ssize_t REDHsrPrpMode_store(struct device *dev,
 				   size_t count)
 {
 	struct rzt2n_hpsw *hpsw = dev_get_drvdata(dev);
-	u8 new_mode = 0;
-	int ret = 0;
+	u8 new_mode;
+	int ret;
 
 	if (sysfs_streq(buf, "hsr") || sysfs_streq(buf, "HSR") ||
 	    sysfs_streq(buf, "2"))
@@ -366,11 +452,24 @@ static ssize_t REDHsrPrpMode_store(struct device *dev,
 	else
 		return -EINVAL;
 
+	if (new_mode == hpsw->mode)
+		return count;
+
+	ret = rzt2n_hpsw_mode_save_nvmem(hpsw, new_mode);
+	if (ret && ret != -ENODEV)
+		return ret;
+
 	rzt2n_hpsw_write(hpsw, HPSW_REG_CTRL, 0);
 	hpsw->mode = new_mode;
 	rzt2n_hpsw_setup_mode(hpsw);
+
 	rzt2n_hpsw_clear_counters(hpsw);
 	rzt2n_hpsw_write(hpsw, HPSW_REG_CTRL, HPSW_CTRL_EN);
+
+	if (ret == -ENODEV)
+		dev_dbg(hpsw->dev,
+			"HPSW mode changed without NVMEM persistence\n");
+
 	dev_info(hpsw->dev, "HPSW running in mode 0x%x: %s\n",
 		 hpsw->mode, rzt2n_hpsw_mode_str(hpsw->mode));
 
@@ -462,6 +561,7 @@ static int rzt2n_hpsw_probe(struct platform_device *pdev)
 	struct rzt2n_hpsw *hpsw;
 	struct resource *res;
 	int ret;
+	u32 saved_mode;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -507,6 +607,20 @@ static int rzt2n_hpsw_probe(struct platform_device *pdev)
 	/* HPSW init */
 	rzt2n_hpsw_init(hpsw);
 
+	ret = rzt2n_hpsw_init_nvmem(hpsw);
+	if (ret)
+		return ret;
+
+	ret = rzt2n_hpsw_mode_load_nvmem(hpsw, &saved_mode);
+	if (!ret)
+		hpsw->mode = saved_mode;
+	else if (ret == -ENODEV || ret == -ENODATA)
+		dev_dbg(&pdev->dev, "no saved HPSW mode in NVMEM\n");
+	else
+		dev_warn(&pdev->dev, "failed to load HPSW mode from NVMEM: %d\n", ret);
+
+	rzt2n_hpsw_setup_mode(hpsw);
+
 	/* Set MAC address*/
 	rzt2n_hpsw_get_mac_fallback(hpsw);
 	rzt2n_hpsw_setup_mac(hpsw);
@@ -519,7 +633,6 @@ static int rzt2n_hpsw_probe(struct platform_device *pdev)
 	/* Disable before programming */
 	rzt2n_hpsw_write(hpsw, HPSW_REG_CTRL, 0);
 
-	rzt2n_hpsw_setup_mode(hpsw);
 	rzt2n_hpsw_clear_counters(hpsw);
 	rzt2n_hpsw_write(hpsw, HPSW_REG_CTRL, HPSW_CTRL_EN);
 
