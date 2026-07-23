@@ -7,6 +7,7 @@
 #include <linux/cdev.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/idr.h>
 #include <linux/kfifo.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -26,6 +27,9 @@
 #define POEGG_PIDF	BIT(0)
 
 #define RZG2L_POEG_MAX_INDEX		3
+#define RZG2L_POEG_MAX_UNITS		3
+#define RZG2L_POEG_GROUPS_PER_UNIT	(RZG2L_POEG_MAX_INDEX + 1)
+#define RZG2L_POEG_MAX_DEVS		(RZG2L_POEG_MAX_UNITS * RZG2L_POEG_GROUPS_PER_UNIT)
 
 #define RZG2L_GPT_MAX_HW_CHANNELS	8
 #define RZG2L_GPT_INVALID_CHANNEL	0xff
@@ -44,6 +48,11 @@ enum poeg_conf {
 
 static struct class *poeg_class;
 static dev_t g_poeg_dev;
+static DEFINE_IDA(rzg2l_poeg_ida);
+
+struct rzg2l_poeg_hw_info {
+	u32 num_hw_channels;
+};
 
 struct rzg2l_poeg_chip {
 	struct device *gpt_dev;
@@ -54,6 +63,8 @@ struct rzg2l_poeg_chip {
 	int minor_n;
 	u8 gpt_channels[RZG2L_GPT_MAX_HW_CHANNELS];
 	u8 index;
+	u8 hw_channels;
+	const struct rzg2l_poeg_hw_info *info;
 };
 
 static void rzg2l_poeg_write(struct rzg2l_poeg_chip *chip, u32 data)
@@ -150,7 +161,6 @@ static bool rzg2l_poeg_get_linked_gpt_channels(struct platform_device *pdev,
 	struct of_phandle_args of_args;
 	bool ret = false;
 	unsigned int i;
-	u32 poeg_grp;
 	int cells;
 	int err;
 
@@ -177,12 +187,11 @@ static bool rzg2l_poeg_get_linked_gpt_channels(struct platform_device *pdev,
 			of_node_put(of_args.np);
 			break;
 		}
-
-		if (!of_property_read_u32(of_args.np, "renesas,poeg-id", &poeg_grp)) {
-			if (poeg_grp == poeg_id) {
-				chip->gpt_channels[of_args.args[0]] = poeg_id;
-				ret = true;
-			}
+		if (of_args.np == pdev->dev.of_node) {
+			chip->gpt_channels[of_args.args[0]] = poeg_id;
+			of_node_put(of_args.np);
+			ret = true;
+			break;
 		}
 
 		of_node_put(of_args.np);
@@ -191,8 +200,17 @@ static bool rzg2l_poeg_get_linked_gpt_channels(struct platform_device *pdev,
 	return ret;
 }
 
+static const struct rzg2l_poeg_hw_info rzg2l_poeg_info = {
+	.num_hw_channels = 1,
+};
+
+static const struct rzg2l_poeg_hw_info rzg3e_poeg_info = {
+	.num_hw_channels = 2,
+};
+
 static const struct of_device_id rzg2l_poeg_of_table[] = {
-	{ .compatible = "renesas,rzg2l-poeg", },
+	{ .compatible = "renesas,rzg2l-poeg", .data = &rzg2l_poeg_info },
+	{ .compatible = "renesas,r9a09g047-poeg", .data = &rzg3e_poeg_info },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rzg2l_poeg_of_table);
@@ -213,7 +231,7 @@ static int rzg2l_poeg_probe(struct platform_device *pdev)
 	struct device_node *np;
 	struct device *cdev;
 	u32 cfg, val;
-	int ret, irq;
+	int count, i, ret, irq;
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -225,14 +243,52 @@ static int rzg2l_poeg_probe(struct platform_device *pdev)
 	if (chip->index > RZG2L_POEG_MAX_INDEX)
 		return -EINVAL;
 
-	np = of_parse_phandle(dev->of_node, "renesas,gpt", 0);
-	if (np)
-		gpt_pdev = of_find_device_by_node(np);
+	chip->info = of_device_get_match_data(dev);
 
-	gpt_linked = rzg2l_poeg_get_linked_gpt_channels(pdev, chip, np, chip->index);
-	of_node_put(np);
-	if (!gpt_pdev || !gpt_linked)
+	if (chip->info->num_hw_channels > 1) {
+		ret = of_property_read_u32(dev->of_node, "renesas,poeg-hw-channels", &val);
+		if (ret) {
+			dev_err(dev, "missing renesas,poeg-hw-channels property\n");
+			return ret;
+		}
+
+		if (val >= chip->info->num_hw_channels) {
+			dev_err(dev, "invalid channel %u, must be less than %u\n",
+						val, chip->info->num_hw_channels);
+			return -EINVAL;
+		}
+
+		chip->hw_channels = val;
+	} else
+		chip->hw_channels = 0;
+
+	count = of_count_phandle_with_args(dev->of_node, "renesas,gpt", NULL);
+	if (count <= 0)
 		return -ENODEV;
+
+	for (i = 0; i < count; i++) {
+		np = of_parse_phandle(dev->of_node, "renesas,gpt", i);
+		if (!np)
+			continue;
+
+		if (!of_device_is_available(np)) {
+			of_node_put(np);
+			continue;
+		}
+
+		gpt_pdev = of_find_device_by_node(np);
+		gpt_linked = rzg2l_poeg_get_linked_gpt_channels(pdev, chip, np, chip->index);
+		of_node_put(np);
+		if (!gpt_pdev || !gpt_linked)
+			continue;
+		else
+			break;
+	}
+
+	if (!gpt_pdev || !gpt_linked) {
+		dev_dbg(dev, "POEG not referenced by any active GPT, skipping\n");
+		return -ENODEV;
+	}
 
 	chip->gpt_dev = &gpt_pdev->dev;
 	ret = devm_add_action_or_reset(dev, rzg2l_poeg_cleanup, chip);
@@ -283,26 +339,32 @@ static int rzg2l_poeg_probe(struct platform_device *pdev)
 
 	chip->cfg = cfg;
 
-	cdev_init(&chip->poeg_cdev, &poeg_fops);
-	chip->poeg_cdev.owner = THIS_MODULE;
-	ret = cdev_add(&chip->poeg_cdev, MKDEV(MAJOR(g_poeg_dev), chip->index), 1);
-	if (ret)
+	ret = ida_alloc_range(&rzg2l_poeg_ida, 0, RZG2L_POEG_MAX_DEVS - 1, GFP_KERNEL);
+	if (ret < 0)
 		goto err_pm;
 
-	cdev = device_create(poeg_class, NULL, MKDEV(MAJOR(g_poeg_dev), chip->index),
-			     NULL, "poeg%d", chip->index);
+	chip->minor_n = ret;
+
+	cdev_init(&chip->poeg_cdev, &poeg_fops);
+	chip->poeg_cdev.owner = THIS_MODULE;
+	ret = cdev_add(&chip->poeg_cdev, MKDEV(MAJOR(g_poeg_dev), chip->minor_n), 1);
+	if (ret)
+		goto err_ida_free;
+
+	cdev = device_create(poeg_class, NULL, MKDEV(MAJOR(g_poeg_dev), chip->minor_n),
+			     NULL, "poeg%d_%d", chip->hw_channels, chip->index);
 	if (IS_ERR(cdev)) {
 		ret = PTR_ERR(cdev);
-		dev_err_probe(dev, ret, "Error %d creating device for port\n", chip->index);
+		dev_err_probe(dev, ret, "Error creating device for minor %d\n", chip->minor_n);
 		goto free_cdev;
 	}
-
-	chip->minor_n = chip->index;
 
 	return ret;
 
 free_cdev:
 	cdev_del(&chip->poeg_cdev);
+err_ida_free:
+	ida_free(&rzg2l_poeg_ida, chip->minor_n);
 err_pm:
 	pm_runtime_put(&pdev->dev);
 	return ret;
@@ -314,6 +376,7 @@ static void rzg2l_poeg_remove(struct platform_device *pdev)
 
 	device_destroy(poeg_class, MKDEV(MAJOR(g_poeg_dev), chip->minor_n));
 	cdev_del(&chip->poeg_cdev);
+	ida_free(&rzg2l_poeg_ida, chip->minor_n);
 	pm_runtime_put(&pdev->dev);
 }
 
@@ -330,7 +393,7 @@ static int rzg2l_poeg_device_init(void)
 {
 	int err;
 
-	err = alloc_chrdev_region(&g_poeg_dev, 0, 1, "poeg");
+	err = alloc_chrdev_region(&g_poeg_dev, 0, 32, "poeg");
 	if (err)
 		goto out;
 
@@ -349,7 +412,7 @@ static int rzg2l_poeg_device_init(void)
 err_class_destroy:
 	class_destroy(poeg_class);
 err_free_chrdev:
-	unregister_chrdev_region(g_poeg_dev, 1);
+	unregister_chrdev_region(g_poeg_dev, 32);
 out:
 	return err;
 }
@@ -358,7 +421,8 @@ static void rzg2l_poeg_device_exit(void)
 {
 	platform_driver_unregister(&rzg2l_poeg_driver);
 	class_destroy(poeg_class);
-	unregister_chrdev_region(g_poeg_dev, 1);
+	unregister_chrdev_region(g_poeg_dev, 32);
+	ida_destroy(&rzg2l_poeg_ida);
 }
 
 module_init(rzg2l_poeg_device_init);
