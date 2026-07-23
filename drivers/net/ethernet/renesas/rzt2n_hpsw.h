@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/delay.h>
 #include <linux/if.h>
 
@@ -50,6 +51,9 @@
 /* HSRPRPCONFIGMODE: RED HsrPrp Config Mode Register */
 #define HPSW_REG_CFGMODE		0x30084
 #define HPSW_CFGMODE_MODE_MASK		GENMASK(2, 0)
+#define HPSW_CFGMODE_NO_PROFILE		0x0
+#define HPSW_CFGMODE_PRP		0x1
+#define HPSW_CFGMODE_HSR		0x2
 #define HPSW_CFGMODE_REDBOXID_SHIFT	15
 #define HPSW_CFGMODE_NOFORWARD		BIT(17)
 #define HPSW_CFGMODE_PRP_UNTAGGING	BIT(19)
@@ -82,6 +86,7 @@ struct rzt2n_hpsw {
 	phy_interface_t phy_interface;
 	struct ethss *ethss;
 	spinlock_t reg_lock;	/* protect simple register sequences */
+	struct nvmem_cell *mode_cell;
 
 	int port;
 	u32 index;
