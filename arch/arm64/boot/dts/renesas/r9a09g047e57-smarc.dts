@@ -44,6 +44,13 @@
 #define KEY_2_GPIO		RZG3E_GPIO(8, 4)
 #define KEY_3_GPIO		RZG3E_GPIO(8, 5)
 
+/*
+ * Mode selection settings RSPI0_RSCI8_SEL:
+ * 1 - RSCI8			0 - RSPI0 (default)
+ */
+
+#define RSPI0_RSCI8_SEL		0
+
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/pinctrl/renesas,r9a09g047-pinctrl.h>
@@ -332,11 +339,20 @@
 		renesas,output-impedance = <1>;
 	};
 
+#if (!RSPI0_RSCI8_SPI_SEL)
+	rspi0_pins: rspi0 {
+		pinmux = <RZG3E_PORT_PINMUX(M, 4, 2)>, /* MISOA */
+			 <RZG3E_PORT_PINMUX(M, 5, 2)>, /* MOSIA */
+			 <RZG3E_PORT_PINMUX(M, 7, 2)>, /* SSLA0 */
+			 <RZG3E_PORT_PINMUX(M, 6, 2)>; /* RSPCKA */
+	};
+#else
 	rsci8_master_pins: rscri8_master {
 		pinmux = <RZG3E_PORT_PINMUX(M, 5, 5)>, /* SCI8_TXD_MOSI_SDA */
 			 <RZG3E_PORT_PINMUX(M, 4, 5)>, /* SCI8_RXD_MISO_SCL */
 			 <RZG3E_PORT_PINMUX(M, 6, 5)>; /* SCI8_SCLK */
 	};
+#endif
 
 	sd1-pwr-en-hog {
 		gpio-hog;
@@ -427,6 +443,14 @@
 	pinctrl-names = "default";
 };
 
+#if (!RSPI0_RSCI8_SPI_SEL)
+&rspi0 {
+	pinctrl-0 = <&rspi0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+#else
 &rsci8 {
 	pinctrl-0 = <&rsci8_master_pins>;
 	pinctrl-names = "master";
@@ -440,6 +464,7 @@
 	/* Using cs-gpios property when is master mode */
 	cs-gpios = <&pinctrl RZG3E_GPIO(M, 7) GPIO_ACTIVE_HIGH>;
 };
+#endif
 
 &sdhi1 {
 	pinctrl-0 = <&sdhi1_pins>;
