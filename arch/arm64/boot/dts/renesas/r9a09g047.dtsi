@@ -739,6 +739,38 @@
 			};
 		};
 
+		vspi0: vspm@16050000 {
+			compatible = "renesas,vspm";
+			reg = <0 0x16050000 0 0x8000>,
+			      <0 0x16060000 0 0x200>;
+			interrupts = <GIC_SPI 923 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 0x1a5>,
+				 <&cpg CPG_MOD 0x1a6>,
+				 <&cpg CPG_MOD 0x1a7>;
+			clock-names = "vsp_mclk", "vsp_aclk", "vsp_pclk";
+			renesas,#ch = <0>;
+			renesas,#rpf = <1>;
+			renesas,#rpf_clut = <1>;
+			renesas,#wpf_rot = <1>;
+			renesas,has-sru;
+			renesas,has-uds;
+			renesas,has-lut;
+			renesas,has-clu;
+			renesas,has-hst;
+			renesas,has-hsi;
+			renesas,has-hgo;
+			renesas,has-hgt;
+			renesas,has-shp;
+			renesas,syscon-cpg = <&cpg>;
+			renesas,syscon-sysc = <&sys>;
+			renesas,#read_outstanding = <2>;
+			renesas,#start_reservation = <2>;
+			power-domains = <&cpg>;
+			resets = <&cpg 0x11b>, <&cpg 0x11c>, <&cpg 0x11d>;
+			reset-names = "smreset_vspiss", "sreset_vsp1z",
+				      "spreset_fcpvi0";
+		};
+
 		snd_rzg3e: sound@13c00000 {
 			compatible = "renesas,r9a09g047-sound";
 			reg = <0 0x13c00000 0 0x10000>, /* SCU */
