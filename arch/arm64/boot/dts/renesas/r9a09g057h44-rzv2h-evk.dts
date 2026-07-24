@@ -57,6 +57,8 @@
  *	RSCI_UART (default)
  *	RSCI_I2C
  *	RSCI_SPI (not support for RSCI5)
+ * RSPI2_RSCI9_SEL:
+ *	1 - RSCI9	0 - RSPI2 (default)
  * I2C2 or I3C selection:
  *	0: I2C2		1: I3C (default)
  *
@@ -69,6 +71,7 @@
 #define SEL_CAN0_HEADER		CAN_HEADER
 #define SEL_CAN1_HEADER		CAN_HEADER
 #define RSCI5_SEL		RSCI_UART
+#define RSPI2_RSCI9_SEL		0
 #define RSCI9_SEL		RSCI_UART
 #define I2C2_I3C_SEL		1
 / {
@@ -343,6 +346,14 @@
 	renesas,poeg-config = <1>;
 };
 
+#if (!RSPI2_RSCI9_SEL)
+&rspi2 {
+	pinctrl-0 = <&rspi2_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+#else
 &rsci9 {
 	status = "okay";
 
@@ -366,6 +377,7 @@
 #endif
 #endif
 };
+#endif
 
 &rsci0 {
 	status = "okay";
@@ -953,6 +965,14 @@
 		renesas,output-impedance = <1>;
 	};
 
+#if (!RSPI2_RSCI9_SEL)
+	rspi2_pins: rspi2 {
+		pinmux = <RZV2H_PORT_PINMUX(B, 3, 5)>, /* MISO */
+			 <RZV2H_PORT_PINMUX(B, 4, 5)>, /* MOSI */
+			 <RZV2H_PORT_PINMUX(A, 7, 5)>, /* SSL */
+			 <RZV2H_PORT_PINMUX(B, 5, 5)>; /* RSPCK */
+	};
+#else
 	rsci9_common_pins: rsci9_common {
 		pinmux = <RZV2H_PORT_PINMUX(B, 4, 2)>, /* SCI9_TXD_MOSI_SDA */
 			 <RZV2H_PORT_PINMUX(B, 3, 2)>; /* SCI9_RXD_MISO_SCL */
@@ -971,6 +991,7 @@
 		pinmux = <RZV2H_PORT_PINMUX(A, 7, 2)>; /* SCI9_SSL */
 #endif
 	};
+#endif
 
 	rsci0_common_pins: rsci0_common {
 		pinmux = <RZV2H_PORT_PINMUX(5, 0, 1)>, /* SCI0_TXD_MOSI_SDA */
