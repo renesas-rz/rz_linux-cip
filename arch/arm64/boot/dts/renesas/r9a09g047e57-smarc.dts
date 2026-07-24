@@ -451,7 +451,7 @@
 };
 
 &snd_rzg3e {
-	pinctrl-0 = <&sound_clk_pins &sound_pins &ssi0_pins>;
+	pinctrl-0 = <&sound_clk_pins &sound_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";
