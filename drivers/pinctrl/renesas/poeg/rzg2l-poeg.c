@@ -64,6 +64,7 @@ struct rzg2l_poeg_chip {
 	u8 gpt_channels[RZG2L_GPT_MAX_HW_CHANNELS];
 	u8 index;
 	u8 hw_channels;
+	u32 reg;
 	const struct rzg2l_poeg_hw_info *info;
 };
 
@@ -380,10 +381,50 @@ static void rzg2l_poeg_remove(struct platform_device *pdev)
 	pm_runtime_put(&pdev->dev);
 }
 
+static int rzg2l_poeg_suspend(struct device *dev)
+{
+	struct rzg2l_poeg_chip *chip = dev_get_drvdata(dev);
+
+	chip->reg = rzg2l_poeg_read(chip);
+
+	pm_runtime_put(dev);
+
+	reset_control_assert(chip->rstc);
+
+	return 0;
+}
+
+static int rzg2l_poeg_resume(struct device *dev)
+{
+	struct rzg2l_poeg_chip *chip = dev_get_drvdata(dev);
+	int ret;
+
+	ret = reset_control_deassert(chip->rstc);
+	if (ret) {
+		dev_err(dev, "Failed to deassert reset: %d\n", ret);
+		return ret;
+	}
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret) {
+		dev_err(dev, "Failed to resume device: %d\n", ret);
+		reset_control_assert(chip->rstc);
+		return ret;
+	}
+
+	rzg2l_poeg_write(chip, chip->reg);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(rzg2l_poeg_pm_ops, rzg2l_poeg_suspend,
+		rzg2l_poeg_resume);
+
 static struct platform_driver rzg2l_poeg_driver = {
 	.driver = {
 		.name = "rzg2l-poeg",
-		.of_match_table = rzg2l_poeg_of_table
+		.of_match_table = rzg2l_poeg_of_table,
+		.pm	= &rzg2l_poeg_pm_ops,
 	},
 	.probe = rzg2l_poeg_probe,
 	.remove_new = rzg2l_poeg_remove
