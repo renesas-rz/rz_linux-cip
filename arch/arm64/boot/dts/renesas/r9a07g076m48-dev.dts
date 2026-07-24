@@ -805,6 +805,16 @@
 		compatible = "renesas,r1ex24016", "atmel,24c16";
 		reg = <0x50>;
 		pagesize = <16>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			hpsw_mode_cell: hpsw-mode@0 {
+				reg = <0x7FF 0x01>;
+			};
+		};
 	};
 };
 #endif
@@ -1307,6 +1317,8 @@
 };
 
 &hpsw {
+	nvmem-cells = <&hpsw_mode_cell>;
+	nvmem-cell-names = "hpsw-mode";
 	status = "okay";
 };
 
