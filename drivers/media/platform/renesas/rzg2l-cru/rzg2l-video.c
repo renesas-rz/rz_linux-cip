@@ -418,6 +418,7 @@ static void rzg2l_cru_initialize_axi(struct rzg2l_cru_dev *cru)
 {
 	const struct rzg2l_cru_info *info = cru->info;
 	u32 amnaxiattr;
+	unsigned int i;
 
 	/*
 	 * Set image data memory banks.
@@ -430,13 +431,31 @@ static void rzg2l_cru_initialize_axi(struct rzg2l_cru_dev *cru)
 		rzg2l_cru_write(cru, AMnSDMBVALID,
 				AMnSDMBVALID_SDMBVALID(cru->num_buf - 1));
 
-	/*
-	 * Program slot#0 with the first available buffer, if any. Pass to the
-	 * function 'num_buf - 1' as rzg2l_cru_fill_hw_slot() calculates which
-	 * is the next slot to program.
-	 */
 	scoped_guard(spinlock_irq, &cru->hw_lock) {
-		rzg2l_cru_fill_hw_slot(cru, cru->num_buf - 1);
+		if (cru->frame_skip) {
+			/*
+			 * When frame_skip > 0, pre-load ALL slots with the
+			 * scratch buffer address to avoid AXI Bus Errors.
+			 * The CRU hardware starts writing to all num_buf slots
+			 * immediately after start. If only slot=0 is initialized
+			 * (normal path), slots 1..N-1 still contain invalid/stale
+			 * DMA addresses, causing AXI Bus Errors at seq=1, seq=2, etc.
+			 *
+			 * ISR will replace scratch with real buffers after the
+			 * skip phase ends via rzg2l_cru_fill_hw_slot().
+			 */
+			for (i = 0; i < cru->num_buf; i++) {
+				cru->queue_buf[i] = NULL;
+				rzg2l_cru_set_slot_addr(cru, i, cru->scratch_phys);
+			}
+		} else {
+			/*
+			 * Program slot#0 with the first available buffer, if any. Pass to the
+			 * function 'num_buf - 1' as rzg2l_cru_fill_hw_slot() calculates which
+			 * is the next slot to program.
+			 */
+			rzg2l_cru_fill_hw_slot(cru, cru->num_buf - 1);
+		}
 	}
 
 	if (info->has_stride) {
@@ -979,8 +998,28 @@ irqreturn_t rzg2l_cru_irq(int irq, void *data)
 	else
 		slot = cru->active_slot - 1;
 
-	if (cru->frame_skip && ((cru->sequence++) < cru->frame_skip))
+	if (cru->frame_skip && (cru->sequence < cru->frame_skip)) {
+		/*
+		 * During skip phase: return the real buffer (if any) back to
+		 * buf_list so fill_hw_slot() can reuse it. Force slot to
+		 * scratch so CRU never writes into a real buffer.
+		 * Do NOT call vb2_buffer_done() — buffer stays invisible to
+		 * userspace and no [E] frames are generated.
+		 */
+		if (cru->queue_buf[slot]) {
+			scoped_guard(spinlock_irqsave, &cru->qlock) {
+				list_add(to_buf_list(cru->queue_buf[slot]),
+					 &cru->buf_list);
+			}
+			cru->queue_buf[slot] = NULL;
+		}
+
+		/* Keep this slot pointing at scratch */
+		rzg2l_cru_set_slot_addr(cru, slot, cru->scratch_phys);
+
+		cru->sequence++;
 		return IRQ_HANDLED;
+	}
 
 	/* Capture frame */
 	if (cru->queue_buf[slot]) {
@@ -1024,8 +1063,29 @@ irqreturn_t rzg3e_cru_irq(int irq, void *data)
 	slot = cru->active_slot;
 	cru->active_slot = rzg2l_cru_slot_next(cru, cru->active_slot);
 
-	if (cru->frame_skip && ((cru->sequence++) < cru->frame_skip))
+	if (cru->frame_skip && (cru->sequence < cru->frame_skip)) {
+	        /*
+		 * During skip phase: return the real buffer (if any) back to
+		 * buf_list so fill_hw_slot() can reuse it. Force slot to
+		 * scratch so CRU never writes into a real buffer.
+		 * Do NOT call vb2_buffer_done() — buffer stays invisible to
+		 * userspace and no [E] frames are generated.
+		 */
+		if (cru->queue_buf[slot]) {
+			scoped_guard(spinlock_irqsave, &cru->qlock) {
+				list_add_tail(
+					to_buf_list(cru->queue_buf[slot]),
+					&cru->buf_list);
+			}
+			cru->queue_buf[slot] = NULL;
+		}
+
+		/* Keep this slot pointing at scratch */
+		rzg2l_cru_set_slot_addr(cru, slot, cru->scratch_phys);
+
+		cru->sequence++;
 		return IRQ_HANDLED;
+	}
 
 	/* Capture frame */
 	if (cru->queue_buf[slot]) {
