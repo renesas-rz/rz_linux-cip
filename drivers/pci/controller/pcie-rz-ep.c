@@ -155,10 +155,8 @@ static void rz_pcie_setting_config_ep(struct rz_pcie *pcie, u8 func_no)
 	rz_pci_write_reg(pcie, rz_pci_read_reg(pcie, PCIE_CORE_MODE_SET_1_REG) & ~MODE_PORT,
 			    PCIE_CORE_MODE_SET_1_REG);
 
-	rz_pci_write_reg(pcie, RZV2H_RESET_CONFIG_DEASSERT, RZV2H_PCI_RESET_REG);
-
 	/* Clear BAR mask register */
-	for (int i = 0; i < MAX_NR_INBOUND_MAPS_EP; i++)
+	for (int i = 0; i < PCI_STD_NUM_BARS; i++)
 		rz_write_conf_ep(pcie, 0, PCI_EP_BAR_MASK_ADR(i));
 
 	/* Setting following hardware manual */
@@ -221,11 +219,13 @@ static int rz_pcie_hw_init_ep(struct rz_pcie *pcie, int channel)
 	regmap_write(ep->syscon, SYS_PCIE_MODE_CH(channel), MODE_PORT_SYS_EP);
 
 	/* Set to the PCIe reset state */
-	rz_pci_write_reg(pcie, RZV2H_RESET_ALL_ASSERT, RZV2H_PCI_RESET_REG);
+	rz_rmw(pcie, RZV2H_PCI_RESET_REG, RZV2H_RESET_ALL_ASSERT, 0);
 
-	/* Release the PCIe reset */
-	rz_pci_write_reg(pcie, RZV2H_RESET_LOAD_CFG_RELEASE, RZV2H_PCI_RESET_REG);
+	/* De-assert LOAD_B, CFG_B */
+	rz_rmw(pcie, RZV2H_PCI_RESET_REG, RZV2H_RESET_LOAD_CFG_RELEASE,
+	       RZV2H_RESET_LOAD_CFG_RELEASE);
 
+	/* Put controller in 4 lanes mode x 1 channel */
 	regmap_write(ep->syscon, SYS_PCIE_LANE_MODE, LINK_MASTER_4_LANE_MODE);
 
 	/* config Device ID for PCIE EP here */
@@ -237,19 +237,19 @@ static int rz_pcie_hw_init_ep(struct rz_pcie *pcie, int channel)
 	/* SYS setting allow_enter_l1  */
 	regmap_write(ep->syscon, SYS_PCIE_MISC_CH(channel), ALLOW_ENTER_L1);
 
-	/* Set Interrupt settings             : step14  */
+	/* Set Interrupt settings */
 	PCIE_EP_IRQ_Initialize(pcie);
 
-	/* Release the PCIe reset : step14 : RZV2H_RST_PS_B, RZV2H_RST_GP_B, RZV2H_RST_B */
-	rz_pci_write_reg(pcie, RZV2H_RESET_PS_GP_RELEASE, RZV2H_PCI_RESET_REG);	/* Set PCI_RC 310h */
+	/* De-assert PS_B, GP_B, RST_B */
+	rz_rmw(pcie, RZV2H_PCI_RESET_REG, RZV2H_RESET_PS_GP_RELEASE,
+	       RZV2H_RESET_PS_GP_RELEASE);
 
-	/* Wait 500us over */
-	msleep(20);
+	/* Wait for 500us or more */
+	fsleep(500);
 
-	/* Release the PCIe reset : step17 : RZV2H_RST_OUT_B, RZV2H_RST_RSM_B) */
-	rz_pci_write_reg(pcie, RZV2H_RESET_ALL_ASSERT,  RZV2H_PCI_RESET_REG);	/* Set PCI_RC 310h */
-
-	rz_pci_write_reg(pcie, 0x3ff2,  MODE_SET_1_REG);		/* Set PCI_RC 318h */
+	/* De-assert OUT_B and RSM_B */
+	rz_rmw(pcie, RZV2H_PCI_RESET_REG, RZV2H_RESET_OUT_RSM_RELEASE,
+	       RZV2H_RESET_OUT_RSM_RELEASE);
 
 	/* Enable DL up/down interrupt */
 	rz_pcie_ep_enable_dl_updown(pcie);
