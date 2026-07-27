@@ -41,7 +41,7 @@
  *
  * When Capture/Playback, use this command to amplify sound
  *	amixer set 'DVC In',0 10%
- *	amixer set 'DVC Out',0 20%
+ * For playback, use: amixer set 'DVC Out',0 20%
  */
 
 /*
