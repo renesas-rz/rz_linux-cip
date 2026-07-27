@@ -99,25 +99,31 @@ void rz_write_conf_ep(struct rz_pcie *pcie, u32 data, int where)
 }
 
 void rz_pcie_set_outbound_ep(struct rz_pcie *pcie, int win,
-				phys_addr_t cpu_addr, u64 pci_addr, size_t size)
+			     phys_addr_t cpu_addr, u64 pci_addr,
+			     size_t size)
 {
 	u64 mask;
 
+	/*
+	 * According to the RZ/V2H HW Manual (Rev.1.30 section 6.6.4.2.3
+	 * (73) PCIe Window Mask m (Lower) Register
+	 * Minimum window size is 4KB.
+	 */
+	size = max(size, SZ_4K);
 	mask = roundup_pow_of_two(size) - 1;
-	cpu_addr = (cpu_addr - 0x30000000) | 0x30000000UL;
-	/* PW base */
-	rz_pci_write_reg(pcie, (u32)(cpu_addr >> 32), RZG3S_PCI_PWBASEU(win));
-	rz_rmw(pcie, RZG3S_PCI_PWBASEL(win), 0xFFFFF000, (u32)(cpu_addr & 0xFFFFF000));
 
-	/* PW mask */
-	rz_pci_write_reg(pcie, (u64)(mask >> 32), RZG3S_PCI_PWMASKU(win));
-	rz_pci_write_reg(pcie, (u64)(mask & 0xFFFFF000), RZG3S_PCI_PWMASKL(win));
+	/* Set PCIe window mask */
+	rz_pci_write_reg(pcie, lower_32_bits(mask), RZG3S_PCI_PWMASKL(win));
+	rz_pci_write_reg(pcie, upper_32_bits(mask), RZG3S_PCI_PWMASKU(win));
 
-	/* PW dest */
-	rz_pci_write_reg(pcie, (u32)(pci_addr >> 32), RZG3S_PCI_PDESTU(win));
-	rz_pci_write_reg(pcie, (u32)(pci_addr & 0xFFFFFFFF), RZG3S_PCI_PDESTL(win));
+	/* Set PCIe destination */
+	rz_pci_write_reg(pcie, lower_32_bits(pci_addr), RZG3S_PCI_PDESTL(win));
+	rz_pci_write_reg(pcie, upper_32_bits(pci_addr), RZG3S_PCI_PDESTU(win));
 
-	rz_rmw(pcie, RZG3S_PCI_PWBASEL(win), RZG3S_PCI_PWBASEL_ENA, RZG3S_PCI_PWBASEL_ENA);
+	/* Set PCIe window base */
+	rz_pci_write_reg(pcie, lower_32_bits(cpu_addr) | RZG3S_PCI_PWBASEL_ENA,
+			 RZG3S_PCI_PWBASEL(win));
+	rz_pci_write_reg(pcie, upper_32_bits(cpu_addr), RZG3S_PCI_PWBASEU(win));
 }
 
 void rz_pcie_set_inbound_ep(struct rz_pcie *pcie, u64 cpu_addr,
@@ -470,8 +476,6 @@ static int rz_pcie_ep_map_addr(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 {
 	struct rz_pcie_endpoint *ep = epc_get_drvdata(epc);
 	struct rz_pcie *pcie = &ep->pcie;
-	struct resource_entry win;
-	struct resource res;
 	int window;
 	u32 status;
 
@@ -479,7 +483,6 @@ static int rz_pcie_ep_map_addr(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	status = (rz_pci_read_reg(pcie, RZG3S_PCI_PCSTAT2) >> 8) & 0x3;
 	if (status) {
 		dev_dbg(pcie->dev, "PCIe have Link up\n");
-		/*- Detect Lane 0 or Lane 1 -*/
 	} else {
 		dev_err(pcie->dev, "PCIe x%d: Link not up\n", status);
 		return -EPERM;
@@ -491,13 +494,14 @@ static int rz_pcie_ep_map_addr(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 		return -EINVAL;
 	}
 
-	memset(&win, 0x0, sizeof(win));
-	memset(&res, 0x0, sizeof(res));
-	res.start  = addr;
-	res.end    = addr + size - 1;
-	res.flags  = IORESOURCE_MEM;
-	win.res    = &res;
-	win.offset = res.start - pci_addr;
+	/*
+	 * According to the RZ/V2H HW Manual (Rev.1.30 section 6.6.4.2.3
+	 * (71) PCIe Window Base m (Lower) Register and
+	 * (75) PCIe Destination m (Lower) Register
+	 * need to be 4K aligned.
+	 */
+	if ((!IS_ALIGNED(pci_addr, SZ_4K) || (!IS_ALIGNED(addr, SZ_4K))))
+		return -EINVAL;
 
 	rz_pcie_set_outbound_ep(pcie, window, addr, pci_addr, size);
 
@@ -511,8 +515,6 @@ static void rz_pcie_ep_unmap_addr(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 {
 	struct rz_pcie_endpoint *ep = epc_get_drvdata(epc);
 	struct rz_pcie *pcie = &ep->pcie;
-	struct resource_entry win;
-	struct resource res;
 	int idx;
 
 	for (idx = 0; idx < ep->num_ob_windows; idx++)
@@ -521,10 +523,6 @@ static void rz_pcie_ep_unmap_addr(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 
 	if (idx >= ep->num_ob_windows)
 		return;
-
-	memset(&win, 0x0, sizeof(win));
-	memset(&res, 0x0, sizeof(res));
-	win.res = &res;
 
 	rz_pcie_set_outbound_ep(pcie, idx, 0x0, 0x0, 0x0);
 
