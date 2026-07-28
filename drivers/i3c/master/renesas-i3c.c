@@ -483,6 +483,29 @@ static int renesas_i3c_reset(struct renesas_i3c *i3c)
 				 0, 1000, false, i3c->regs, RSTCTL);
 }
 
+static void renesas_i3c_send_daa(struct renesas_i3c *i3c,
+				 struct renesas_i3c_xfer *xfer, int pos)
+{
+	struct renesas_i3c_cmd *cmd;
+
+	i3c->internal_state = I3C_INTERNAL_STATE_CONTROLLER_ENTDAA;
+
+	init_completion(&xfer->comp);
+	cmd = xfer->cmds;
+	cmd->rx_count = 0;
+
+	/*
+	 * Setup the command descriptor to start the ENTDAA command
+	 * and starting at the selected device index.
+	 */
+	cmd->cmd0 = NCMDQP_CMD_ATTR(NCMDQP_ADDR_ASSGN) | NCMDQP_ROC |
+			NCMDQP_TID(I3C_COMMAND_ADDRESS_ASSIGNMENT) |
+			NCMDQP_CMD(I3C_CCC_ENTDAA) | NCMDQP_DEV_INDEX(pos) |
+			NCMDQP_DEV_COUNT(i3c->maxdevs - pos) | NCMDQP_TOC;
+
+	renesas_i3c_wait_xfer(i3c, xfer);
+}
+
 static void renesas_i3c_hw_init(struct renesas_i3c *i3c)
 {
 	u32 val;
@@ -640,7 +663,6 @@ static void renesas_i3c_bus_cleanup(struct i3c_master_controller *m)
 static int renesas_i3c_daa(struct i3c_master_controller *m)
 {
 	struct renesas_i3c *i3c = to_renesas_i3c(m);
-	struct renesas_i3c_cmd *cmd;
 	u32 olddevs, newdevs;
 	u8 last_addr = 0, pos;
 	int ret;
@@ -653,7 +675,6 @@ static int renesas_i3c_daa(struct i3c_master_controller *m)
 	renesas_i3c_bus_enable(m, true);
 
 	olddevs = ~(i3c->free_pos);
-	i3c->internal_state = I3C_INTERNAL_STATE_CONTROLLER_ENTDAA;
 
 	/* Setting DATBASn registers for target devices. */
 	for (pos = 0; pos < i3c->maxdevs; pos++) {
@@ -670,26 +691,13 @@ static int renesas_i3c_daa(struct i3c_master_controller *m)
 		renesas_writel(i3c->regs, DATBAS(pos), datbas_dvdyad_with_parity(ret));
 	}
 
-	init_completion(&xfer->comp);
-	cmd = xfer->cmds;
-	cmd->rx_count = 0;
-
 	ret = renesas_i3c_get_free_pos(i3c);
 	if (ret < 0)
 		return ret;
 
-	/*
-	 * Setup the command descriptor to start the ENTDAA command
-	 * and starting at the selected device index.
-	 */
-	cmd->cmd0 = NCMDQP_CMD_ATTR(NCMDQP_ADDR_ASSGN) | NCMDQP_ROC |
-		    NCMDQP_TID(I3C_COMMAND_ADDRESS_ASSIGNMENT) |
-		    NCMDQP_CMD(I3C_CCC_ENTDAA) | NCMDQP_DEV_INDEX(ret) |
-		    NCMDQP_DEV_COUNT(i3c->maxdevs - ret) | NCMDQP_TOC;
+	renesas_i3c_send_daa(i3c, xfer, ret);
 
-	renesas_i3c_wait_xfer(i3c, xfer);
-
-	newdevs = GENMASK(i3c->maxdevs - cmd->rx_count - 1, 0);
+	newdevs = GENMASK(i3c->maxdevs - xfer->cmds->rx_count - 1, 0);
 	newdevs &= ~olddevs;
 
 	for (pos = 0; pos < i3c->maxdevs; pos++) {
@@ -1437,7 +1445,6 @@ err_presetn:
 static int renesas_i3c_resume(struct device *dev)
 {
 	struct renesas_i3c *i3c = dev_get_drvdata(dev);
-	struct renesas_i3c_cmd *cmd;
 	struct i3c_bus *bus = i3c_master_get_bus(&i3c->base);
 	struct i2c_dev_desc *i2c_dev;
 	u8 pos, i2c_devs = 0;
@@ -1449,8 +1456,6 @@ static int renesas_i3c_resume(struct device *dev)
 	/* Re-do Dynamic Address Assignment. */
 	renesas_i3c_bus_enable(&i3c->base, true);
 
-	i3c->internal_state = I3C_INTERNAL_STATE_CONTROLLER_ENTDAA;
-
 	/* Get number of i2c devices */
 	i3c_bus_for_each_i2cdev(bus, i2c_dev) {
 		for (pos = 0; pos < i3c->maxdevs; pos++) {
@@ -1459,20 +1464,11 @@ static int renesas_i3c_resume(struct device *dev)
 		}
 	}
 
-	init_completion(&xfer->comp);
-	cmd = xfer->cmds;
-	cmd->rx_count = 0;
-	cmd->cmd0 = NCMDQP_CMD_ATTR(NCMDQP_ADDR_ASSGN) | NCMDQP_ROC |
-		NCMDQP_TID(I3C_COMMAND_ADDRESS_ASSIGNMENT) |
-		NCMDQP_CMD(I3C_CCC_ENTDAA) | NCMDQP_DEV_INDEX(i2c_devs) |
-		NCMDQP_DEV_COUNT(i3c->maxdevs - i2c_devs) | NCMDQP_TOC;
-
-	renesas_i3c_wait_xfer(i3c, xfer);
-
-	if (xfer->ret)
+	renesas_i3c_send_daa(i3c, xfer, i2c_devs);
+	if (xfer->ret && (xfer->ret != -EINVAL))
 		dev_err(dev, "Dynamic Address Assignment (DAA) failed.\n");
 
-	return 0;
+	return (xfer->ret == -EINVAL) ? 0 : xfer->ret;
 }
 
 static const struct dev_pm_ops renesas_i3c_pm_ops = {
