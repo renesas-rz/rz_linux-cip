@@ -126,6 +126,18 @@
 		states = <3300000 0>, <1800000 1>;
 	};
 
+#if (SW_PDM_EN)
+	codec_test0: codec_test {
+		compatible = "linux,snd-soc-dummy";
+		#sound-dai-cells = <0>;
+		port {
+			dummy_codec: endpoint {
+				remote-endpoint = <&pdm_endpoint>;
+			};
+		};
+	};
+#endif
+
 	sound_card: sound {
 		compatible = "audio-graph-card";
 
@@ -134,6 +146,9 @@
 		dais = <&rsnd_port0	/* DA7212 */
 #if ((!SW_LCD_EN) && (RZG3E_SMARC_MIPI_DSI_ENABLE) && (!SW_HDMI_EN))
 			&rsnd_port1	/* HDMI0  */
+#endif
+#if (SW_PDM_EN)
+			&pdm_link	/* PDM0 */
 #endif
 			>;
 	};
@@ -265,10 +280,12 @@
 
 &pinctrl {
 	canfd_pins: canfd {
+#if (!SW_PDM_EN)
 		can1_pins: can1 {
 			pinmux = <RZG3E_PORT_PINMUX(L, 2, 3)>, /* RX */
 				 <RZG3E_PORT_PINMUX(L, 3, 3)>; /* TX */
 		};
+#endif
 
 #if (!SW_LCD_EN)
 		can4_pins: can4 {
@@ -405,6 +422,13 @@
 		pinmux = <RZG3E_PORT_PINMUX(4, 1, 12)>, /* USB30_VBUSEN */
 			 <RZG3E_PORT_PINMUX(4, 0, 12)>; /* USB30_OVRCURN */
 	};
+
+#if (SW_PDM_EN)
+	pdm0_pins: pdm0 {
+		pinmux = <RZG3E_PORT_PINMUX(L, 2, 7)>, /* PDMCLK01 */
+			 <RZG3E_PORT_PINMUX(L, 3, 7)>; /* PDMDAT01 */
+	};
+#endif
 };
 
 #if SW_SER0_PMOD && SW_SER2_EN
@@ -524,6 +548,24 @@
 &ssi4 {
 	shared-pin;
 };
+
+#if (SW_PDM_EN)
+&pdm0 {
+	pinctrl-0 = <&pdm0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	pdm_link: port {
+		pdm_endpoint: endpoint {
+			remote-endpoint = <&dummy_codec>;
+		};
+	};
+
+	channel1 {
+		status = "okay";
+	};
+};
+#endif
 
 &usb20phyrst {
 	status = "okay";
