@@ -40,6 +40,8 @@ enum clk_ids {
 	CLK_PLLCM33_DIV2,
 	CLK_PLLCM33_DIV3,
 	CLK_PLLCM33_DIV4,
+	CLK_PLLCM33_DIV4_DDIV2,
+	CLK_PLLCM33_DIV4_DDIV2_DIV2,
 	CLK_PLLCM33_DIV5,
 	CLK_PLLCM33_DIV16,
 	CLK_PLLCM33_DIV32,
@@ -84,6 +86,7 @@ enum clk_ids {
 	CLK_PLLDSI1_DIV7,
 	CLK_PLLDSI0_CSDIV,
 	CLK_PLLDSI1_CSDIV,
+	CLK_MAINOSC_CDIV5,
 
 	/* Module Clocks */
 	MOD_CLK_BASE,
@@ -191,6 +194,10 @@ static const struct cpg_core_clk r9a09g047_core_clks[]  = {
 	DEF_FIXED(".pllcm33_div2", CLK_PLLCM33_DIV2, CLK_PLLCM33, 1, 2),
 	DEF_FIXED(".pllcm33_div3", CLK_PLLCM33_DIV3, CLK_PLLCM33, 1, 3),
 	DEF_FIXED(".pllcm33_div4", CLK_PLLCM33_DIV4, CLK_PLLCM33, 1, 4),
+	DEF_DDIV(".pllcm33_div4_ddiv2", CLK_PLLCM33_DIV4_DDIV2, CLK_PLLCM33_DIV4,
+		CDDIV0_DIVCTL1, dtable_2_64),
+	DEF_FIXED(".pllcm33_div4_ddiv2_div2", CLK_PLLCM33_DIV4_DDIV2_DIV2,
+		CLK_PLLCM33_DIV4_DDIV2, 1, 2),
 	DEF_FIXED(".pllcm33_div5", CLK_PLLCM33_DIV5, CLK_PLLCM33, 1, 5),
 	DEF_CSDIV(".pllcm33_adc_pclk", CLK_PLLCM33_ADC_PCLK, CLK_PLLCM33_DIV2,
 					CSDIV1_DIVCTL0, dtable_8_10),
@@ -253,6 +260,7 @@ static const struct cpg_core_clk r9a09g047_core_clks[]  = {
 			SSEL3_SELCTL0, smux2_dsi0_clk),
 	DEF_PLLDSI_SMUX(".smux2_dsi1_clk", CLK_SMUX2_DSI1_CLK,
 			SSEL3_SELCTL1, smux2_dsi1_clk),
+	DEF_FIXED(".clk_mainosc_cdiv5", CLK_MAINOSC_CDIV5, CLK_QEXTAL, 1, 5),
 
 	/* Core Clocks */
 	DEF_FIXED("sys_0_pclk", R9A09G047_SYS_0_PCLK, CLK_QEXTAL, 1, 1),
@@ -619,6 +627,18 @@ static const struct rzv2h_mod_clk r9a09g047_mod_clks[] = {
 						BUS_MSTOP(2, BIT(2))),
 	DEF_MOD("adg_0_audio_clkc",		CLK_AUDIO_CLKC, 15, 13, 7, 29,
 						BUS_MSTOP(2, BIT(2))),
+	DEF_MOD("pdm_0_pclk",			CLK_PLLCM33_DIV4_DDIV2_DIV2, 16, 1, 8, 1,
+						BUS_MSTOP(5, BIT(6))),
+	DEF_MOD("pdm_0_pclk_sfr",		CLK_PLLCM33_DIV4_DDIV2_DIV2, 16, 2, 8, 2,
+						BUS_MSTOP(5, BIT(6))),
+	DEF_MOD("pdm_0_cclk",			CLK_MAINOSC_CDIV5, 16, 3, 8, 3,
+						BUS_MSTOP(5, BIT(6))),
+	DEF_MOD("pdm_1_pclk",			CLK_PLLCM33_DIV4_DDIV2_DIV2, 16, 4, 8, 4,
+						BUS_MSTOP(5, BIT(7))),
+	DEF_MOD("pdm_1_pclk_sfr",		CLK_PLLCM33_DIV4_DDIV2_DIV2, 16, 5, 8, 5,
+						BUS_MSTOP(5, BIT(7))),
+	DEF_MOD("pdm_1_cclk",			CLK_MAINOSC_CDIV5, 16, 6, 8, 6,
+						BUS_MSTOP(5, BIT(7))),
 	DEF_MOD("adc_pclk",			CLK_PLLCM33_ADC_PCLK_DIV2, 16, 7, 8, 7,
 						BUS_MSTOP(3, BIT(9))),
 	DEF_MOD("adc_adclk",			CLK_PLLCM33_ADC_ADCLK, 16, 8, 8, 8,
@@ -832,6 +852,10 @@ static const struct rzv2h_reset r9a09g047_resets[] = {
 	DEF_RST(14, 12, 6, 29),		/* SCU_0_RESET_SRU */
 	DEF_RST(14, 13, 6, 30),		/* DMACpp_0_ARST */
 	DEF_RST(14, 14, 6, 31),		/* ADG_0_RST_RESET_ADG */
+	DEF_RST(15, 2, 7, 3),		/* PDM0_PRESETN */
+	DEF_RST(15, 3, 7, 4),		/* PDM0_CRESETN */
+	DEF_RST(15, 4, 7, 5),		/* PDM1_PRESETN */
+	DEF_RST(15, 5, 7, 6),		/* PDM1_CRESETN */
 	DEF_RST(15, 6, 7, 7),		/* ADC_ADRST_N */
 	DEF_RST(15, 8, 7, 9),		/* TSU_1_PRESETN */
 	DEF_RST(17, 10, 8, 11),		/* LVDS_TOP_RESET_N */
