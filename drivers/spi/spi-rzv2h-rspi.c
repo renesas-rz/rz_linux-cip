@@ -37,6 +37,8 @@
 #define RSPI_SPCMD		0x14
 #define RSPI_SPDCR2		0x44
 #define RSPI_SPSR		0x52
+#define RSPI_SPTFSR		0x58
+#define RSPI_SPRFSR		0x5C
 #define RSPI_SPSRC		0x6a
 #define RSPI_SPFCR		0x6c
 
@@ -73,6 +75,7 @@
 #define RSPI_SPDCR2_TTRG	GENMASK(11, 8)
 #define RSPI_SPDCR2_RTRG	GENMASK(3, 0)
 #define RSPI_FIFO_SIZE		16
+#define RSPI_FIFO_COUNT_MASK	0x1f
 
 /* Register SPSR */
 #define RSPI_SPSR_SPRF		BIT(15)
@@ -191,6 +194,12 @@ static inline int rzv2h_rspi_wait_for_interrupt(struct rzv2h_rspi_priv *rspi,
 		return 0;
 
 	rspi_enable_irq(rspi, enable_bit);
+	/*
+	 * Clear the status bit to ensure the interrupt is triggered
+	 * after setting the IRQ enable bits.
+	 */
+	writew(wait_mask, rspi->base + RSPI_SPSRC);
+
 	ret = wait_event_timeout(rspi->wait, rspi->status & wait_mask, HZ);
 	if (ret == 0 && !(rspi->status & wait_mask))
 		return -ETIMEDOUT;
@@ -528,49 +537,64 @@ static u16 rzv2h_rspi_read_data(const struct rzv2h_rspi_priv *rspi)
 		return readb(rspi->base + RSPI_SPDR);
 }
 
+static inline u8 rzv2h_rspi_fifo_stages(struct rzv2h_rspi_priv *rspi, bool is_tx)
+{
+	return readb(rspi->base + (is_tx ? RSPI_SPTFSR : RSPI_SPRFSR)) &
+							RSPI_FIFO_COUNT_MASK;
+}
+
 static int rzv2h_rspi_pio_transfer(struct rzv2h_rspi_priv *rspi,
 				   struct spi_transfer *transfer)
 {
 	unsigned int words = transfer->len / rspi->bytes_per_word;
 	const void *txbuf = transfer->tx_buf;
 	void *rxbuf = transfer->rx_buf;
-	int ret, count, loop, loop_count, remained_words, words_per_loop;
+	unsigned int tx_word = 0;
+	unsigned int rx_word = 0;
+	unsigned int available_words;
+	unsigned int words_to_transfer;
+	unsigned int words_to_receive;
+	unsigned int i;
+	int ret;
 
-	if (words % RSPI_FIFO_SIZE)
-		loop = words / RSPI_FIFO_SIZE + 1;
-	else
-		loop = words / RSPI_FIFO_SIZE;
+	rzv2h_rspi_clear_all_irqs(rspi);
 
-	for (loop_count = 0; loop_count < loop; loop_count++) {
-		remained_words = words - loop_count * RSPI_FIFO_SIZE;
-		words_per_loop = (remained_words > RSPI_FIFO_SIZE) ?
-				  RSPI_FIFO_SIZE : remained_words;
-
-		if (txbuf) {
-			for (count = 0; count < words_per_loop; count++) {
-				ret = rspi_wait_for_tx_empty(rspi);
-				if (ret < 0) {
-					dev_err(&rspi->controller->dev, "transmit timeout\n");
-					return ret;
-				}
-				rzv2h_rspi_send(rspi, txbuf, count + loop_count * RSPI_FIFO_SIZE);
+	while ((txbuf && tx_word < words) || (rxbuf && rx_word < words)) {
+		if (txbuf && tx_word < words) {
+			ret = rspi_wait_for_tx_empty(rspi);
+			if (ret < 0) {
+				dev_err(&rspi->controller->dev, "transmit timeout\n");
+				return ret;
 			}
+
+			available_words = rzv2h_rspi_fifo_stages(rspi, true);
+			words_to_transfer = min_t(unsigned int,
+						 words - tx_word,
+						 available_words);
+
+			for (i = 0; i < words_to_transfer; i++)
+				rzv2h_rspi_send(rspi, txbuf, tx_word++);
 		}
 
-		if (rxbuf) {
-			ret = rspi_wait_for_communication_end(rspi);
-			for (count = 0; count < words_per_loop; count++) {
-				if (ret < 0) {
-					ret = rspi_wait_for_rx_full(rspi);
-					if (ret < 0) {
-						dev_err(&rspi->controller->dev,
-							"receive timeout %d\n", count);
-						return ret;
-					}
-				}
+		if (rxbuf && rx_word < words) {
+			ret = rspi_wait_for_rx_full(rspi);
+			if (ret < 0) {
+				dev_err(&rspi->controller->dev, "receive timeout\n");
+				return ret;
+			}
 
-				rzv2h_rspi_receive(rspi, rxbuf,
-							count + loop_count * RSPI_FIFO_SIZE);
+			available_words = rzv2h_rspi_fifo_stages(rspi, false);
+			words_to_receive = min_t(unsigned int,
+						 words - rx_word,
+						 available_words);
+
+			for (i = 0; i < words_to_receive; i++) {
+				ret = rzv2h_rspi_receive(rspi, rxbuf, rx_word);
+				if (ret) {
+					transfer->error = SPI_TRANS_FAIL_IO;
+					return ret;
+				}
+				rx_word++;
 			}
 		}
 	}
