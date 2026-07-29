@@ -106,6 +106,7 @@
 
 	aliases {
 		i2c0 = &i2c0;
+		rtc0 = &rtc;
 #if (!SW_LCD_EN) && (SW_SER0_PMOD)
 		serial0 = &rsci4;
 #endif
