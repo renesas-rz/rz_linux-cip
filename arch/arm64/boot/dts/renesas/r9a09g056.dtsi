@@ -482,6 +482,7 @@
 			reg = <0 0x10430000 0 0x10000>;
 			clocks = <&cpg CPG_CORE R9A09G056_SYS_0_PCLK>;
 			resets = <&cpg 0x30>;
+			#renesas,sysc-signal-cells = <2>;
 		};
 
 		xspi: spi@11030000 {
@@ -2221,6 +2222,129 @@
 							<&cru1_to_csi21>;
 					};
 				};
+			};
+		};
+
+		adc0: adc@11c00000 {
+			compatible = "renesas,r9a09g056-adc", "renesas,r9a09g057-adc";
+			reg = <0 0x11C00000 0 0x400>;
+			interrupts = <GIC_SPI 918 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "adi";
+			clocks = <&cpg CPG_MOD 0x108>,
+				 <&cpg CPG_MOD 0x107>;
+			clock-names = "adclk", "pclk";
+			resets =  <&cpg 0xf6>;
+			reset-names = "adrst-n";
+			power-domains = <&cpg>;
+			renesas,sysc = <&sys>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			channel@0 {
+				reg = <0>;
+			};
+			channel@1 {
+				reg = <1>;
+			};
+			channel@2 {
+				reg = <2>;
+			};
+			channel@3 {
+				reg = <3>;
+			};
+			channel@4 {
+				reg = <4>;
+			};
+			channel@5 {
+				reg = <5>;
+			};
+			channel@6 {
+				reg = <6>;
+			};
+			channel@7 {
+				reg = <7>;
+			};
+		};
+
+		adc1: adc@11c02800 {
+			compatible = "renesas,r9a09g056-adc", "renesas,r9a09g057-adc";
+			reg = <0 0x11c02800 0 0x400>;
+			interrupts = <GIC_SPI 926 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "adi";
+			clocks = <&cpg CPG_MOD 0x108>,
+				 <&cpg CPG_MOD 0x107>;
+			clock-names = "adclk", "pclk";
+			resets =  <&cpg 0xf6>;
+			reset-names = "adrst-n";
+			power-domains = <&cpg>;
+			renesas,sysc = <&sys>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			channel@0 {
+				reg = <0>;
+			};
+			channel@1 {
+				reg = <1>;
+			};
+			channel@2 {
+				reg = <2>;
+			};
+			channel@3 {
+				reg = <3>;
+			};
+			channel@4 {
+				reg = <4>;
+			};
+			channel@5 {
+				reg = <5>;
+			};
+			channel@6 {
+				reg = <6>;
+			};
+			channel@7 {
+				reg = <7>;
+			};
+		};
+
+		adc2: adc@11c02c00 {
+			compatible = "renesas,r9a09g056-adc", "renesas,r9a09g057-adc";
+			reg = <0 0x11c02c00 0 0x400>;
+			interrupts = <GIC_SPI 931 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "adi";
+			clocks = <&cpg CPG_MOD 0x108>,
+				 <&cpg CPG_MOD 0x107>;
+			clock-names = "adclk", "pclk";
+			resets =  <&cpg 0xf6>;
+			reset-names = "adrst-n";
+			power-domains = <&cpg>;
+			renesas,sysc = <&sys>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			channel@0 {
+				reg = <0>;
+			};
+			channel@1 {
+				reg = <1>;
+			};
+			channel@2 {
+				reg = <2>;
+			};
+			channel@3 {
+				reg = <3>;
+			};
+			channel@4 {
+				reg = <4>;
+			};
+			channel@5 {
+				reg = <5>;
+			};
+			channel@6 {
+				reg = <6>;
+			};
+			channel@7 {
+				reg = <7>;
 			};
 		};
 	};
