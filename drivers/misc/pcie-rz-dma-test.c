@@ -272,6 +272,21 @@ static const char *rz_dma_pcie_mode_to_str(enum rz_dma_pcie_test_mode mode)
 	}
 }
 
+static inline
+u64 rz_dma_pcie_get_pci_address(struct rz_dma_pcie_test *test, phys_addr_t cpu_addr)
+{
+	struct pci_dev *pdev = test->pdev;
+	struct pci_bus_region region;
+	struct resource res = {
+		.flags = IORESOURCE_MEM,
+		.start = cpu_addr,
+		.end = cpu_addr,
+	};
+
+	pcibios_resource_to_bus(pdev->bus, &region, &res);
+	return region.start;
+}
+
 static int rz_dma_pcie_start_test(struct seq_file *s, void *data)
 {
 	struct rz_dma_pcie_test *test = (struct rz_dma_pcie_test *)dev_get_drvdata(s->private);
@@ -366,6 +381,7 @@ static int rz_dma_pcie_start_test(struct seq_file *s, void *data)
 		struct rz_dma_block *dt = &pdata->dt[index];
 
 		ep_write_addr = pci_resource_start(pdev, dt->bar) + dt->off;
+		ep_write_addr = rz_dma_pcie_get_pci_address(test, ep_write_addr);
 		ep_read_addr = ep_write_addr;
 
 		if (size > dt->sz) {
@@ -399,9 +415,11 @@ static int rz_dma_pcie_start_test(struct seq_file *s, void *data)
 		} else if (test->mode == REMOTE_WR_LOCAL_RD) {
 			ep_write_addr = dt_region->paddr;
 			ep_read_addr = pci_resource_start(pdev, dt_region->bar) + dt_region->off;
+			ep_read_addr = rz_dma_pcie_get_pci_address(test, ep_read_addr);
 		} else {
 			ep_read_addr = dt_region->paddr;
 			ep_write_addr = pci_resource_start(pdev, dt_region->bar) + dt_region->off;
+			ep_write_addr = rz_dma_pcie_get_pci_address(test, ep_write_addr);
 		}
 	}
 
