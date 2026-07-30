@@ -342,8 +342,7 @@ static int renesas_i3c_get_addr_pos(struct renesas_i3c *i3c, u8 addr)
 	return -EINVAL;
 }
 
-static struct renesas_i3c_xfer *renesas_i3c_alloc_xfer(struct renesas_i3c *i3c,
-						       unsigned int ncmds)
+static struct renesas_i3c_xfer *renesas_i3c_alloc_xfer(unsigned int ncmds)
 {
 	struct renesas_i3c_xfer *xfer;
 
@@ -667,7 +666,7 @@ static int renesas_i3c_daa(struct i3c_master_controller *m)
 	u8 last_addr = 0, pos;
 	int ret;
 
-	struct renesas_i3c_xfer *xfer __free(kfree) = renesas_i3c_alloc_xfer(i3c, 1);
+	struct renesas_i3c_xfer *xfer __free(kfree) = renesas_i3c_alloc_xfer(1);
 	if (!xfer)
 		return -ENOMEM;
 
@@ -765,7 +764,7 @@ static int renesas_i3c_send_ccc_cmd(struct i3c_master_controller *m,
 			return pos;
 	}
 
-	struct renesas_i3c_xfer *xfer __free(kfree) = renesas_i3c_alloc_xfer(i3c, 1);
+	struct renesas_i3c_xfer *xfer __free(kfree) = renesas_i3c_alloc_xfer(1);
 	if (!xfer)
 		return -ENOMEM;
 
@@ -829,7 +828,7 @@ static int renesas_i3c_i3c_xfers(struct i3c_dev_desc *dev, struct i3c_xfer *i3c_
 	/* Enable I3C bus. */
 	renesas_i3c_bus_enable(m, true);
 
-	struct renesas_i3c_xfer *xfer __free(kfree) = renesas_i3c_alloc_xfer(i3c, 1);
+	struct renesas_i3c_xfer *xfer __free(kfree) = renesas_i3c_alloc_xfer(1);
 	if (!xfer)
 		return -ENOMEM;
 
@@ -930,7 +929,7 @@ static int renesas_i3c_i2c_xfers(struct i2c_dev_desc *dev,
 	u8 start_bit = CNDCTL_STCND, val;
 	int i, ret;
 
-	struct renesas_i3c_xfer *xfer __free(kfree) = renesas_i3c_alloc_xfer(i3c, 1);
+	struct renesas_i3c_xfer *xfer __free(kfree) = renesas_i3c_alloc_xfer(1);
 	if (!xfer)
 		return -ENOMEM;
 
@@ -1452,7 +1451,7 @@ static int renesas_i3c_resume(struct device *dev)
 	struct i2c_dev_desc *i2c_dev;
 	u8 pos, i2c_devs = 0;
 
-	struct renesas_i3c_xfer *xfer __free(kfree) = renesas_i3c_alloc_xfer(i3c, 1);
+	struct renesas_i3c_xfer *xfer __free(kfree) = renesas_i3c_alloc_xfer(1);
 	if (!xfer)
 		return -ENOMEM;
 
