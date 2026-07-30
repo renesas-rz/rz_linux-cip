@@ -343,7 +343,7 @@ done:
 	 * from higher 3M to a lower.
 	 */
 	rxi_irq_desc = irq_to_desc(rxi_irq);
-	if (rxi_irq_desc) {
+	if (rxi_irq_desc && irq_has_action(rxi_irq)) {
 		const struct sci_irq_desc *desc = &sci_irq_desc[SCIx_RXI_IRQ];
 		unsigned long flags = rxi_irq_desc->action->flags;
 
