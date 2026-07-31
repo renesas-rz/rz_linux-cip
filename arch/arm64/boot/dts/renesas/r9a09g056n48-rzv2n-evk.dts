@@ -187,6 +187,7 @@
 
 		dais = <
 			&rsnd_port0     /* DA7212 */
+			&rsnd_port1	/* HDMI0  */
 			>;
 	};
 
@@ -431,6 +432,13 @@
 				reg = <1>;
 				adv7535_out: endpoint {
 					remote-endpoint = <&hdmi_con_out>;
+				};
+			};
+
+			port@2 {
+				reg = <2>;
+				adv7535_codec_ep: endpoint {
+					remote-endpoint = <&rsnd_endpoint1>;
 				};
 			};
 		};
@@ -694,10 +702,18 @@
 	};
 
 	sound_pins: sound {
-		pinmux = <RZV2N_PORT_PINMUX(1, 2, 7)>, /* SSI3_SCK */
-			 <RZV2N_PORT_PINMUX(1, 3, 7)>, /* SSI3_WS */
-			 <RZV2N_PORT_PINMUX(0, 4, 7)>, /* SSI3_SDATA */
-			 <RZV2N_PORT_PINMUX(1, 5, 7)>; /* SSI4_SDATA */
+		ssi0 {
+			pinmux = <RZV2N_PORT_PINMUX(4, 0, 7)>, /* SSI0_SCK */
+				 <RZV2N_PORT_PINMUX(4, 1, 7)>, /* SSI0_WS */
+				 <RZV2N_PORT_PINMUX(4, 2, 7)>; /* SSI0_SDATA */
+		};
+
+		ssi34 {
+			pinmux = <RZV2N_PORT_PINMUX(1, 2, 7)>, /* SSI3_SCK */
+				 <RZV2N_PORT_PINMUX(1, 3, 7)>, /* SSI3_WS */
+				 <RZV2N_PORT_PINMUX(0, 4, 7)>, /* SSI3_SDATA */
+				 <RZV2N_PORT_PINMUX(1, 5, 7)>; /* SSI4_SDATA */
+		};
 	};
 
 	sound_clk_pins: sound_clk {
@@ -883,6 +899,18 @@
 
 				playback = <&ssi3>, <&src0>, <&dvc0>;
 				capture = <&ssi4>, <&src1>, <&dvc1>;
+			};
+		};
+
+		rsnd_port1: port@3 {
+			rsnd_endpoint1: endpoint {
+				remote-endpoint = <&adv7535_codec_ep>;
+
+				dai-format = "i2s";
+				bitclock-master = <&rsnd_endpoint1>;
+				frame-master = <&rsnd_endpoint1>;
+
+				playback = <&ssi0>;
 			};
 		};
 	};
