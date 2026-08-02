@@ -330,7 +330,7 @@
 		};
 
 		pdm0: pdm@11040000 {
-			compatible = "renesas,r9a08g047-pdm",
+			compatible = "renesas,r9a09g047-pdm",
 				     "renesas,rz-pdm";
 			reg = <0 0x11040000 0 0x400>;
 			interrupts = <GIC_SPI 236 IRQ_TYPE_LEVEL_HIGH>,
@@ -369,7 +369,7 @@
 		};
 
 		pdm1: pdm@11050000 {
-			compatible = "renesas,r9a08g046-pdm",
+			compatible = "renesas,r9a09g047-pdm",
 				     "renesas,rz-pdm";
 			reg = <0 0x11050000 0 0x400>;
 			interrupts = <GIC_SPI 243 IRQ_TYPE_LEVEL_HIGH>,
