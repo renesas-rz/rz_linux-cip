@@ -2230,53 +2230,12 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	gpriv->base = addr;
 	gpriv->fcbase = addr + gpriv->info->regs->coffset;
 
-	/* Request IRQ that's common for both channels */
-	if (info->shared_global_irqs) {
-		err = devm_request_irq(dev, ch_irq,
-				       rcar_canfd_channel_interrupt, 0,
-				       "canfd.ch_int", gpriv);
-		if (err) {
-			dev_err(dev, "devm_request_irq %d failed: %pe\n",
-				ch_irq, ERR_PTR(err));
-			goto fail_dev;
-		}
-
-		err = devm_request_irq(dev, g_irq, rcar_canfd_global_interrupt,
-				       0, "canfd.g_int", gpriv);
-		if (err) {
-			dev_err(dev, "devm_request_irq %d failed: %pe\n",
-				g_irq, ERR_PTR(err));
-			goto fail_dev;
-		}
-	} else {
-		err = devm_request_irq(dev, g_recc_irq,
-				       rcar_canfd_global_receive_fifo_interrupt, 0,
-				       "canfd.g_recc", gpriv);
-
-		if (err) {
-			dev_err(dev, "devm_request_irq %d failed: %pe\n",
-				g_recc_irq, ERR_PTR(err));
-			goto fail_dev;
-		}
-
-		err = devm_request_irq(dev, g_err_irq,
-				       rcar_canfd_global_err_interrupt, 0,
-				       "canfd.g_err", gpriv);
-		if (err) {
-			dev_err(dev, "devm_request_irq %d failed: %pe\n",
-				g_err_irq, ERR_PTR(err));
-			goto fail_dev;
-		}
-	}
-
-	platform_set_drvdata(pdev, gpriv);
-
 	pm_runtime_enable(&pdev->dev);
 
 	err = pm_runtime_resume_and_get(gpriv->dev);
 	if (err) {
 		dev_err(gpriv->dev, "failed to resume pd %pe\n", ERR_PTR(err));
-		goto fail_dev;
+		goto fail_pm_dev;
 	}
 
 	err = rcar_canfd_global_init(gpriv);
@@ -2292,6 +2251,46 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 			goto fail_channel;
 	}
 
+	/* Request IRQ that's common for both channels */
+	if (info->shared_global_irqs) {
+		err = devm_request_irq(dev, ch_irq,
+				       rcar_canfd_channel_interrupt, 0,
+				       "canfd.ch_int", gpriv);
+		if (err) {
+			dev_err(dev, "devm_request_irq %d failed: %pe\n",
+				ch_irq, ERR_PTR(err));
+			goto fail_channel;
+		}
+
+		err = devm_request_irq(dev, g_irq, rcar_canfd_global_interrupt,
+				       0, "canfd.g_int", gpriv);
+		if (err) {
+			dev_err(dev, "devm_request_irq %d failed: %pe\n",
+				g_irq, ERR_PTR(err));
+			goto fail_channel;
+		}
+	} else {
+		err = devm_request_irq(dev, g_recc_irq,
+				       rcar_canfd_global_receive_fifo_interrupt, 0,
+				       "canfd.g_recc", gpriv);
+
+		if (err) {
+			dev_err(dev, "devm_request_irq %d failed: %pe\n",
+				g_recc_irq, ERR_PTR(err));
+			goto fail_channel;
+		}
+
+		err = devm_request_irq(dev, g_err_irq,
+				       rcar_canfd_global_err_interrupt, 0,
+				       "canfd.g_err", gpriv);
+		if (err) {
+			dev_err(dev, "devm_request_irq %d failed: %pe\n",
+				g_err_irq, ERR_PTR(err));
+			goto fail_channel;
+		}
+	}
+
+	platform_set_drvdata(pdev, gpriv);
 	pm_runtime_put_sync(gpriv->dev);
 
 	dev_info(dev, "global operational state (%s clk, %s mode)\n",
@@ -2305,6 +2304,7 @@ fail_channel:
 fail_mode:
 	rcar_canfd_global_deinit(gpriv, false);
 	pm_runtime_put_sync(gpriv->dev);
+fail_pm_dev:
 	pm_runtime_disable(&pdev->dev);
 fail_dev:
 	return err;
