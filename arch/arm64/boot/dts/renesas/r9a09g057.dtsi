@@ -1005,6 +1005,9 @@
 				 <&cpg CPG_MOD 359>,	/* adg-ssi-7 */
 				 <&cpg CPG_MOD 360>,	/* adg-ssi-8 */
 				 <&cpg CPG_MOD 361>,	/* adg-ssi-9 */
+				 <&cpg CPG_MOD 362>,	/* adg-spdif-0 */
+				 <&cpg CPG_MOD 363>,	/* adg-spdif-1 */
+				 <&cpg CPG_MOD 364>,	/* adg-spdif-2 */
 				 <&cpg CPG_MOD 248>,	/* audmapp */
 				 <&cpg CPG_MOD 249>;	/* adg */
 			clock-names = "ssi-all",
@@ -1026,6 +1029,8 @@
 				      "adg-ssi-4", "adg-ssi-5",
 				      "adg-ssi-6", "adg-ssi-7",
 				      "adg-ssi-8", "adg-ssi-9",
+				      "adg-spdif-0", "adg-spdif-1",
+				      "adg-spdif-2",
 				      "audmapp", "adg";
 			power-domains = <&cpg>;
 			resets = <&cpg 225>,	/* ssi-all */
