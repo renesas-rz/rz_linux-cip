@@ -13,6 +13,25 @@
 #include "r9a09g056.dtsi"
 
 /*
+ * Switch selection settings for CAN0/1 and SPDIF0/2
+ *
+ * CAN0_SPDIF0_SEL used to select between CAN0 and SPDIF0:
+ * - CAN0	1 (default)
+ * - SPDIF0	0
+ *
+ * CAN1_SPDIF2_SEL used to select between CAN1 and SPDIF2:
+ * - CAN1	1 (default)
+ * - SPDIF2	0
+ */
+#define CAN0_SEL	1
+#define SPDIF0_SEL	0
+#define CAN0_SPDIF0_SEL	CAN0_SEL
+
+#define CAN1_SEL	1
+#define SPDIF2_SEL	0
+#define CAN1_SPDIF2_SEL	CAN1_SEL
+
+/*
  * Switch selection settings for CAN2/3 and SCI4/5
  *
  * CAN2_SCI4_SEL used to select between CAN2 and SCI4:
@@ -248,6 +267,30 @@
 		states = <3300000 0>, <1800000 1>;
 	};
 
+#if (!CAN0_SPDIF0_SEL)
+	codec_test0: codec_test0 {
+		compatible = "linux,snd-soc-dummy";
+		#sound-dai-cells = <0>;
+		port {
+			dummy_codec0: endpoint {
+				remote-endpoint = <&spdif0_endpoint>;
+			};
+		};
+	};
+#endif
+
+#if (!CAN1_SPDIF2_SEL)
+	codec_test2: codec_test2 {
+		compatible = "linux,snd-soc-dummy";
+		#sound-dai-cells = <0>;
+		 port {
+			dummy_codec2: endpoint {
+				remote-endpoint = <&spdif2_endpoint>;
+			};
+		};
+	};
+#endif
+
 	sound_card: sound {
 		compatible = "audio-graph-card";
 
@@ -258,6 +301,22 @@
 			&rsnd_port1	/* HDMI0  */
 			>;
 	};
+
+#if (!CAN0_SPDIF0_SEL)
+	spdif0_card: spdif0-sound {
+		compatible = "audio-graph-card";
+		label = "snd-spdif0";
+		dais = <&spdif0_port>;
+	};
+#endif
+
+#if (!CAN1_SPDIF2_SEL)
+	spdif2_card: spdif2-sound {
+		compatible = "audio-graph-card";
+		label = "snd-spdif2";
+		dais = <&spdif2_port>;
+	};
+#endif
 
 	/* 12MHz oscillator for ADV7535 */
 	y1: y1-clock {
@@ -698,15 +757,19 @@
 	};
 
 	can_pins: can {
+#if (CAN0_SPDIF0_SEL)
 		can0_pins: can0 {
 			pinmux = <RZV2N_PORT_PINMUX(8, 0, 5)>, /* TX */
 				 <RZV2N_PORT_PINMUX(8, 1, 5)>; /* RX */
 		};
+#endif
 
+#if (CAN1_SPDIF2_SEL)
 		can1_pins: can1 {
 			pinmux = <RZV2N_PORT_PINMUX(8, 2, 5)>, /* TX */
 				 <RZV2N_PORT_PINMUX(8, 3, 5)>; /* RX */
 		};
+#endif
 
 #if (CAN2_SCI4_SEL)
 		can2_pins: can2 {
@@ -793,6 +856,20 @@
 			 <RZV2N_PORT_PINMUX(1, 1, 7)>, /* AUDIO_CLKC */
 			 <RZV2N_PORT_PINMUX(9, 7, 8)>; /* AUDIO_CLKOUT */
 	};
+
+#if (!CAN0_SPDIF0_SEL)
+	spdif0_pins: spdif0 {
+		pinmux = <RZV2N_PORT_PINMUX(8, 0, 8)>, /* SPDIF0_OUT */
+			 <RZV2N_PORT_PINMUX(8, 1, 8)>; /* SPDIF0_IN */
+	};
+#endif
+
+#if (!CAN1_SPDIF2_SEL)
+	spdif2_pins: spdif2 {
+		pinmux = <RZV2N_PORT_PINMUX(8, 2, 8)>, /* SPDIF2_OUT */
+			 <RZV2N_PORT_PINMUX(8, 3, 8)>; /* SPDIF2_IN */
+	};
+#endif
 
 	usb20_pins: usb20 {
 		ovc {
@@ -906,13 +983,17 @@
 	pinctrl-names = "default";
 	status = "okay";
 
+#if (CAN0_SPDIF0_SEL)
 	channel0 {
 		status = "okay";
 	};
+#endif
 
+#if (CAN1_SPDIF2_SEL)
 	channel1 {
 		status = "okay";
 	};
+#endif
 
 #if (CAN2_SCI4_SEL)
 	channel2 {
@@ -1078,6 +1159,36 @@
 		};
 	};
 };
+
+#if (!CAN0_SPDIF0_SEL)
+&spdif0 {
+	pinctrl-0 = <&spdif0_pins>;
+	pinctrl-names = "default";
+	sound-name-prefix = "SPDIF0";
+	status = "okay";
+
+	spdif0_port: port@1 {
+		spdif0_endpoint: endpoint {
+			remote-endpoint = <&dummy_codec0>;
+		};
+	};
+};
+#endif
+
+#if (!CAN1_SPDIF2_SEL)
+&spdif2 {
+	pinctrl-0 = <&spdif2_pins>;
+	pinctrl-names = "default";
+	sound-name-prefix = "SPDIF2";
+	status = "okay";
+
+	spdif2_port: port@2 {
+		spdif2_endpoint: endpoint {
+			remote-endpoint = <&dummy_codec2>;
+		};
+	};
+};
+#endif
 
 &ssi4 {
 	shared-pin;
