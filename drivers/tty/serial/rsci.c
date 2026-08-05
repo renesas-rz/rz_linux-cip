@@ -65,6 +65,7 @@ MODULE_IMPORT_NS(SH_SCI);
 /* CCR2 (Common Control Register 2) */
 #define CCR2_INIT			0xFF000004
 #define CCR2_CKS_TCLK			(0)	/* TCLK clock */
+#define CCR2_MDDR_MASK			GENMASK(31, 24)	/* Modulation duty setting mask*/
 #define CCR2_CKS_TCLK_DIV4		BIT(20)	/* TCLK/4 clock */
 #define CCR2_CKS_TCLK_DIV16		BIT(21)	/* TCLK16 clock */
 #define CCR2_CKS_TCLK_DIV64		(BIT(21) | BIT(20)) /* TCLK/64 clock */
@@ -322,7 +323,7 @@ static void rsci_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	unsigned int ccr2_val = CCR2_INIT, ccr3_val = CCR3_INIT;
 	unsigned int ccr0_val = 0, ccr1_val = 0, ccr4_val = 0;
-	unsigned int brr1 = 255, cks1 = 0, srr1 = 15;
+	unsigned int brr1 = 255, cks1 = 0, srr1 = 15, mddr =0;
 	struct sci_port *s = to_sci_port(port);
 	unsigned int brr = 255, cks = 0;
 	int min_err = INT_MAX, err;
@@ -398,6 +399,13 @@ done:
 
 	ccr3_val |= CCR3_FM;
 	rsci_serial_out(port, CCR3, ccr3_val);
+
+	/* Use bitrate modulation for baudrate exceeds 115200. */
+	if (baud > 115200) {
+		err = sci_scmddr_calc(s, baud, &brr, &srr1, &cks, &mddr);
+		FIELD_MODIFY(CCR2_MDDR_MASK, &ccr2_val, mddr);
+		ccr2_val |= CCR2_BRME;
+	}
 
 	ccr2_val |= (cks << 20) | (brr << 8);
 	rsci_serial_out(port, CCR2, ccr2_val);
