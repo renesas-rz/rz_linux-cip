@@ -39,6 +39,19 @@
 		reg = <0x2 0x40000000 0x1 0xc0000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		global_cma: linux,cma@D0000000 {
+			compatible = "shared-dma-pool";
+			linux,cma-default;
+			reusable;
+			reg = <0x0 0xD0000000 0x0 0x10000000>;
+		};
+	};
+
 	pcie_refclk: pcie-ref-clock {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
