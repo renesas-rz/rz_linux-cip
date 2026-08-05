@@ -296,6 +296,7 @@ struct sci_suspend_regs {
 	u16 scpdr;
 	u8 scbrr;
 	u8 semr;
+	u8 mddr;
 };
 
 static size_t sci_suspend_regs_size(void)
@@ -3138,6 +3139,8 @@ static void sci_console_save(struct uart_port *port)
 		regs->scpdr = sci_serial_in(port, SCPDR);
 	if (sci_getreg(port, SEMR)->size)
 		regs->semr = sci_serial_in(port, SEMR);
+	if (sci_getreg(port, MDDR)->size)
+		regs->mddr = sci_serial_in(port, MDDR);
 }
 
 static void sci_console_restore(struct uart_port *port)
@@ -3167,6 +3170,8 @@ static void sci_console_restore(struct uart_port *port)
 		sci_serial_out(port, SCPDR, regs->scpdr);
 	if (sci_getreg(port, SEMR)->size)
 		sci_serial_out(port, SEMR, regs->semr);
+	if (sci_getreg(port, MDDR)->size)
+		sci_serial_out(port, MDDR, regs->mddr);
 }
 
 static const struct uart_ops sci_uart_ops = {
