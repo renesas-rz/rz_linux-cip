@@ -246,7 +246,14 @@
 	pinctrl-0 = <&gpt_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+	renesas,poegs = <&poeggd 3>;
 };
+
+&poeggd {
+	status = "okay";
+	renesas,poeg-config = <1>;
+};
+
 #endif
 
 &vccq_sdhi1 {
