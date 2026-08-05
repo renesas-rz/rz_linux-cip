@@ -28,6 +28,17 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	memory@c8000000 {
+		device_type = "memory";
+		/* first 128MB is reserved for secure area. */
+		reg = <0x0 0xc8000000 0x0 0x38000000>;
+	};
+
+	memory@240000000 {
+		device_type = "memory";
+		reg = <0x2 0x40000000 0x1 0xc0000000>;
+	};
+
 	pcie_refclk: pcie-ref-clock {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
