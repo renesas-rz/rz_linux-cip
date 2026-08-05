@@ -2588,16 +2588,16 @@ static int sci_brg_calc(struct sci_port *s, unsigned int bps,
 	return min_err;
 }
 
-/* calculate sample rate, BRR, and clock select */
-int sci_scbrr_calc(struct sci_port *s, unsigned int bps, unsigned int *brr,
-		   unsigned int *srr, unsigned int *cks)
+static int sci_bitrate_calc(struct sci_port *s, unsigned int bps, unsigned int mddr,
+			    unsigned int *brr, unsigned int *srr, unsigned int *cks)
 {
-	unsigned long freq = s->clk_rates[SCI_FCK];
-	unsigned int sr, br, prediv, scrate, c;
+	unsigned long clk = s->clk_rates[SCI_FCK], freq;
+	unsigned int sr, br, c;
+	unsigned long scrate, prediv;
 	int err, min_err = INT_MAX;
 
 	if (s->type != PORT_HSCIF)
-		freq *= 2;
+		clk *= 2;
 
 	/*
 	 * Find the combination of sample rate and clock select with the
@@ -2631,6 +2631,14 @@ int sci_scbrr_calc(struct sci_port *s, unsigned int bps, unsigned int *brr,
 			if (bps > UINT_MAX / prediv)
 				break;
 
+			/*
+			 * When bit-rate modulation is enable (mddr != 0), the formula becomes:
+			 *     br = freq / ((256 / mddr) * prediv * bps) clamped to [1..256]
+			 *        = (freq * mddr) / ( prediv * 256 * bps)
+			 */
+			prediv *= (mddr ? 256 : 1);
+			freq = clk * (mddr ? mddr : 1);
+
 			scrate = prediv * bps;
 			br = DIV_ROUND_CLOSEST(freq, scrate);
 			br = clamp(br, 1U, 256U);
@@ -2650,11 +2658,46 @@ int sci_scbrr_calc(struct sci_port *s, unsigned int bps, unsigned int *brr,
 	}
 
 found:
-	dev_dbg(s->port.dev, "BRR: %u%+d bps using N %u SR %u cks %u\n", bps,
-		min_err, *brr, *srr + 1, *cks);
 	return min_err;
 }
+
+/* calculate sample rate, BRR, and clock select */
+int sci_scbrr_calc(struct sci_port *s, unsigned int bps, unsigned int *brr,
+		   unsigned int *srr, unsigned int *cks)
+{
+	int err;
+
+	err = sci_bitrate_calc(s, bps, 0, brr, srr, cks);
+
+	dev_dbg(s->port.dev, "BRR: %u%+d bps using N %u SR %u cks %u\n", bps,
+		err, *brr, *srr + 1, *cks);
+	return err;
+}
 EXPORT_SYMBOL_NS_GPL(sci_scbrr_calc, SH_SCI);
+
+/* calculate sample rate, MDDR, BRR, and clock select */
+int sci_scmddr_calc(struct sci_port *s, unsigned int bps, unsigned int *brr,
+		   unsigned int *srr, unsigned int *cks, unsigned int *mddr)
+{
+	unsigned int sr, br, c;
+	int err, min_err = INT_MAX;
+
+	for (int mdr = 128; mdr < 256 ; mdr++) {
+		err = sci_bitrate_calc(s, bps, mdr, &br, &sr, &c);
+		if (abs(err) >= abs(min_err))
+			continue;
+		min_err = err;
+		*mddr = mdr;
+		*brr = br;
+		*srr = sr;
+		*cks = c;
+	}
+
+	dev_dbg(s->port.dev, "MDDR: %u%+d bps using N %u M %u SR %u cks %u\n", bps,
+		min_err, *brr, *mddr, *srr + 1, *cks);
+	return min_err;
+}
+EXPORT_SYMBOL_NS_GPL(sci_scmddr_calc, SH_SCI);
 
 static void sci_reset(struct uart_port *port)
 {

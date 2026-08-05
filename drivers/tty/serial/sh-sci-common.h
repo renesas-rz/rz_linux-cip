@@ -189,6 +189,8 @@ void sci_shutdown(struct uart_port *port);
 
 int sci_scbrr_calc(struct sci_port *s, unsigned int bps, unsigned int *brr,
 		   unsigned int *srr, unsigned int *cks);
+int sci_scmddr_calc(struct sci_port *s, unsigned int bps, unsigned int *brr,
+		    unsigned int *srr, unsigned int *cks, unsigned int *mddr);
 
 #define min_sr(_port)		ffs((_port)->sampling_rate_mask)
 #define max_sr(_port)		fls((_port)->sampling_rate_mask)
