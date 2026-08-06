@@ -961,9 +961,10 @@ irqreturn_t rzg2l_cru_irq(int irq, void *data)
 	guard(spinlock_irqsave)(&cru->hw_lock);
 
 	/* Support realtime update for Linear Matrix setting */
-	if (!(rzg2l_cru_read(cru, ICnMC) & ICnMC_LMXTHR)) {
+	if (cru->runtime.linear_matrix && cru->is_linear_matrix_enable) {
 		rzg2l_cru_linear_setting(cru);
 		rzg2l_cru_write(cru, ICnREGC, ICnREGC_REFEN);
+		cru->runtime.linear_matrix = false;
 	}
 
 	amnmbs = rzg2l_cru_read(cru, AMnMBS);
@@ -1014,9 +1015,10 @@ irqreturn_t rzg3e_cru_irq(int irq, void *data)
 	guard(spinlock)(&cru->hw_lock);
 
 	/* Support realtime update for Linear Matrix setting */
-	if (!(rzg2l_cru_read(cru, ICnIPMC_C0) & ICnMC_LMXTHR)) {
+	if (cru->runtime.linear_matrix && cru->is_linear_matrix_enable) {
 		rzg2l_cru_linear_setting(cru);
 		rzg2l_cru_write(cru, ICnREGC, ICnREGC_REFEN);
+		cru->runtime.linear_matrix = false;
 	}
 
 	slot = cru->active_slot;
