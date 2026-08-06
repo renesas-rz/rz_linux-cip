@@ -271,10 +271,7 @@ static int rz_spdif_wait_stat(struct spdif_dev_data *spdif, u32 bit, bool set)
 
 static int rz_spdif_stop(struct spdif_dev_data *spdif, struct rz_spdif_stream *strm)
 {
-	u32 ctrl;
-
-	ctrl = rz_spdif_reg_readl(spdif, SPDIF_CTRL) & (~WIDTH_MASK);
-	rz_spdif_reg_writel(spdif, SPDIF_CTRL, ctrl);
+	strm->running = 0;
 
 	/* Cancel all remaining DMA transactions */
 	if (spdif->is_dma)
@@ -289,8 +286,6 @@ static int rz_spdif_stop(struct spdif_dev_data *spdif, struct rz_spdif_stream *s
 		rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_RME_BIT, 0);
 		rz_spdif_wait_stat(spdif, SPDIF_RIS_BIT, true);
 	}
-
-	strm->running = 0;
 
 	return 0;
 }
@@ -324,14 +319,8 @@ static int rz_spdif_start(struct spdif_dev_data *spdif, struct rz_spdif_stream *
 	strm->running = 1;
 
 	/* PIO init only */
-	rz_spdif_pio_init(spdif, strm);
-
-	/*	Reset the register
-	 *	STAT - Status Register
-	 *	CTRL - Control Register
-	 */
-	rz_spdif_reg_writel(spdif, SPDIF_CTRL, 0);
-	rz_spdif_status_clear(spdif);
+	if (!spdif->is_dma)
+		rz_spdif_pio_init(spdif, strm);
 
 	if (rz_spdif_is_stream_running(&spdif->playback)) {
 		/* Enable transmitter module */
@@ -478,7 +467,11 @@ static int rz_spdif_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_STOP:
 		ret = rz_spdif_irq(spdif, strm, 0);
 		rz_spdif_stop(spdif, strm);
-		rz_spdif_quit(strm);
+		/* Continue running incase of Suspending */
+		if (cmd == SNDRV_PCM_TRIGGER_SUSPEND)
+			strm->running = 1;
+		else
+			rz_spdif_quit(strm);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1511,6 +1504,15 @@ static void rz_spdif_remove(struct platform_device *pdev)
 static int __maybe_unused rz_spdif_suspend(struct device *dev)
 {
 	struct spdif_dev_data *spdif = dev_get_drvdata(dev);
+	bool is_running;
+	int ret;
+
+	is_running = spdif->playback.running || spdif->capture.running;
+	if (is_running) {
+		ret = spdif->soc_data->ops->set_clk(spdif, spdif->rate, false);
+		if (ret)
+			return ret;
+	}
 
 	if (spdif->rstc)
 		reset_control_assert(spdif->rstc);
@@ -1523,6 +1525,7 @@ static int __maybe_unused rz_spdif_suspend(struct device *dev)
 static int __maybe_unused rz_spdif_resume(struct device *dev)
 {
 	struct spdif_dev_data *spdif = dev_get_drvdata(dev);
+	bool is_running;
 	int ret;
 
 	if (spdif->rstc) {
@@ -1532,6 +1535,14 @@ static int __maybe_unused rz_spdif_resume(struct device *dev)
 	}
 
 	pm_runtime_get_sync(spdif->dev);
+
+	is_running = spdif->playback.running || spdif->capture.running;
+
+	if (is_running) {
+		ret = spdif->soc_data->ops->set_clk(spdif, spdif->rate, true);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
