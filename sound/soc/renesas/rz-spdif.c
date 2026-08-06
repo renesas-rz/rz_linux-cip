@@ -138,6 +138,10 @@ struct rz_spdif_ops {
 struct rz_spdif_soc_data {
 	const struct rz_spdif_ops *ops;
 	u8 max_channels;
+
+	/* SoC-specific extra controls */
+	const struct snd_kcontrol_new *extra_controls;
+	unsigned int num_extra_controls;
 };
 
 struct spdif_dev_data {
@@ -355,6 +359,7 @@ static int rz_spdif_start(struct spdif_dev_data *spdif, struct rz_spdif_stream *
 		return -EINVAL;
 	}
 
+	/* Configure SPDIF settings for passback mode */
 	ctrl |= spdif->is_passback ? SPDIF_PB_BIT : 0;
 	rz_spdif_reg_writel(spdif, SPDIF_CTRL, ctrl);
 
@@ -776,8 +781,8 @@ static int rz_spdif_kctrl_ub_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int rz_spdif_kctrl_mode_get(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_value *ucontrol)
+static int rz_spdif_kctrl_passback_get(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct device *dev = component->dev;
@@ -788,8 +793,8 @@ static int rz_spdif_kctrl_mode_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int rz_spdif_kctrl_mode_put(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_value *ucontrol)
+static int rz_spdif_kctrl_passback_put(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct device *dev = component->dev;
@@ -801,7 +806,7 @@ static int rz_spdif_kctrl_mode_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static const struct snd_kcontrol_new rz_spdif_snd_kcontrol[] = {
+static const struct snd_kcontrol_new rz_spdif_common_controls[] = {
 	/* Chanel status controller */
 	{
 		.iface	= SNDRV_CTL_ELEM_IFACE_PCM,
@@ -820,24 +825,52 @@ static const struct snd_kcontrol_new rz_spdif_snd_kcontrol[] = {
 		.info	= rz_spdif_ub_info,
 		.get	= rz_spdif_kctrl_ub_get,
 	},
+};
+
+static const struct snd_kcontrol_new rz_spdif_rzg3s_controls[] = {
 	/* Pass Back mode controller */
 	{
 		.iface	= SNDRV_CTL_ELEM_IFACE_PCM,
 		.name	= "Renesas SPDIF Pass Back Mode",
 		.access	= SNDRV_CTL_ELEM_ACCESS_READWRITE,
 		.info	= snd_ctl_boolean_mono_info,
-		.get	= rz_spdif_kctrl_mode_get,
-		.put	= rz_spdif_kctrl_mode_put,
+		.get	= rz_spdif_kctrl_passback_get,
+		.put	= rz_spdif_kctrl_passback_put,
 	},
 };
 
+static int rz_spdif_component_probe(struct snd_soc_component *component)
+{
+	struct spdif_dev_data *spdif = snd_soc_component_get_drvdata(component);
+	const struct rz_spdif_soc_data *soc = spdif->soc_data;
+	int ret;
+
+	/* Common controls */
+	ret = snd_soc_add_component_controls(component,
+					     rz_spdif_common_controls,
+					     ARRAY_SIZE(rz_spdif_common_controls));
+	if (ret)
+		return ret;
+
+	/* SoC-specific extra controls */
+	if (soc->extra_controls && soc->num_extra_controls) {
+		ret = snd_soc_add_component_controls(component,
+						     soc->extra_controls,
+						     soc->num_extra_controls);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+
 static const struct snd_soc_component_driver rz_spdif_component = {
 	.name		= "rz-spdif",
+	.probe		= rz_spdif_component_probe,
 	.open		= rz_spdif_pcm_open,
 	.pointer	= rz_spdif_pcm_pointer,
 	.pcm_construct	= rz_spdif_pcm_new,
-	.controls	= rz_spdif_snd_kcontrol,
-	.num_controls	= ARRAY_SIZE(rz_spdif_snd_kcontrol),
 };
 
 static bool rz_spdif_pio_recv(int irq, struct spdif_dev_data *spdif)
@@ -1560,8 +1593,10 @@ static const struct rz_spdif_ops rzv2h_spdif_ops = {
 };
 
 static const struct rz_spdif_soc_data rzg3s_soc_data = {
-	.ops = &rzg3s_spdif_ops,
-	.max_channels = 1,
+	.ops			= &rzg3s_spdif_ops,
+	.max_channels		= 1,
+	.extra_controls		= rz_spdif_rzg3s_controls,
+	.num_extra_controls	= ARRAY_SIZE(rz_spdif_rzg3s_controls),
 };
 
 static const struct rz_spdif_soc_data rzv2h_soc_data = {
