@@ -378,6 +378,12 @@ config ARCH_R9A09G087
 	help
 	  This enables support for the Renesas RZ/N2H SoC variants.
 
+config ARCH_R9A07G076
+	bool "ARM64 Platform support for RZ/T2N"
+	select ARCH_RZG2L
+	help
+	  This enables support for the Renesas RZ/T2N SoC variants.
+
 endif # ARM64
 
 if RISCV
