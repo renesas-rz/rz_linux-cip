@@ -39,6 +39,14 @@ enum rzg2l_csi2_pads {
 	RZG2L_CRU_IP_SOURCE,
 };
 
+/**
+ * struct runtime_update - Runtime configuration updates
+ * @linear_matrix: Enable/disable linear matrix conversion
+ */
+struct runtime_update {
+	bool linear_matrix;
+};
+
 /*
  * The base for the RZ/G2L CRU driver controls.
  * We reserve 16 controls for this driver
@@ -356,6 +364,7 @@ struct rzg2l_cru_info {
  *
  * @ctrl:              V4L2 control for streaming flow management
  * @ctrl_handler:	V4L2 control handler associated with CRU
+ * @runtime_update	Runtime updatable parameters
  *
  * @ip:			Image processing subdev info
  * @parallel:		parallel input subdevice descriptor
@@ -404,6 +413,7 @@ struct rzg2l_cru_dev {
 
 	struct v4l2_ctrl *ctrl;
 	struct v4l2_ctrl_handler ctrl_handler;
+	struct runtime_update runtime;
 
 	struct rzg2l_cru_parallel *parallel;
 	struct rzg2l_cru_ip ip;

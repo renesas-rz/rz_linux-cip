@@ -315,24 +315,28 @@ static int rzg2l_cru_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_CRU_LINEAR_MATRIX_BOF:
 		order = ctrl->id - V4L2_CID_CRU_LINEAR_MATRIX_ROF;
 		cru->linear_matrix_rgb_offset[order] = ctrl->val;
+		cru->runtime.linear_matrix = true;
 		break;
 	case V4L2_CID_CRU_LINEAR_MATRIX_RR:
 	case V4L2_CID_CRU_LINEAR_MATRIX_RG:
 	case V4L2_CID_CRU_LINEAR_MATRIX_RB:
 		order = ctrl->id - V4L2_CID_CRU_LINEAR_MATRIX_RR;
 		cru->linear_matrix_r[order] = ctrl->val;
+		cru->runtime.linear_matrix = true;
 		break;
 	case V4L2_CID_CRU_LINEAR_MATRIX_GR:
 	case V4L2_CID_CRU_LINEAR_MATRIX_GG:
 	case V4L2_CID_CRU_LINEAR_MATRIX_GB:
 		order = ctrl->id - V4L2_CID_CRU_LINEAR_MATRIX_GR;
 		cru->linear_matrix_g[order] = ctrl->val;
+		cru->runtime.linear_matrix = true;
 		break;
 	case V4L2_CID_CRU_LINEAR_MATRIX_BR:
 	case V4L2_CID_CRU_LINEAR_MATRIX_BG:
 	case V4L2_CID_CRU_LINEAR_MATRIX_BB:
 		order = ctrl->id - V4L2_CID_CRU_LINEAR_MATRIX_BR;
 		cru->linear_matrix_b[order] = ctrl->val;
+		cru->runtime.linear_matrix = true;
 		break;
 	default:
 		if (cru->ctrl->flags & V4L2_CTRL_FLAG_INACTIVE) {
