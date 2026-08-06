@@ -79,6 +79,10 @@ static const struct renesas_family fam_rzv2m __initconst __maybe_unused = {
 	.name	= "RZ/V2M",
 };
 
+static const struct renesas_family fam_rzt2n __initconst __maybe_unused = {
+	.name   = "RZ/T2N",
+};
+
 static const struct renesas_family fam_shmobile __initconst __maybe_unused = {
 	.name	= "SH-Mobile",
 	.reg	= 0xe600101c,		/* CCCR (Common Chip Code Register) */
@@ -179,6 +183,10 @@ static const struct renesas_soc soc_rz_v2m __initconst __maybe_unused = {
 
 static const struct renesas_soc soc_rcar_m1a __initconst __maybe_unused = {
 	.family	= &fam_rcar_gen1,
+};
+
+static const struct renesas_soc soc_rz_t2n __initconst __maybe_unused = {
+	.family = &fam_rzt2n,
 };
 
 static const struct renesas_soc soc_rcar_h1 __initconst __maybe_unused = {
@@ -396,6 +404,9 @@ static const struct of_device_id renesas_socs[] __initconst __maybe_unused = {
 #endif
 #ifdef CONFIG_ARCH_SH73A0
 	{ .compatible = "renesas,sh73a0",	.data = &soc_shmobile_ag5 },
+#endif
+#if defined(CONFIG_ARCH_R9A07G076)
+	{ .compatible = "renesas,r9a07g076",    .data = &soc_rz_t2n },
 #endif
 	{ /* sentinel */ }
 };
