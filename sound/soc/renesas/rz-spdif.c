@@ -252,6 +252,23 @@ static void rz_spdif_bset(struct spdif_dev_data *priv, uint reg, uint bit_mask, 
 	rz_spdif_reg_writel(priv, reg, ret);
 }
 
+static int rz_spdif_wait_stat(struct spdif_dev_data *spdif, u32 bit, bool set)
+{
+	bool is_tx = bit == SPDIF_TIS_BIT;
+	u32 val;
+	int ret;
+
+	ret = readl_poll_timeout_atomic(spdif->base + SPDIF_STAT, val,
+					set ? (val & bit) : !(val & bit),
+					10, 10000);
+	if (ret)
+		dev_warn(spdif->dev, "timeout waiting %s on %s\n",
+			 set ? "idle" : "active",
+			 is_tx ? "TX" : "RX");
+
+	return ret;
+}
+
 static int rz_spdif_stop(struct spdif_dev_data *spdif, struct rz_spdif_stream *strm)
 {
 	u32 ctrl;
@@ -266,13 +283,11 @@ static int rz_spdif_stop(struct spdif_dev_data *spdif, struct rz_spdif_stream *s
 	/* Disable SPDIF to idle state */
 	if (rz_spdif_is_stream_running(&spdif->playback)) {
 		rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_TME_BIT, 0);
-		while (!(rz_spdif_reg_readl(spdif, SPDIF_STAT) & SPDIF_TIS_BIT))
-			;
+		rz_spdif_wait_stat(spdif, SPDIF_TIS_BIT, true);
 	}
 	if (rz_spdif_is_stream_running(&spdif->capture)) {
 		rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_RME_BIT, 0);
-		while (!(rz_spdif_reg_readl(spdif, SPDIF_STAT) & SPDIF_RIS_BIT))
-			;
+		rz_spdif_wait_stat(spdif, SPDIF_RIS_BIT, true);
 	}
 
 	strm->running = 0;
@@ -301,6 +316,7 @@ static void rz_spdif_pio_init(struct spdif_dev_data *spdif,
 static int rz_spdif_start(struct spdif_dev_data *spdif, struct rz_spdif_stream *strm)
 {
 	u32 ctrl;
+	int ret;
 
 	spdif->spdout.u_idx = 0;
 	spdif->spdin.u_idx = 0;
@@ -320,14 +336,20 @@ static int rz_spdif_start(struct spdif_dev_data *spdif, struct rz_spdif_stream *
 	if (rz_spdif_is_stream_running(&spdif->playback)) {
 		/* Enable transmitter module */
 		rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_TME_BIT, SPDIF_TME_BIT);
-		while (rz_spdif_reg_readl(spdif, SPDIF_STAT) & SPDIF_TIS_BIT)
-			;
+		ret = rz_spdif_wait_stat(spdif, SPDIF_TIS_BIT, false);
+		if (ret) {
+			rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_TME_BIT, 0);
+			return ret;
+		}
 	}
 	if (rz_spdif_is_stream_running(&spdif->capture)) {
 		/* Enable receiver module */
 		rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_RME_BIT, SPDIF_RME_BIT);
-		while (rz_spdif_reg_readl(spdif, SPDIF_STAT) & SPDIF_RIS_BIT)
-			;
+		ret = rz_spdif_wait_stat(spdif, SPDIF_RIS_BIT, false);
+		if (ret) {
+			rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_RME_BIT, 0);
+			return ret;
+		}
 	}
 	/* Setting TASS, RASS */
 	ctrl = rz_spdif_reg_readl(spdif, SPDIF_CTRL);
@@ -926,6 +948,8 @@ static bool rz_spdif_pio_send(int irq, struct spdif_dev_data *spdif)
 
 static void rz_spdif_out_restart(struct spdif_dev_data *spdif)
 {
+	int ret;
+
 	if (spdif->is_dma)
 		/* Disable DMA transmitter */
 		rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_TDE_BIT, 0);
@@ -934,16 +958,22 @@ static void rz_spdif_out_restart(struct spdif_dev_data *spdif)
 		rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_TCBI_BIT, 0);
 
 	rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_TME_BIT, 0);
-	while (!(rz_spdif_reg_readl(spdif, SPDIF_STAT) & SPDIF_TIS_BIT))
-		;
+	ret = rz_spdif_wait_stat(spdif, SPDIF_TIS_BIT, true);
+	if (ret) {
+		dev_warn(spdif->dev, "out_restart aborted: TX not idle\n");
+		return;
+	}
 
 	rz_spdif_status_clear(spdif);
 
 	/* Retransmit */
 	/* Enable transmitter module */
 	rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_TME_BIT, SPDIF_TME_BIT);
-	while (rz_spdif_reg_readl(spdif, SPDIF_STAT) & SPDIF_TIS_BIT)
-		;
+	ret = rz_spdif_wait_stat(spdif, SPDIF_TIS_BIT, false);
+	if (ret) {
+		dev_warn(spdif->dev, "out_restart: TX not active\n");
+		return;
+	}
 
 	/* Enable interrupt (User data empty) */
 	if (spdif->count > 0)
@@ -964,6 +994,8 @@ static void rz_spdif_out_restart(struct spdif_dev_data *spdif)
 
 static void rz_spdif_in_restart(struct spdif_dev_data *spdif)
 {
+	int ret;
+
 	if (spdif->is_dma)
 		/* Disable DMA receiver */
 		rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_RDE_BIT, 0);
@@ -971,16 +1003,22 @@ static void rz_spdif_in_restart(struct spdif_dev_data *spdif)
 		/* Disable Receiver interrupt */
 		rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_RCBI_BIT, 0);
 	rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_RME_BIT, 0);
-	while (!(rz_spdif_reg_readl(spdif, SPDIF_STAT) & SPDIF_RIS_BIT))
-		;
+	ret = rz_spdif_wait_stat(spdif, SPDIF_RIS_BIT, true);
+	if (ret) {
+		dev_warn(spdif->dev, "in_restart aborted: RX not idle\n");
+		return;
+	}
 
 	rz_spdif_status_clear(spdif);
 
-	/* Retransmit */
-	/* Enable receiver module */
+	/* Retransmit and enable receiver module */
 	rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_RME_BIT, SPDIF_RME_BIT);
-	while (rz_spdif_reg_readl(spdif, SPDIF_STAT) & SPDIF_RIS_BIT)
-		;
+	ret = rz_spdif_wait_stat(spdif, SPDIF_RIS_BIT, false);
+	if (ret) {
+		dev_warn(spdif->dev, "in_restart: RX not active\n");
+		return;
+	}
+
 
 	/* Enable interrupt (Channel status full) */
 	rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_RCSI_BIT, SPDIF_RCSI_BIT);
