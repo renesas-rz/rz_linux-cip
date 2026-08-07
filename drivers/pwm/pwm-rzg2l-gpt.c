@@ -39,6 +39,7 @@
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
+#include <linux/pm_runtime.h>
 #include <linux/irqchip/irq-renesas-rzv2h.h>
 #include <linux/counter.h>
 
@@ -291,14 +292,23 @@ struct rzg2l_gpt_counter {
 	struct rzg2l_gpt_chip *rzg2l_gpt;
 };
 
+struct rzg2l_gpt_cache {
+	u32 gtior;
+	u32 gtintad;
+	u32 gtcnt;
+};
+
 struct rzg2l_gpt_chip {
 	struct pwm_chip *chip;
-	unsigned long clk;
 	void __iomem *mmio;
 	struct mutex mutex; /* lock to protect shared channel resources */
 	struct rz_gpt_cpt_data *cpt_data;
 	const struct rzg2l_gpt_info *info;
 	unsigned long rate_khz;
+	struct clk *clk;
+	struct clk *clk_bus;
+	struct reset_control *rstc;
+	struct reset_control *rstc_s;
 	u32 period_ticks[RZG2L_MAX_HW_CHANNELS];
 	struct counter_device *counter;
 	u32 counter_mode[RZG2L_MAX_HW_CHANNELS];
@@ -309,6 +319,7 @@ struct rzg2l_gpt_chip {
 	DECLARE_BITMAP(poeg_gpt_link, RZG2L_MAX_POEG_GROUPS * RZG2L_MAX_HW_CHANNELS);
 	unsigned int irq_map[RZG2L_MAX_HW_CHANNELS][NR_IRQ_TYPE];
 	struct rz_gpt_pwm_channel channel_data[RZG2L_MAX_PWM_CHANNELS];
+	struct rzg2l_gpt_cache hw_cache[RZG2L_MAX_HW_CHANNELS];
 	spinlock_t lock;
 	struct rzg2l_gpt_base_sysfs *base_sysfs;
 	unsigned int nbase;
@@ -1407,7 +1418,7 @@ static void rzg2l_gpt_counter_hw_init(struct rzg2l_gpt_chip *rzg2l_gpt,
 	/* Default period */
 	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTPR(ch), RZG2L_GTPR_MAX_VALUE);
 	/* Set initial value for counter */
-	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCNT(ch), 0);
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCNT(ch), rzg2l_gpt->hw_cache[ch].gtcnt);
 	/* Using noise filter with P0/64 clock */
 	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTIOR(ch), RZG2L_GTIOR_NFCSB,
 			FIELD_PREP(RZG2L_GTIOR_NFCSB, RZG2L_GTIOR_NFCSx_P0_64));
@@ -1422,6 +1433,7 @@ static void rzg2l_gpt_counter_hw_init(struct rzg2l_gpt_chip *rzg2l_gpt,
 			reset_counter_mode_set[rzg2l_gpt->reset_counter[ch]].gtcsr);
 	/* Default preset */
 	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTPR(ch), BIT(31)-1);
+	rzg2l_gpt->hw_cache[ch].gtcnt = 0;
 	/* Start Count */
 	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, RZG2L_GTCR_CST);
 }
@@ -1701,11 +1713,9 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 {
 	struct rzg2l_gpt_chip *rzg2l_gpt;
 	struct device *dev = &pdev->dev;
-	struct reset_control *rstc;
 	struct pwm_chip *chip;
 	struct device_node *icu_np __free(device_node);
 	unsigned long rate;
-	struct clk *clk;
 	unsigned int i, j;
 	int ret, irq;
 	char *irq_name, *req_name;
@@ -1723,19 +1733,19 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 
 	rzg2l_gpt->info = of_device_get_match_data(dev);
 
-	rstc = devm_reset_control_get_exclusive(dev, NULL);
-	if (IS_ERR(rstc))
-		return dev_err_probe(dev, PTR_ERR(rstc), "Cannot get reset control\n");
-	reset_control_deassert(rstc);
+	rzg2l_gpt->rstc = devm_reset_control_get_exclusive(dev, NULL);
+	if (IS_ERR(rzg2l_gpt->rstc))
+		return dev_err_probe(dev, PTR_ERR(rzg2l_gpt->rstc), "Cannot get reset control\n");
+	reset_control_deassert(rzg2l_gpt->rstc);
 
-	rstc = devm_reset_control_get_optional_exclusive(dev, "rst_s");
-	if (IS_ERR(rstc))
-		return dev_err_probe(dev, PTR_ERR(rstc),
+	rzg2l_gpt->rstc_s = devm_reset_control_get_optional_exclusive(dev, "rst_s");
+	if (IS_ERR(rzg2l_gpt->rstc_s))
+		return dev_err_probe(dev, PTR_ERR(rzg2l_gpt->rstc_s),
 				"Cannot get rst_s reset\n");
-	if (rstc) {
-		reset_control_deassert(rstc);
-		if (IS_ERR(rstc))
-			return dev_err_probe(dev, PTR_ERR(rstc),
+	if (rzg2l_gpt->rstc_s) {
+		reset_control_deassert(rzg2l_gpt->rstc_s);
+		if (IS_ERR(rzg2l_gpt->rstc_s))
+			return dev_err_probe(dev, PTR_ERR(rzg2l_gpt->rstc_s),
 					"Cannot deassert rst_s reset\n");
 	}
 
@@ -1790,19 +1800,19 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 		}
 	}
 
-	clk = devm_clk_get_optional_enabled(dev, "bus");
-	if (IS_ERR(clk))
-		return dev_err_probe(dev, PTR_ERR(clk), "Cannot get bus clock\n");
+	rzg2l_gpt->clk_bus = devm_clk_get_optional_enabled(dev, "bus");
+	if (IS_ERR(rzg2l_gpt->clk_bus))
+		return dev_err_probe(dev, PTR_ERR(rzg2l_gpt->clk_bus), "Cannot get bus clock\n");
 
-	clk = devm_clk_get_enabled(dev, NULL);
-	if (IS_ERR(clk))
-		return dev_err_probe(dev, PTR_ERR(clk), "Cannot get clock\n");
+	rzg2l_gpt->clk = devm_clk_get_enabled(dev, NULL);
+	if (IS_ERR(rzg2l_gpt->clk))
+		return dev_err_probe(dev, PTR_ERR(rzg2l_gpt->clk), "Cannot get clock\n");
 
-	ret = devm_clk_rate_exclusive_get(dev, clk);
+	ret = devm_clk_rate_exclusive_get(dev, rzg2l_gpt->clk);
 	if (ret)
 		return ret;
 
-	rate = clk_get_rate(clk);
+	rate = clk_get_rate(rzg2l_gpt->clk);
 	if (!rate)
 		return dev_err_probe(dev, -EINVAL, "The gpt clk rate is 0");
 
@@ -1912,10 +1922,78 @@ static const struct of_device_id rzg2l_gpt_of_table[] = {
 };
 MODULE_DEVICE_TABLE(of, rzg2l_gpt_of_table);
 
+static int rzg2l_gpt_suspend(struct device *dev)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+	u32 ch;
+
+	for (ch = 0; ch < RZG2L_MAX_HW_CHANNELS; ch++) {
+		struct rzg2l_gpt_cache *cache = &rzg2l_gpt->hw_cache[ch];
+
+		if (rzg2l_gpt->channel_request_count[ch]) {
+			cache->gtintad = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTINTAD(ch));
+			cache->gtior = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTIOR(ch));
+		}
+
+		if (rzg2l_gpt->counter_enabled[ch])
+			cache->gtcnt = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTCNT(ch));
+	}
+
+	clk_disable_unprepare(rzg2l_gpt->clk_bus);
+	clk_disable_unprepare(rzg2l_gpt->clk);
+	reset_control_assert(rzg2l_gpt->rstc);
+	reset_control_assert(rzg2l_gpt->rstc_s);
+
+	return 0;
+}
+
+static int rzg2l_gpt_resume(struct device *dev)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+	int ret;
+	u32 ch;
+
+	ret = reset_control_deassert(rzg2l_gpt->rstc);
+	if (ret)
+		return ret;
+	ret = reset_control_deassert(rzg2l_gpt->rstc_s);
+	if (ret)
+		return ret;
+	ret = clk_prepare_enable(rzg2l_gpt->clk);
+	if (ret)
+		return ret;
+	ret = clk_prepare_enable(rzg2l_gpt->clk_bus);
+	if (ret)
+		return ret;
+
+	for (ch = 0; ch < RZG2L_MAX_HW_CHANNELS; ch++) {
+		if (rzg2l_gpt->channel_request_count[ch]) {
+			if (rzg2l_gpt->channel_data[ch].deadtime_first) {
+				rzg2l_gpt_mode_setting(rzg2l_gpt, ch);
+				rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTDBU(ch),
+						    rzg2l_gpt->channel_data[ch].deadtime_first);
+				rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTDBD(ch),
+						    rzg2l_gpt->channel_data[ch].deadtime_second);
+			}
+			rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTINTAD(ch),
+					    rzg2l_gpt->hw_cache[ch].gtintad);
+			rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTIOR(ch),
+					    rzg2l_gpt->hw_cache[ch].gtior);
+		}
+		if (rzg2l_gpt->counter_enabled[ch])
+			rzg2l_gpt_counter_hw_init(rzg2l_gpt, ch);
+	}
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(rzg2l_gpt_pm_ops, rzg2l_gpt_suspend, rzg2l_gpt_resume);
+
 static struct platform_driver rzg2l_gpt_driver = {
 	.driver = {
 		.name = "pwm-rzg2l-gpt",
 		.of_match_table = rzg2l_gpt_of_table,
+		.pm = pm_sleep_ptr(&rzg2l_gpt_pm_ops),
 	},
 	.probe = rzg2l_gpt_probe,
 };
