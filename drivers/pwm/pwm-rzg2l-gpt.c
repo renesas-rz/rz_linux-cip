@@ -40,11 +40,17 @@
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 #include <linux/irqchip/irq-renesas-rzv2h.h>
+#include <linux/counter.h>
 
 #define RZG2L_GET_CH(hwpwm)	((hwpwm) / 2)
 #define RZG2L_GET_HWPWM(ch, sub_ch) ((ch) * 2 + (sub_ch))
 #define RZG2L_GET_CH_OFFS(ch)	(0x100 * (ch))
 
+#define RZG2L_GTSSR(ch)		(0x10 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTPSR(ch)		(0x14 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTCSR(ch)		(0x18 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTUPSR(ch)	(0x1C + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTDNSR(ch)	(0x20 + RZG2L_GET_CH_OFFS(ch))
 #define RZG2L_GTICxSR(ch, sub_ch)	(0x24 + RZG2L_GET_CH_OFFS(ch) + 4 * (sub_ch))
 #define RZG2L_GTCR(ch)		(0x2c + RZG2L_GET_CH_OFFS(ch))
 #define RZG2L_GTUDDTYC(ch)	(0x30 + RZG2L_GET_CH_OFFS(ch))
@@ -176,6 +182,12 @@
 #define RZG2L_MAX_POEG_GROUPS	4
 #define RZG2L_LAST_POEG_GROUP	3
 
+#define PHASE_COUNTING_PARAM(_up, _down) \
+		{ .gtupsr = (_up), .gtdnsr = (_down), }
+
+#define RESET_COUNTER_PARAM(_gtssr, _gtpsr, _gtcsr) \
+		{ .gtssr = (_gtssr), .gtpsr = (_gtpsr), .gtcsr = (_gtcsr), }
+
 enum {
 	GTCIV,
 	GTCIA,
@@ -224,6 +236,61 @@ struct rzg2l_gpt_base_sysfs {
 	struct attribute_group group;
 };
 
+static const char * const rzg2l_gpt_counter_modes[] = {
+	"mode-1", "mode-2A", "mode-2B", "mode-2C", "mode-3A",
+	"mode-3B", "mode-3C", "mode-4", "mode-5A", "mode-5B",
+};
+
+enum rzg2l_gpt_counter_mode {
+	MODE_1, MODE_2A, MODE_2B, MODE_2C, MODE_3A,
+	MODE_3B, MODE_3C, MODE_4, MODE_5A, MODE_5B, NR_MODE,
+};
+
+static const char * const rzg2l_gpt_reset_counters[] = {
+	"not_use", "gtioa", "gtiob", "gtioc", "gtiod",
+};
+
+enum rzg2l_gpt_reset_counter {
+	RESET_NOT_USE, RESET_GTIOA, RESET_GTIOB, RESET_GTIOC,
+	RESET_GTIOD, NR_RESET_COUNTER,
+};
+
+struct counter_mode_params {
+	u32 gtupsr;
+	u32 gtdnsr;
+};
+
+struct reset_counter_params {
+	u32 gtssr;
+	u32 gtpsr;
+	u32 gtcsr;
+};
+
+static const struct counter_mode_params mode_set[NR_MODE] = {
+	[MODE_1]	= PHASE_COUNTING_PARAM(0x00006900, 0x00009600),
+	[MODE_2A]	= PHASE_COUNTING_PARAM(0x00000800, 0x00000400),
+	[MODE_2B]	= PHASE_COUNTING_PARAM(0x00000200, 0x00000100),
+	[MODE_2C]	= PHASE_COUNTING_PARAM(0x00000A00, 0x00000500),
+	[MODE_3A]	= PHASE_COUNTING_PARAM(0x00000800, 0x00008000),
+	[MODE_3B]	= PHASE_COUNTING_PARAM(0x00000200, 0x00002000),
+	[MODE_3C]	= PHASE_COUNTING_PARAM(0x00000A00, 0x0000A000),
+	[MODE_4]	= PHASE_COUNTING_PARAM(0x00006000, 0x00009000),
+	[MODE_5A]	= PHASE_COUNTING_PARAM(0x00000C00, 0x00000000),
+	[MODE_5B]	= PHASE_COUNTING_PARAM(0x0000C000, 0x00000000),
+};
+
+static const struct reset_counter_params reset_counter_mode_set[NR_RESET_COUNTER] = {
+	[RESET_NOT_USE]	= RESET_COUNTER_PARAM(0x00000000, 0x00000000, 0x00000000),
+	[RESET_GTIOA]	= RESET_COUNTER_PARAM(0x00000002, 0x00000001, 0x00000001),
+	[RESET_GTIOB]	= RESET_COUNTER_PARAM(0x00000008, 0x00000004, 0x00000004),
+	[RESET_GTIOC]	= RESET_COUNTER_PARAM(0x00000020, 0x00000010, 0x00000010),
+	[RESET_GTIOD]	= RESET_COUNTER_PARAM(0x00000080, 0x00000040, 0x00000040),
+};
+
+struct rzg2l_gpt_counter {
+	struct rzg2l_gpt_chip *rzg2l_gpt;
+};
+
 struct rzg2l_gpt_chip {
 	struct pwm_chip *chip;
 	unsigned long clk;
@@ -233,6 +300,10 @@ struct rzg2l_gpt_chip {
 	const struct rzg2l_gpt_info *info;
 	unsigned long rate_khz;
 	u32 period_ticks[RZG2L_MAX_HW_CHANNELS];
+	struct counter_device *counter;
+	u32 counter_mode[RZG2L_MAX_HW_CHANNELS];
+	u32 reset_counter[RZG2L_MAX_HW_CHANNELS];
+	bool counter_enabled[RZG2L_MAX_HW_CHANNELS];
 	u32 channel_request_count[RZG2L_MAX_HW_CHANNELS];
 	u32 channel_enable_count[RZG2L_MAX_HW_CHANNELS];
 	DECLARE_BITMAP(poeg_gpt_link, RZG2L_MAX_POEG_GROUPS * RZG2L_MAX_HW_CHANNELS);
@@ -266,6 +337,12 @@ static void rzg2l_gpt_write(struct rzg2l_gpt_chip *rzg2l_gpt, u32 reg, u32 data)
 static u32 rzg2l_gpt_read(struct rzg2l_gpt_chip *rzg2l_gpt, u32 reg)
 {
 	return readl(rzg2l_gpt->mmio + reg);
+}
+
+static int rzg2l_gpt_counter_check_enabled(struct rzg2l_gpt_chip *rzg2l_gpt,
+					 unsigned int ch)
+{
+	return rzg2l_gpt->counter_enabled[ch] ? 0 : -EACCES;
 }
 
 static void rzg2l_gpt_modify(struct rzg2l_gpt_chip *rzg2l_gpt, u32 reg, u32 clr,
@@ -344,6 +421,14 @@ static int rzg2l_gpt_request(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	guard(mutex)(&rzg2l_gpt->mutex);
 	rzg2l_gpt->channel_request_count[ch]++;
+
+	if (rzg2l_gpt->counter_enabled[ch]) {
+		rzg2l_gpt->channel_request_count[ch]--;
+		dev_err(rzg2l_gpt->chip->dev,
+				"Please not export pwm%u and pwm%u while enable counter%d\n",
+				pwm->hwpwm, rzg2l_gpt_sibling(pwm->hwpwm), ch);
+		return -EBUSY;
+	}
 
 	if (rzg2l_gpt_subchannel(pwm->hwpwm)) {
 		if (rzg2l_gpt->channel_data[ch].deadtime_first) {
@@ -517,6 +602,17 @@ static void rzg2l_reset_period_and_duty(struct rzg2l_gpt_chip *rzg2l_gpt, unsign
 	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRCE(ch, 1), 0);
 	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRDF(ch, 0), 0);
 	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCRDF(ch, 1), 0);
+	if (rzg2l_gpt->counter_enabled[ch]) {
+		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, 0);
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCNT(ch), 0);
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTSSR(ch), 0);
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTPSR(ch), 0);
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCSR(ch), 0);
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTUPSR(ch), 0);
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTDNSR(ch), 0);
+		rzg2l_gpt->counter_mode[ch] = MODE_1;
+		rzg2l_gpt->reset_counter[ch] = RESET_NOT_USE;
+	}
 
 	/* Reset the channel B states */
 	sibling_pwm->state = (struct pwm_state){ 0 };
@@ -743,6 +839,8 @@ static int rzg2l_gpt_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	int ret;
 
 	guard(mutex)(&rzg2l_gpt->mutex);
+
+
 	if (!state->enabled) {
 		if (enabled)
 			rzg2l_gpt_disable(rzg2l_gpt, pwm);
@@ -1182,6 +1280,316 @@ static ssize_t deadtime_second_show(struct device *dev,
 	return sprintf(buf, "%llu\n", time_ns);
 }
 
+static int rzg2l_gpt_counter_mode_read(struct counter_device *counter,
+		struct counter_count *count, u32 *mode)
+{
+	struct rzg2l_gpt_counter *priv = counter_priv(counter);
+	struct rzg2l_gpt_chip *rzg2l_gpt = priv->rzg2l_gpt;
+	unsigned int ch = count->id;
+	int ret;
+
+	ret = rzg2l_gpt_counter_check_enabled(rzg2l_gpt, ch);
+	if (ret)
+		return ret;
+
+	*mode = rzg2l_gpt->counter_mode[ch];
+
+	return 0;
+}
+
+static int rzg2l_gpt_counter_mode_write(struct counter_device *counter,
+		struct counter_count *count, u32 mode)
+{
+	struct rzg2l_gpt_counter *priv = counter_priv(counter);
+	struct rzg2l_gpt_chip *rzg2l_gpt = priv->rzg2l_gpt;
+	unsigned int ch = count->id;
+	int ret;
+
+	ret = rzg2l_gpt_counter_check_enabled(rzg2l_gpt, ch);
+	if (ret)
+		return ret;
+
+	if (mode >= NR_MODE)
+		return -EINVAL;
+
+	rzg2l_gpt->counter_mode[ch] = mode;
+
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTUPSR(ch), mode_set[mode].gtupsr);
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTDNSR(ch), mode_set[mode].gtdnsr);
+
+	/* Reset counter when changing mode */
+	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, 0);
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCNT(ch), 0);
+	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, RZG2L_GTCR_CST);
+
+	return 0;
+}
+
+static int rzg2l_gpt_reset_counter_read(struct counter_device *counter,
+					struct counter_count *count,
+					u32 *type)
+{
+	struct rzg2l_gpt_counter *priv = counter_priv(counter);
+	struct rzg2l_gpt_chip *rzg2l_gpt = priv->rzg2l_gpt;
+	unsigned int ch = count->id;
+	int ret;
+
+	ret = rzg2l_gpt_counter_check_enabled(rzg2l_gpt, ch);
+	if (ret)
+		return ret;
+
+	*type = rzg2l_gpt->reset_counter[ch];
+
+	return 0;
+}
+
+static int rzg2l_gpt_reset_counter_write(struct counter_device *counter,
+					 struct counter_count *count,
+					 u32 type)
+{
+	struct rzg2l_gpt_counter *priv = counter_priv(counter);
+	struct rzg2l_gpt_chip *rzg2l_gpt = priv->rzg2l_gpt;
+	unsigned int ch = count->id;
+	int ret;
+
+	ret = rzg2l_gpt_counter_check_enabled(rzg2l_gpt, ch);
+	if (ret)
+		return ret;
+
+
+	if (type >= NR_RESET_COUNTER)
+		return -EINVAL;
+
+	rzg2l_gpt->reset_counter[ch] = type;
+
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTSSR(ch), reset_counter_mode_set[type].gtssr);
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTPSR(ch), reset_counter_mode_set[type].gtpsr);
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCSR(ch), reset_counter_mode_set[type].gtcsr);
+
+	return 0;
+}
+
+static int rzg2l_gpt_count_read(struct counter_device *counter,
+				struct counter_count *count,
+				u64 *val)
+{
+	struct rzg2l_gpt_counter *priv = counter_priv(counter);
+	struct rzg2l_gpt_chip *rzg2l_gpt = priv->rzg2l_gpt;
+	unsigned int ch = count->id;
+	int ret;
+
+	ret = rzg2l_gpt_counter_check_enabled(rzg2l_gpt, ch);
+	if (ret)
+		return ret;
+
+	*val = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTCNT(ch));
+	return 0;
+}
+
+static int rzg2l_gpt_enable_read(struct counter_device *counter,
+				 struct counter_count *count,
+				 u8 *enable)
+{
+	struct rzg2l_gpt_counter *priv = counter_priv(counter);
+	struct rzg2l_gpt_chip *rzg2l_gpt = priv->rzg2l_gpt;
+	unsigned int ch = count->id;
+
+	*enable = rzg2l_gpt->counter_enabled[ch];
+
+	return 0;
+}
+
+static void rzg2l_gpt_counter_hw_init(struct rzg2l_gpt_chip *rzg2l_gpt,
+					unsigned int ch)
+{
+	/* Maximum frequency*/
+	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_TPCS, 0);
+	/* Default period */
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTPR(ch), RZG2L_GTPR_MAX_VALUE);
+	/* Set initial value for counter */
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCNT(ch), 0);
+	/* Using noise filter with P0/64 clock */
+	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTIOR(ch), RZG2L_GTIOR_NFCSB,
+			FIELD_PREP(RZG2L_GTIOR_NFCSB, RZG2L_GTIOR_NFCSx_P0_64));
+	/* Default counting mode */
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTUPSR(ch), mode_set[rzg2l_gpt->counter_mode[ch]].gtupsr);
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTDNSR(ch), mode_set[rzg2l_gpt->counter_mode[ch]].gtdnsr);
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTSSR(ch),
+			reset_counter_mode_set[rzg2l_gpt->reset_counter[ch]].gtssr);
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTPSR(ch),
+			reset_counter_mode_set[rzg2l_gpt->reset_counter[ch]].gtpsr);
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCSR(ch),
+			reset_counter_mode_set[rzg2l_gpt->reset_counter[ch]].gtcsr);
+	/* Default preset */
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTPR(ch), BIT(31)-1);
+	/* Start Count */
+	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, RZG2L_GTCR_CST);
+}
+
+static int rzg2l_gpt_enable_write(struct counter_device *counter,
+				  struct counter_count *count,
+				  u8 enable)
+{
+	struct rzg2l_gpt_counter *priv = counter_priv(counter);
+	struct rzg2l_gpt_chip *rzg2l_gpt = priv->rzg2l_gpt;
+	unsigned int ch = count->id;
+	unsigned int pwm_id = RZG2L_GET_HWPWM(ch, 0);
+
+	if (rzg2l_gpt->channel_request_count[ch]) {
+		dev_err(rzg2l_gpt->chip->dev,
+			"Please not request pwm%u or pwm%u before enable counter%u\n",
+			RZG2L_GET_HWPWM(ch, 0), RZG2L_GET_HWPWM(ch, 1), ch);
+			return -EBUSY;
+	}
+
+	if (enable > 1)
+		return -EINVAL;
+
+	if (!enable) {
+		dev_info(rzg2l_gpt->chip->dev, "Phase Counting Disable: ch%u\n", ch);
+		rzg2l_reset_period_and_duty(rzg2l_gpt, pwm_id);
+		rzg2l_gpt->counter_enabled[ch] = false;
+		return 0;
+	}
+
+	if (rzg2l_gpt->counter_enabled[ch])
+		return 0;
+
+	rzg2l_gpt->counter_enabled[ch] = true;
+	rzg2l_gpt_counter_hw_init(rzg2l_gpt, ch);
+	dev_info(rzg2l_gpt->chip->dev, "Phase Counting Enable: ch%u\n", ch);
+
+	return 0;
+}
+
+
+static int rzg2l_gpt_counter_preset_read(struct counter_device *counter,
+					struct counter_count *count,
+					u64 *val)
+{
+	struct rzg2l_gpt_counter *priv = counter_priv(counter);
+	struct rzg2l_gpt_chip *rzg2l_gpt = priv->rzg2l_gpt;
+	unsigned int ch = count->id;
+	int ret;
+
+	ret = rzg2l_gpt_counter_check_enabled(rzg2l_gpt, ch);
+	if (ret)
+		return ret;
+
+	*val = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTPR(ch));
+
+	return 0;
+}
+
+
+static int rzg2l_gpt_counter_preset_write(struct counter_device *counter,
+					  struct counter_count *count,
+					  u64 val)
+{
+	struct rzg2l_gpt_counter *priv = counter_priv(counter);
+	struct rzg2l_gpt_chip *rzg2l_gpt = priv->rzg2l_gpt;
+	unsigned int ch = count->id;
+	int ret;
+
+	ret = rzg2l_gpt_counter_check_enabled(rzg2l_gpt, ch);
+	if (ret)
+		return ret;
+
+	if (val > U32_MAX)
+		return -EINVAL;
+
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTPR(ch), (u32)val);
+
+	/* Reset counter when set preset */
+	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, 0);
+	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCNT(ch), 0);
+	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, RZG2L_GTCR_CST);
+
+	return 0;
+}
+
+
+static DEFINE_COUNTER_ENUM(rzg2l_counter_mode_enum,
+		rzg2l_gpt_counter_modes);
+
+static DEFINE_COUNTER_ENUM(rzg2l_reset_counter_enum,
+		rzg2l_gpt_reset_counters);
+
+static struct counter_comp rzg2l_gpt_count_ext[] = {
+	COUNTER_COMP_ENABLE(rzg2l_gpt_enable_read,
+		rzg2l_gpt_enable_write),
+
+	COUNTER_COMP_COUNT_U64("counter_preset",
+		rzg2l_gpt_counter_preset_read,
+		rzg2l_gpt_counter_preset_write),
+
+	COUNTER_COMP_COUNT_ENUM("counter_mode",
+		rzg2l_gpt_counter_mode_read,
+		rzg2l_gpt_counter_mode_write,
+		rzg2l_counter_mode_enum),
+
+	COUNTER_COMP_COUNT_ENUM("reset_counter",
+		rzg2l_gpt_reset_counter_read,
+		rzg2l_gpt_reset_counter_write,
+		rzg2l_reset_counter_enum),
+};
+
+static const struct counter_ops rzg2l_gpt_counter_ops = {
+	.count_read = rzg2l_gpt_count_read,
+};
+
+static int rzg2l_gpt_register_counter(struct rzg2l_gpt_chip *rzg2l_gpt)
+{
+	struct counter_device *counter;
+	struct rzg2l_gpt_counter *priv;
+	struct counter_count *counts;
+	unsigned int num_counts;
+	unsigned int ch;
+
+	num_counts = rzg2l_gpt->chip->npwm / RZG2L_CHANNELS_PER_IO;
+	if (num_counts > RZG2L_MAX_HW_CHANNELS)
+		return -EINVAL;
+
+	counter = devm_counter_alloc(rzg2l_gpt->chip->dev,
+					sizeof(*priv));
+	if (!counter)
+		return -ENOMEM;
+	counts = devm_kcalloc(rzg2l_gpt->chip->dev, num_counts,
+				sizeof(*counts), GFP_KERNEL);
+	if (!counts)
+		return -ENOMEM;
+	for (ch = 0; ch < num_counts; ch++) {
+		counts[ch].id = ch;
+		counts[ch].name = "count";
+		counts[ch].functions_list = NULL;
+		counts[ch].num_functions = 0;
+		counts[ch].ext = rzg2l_gpt_count_ext;
+		counts[ch].num_ext = ARRAY_SIZE(rzg2l_gpt_count_ext);
+
+		rzg2l_gpt->counter_mode[ch] = MODE_1;
+		rzg2l_gpt->reset_counter[ch] = RESET_NOT_USE;
+		rzg2l_gpt->counter_enabled[ch] = false;
+	}
+
+	priv = counter_priv(counter);
+
+	priv->rzg2l_gpt = rzg2l_gpt;
+
+	counter->name = devm_kasprintf(rzg2l_gpt->chip->dev,
+					GFP_KERNEL,
+					"gpt-%d-counter", rzg2l_gpt->chip->base);
+	if (!counter->name)
+		return -ENOMEM;
+
+	counter->ops = &rzg2l_gpt_counter_ops;
+	counter->counts = counts;
+	counter->num_counts = num_counts;
+
+	rzg2l_gpt->counter = counter;
+
+	return devm_counter_add(rzg2l_gpt->chip->dev, counter);
+}
+
 /*
  * This function links a poeg group{A,B,C,D} with a gpt channel{0..7} and
  * configure the pin for output disable.
@@ -1472,6 +1880,9 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 		bs->group.attrs = bs->attrs;
 		bs->group.name = NULL;
 	}
+	ret = rzg2l_gpt_register_counter(rzg2l_gpt);
+	if (ret)
+		return ret;
 
 	dev_info(dev, "RZ/G2L GPT Driver probed\n");
 	platform_set_drvdata(pdev, rzg2l_gpt);
