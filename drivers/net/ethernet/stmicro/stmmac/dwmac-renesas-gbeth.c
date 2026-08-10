@@ -202,6 +202,7 @@ static const struct renesas_gbeth_of_data renesas_gbeth_of_data = {
 	.handle_reset = true,
 	.set_clk_tx_rate = true,
 	.stmmac_flags = STMMAC_FLAG_HWTSTAMP_CORRECT_LATENCY |
+			STMMAC_FLAG_RX_CLK_RUNS_IN_LPI |
 			STMMAC_FLAG_SPH_DISABLE,
 };
 
