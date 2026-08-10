@@ -91,6 +91,37 @@ static struct phylink_pcs *renesas_gmac_select_pcs(struct stmmac_priv *priv,
 	return priv->hw->phylink_pcs;
 }
 
+static void renesas_gbeth_setup_multi_irq(struct platform_device *pdev,
+					  struct plat_stmmacenet_data *plat,
+					  struct stmmac_resources *res)
+{
+	int i;
+
+	/* RX IRQs */
+	for (i = 0; i < plat->rx_queues_to_use; i++) {
+		if (res->rx_irq[i] <= 0) {
+			dev_dbg(&pdev->dev, "Missing RX queue %d interrupt\n", i);
+			goto mac_irq_mode;
+		}
+	}
+
+	/* TX IRQs */
+	for (i = 0; i < plat->tx_queues_to_use; i++) {
+		if (res->tx_irq[i] <= 0) {
+			dev_dbg(&pdev->dev, "Missing TX queue %d interrupt\n", i);
+			goto mac_irq_mode;
+		}
+	}
+
+	plat->flags |= STMMAC_FLAG_MULTI_MSI_EN;
+	dev_info(&pdev->dev, "Multi-IRQ mode (per queue IRQs) selected\n");
+	return;
+
+mac_irq_mode:
+	plat->flags &= ~STMMAC_FLAG_MULTI_MSI_EN;
+	dev_info(&pdev->dev, "MAC IRQ mode selected\n");
+}
+
 static int renesas_gbeth_init(struct platform_device *pdev, void *priv)
 {
 	struct plat_stmmacenet_data *plat_dat;
@@ -192,6 +223,8 @@ static int renesas_gbeth_probe(struct platform_device *pdev)
 		plat_dat->pcs_exit = renesas_gmac_pcs_exit;
 		plat_dat->select_pcs = renesas_gmac_select_pcs;
 	}
+
+	renesas_gbeth_setup_multi_irq(pdev, plat_dat, &stmmac_res);
 
 	return devm_stmmac_pltfr_probe(pdev, plat_dat, &stmmac_res);
 }
