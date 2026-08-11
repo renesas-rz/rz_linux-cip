@@ -940,8 +940,9 @@ static int rzg2l_gpt_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 			RZG2L_INPUT_CAP_GTIOx_RISING_EDGE(sub_ch));
 
 	/* Enable input capture and overflow interrupt*/
-	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTINTAD(ch),
-			RZG2L_GTINTAD_GTINTx(sub_ch) | RZG2L_GTINTAD_GTINTPR_OVF);
+	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTINTAD(ch),
+			 RZG2L_GTINTAD_GTINTx(sub_ch) | RZG2L_GTINTAD_GTINTPR_OVF,
+			 RZG2L_GTINTAD_GTINTx(sub_ch) | RZG2L_GTINTAD_GTINTPR_OVF);
 
 	/* Start count operation set GTCR.CST to 1 to start count operation*/
 	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, 1);
@@ -976,7 +977,8 @@ out:
 	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTICxSR(ch, sub_ch), 0);
 
 	/* Disable interrupt */
-	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTINTAD(ch), 0);
+	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTINTAD(ch),
+			 RZG2L_GTINTAD_GTINTx(sub_ch) | RZG2L_GTINTAD_GTINTPR_OVF, 0);
 
 	/* Stop count */
 	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, 0);
