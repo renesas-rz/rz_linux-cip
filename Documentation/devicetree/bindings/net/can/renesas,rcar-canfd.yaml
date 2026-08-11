@@ -15,6 +15,7 @@ properties:
       - enum:
           - renesas,r9a09g047-canfd        # RZ/G3E
           - renesas,r9a09g077-canfd        # RZ/T2H
+	  - renesas,r9a07g076-canfd        # RZ/T2N
 
       - items:
           - enum:
@@ -265,9 +266,23 @@ allOf:
       properties:
         compatible:
           contains:
+            const: renesas,r9a07g076-canfd
+    then:
+      properties:
+        interrupts:
+          maxItems: 8
+
+        interrupt-names:
+          maxItems: 8
+
+  - if:
+      properties:
+        compatible:
+          contains:
             enum:
               - renesas,r9a09g077-canfd
               - renesas,rcar-gen3-canfd
+              - renesas,r9a07g076-canfd
               - renesas,rzg2l-canfd
     then:
       patternProperties:
@@ -320,6 +335,16 @@ allOf:
         compatible:
           contains:
             const: renesas,r9a09g077-canfd
+    then:
+      properties:
+        resets: false
+        reset-names: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,r9a07g076-canfd
     then:
       properties:
         resets: false
