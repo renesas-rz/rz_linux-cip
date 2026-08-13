@@ -921,8 +921,8 @@ static int renesas_i3c_i2c_xfers(struct i2c_dev_desc *dev,
 	struct i3c_master_controller *m = i2c_dev_get_master(dev);
 	struct renesas_i3c *i3c = to_renesas_i3c(m);
 	struct renesas_i3c_cmd *cmd;
-	u8 start_bit = CNDCTL_STCND, val;
-	int i, ret;
+	u8 start_bit = CNDCTL_STCND;
+	int i;
 
 	struct renesas_i3c_xfer *xfer __free(kfree) = renesas_i3c_alloc_xfer(i3c, 1);
 	if (!xfer)
@@ -963,24 +963,7 @@ static int renesas_i3c_i2c_xfers(struct i2c_dev_desc *dev,
 
 		renesas_set_bit(i3c->regs, NTSTE, NTSTE_TDBEE0);
 
-		ret = read_poll_timeout(renesas_readl, val, !(val & start_bit),
-					10, 1000, true, i3c->regs, CNDCTL);
-
-		if (!ret) {
-			/* On read, switch over to receive interrupt */
-			if (cmd->msg->flags & I2C_M_RD)
-				renesas_set_bit(i3c->regs, NTIE,
-						NTIE_RDBFIE0);
-			val = i2c_8bit_addr_from_msg(cmd->msg);
-			renesas_writel(i3c->regs, NTDTBP0, val);
-		}
-
-		if (!wait_for_completion_timeout(&xfer->comp, msecs_to_jiffies(1000))) {
-			renesas_clear_bit(i3c->regs, BIE, BIE_NACKDIE);
-			renesas_clear_bit(i3c->regs, NTIE, NTIE_TDBEIE0);
-			renesas_clear_bit(i3c->regs, NTSTE, NTSTE_TDBEE0);
-			cmd->err = -ETIMEDOUT;
-		}
+		wait_for_completion_timeout(&xfer->comp, m->i2c.timeout);
 
 		if (cmd->err)
 			break;
@@ -1043,25 +1026,30 @@ static irqreturn_t renesas_i3c_tx_isr(int irq, void *data)
 				return IRQ_NONE;
 
 			if (cmd->i2c_bytes_left == I2C_INIT_MSG) {
-				if (cmd->msg->flags & I2C_M_RD)
-					/* On read, disable transmit interrupt */
+				if (cmd->msg->flags & I2C_M_RD) {
+					/* On read, switch over to receive interrupt */
 					renesas_clear_bit(i3c->regs, NTIE,
 							  NTIE_TDBEIE0);
-				else
+					renesas_set_bit(i3c->regs, NTIE,
+							NTIE_RDBFIE0);
+				} else
 					/* On write, initialize length */
 					cmd->i2c_bytes_left = cmd->msg->len;
+
+				val = i2c_8bit_addr_from_msg(cmd->msg);
 			} else {
 
 				val = *cmd->i2c_buf;
 				cmd->i2c_buf++;
 				cmd->i2c_bytes_left--;
-				renesas_writel(i3c->regs, NTDTBP0, val);
 			}
 
 			if (cmd->i2c_bytes_left == 0) {
 				renesas_clear_bit(i3c->regs, NTIE, NTIE_TDBEIE0);
 				renesas_set_bit(i3c->regs, BIE, BIE_TENDIE);
 			}
+
+			renesas_writel(i3c->regs, NTDTBP0, val);
 		} else {
 			i3c_writel_fifo(i3c->regs + NTDTBP0, cmd->tx_buf, cmd->len);
 		}
