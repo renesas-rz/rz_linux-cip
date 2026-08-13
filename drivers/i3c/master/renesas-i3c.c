@@ -951,9 +951,6 @@ static int renesas_i3c_i2c_xfers(struct i2c_dev_desc *dev,
 
 	renesas_i3c_enqueue_xfer(i3c, xfer);
 
-	/* Clear Interrupt enable registers */
-	renesas_writel(i3c->regs, NTIE, 0);
-
 	for (i = 0; i < i2c_nxfers; i++) {
 		cmd->i2c_bytes_left = I2C_INIT_MSG;
 		cmd->i2c_buf = i2c_xfers[i].buf;
@@ -962,6 +959,7 @@ static int renesas_i3c_i2c_xfers(struct i2c_dev_desc *dev,
 
 		renesas_set_bit(i3c->regs, BIE, BIE_NACKDIE);
 		renesas_set_bit(i3c->regs, NTIE, NTIE_TDBEIE0);
+		renesas_set_bit(i3c->regs, BIE, BIE_STCNDDIE);
 
 		/* Issue Start condition */
 		renesas_set_bit(i3c->regs, CNDCTL, start_bit);
@@ -1030,23 +1028,11 @@ static irqreturn_t renesas_i3c_tx_isr(int irq, void *data)
 			if (!cmd->i2c_bytes_left)
 				return IRQ_NONE;
 
-			if (cmd->i2c_bytes_left == I2C_INIT_MSG) {
-				if (cmd->msg->flags & I2C_M_RD) {
-					/* On read, switch over to receive interrupt */
-					renesas_clear_bit(i3c->regs, NTIE,
-							  NTIE_TDBEIE0);
-					renesas_set_bit(i3c->regs, NTIE,
-							NTIE_RDBFIE0);
-				} else
-					/* On write, initialize length */
-					cmd->i2c_bytes_left = cmd->msg->len;
-
-				val = i2c_8bit_addr_from_msg(cmd->msg);
-			} else {
-
+			if (cmd->i2c_bytes_left != I2C_INIT_MSG) {
 				val = *cmd->i2c_buf;
 				cmd->i2c_buf++;
 				cmd->i2c_bytes_left--;
+				renesas_writel(i3c->regs, NTDTBP0, val);
 			}
 
 			if (cmd->i2c_bytes_left == 0) {
@@ -1054,7 +1040,8 @@ static irqreturn_t renesas_i3c_tx_isr(int irq, void *data)
 				renesas_set_bit(i3c->regs, BIE, BIE_TENDIE);
 			}
 
-			renesas_writel(i3c->regs, NTDTBP0, val);
+			/* Clear the Transmit Buffer Empty status flag. */
+			renesas_clear_bit(i3c->regs, NTST, NTST_TDBEF0);
 		} else {
 			i3c_writel_fifo(i3c->regs + NTDTBP0, cmd->tx_buf, cmd->len);
 		}
@@ -1184,6 +1171,9 @@ static irqreturn_t renesas_i3c_tend_isr(int irq, void *data)
 				complete(&xfer->comp);
 			}
 		}
+
+		/* Clear the Transmit Buffer Empty status flag. */
+		renesas_clear_bit(i3c->regs, BST, BST_TENDF);
 	}
 
 	return IRQ_HANDLED;
@@ -1238,6 +1228,9 @@ static irqreturn_t renesas_i3c_rx_isr(int irq, void *data)
 			i3c_readl_fifo(i3c->regs + NTDTBP0, cmd->rx_buf, read_bytes);
 			cmd->rx_count = read_bytes;
 		}
+
+		/* Clear the Read Buffer Full status flag. */
+		renesas_clear_bit(i3c->regs, NTST, NTST_RDBFF0);
 	}
 
 	return IRQ_HANDLED;
@@ -1265,6 +1258,43 @@ static irqreturn_t renesas_i3c_stop_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t renesas_i3c_start_isr(int irq, void *data)
+{
+	struct renesas_i3c *i3c = data;
+	struct renesas_i3c_xfer *xfer;
+	struct renesas_i3c_cmd *cmd;
+	u8 val;
+
+	scoped_guard(spinlock, &i3c->xferqueue.lock) {
+		xfer = i3c->xferqueue.cur;
+		cmd = xfer->cmds;
+
+		if (xfer->is_i2c_xfer) {
+			if (!cmd->i2c_bytes_left)
+				return IRQ_NONE;
+
+			if (cmd->i2c_bytes_left == I2C_INIT_MSG) {
+				if (cmd->msg->flags & I2C_M_RD) {
+					/* On read, switch over to receive interrupt */
+					renesas_clear_bit(i3c->regs, NTIE, NTIE_TDBEIE0);
+					renesas_set_bit(i3c->regs, NTIE, NTIE_RDBFIE0);
+				} else {
+					/* On write, initialize length */
+					cmd->i2c_bytes_left = cmd->msg->len;
+				}
+
+				val = i2c_8bit_addr_from_msg(cmd->msg);
+				renesas_writel(i3c->regs, NTDTBP0, val);
+			}
+		}
+
+		renesas_clear_bit(i3c->regs, BIE, BIE_STCNDDIE);
+		renesas_clear_bit(i3c->regs, BST, BST_STCNDDF);
+	}
+
+	return IRQ_HANDLED;
+}
+
 static const struct i3c_master_controller_ops renesas_i3c_ops = {
 	.bus_init = renesas_i3c_bus_init,
 	.bus_cleanup = renesas_i3c_bus_cleanup,
@@ -1284,6 +1314,7 @@ static const struct renesas_i3c_irq_desc renesas_i3c_irqs[] = {
 	{ .name = "resp", .isr = renesas_i3c_resp_isr, .desc = "i3c-resp" },
 	{ .name = "rx", .isr = renesas_i3c_rx_isr, .desc = "i3c-rx" },
 	{ .name = "tx", .isr = renesas_i3c_tx_isr, .desc = "i3c-tx" },
+	{ .name = "st", .isr = renesas_i3c_start_isr, .desc = "i3c-start" },
 	{ .name = "sp", .isr = renesas_i3c_stop_isr, .desc = "i3c-stop" },
 	{ .name = "tend", .isr = renesas_i3c_tend_isr, .desc = "i3c-tend" },
 	{ .name = "nack", .isr = renesas_i3c_tend_isr, .desc = "i3c-nack" },
