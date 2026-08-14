@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
+#include <linux/irqchip/irq-renesas-rzt2.h>
 
 /* Maximum 16 IRQ per driver instance */
 #define IRQC_IRQ_MAX	16
@@ -33,6 +34,9 @@
 #define NS_PORT_SEL_IRQ		0xD00
 #define S_PORT_SEL_IRQ		0x100
 #define NS_PORT_SEL_IRQ_REG(n)	(NS_PORT_SEL_IRQ + ((n) * 4))
+#define RZT2_ICU_DMACn_RSSELi(n, i)		(0x7d0 + 0x18 * (n) + 0x4 * (i))
+#define RZT2_ICU_DMAC_REQ_SELx_MASK(x)		(GENMASK(9, 0) << ((x) * 10))
+#define RZT2_ICU_DMAC_REQ_SELx_PREP(x, val)	(FIELD_PREP(GENMASK(9, 0), val) << ((x) * 10))
 
 /* Interrupt type support */
 enum {
@@ -111,6 +115,23 @@ static int irqc_irq_set_wake(struct irq_data *d, unsigned int on)
 
 	return 0;
 }
+
+void rzt2_icu_register_dma_req(struct platform_device *icu_dev, u8 dmac_index, u8 dmac_channel,
+			       u16 req_no)
+{
+	struct irqc_priv *priv = platform_get_drvdata(icu_dev);
+	u8 y, upper;
+	u32 val;
+
+	y = dmac_channel / 3;
+	upper = dmac_channel % 3;
+
+	val = readl(priv->base + RZT2_ICU_DMACn_RSSELi(dmac_index, y));
+	val &= ~RZT2_ICU_DMAC_REQ_SELx_MASK(upper);
+	val |= RZT2_ICU_DMAC_REQ_SELx_PREP(upper, req_no);
+	writel(val, priv->base + RZT2_ICU_DMACn_RSSELi(dmac_index, y));
+}
+EXPORT_SYMBOL_GPL(rzt2_icu_register_dma_req);
 
 static irqreturn_t irqc_irq_handler(int irq, void *dev_id)
 {
