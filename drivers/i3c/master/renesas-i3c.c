@@ -1406,7 +1406,7 @@ static int renesas_i3c_probe(struct platform_device *pdev)
 			return ret;
 
 		ret = devm_request_irq(&pdev->dev, ret, renesas_i3c_irqs[i].isr,
-				       0, renesas_i3c_irqs[i].desc, i3c);
+				       IRQF_NO_THREAD, renesas_i3c_irqs[i].desc, i3c);
 		if (ret)
 			return ret;
 	}
