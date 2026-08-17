@@ -1153,7 +1153,8 @@
 		};
 
 		pcie0_ep: pcie-ep@13400000 {
-			compatible = "renesas,rzg3e-pcie-ep";
+			compatible = "renesas,rzg3e-pcie-ep",
+				     "renesas,rzv2h-pcie-ep";
 			reg = <0x0 0x13400000 0x0 0x10000>,
 			      <0x0 0x30000000 0x0 0x04000000>,
 			      <0x0 0x34000000 0x0 0x04000000>;
