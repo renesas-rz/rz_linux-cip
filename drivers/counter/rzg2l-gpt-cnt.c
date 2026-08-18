@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Renesas RZ/G2L General PWM Timer (GPT) Counter driver */
 
+#include <linux/clk.h>
+#include <linux/reset.h>
 #include <linux/bitfield.h>
 #include <linux/counter.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/rzg2l-gpt.h>
+#include <linux/pm_runtime.h>
 
 static const char * const rzg2l_gpt_counter_modes[] = {
 	"mode-1", "mode-2A", "mode-2B", "mode-2C", "mode-3A",
@@ -55,6 +58,12 @@ struct rzg2l_gpt_counter {
 	struct device *dev;
 	u32 counter_mode[RZG2L_MAX_HW_CHANNELS];
 	u32 reset_counter[RZG2L_MAX_HW_CHANNELS];
+	struct clk *clk;
+	struct clk *clk_bus;
+	struct reset_control *rstc;
+	struct reset_control *rstc_s;
+	struct counter_device *counter;
+	u32 gtcnt_cache[RZG2L_MAX_HW_CHANNELS];
 };
 
 static int rzg2l_gpt_counter_check_enabled(struct rzg2l_gpt_counter *priv,
@@ -68,7 +77,7 @@ static void rzg2l_gpt_counter_hw_init(struct rzg2l_gpt_counter *priv,
 {
 	rzg2l_gpt_modify(priv->gpt, RZG2L_GTCR(ch), RZG2L_GTCR_TPCS, 0);
 	rzg2l_gpt_write(priv->gpt, RZG2L_GTPR(ch), RZG2L_GTPR_MAX_VALUE);
-	rzg2l_gpt_write(priv->gpt, RZG2L_GTCNT(ch), 0);
+	rzg2l_gpt_write(priv->gpt, RZG2L_GTCNT(ch), priv->gtcnt_cache[ch]);
 	rzg2l_gpt_modify(priv->gpt, RZG2L_GTIOR(ch), RZG2L_GTIOR_NFCSB,
 			 FIELD_PREP(RZG2L_GTIOR_NFCSB, RZG2L_GTIOR_NFCSx_P0_64));
 	rzg2l_gpt_write(priv->gpt, RZG2L_GTUPSR(ch), mode_set[priv->counter_mode[ch]].gtupsr);
@@ -80,6 +89,8 @@ static void rzg2l_gpt_counter_hw_init(struct rzg2l_gpt_counter *priv,
 	rzg2l_gpt_write(priv->gpt, RZG2L_GTCSR(ch),
 			reset_counter_mode_set[priv->reset_counter[ch]].gtcsr);
 	rzg2l_gpt_write(priv->gpt, RZG2L_GTPR(ch), BIT(31) - 1);
+	priv->gtcnt_cache[ch] = 0;
+	rzg2l_gpt_modify(priv->gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, RZG2L_GTCR_CST);
 }
 
 static void rzg2l_gpt_counter_disable(struct rzg2l_gpt_counter *priv,
@@ -168,7 +179,6 @@ static int rzg2l_gpt_enable_write(struct counter_device *counter,
 
 	priv->gpt->counter_enabled[ch] = true;
 	rzg2l_gpt_counter_hw_init(priv, ch);
-	rzg2l_gpt_modify(priv->gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, RZG2L_GTCR_CST);
 	dev_info(priv->dev, "Phase Counting enabled: ch%u\n", ch);
 
 	return 0;
@@ -309,9 +319,11 @@ static const struct counter_ops rzg2l_gpt_counter_ops = {
 static int rzg2l_gpt_counter_probe(struct platform_device *pdev)
 {
 	struct rzg2l_gpt *gpt = dev_get_drvdata(pdev->dev.parent);
+	struct device *dev = &pdev->dev;
 	struct counter_device *counter;
 	struct rzg2l_gpt_counter *priv;
 	unsigned int i;
+	int ret;
 
 	if (!gpt)
 		return -ENODEV;
@@ -323,6 +335,32 @@ static int rzg2l_gpt_counter_probe(struct platform_device *pdev)
 	priv = counter_priv(counter);
 	priv->gpt = gpt;
 	priv->dev = &pdev->dev;
+	priv->rstc = gpt->rstc;
+	priv->rstc_s = gpt->rstc_s;
+	priv->clk = gpt->clk;
+	priv->clk_bus = gpt->clk_bus;
+
+
+	ret = reset_control_deassert(priv->rstc);
+	if (ret)
+		return dev_err_probe(dev, ret, "Cannot deassert reset\n");
+
+	if (priv->rstc_s) {
+		ret = reset_control_deassert(priv->rstc_s);
+		if (ret)
+			return dev_err_probe(dev, ret, "Cannot deassert rst_s reset\n");
+	}
+
+	if (priv->clk_bus) {
+		ret = clk_prepare_enable(priv->clk_bus);
+		if (ret)
+			return dev_err_probe(dev, PTR_ERR(priv->clk_bus),
+						"Cannot enable bus clock\n");
+	}
+
+	ret = clk_prepare_enable(priv->clk);
+	if (ret)
+		return dev_err_probe(dev, PTR_ERR(priv->clk), "Cannot enable clock\n");
 
 	for (i = 0; i < gpt->max_hw_channels; i++) {
 		priv->counter_mode[i] = MODE_1;
@@ -340,6 +378,7 @@ static int rzg2l_gpt_counter_probe(struct platform_device *pdev)
 	counter->ops = &rzg2l_gpt_counter_ops;
 	counter->counts = rzg2l_gpt_counts;
 	counter->num_counts = gpt->max_hw_channels;
+	priv->counter = counter;
 
 	return devm_counter_add(&pdev->dev, counter);
 }
@@ -356,11 +395,60 @@ static void rzg2l_gpt_counter_remove(struct platform_device *pdev)
 		rzg2l_gpt_counter_disable(priv, ch);
 }
 
+static int rzg2l_gpt_counter_suspend(struct device *dev)
+{
+	struct rzg2l_gpt_counter *priv = dev_get_drvdata(dev);
+	struct counter_device *counter = priv->counter;
+	size_t num_counts = counter->num_counts;
+
+	for (int i = 0; i < num_counts; i++) {
+		if (priv->gpt->counter_enabled[i])
+			priv->gtcnt_cache[i] = rzg2l_gpt_read(priv->gpt, RZG2L_GTCNT(i));
+	}
+
+	clk_disable_unprepare(priv->clk_bus);
+	clk_disable_unprepare(priv->clk);
+	reset_control_assert(priv->rstc);
+	reset_control_assert(priv->rstc_s);
+
+	return 0;
+}
+
+static int rzg2l_gpt_counter_resume(struct device *dev)
+{
+	struct rzg2l_gpt_counter *priv = dev_get_drvdata(dev);
+	int ret;
+	struct counter_device *counter = priv->counter;
+	size_t num_counts = counter->num_counts;
+
+	ret = reset_control_deassert(priv->rstc);
+	if (ret)
+		return ret;
+	ret = reset_control_deassert(priv->rstc_s);
+	if (ret)
+		return ret;
+	ret = clk_prepare_enable(priv->clk);
+	if (ret)
+		return ret;
+	ret = clk_prepare_enable(priv->clk_bus);
+	if (ret)
+		return ret;
+	for (int i = 0; i < num_counts; i++) {
+		if (priv->gpt->counter_enabled[i])
+			rzg2l_gpt_counter_hw_init(priv, i);
+	}
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(rzg2l_gpt_counter_pm_ops, rzg2l_gpt_counter_suspend,
+				rzg2l_gpt_counter_resume);
+
 static struct platform_driver rzg2l_gpt_counter_driver = {
 	.probe = rzg2l_gpt_counter_probe,
 	.remove_new = rzg2l_gpt_counter_remove,
 	.driver = {
 		.name = "rzg2l-gpt-counter",
+		.pm = pm_sleep_ptr(&rzg2l_gpt_counter_pm_ops),
 	},
 };
 module_platform_driver(rzg2l_gpt_counter_driver);
