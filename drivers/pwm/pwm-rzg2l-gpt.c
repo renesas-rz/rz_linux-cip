@@ -39,6 +39,7 @@
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
+#include <linux/pm_runtime.h>
 #include <linux/irqchip/irq-renesas-rzv2h.h>
 #include <linux/mfd/rzg2l-gpt.h>
 
@@ -83,6 +84,11 @@ struct rzg2l_gpt_base_sysfs {
 	struct attribute_group group;
 };
 
+struct rzg2l_gpt_cache {
+	u32 gtior;
+	u32 gtintad;
+};
+
 struct rzg2l_gpt_chip {
 	struct pwm_chip *chip;
 	struct rzg2l_gpt *gpt;
@@ -95,6 +101,7 @@ struct rzg2l_gpt_chip {
 	DECLARE_BITMAP(poeg_gpt_link, RZG2L_MAX_POEG_GROUPS * RZG2L_MAX_HW_CHANNELS);
 	unsigned int irq_map[RZG2L_MAX_HW_CHANNELS][NR_IRQ_TYPE];
 	struct rz_gpt_pwm_channel channel_data[RZG2L_MAX_HW_CHANNELS];
+	struct rzg2l_gpt_cache hw_cache[RZG2L_MAX_HW_CHANNELS];
 	spinlock_t lock;
 	struct rzg2l_gpt_base_sysfs *base_sysfs;
 	unsigned int nbase;
@@ -1278,10 +1285,68 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int rzg2l_gpt_suspend(struct device *dev)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+	u32 ch;
+
+	for (ch = 0; ch < RZG2L_MAX_HW_CHANNELS; ch++) {
+		rzg2l_gpt->hw_cache[ch].gtintad = rzg2l_gpt_pwm_read(rzg2l_gpt, RZG2L_GTINTAD(ch));
+		rzg2l_gpt->hw_cache[ch].gtior = rzg2l_gpt_pwm_read(rzg2l_gpt, RZG2L_GTIOR(ch));
+	}
+
+	clk_disable_unprepare(rzg2l_gpt->clk_bus);
+	clk_disable_unprepare(rzg2l_gpt->clk);
+	reset_control_assert(rzg2l_gpt->rstc);
+	reset_control_assert(rzg2l_gpt->rstc_s);
+
+	return 0;
+}
+
+static int rzg2l_gpt_resume(struct device *dev)
+{
+	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
+	int ret;
+	u32 ch;
+
+	ret = reset_control_deassert(rzg2l_gpt->rstc);
+	if (ret)
+		return ret;
+	ret = reset_control_deassert(rzg2l_gpt->rstc_s);
+	if (ret)
+		return ret;
+	ret = clk_prepare_enable(rzg2l_gpt->clk);
+	if (ret)
+		return ret;
+	ret = clk_prepare_enable(rzg2l_gpt->clk_bus);
+	if (ret)
+		return ret;
+
+	for (ch = 0; ch < RZG2L_MAX_HW_CHANNELS; ch++) {
+		if (rzg2l_gpt->channel_data[ch].deadtime_first) {
+			rzg2l_gpt_mode_setting(rzg2l_gpt, ch);
+			rzg2l_gpt_pwm_write(rzg2l_gpt, RZG2L_GTDBU(ch),
+					    rzg2l_gpt->channel_data[ch].deadtime_first);
+			rzg2l_gpt_pwm_write(rzg2l_gpt, RZG2L_GTDBD(ch),
+						rzg2l_gpt->channel_data[ch].deadtime_second);
+
+		}
+		rzg2l_gpt_pwm_write(rzg2l_gpt, RZG2L_GTINTAD(ch),
+				    rzg2l_gpt->hw_cache[ch].gtintad);
+		rzg2l_gpt_pwm_write(rzg2l_gpt, RZG2L_GTIOR(ch),
+				    rzg2l_gpt->hw_cache[ch].gtior);
+	}
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(rzg2l_gpt_pm_ops, rzg2l_gpt_suspend, rzg2l_gpt_resume);
+
 static struct platform_driver rzg2l_gpt_driver = {
 	.probe = rzg2l_gpt_probe,
 	.driver = {
 		.name = "pwm-rzg2l-gpt",
+		.pm = pm_sleep_ptr(&rzg2l_gpt_pm_ops),
 	},
 };
 module_platform_driver(rzg2l_gpt_driver);
