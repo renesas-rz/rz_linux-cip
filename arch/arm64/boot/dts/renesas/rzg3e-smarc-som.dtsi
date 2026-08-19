@@ -624,6 +624,14 @@
 &xspi {
 	pinctrl-0 = <&xspi_pins>;
 	pinctrl-names = "default";
+
+	/*
+	 * AT25QL128A flash chip is capable of running at 133MHz
+	 * clock frequency. Set the clock frequency to the maximum 133MHz
+	 * supported by the RZ/G3E SoC
+	 */
+	assigned-clocks = <&cpg CPG_CORE R9A09G047_SPI_CLK_SPI>;
+	assigned-clock-rates = <133333334>;
 	status = "okay";
 
 	flash@0 {
@@ -631,7 +639,6 @@
 		reg = <0>;
 		vcc-supply = <&reg_1p8v>;
 		m25p,fast-read;
-		spi-max-frequency = <50000000>;
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
 
