@@ -71,6 +71,9 @@
 #define RSPI_SPBFCR_RXTRG_5	(7)
 
 #define RSPI_SPBFDR		0x22	/* Buffer Data Count Setting Register */
+#define RSPI_SPBFDR_TX_MASK	GENMASK(11, 8)
+#define RSPI_SPBFDR_RX_MASK	GENMASK(5, 0)
+#define RSPI_RZ_TX_FIFO_SIZE	8
 
 /* QSPI only */
 #define QSPI_SPBFCR		0x18	/* Buffer Control Register */
@@ -242,6 +245,18 @@ static u16 rspi_read16(const struct rspi_data *rspi, u16 offset)
 static u32 rspi_read32(const struct rspi_data *rspi, u16 offset)
 {
 	return ioread32(rspi->addr + offset);
+}
+
+static inline unsigned int rspi_rz_tx_bytes(struct rspi_data *rspi)
+{
+	return FIELD_GET(RSPI_SPBFDR_TX_MASK,
+			 rspi_read16(rspi, RSPI_SPBFDR));
+}
+
+static inline unsigned int rspi_rz_rx_bytes(struct rspi_data *rspi)
+{
+	return FIELD_GET(RSPI_SPBFDR_RX_MASK,
+			 rspi_read16(rspi, RSPI_SPBFDR));
 }
 
 static void rspi_write_data(const struct rspi_data *rspi, u16 data)
@@ -571,6 +586,70 @@ static void rspi_data_in_32(struct rspi_data *rspi, void *rx, int count)
 	buf_32[count] = rspi_read32(rspi, RSPI_SPDR);
 }
 
+static int rspi_rz_pio_transfer(struct rspi_data *rspi, const void *tx, void *rx,
+				unsigned int len)
+{
+	unsigned int bytes_per_word = rspi->bits_per_word / 8;
+	unsigned int words = len / bytes_per_word;
+	unsigned int tx_word = 0;
+	unsigned int rx_word = 0;
+	unsigned int available_words;
+	unsigned int words_to_xfer;
+	void (*tx_fifo)(struct rspi_data *rspi, const void *tx, int count);
+	void (*rx_fifo)(struct rspi_data *rspi, void *rx, int count);
+	int ret, i;
+
+	switch (rspi->bits_per_word) {
+	case 8:
+		tx_fifo = rspi_data_out_8;
+		rx_fifo = rspi_data_in_8;
+		break;
+	case 16:
+		tx_fifo = rspi_data_out_16;
+		rx_fifo = rspi_data_in_16;
+		break;
+	case 32:
+		tx_fifo = rspi_data_out_32;
+		rx_fifo = rspi_data_in_32;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	while ((tx && tx_word < words) || (rx && rx_word < words)) {
+		if (tx && tx_word < words) {
+			ret = rspi_wait_for_tx_empty(rspi);
+			if (ret < 0) {
+				dev_err(&rspi->ctlr->dev, "transmit timeout\n");
+				return ret;
+			}
+
+			available_words = (RSPI_RZ_TX_FIFO_SIZE -
+						   rspi_rz_tx_bytes(rspi)) /
+					  bytes_per_word;
+			words_to_xfer = min(words - tx_word, available_words);
+
+			for (i = 0; i < words_to_xfer; i++)
+				tx_fifo(rspi, tx, tx_word++);
+		}
+
+		if (rx && rx_word < words) {
+			ret = rspi_wait_for_rx_full(rspi);
+			if (ret < 0) {
+				dev_err(&rspi->ctlr->dev, "receive timeout\n");
+				return ret;
+			}
+
+			available_words = rspi_rz_rx_bytes(rspi) / bytes_per_word;
+			words_to_xfer = min(words - rx_word, available_words);
+
+			for (i = 0; i < words_to_xfer; i++)
+				rx_fifo(rspi, rx, rx_word++);
+		}
+	}
+
+	return 0;
+}
 
 static int rspi_pio_transfer(struct rspi_data *rspi, const void *tx, void *rx,
 			     unsigned int n)
@@ -892,10 +971,24 @@ static int rspi_rz_transfer_one(struct spi_controller *ctlr,
 				struct spi_transfer *xfer)
 {
 	struct rspi_data *rspi = spi_controller_get_devdata(ctlr);
+	int ret;
 
 	rspi_rz_receive_init(rspi);
 
-	return rspi_common_transfer(rspi, xfer);
+	xfer->effective_speed_hz = rspi->speed_hz;
+
+	ret = rspi_dma_check_then_transfer(rspi, xfer);
+	if (ret != -EAGAIN)
+		return ret;
+
+	ret = rspi_rz_pio_transfer(rspi, xfer->tx_buf, xfer->rx_buf, xfer->len);
+	if (ret < 0)
+		return ret;
+
+	/* Wait for the last transmission */
+	rspi_wait_for_tx_empty(rspi);
+
+	return 0;
 }
 
 static int qspi_trigger_transfer_out_in(struct rspi_data *rspi, const u8 *tx,
