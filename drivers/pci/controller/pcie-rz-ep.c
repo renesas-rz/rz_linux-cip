@@ -672,6 +672,16 @@ static int rz_pcie_ep_assert_intx(struct rz_pcie_endpoint *ep,
 		return ret;
 	}
 
+	usleep_range(1000, 1001);
+
+	/* SYS deassert INTX interrupt */
+	ret = rzg3s_sysc_config_func(ep->sysc, RZG3S_SYSC_FUNC_ID_INTX, 0,
+				     ep->channel);
+	if (ret) {
+		dev_err(pcie->dev, "Cannot deassert INTx interrupt\n");
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -697,9 +707,17 @@ static int rz_pcie_ep_assert_msi(struct rz_pcie_endpoint *ep,
 	if (!interrupt_num || interrupt_num > msi_count)
 		return -EINVAL;
 
+	ret = rzg3s_sysc_config_func(ep->sysc, RZG3S_SYSC_FUNC_ID_MSI2,
+				     interrupt_num - 1, ep->channel);
+	if (ret) {
+		dev_err(pcie->dev, "Cannot select MSI %u interrupt\n",
+			interrupt_num);
+		return ret;
+	}
+
 	/* SYS deassert MSI interrupt */
 	ret = rzg3s_sysc_config_func(ep->sysc, RZG3S_SYSC_FUNC_ID_MSI1, 0,
-				  ep->channel);
+				     ep->channel);
 	if (ret) {
 		dev_err(pcie->dev, "Cannot deassert MSI interrupt\n");
 		return ret;
@@ -707,7 +725,7 @@ static int rz_pcie_ep_assert_msi(struct rz_pcie_endpoint *ep,
 
 	/* SYS assert MSI interrupt */
 	ret = rzg3s_sysc_config_func(ep->sysc, RZG3S_SYSC_FUNC_ID_MSI1, 1,
-				  ep->channel);
+				     ep->channel);
 	if (ret) {
 		dev_err(pcie->dev, "Cannot assert MSI interrupt\n");
 		return ret;
@@ -879,6 +897,10 @@ static const struct rz_pcie_soc_data rzv2h_soc_data = {
 				.offset = 0x1004,
 				.mask = BIT(0),
 			},
+			[RZG3S_SYSC_FUNC_ID_MSI2] = {
+				.offset = 0x1008,
+				.mask = GENMASK(4, 0),
+			},
 			[RZG3S_SYSC_FUNC_ID_L1_ALLOW] = {
 				.offset = 0x1020,
 				.stride = 0x30,
@@ -909,6 +931,10 @@ static const struct rz_pcie_soc_data rzv2n_soc_data = {
 			[RZG3S_SYSC_FUNC_ID_MSI1] = {
 				.offset = 0x1004,
 				.mask = BIT(0),
+			},
+			[RZG3S_SYSC_FUNC_ID_MSI2] = {
+				.offset = 0x1008,
+				.mask = GENMASK(4, 0),
 			},
 			[RZG3S_SYSC_FUNC_ID_L1_ALLOW] = {
 				.offset = 0x1020,
@@ -945,6 +971,10 @@ static const struct rz_pcie_soc_data rzt2h_soc_data = {
 			[RZG3S_SYSC_FUNC_ID_MSI1] = {
 				.offset = 0x2004,
 				.mask = BIT(0),
+			},
+			[RZG3S_SYSC_FUNC_ID_MSI2] = {
+				.offset = 0x2008,
+				.mask = GENMASK(4, 0),
 			},
 			[RZG3S_SYSC_FUNC_ID_L1_ALLOW] = {
 				.offset = 0x2020,
