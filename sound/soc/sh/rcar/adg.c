@@ -427,7 +427,20 @@ static void rsnd_adg_set_spdif_clk(struct rsnd_mod *spdif_mod, u32 val)
 
 int rsnd_adg_spdif_clk_stop(struct rsnd_mod *spdif_mod)
 {
+	struct rsnd_priv *priv = rsnd_mod_to_priv(spdif_mod);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct clk *clk;
+	char name[16];
+
 	rsnd_adg_set_spdif_clk(spdif_mod, 0);
+
+	snprintf(name, 16, "%s.%s.%d", ADG_NAME, SPDIF_NAME, rsnd_mod_id(spdif_mod));
+
+	clk = devm_clk_get_optional(dev, name);
+	if (IS_ERR(clk))
+		dev_dbg(dev, "Not use %s\n", name);
+
+	clk_disable_unprepare(clk);
 
 	return 0;
 }
