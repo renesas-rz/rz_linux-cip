@@ -1932,10 +1932,8 @@ static int rzg2l_gpt_suspend(struct device *dev)
 	for (ch = 0; ch < RZG2L_MAX_HW_CHANNELS; ch++) {
 		struct rzg2l_gpt_cache *cache = &rzg2l_gpt->hw_cache[ch];
 
-		if (rzg2l_gpt->channel_request_count[ch]) {
-			cache->gtintad = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTINTAD(ch));
-			cache->gtior = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTIOR(ch));
-		}
+		cache->gtintad = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTINTAD(ch));
+		cache->gtior = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTIOR(ch));
 
 		if (rzg2l_gpt->counter_enabled[ch])
 			cache->gtcnt = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTCNT(ch));
@@ -1977,11 +1975,10 @@ static int rzg2l_gpt_resume(struct device *dev)
 				rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTDBD(ch),
 						    rzg2l_gpt->channel_data[ch].deadtime_second);
 			}
-			rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTINTAD(ch),
-					    rzg2l_gpt->hw_cache[ch].gtintad);
-			rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTIOR(ch),
-					    rzg2l_gpt->hw_cache[ch].gtior);
 		}
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTINTAD(ch), rzg2l_gpt->hw_cache[ch].gtintad);
+		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTIOR(ch), rzg2l_gpt->hw_cache[ch].gtior);
+
 		if (rzg2l_gpt->counter_enabled[ch])
 			rzg2l_gpt_counter_hw_init(rzg2l_gpt, ch);
 	}
