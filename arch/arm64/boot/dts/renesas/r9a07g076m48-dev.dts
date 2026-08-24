@@ -495,20 +495,15 @@
 #if (SEL_GPT_XSPI1)
 #if (!SEL_SPI_XSPI1)
 	xspi1_pins: xspi1 {
-		xspi1_clk {
-			pinmux = <RZT2_PORT_PINMUX(15, 6, 0x20)>; /* xSPI : XSPI1_CKP/P15_6 */
-		};
-
-		xspi1_data {
-			pinmux = <RZT2_PORT_PINMUX(16, 2, 0x20)>, /* xSPI : XSPI1_IO0/P16_2 */
-				 <RZT2_PORT_PINMUX(16, 3, 0x20)>, /* xSPI : XSPI1_IO1/P16_3 */
-				 <RZT2_PORT_PINMUX(16, 4, 0x20)>, /* xSPI : XSPI1_IO2/P16_4 */
-				 <RZT2_PORT_PINMUX(16, 5, 0x20)>; /* xSPI : XSPI1_IO3/P16_5 */
-		};
-
-		xspi1_cs {
-			pinmux = <RZT2_PORT_PINMUX(15, 7, 0x20)>; /* xSPI : XSPI1_CS0#/P15_7 */
-		};
+		pinmux = <RZT2_PORT_PINMUX(15, 6, 0x20)>, /* xSPI : XSPI1_CKP/P15_6 */
+			 <RZT2_PORT_PINMUX(15, 7, 0x20)>, /* xSPI : XSPI1_CS0#/P15_7 */
+			 <RZT2_PORT_PINMUX(16, 2, 0x20)>, /* xSPI : XSPI1_IO0/P16_2 */
+			 <RZT2_PORT_PINMUX(16, 3, 0x20)>, /* xSPI : XSPI1_IO1/P16_3 */
+			 <RZT2_PORT_PINMUX(16, 4, 0x20)>, /* xSPI : XSPI1_IO2/P16_4 */
+			 <RZT2_PORT_PINMUX(16, 5, 0x20)>; /* xSPI : XSPI1_IO3/P16_5 */
+		input-schmitt-enable;
+		slew-rate	= <1>;
+		drive-strength  = <2>;
 	};
 #endif
 #endif
@@ -767,8 +762,8 @@
 		reg = <0>;
 		m25p,fast-read;
 		spi-max-frequency = <50000000>;
-		spi-tx-bus-width = <1>;
-		spi-rx-bus-width = <1>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 
 		partitions {
 			compatible = "fixed-partitions";
