@@ -699,7 +699,7 @@ static int rspi_prepare_message(struct spi_controller *ctlr,
 	/* CMOS output mode and MOSI signal from previous transfer */
 	rspi->sppcr = 0;
 	if (spi->mode & SPI_LOOP)
-		rspi->sppcr |= SPPCR_SPLP;
+		rspi->sppcr |= SPPCR_SPLP2;
 
 	rspi->ops->set_config_register(rspi, rspi->bits_per_word);
 
