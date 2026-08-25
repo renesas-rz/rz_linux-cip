@@ -483,12 +483,14 @@
 			 <RZT2_PORT_PINMUX(10, 4, 0x0)>; /* Interrupt : IRQ10_4/P10_4 */
 	};
 
+#if (SEL_SPI_XSPI1)
 	spi0_pins: spi0 {
 		pinmux = <RZT2_PORT_PINMUX(16, 7, 0x1E)>, /* SPI : SPI_SSL00/P16_7 */
 			 <RZT2_PORT_PINMUX(16, 6, 0x1E)>, /* SPI : SPI_RSPCK0/P16_6 */
 			 <RZT2_PORT_PINMUX(16, 5, 0x1E)>, /* SPI : SPI_MOSI0/P16_5 */
 			 <RZT2_PORT_PINMUX(16, 4, 0x1E)>; /* SPI : SPI_MISO0/P16_4 */
 	};
+#endif
 
 #if (SEL_GPT_XSPI1)
 #if (!SEL_SPI_XSPI1)
