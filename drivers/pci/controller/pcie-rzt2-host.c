@@ -893,9 +893,13 @@ static irqreturn_t rzt2_pcie_msi_irq(int irq, void *data)
 
 	reg = rzt2_pci_read_reg(pcie, PCI_INTX_RCV_INTERRUPT_STATUS_REG);
 
-	msi_stat = rzt2_pci_read_reg(pcie, PCI_RC_MSIRCVSTAT(0));
-	if (!msi_stat)
+	if (!(reg & MSI_RECEIVE_INTERRUPT_STATUS))
 		return IRQ_NONE;
+
+	/* clear the MSI interrupt */
+	rzt2_pci_write_reg(pcie, MSI_RECEIVE_INTERRUPT_STATUS, PCI_INTX_RCV_INTERRUPT_STATUS_REG);
+
+	msi_stat = rzt2_pci_read_reg(pcie, PCI_RC_MSIRCVSTAT(0));
 
 	while (msi_stat) {
 		unsigned int index = find_first_bit(&msi_stat, 32);
