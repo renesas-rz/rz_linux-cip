@@ -21,6 +21,9 @@
  * The following switches should be set as follows for SCIF1:
  * - SW_CONFIG2:  ON
  * - SW_OPT_MUX4: ON
+ *
+ * SPDIF must be disabled when SCIF1 is used, as SPDIF shares the same
+ * pins with SCIF1_CTS# (PMOD1 pin1) and SCIF1_RTS# (PMOD1 pin4).
  */
 
 /dts-v1/;
@@ -44,5 +47,13 @@
 	pinctrl-0 = <&scif1_pins>;
 	uart-has-rtscts;
 	status = "okay";
+};
+
+&spdif {
+	status = "disabled";
+};
+
+&snd_rzg3s_spdif {
+	status = "disabled";
 };
 #endif
