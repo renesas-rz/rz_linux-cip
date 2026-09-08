@@ -54,6 +54,7 @@
 #define SPDIF_CBTX_BIT		(0x00000001)
 
 /* Ctrl bits		*/
+#define SPDIF_CKS_BIT		(0x10000000)
 #define SPDIF_PB_BIT		(0x04000000)
 #define SPDIF_RDE_BIT		(0x00200000)
 #define SPDIF_TDE_BIT		(0x00100000)
@@ -1421,6 +1422,25 @@ static int rz_spdif_rzv2h_clk_init(struct spdif_dev_data *spdif,
 	return 0;
 }
 
+static int rz_spdif_rzg3s_set_clk(struct spdif_dev_data *spdif,
+				   unsigned int rate, bool enable)
+{
+	if (enable) {
+		/*
+		 * On RZ/G3S, SPDIF supports 32 kHz, 44.1 kHz, and 48 kHz.
+		 * For 32 kHz and 48 kHz, the audio clock source must be clk2.
+		 * For 44.1 kHz, the audio clock source must be clk1.
+		 * Set SPDIF_CKS_BIT according to the hardware requirement.
+		 */
+		if (rate == 48000 || rate == 32000)
+			rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_CKS_BIT, SPDIF_CKS_BIT);
+		else
+			rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_CKS_BIT, 0);
+	}
+
+	return 0;
+}
+
 static int rz_spdif_rzv2h_set_clk(struct spdif_dev_data *spdif,
 				   unsigned int rate, bool enable)
 {
@@ -1585,6 +1605,7 @@ static SIMPLE_DEV_PM_OPS(rz_spdif_pm_ops, rz_spdif_suspend,
 
 static const struct rz_spdif_ops rzg3s_spdif_ops = {
 	.clk_init = rz_spdif_rzg3s_clk_init,
+	.set_clk = rz_spdif_rzg3s_set_clk,
 };
 
 static const struct rz_spdif_ops rzv2h_spdif_ops = {
