@@ -366,6 +366,10 @@ static const struct rzg2l_mod_clk r9a08g045_mod_clks[] = {
 					MSTOP(BUS_MCPU2, BIT(14))),
 	DEF_MOD("tsu_pclk",		R9A08G045_TSU_PCLK, R9A08G045_CLK_TSU, 0x5ac, 0,
 					MSTOP(BUS_MCPU2, BIT(15))),
+	DEF_MOD("pci_aclk",		R9A08G045_PCI_ACLK, R9A08G045_CLK_M0, 0x608, 0,
+					MSTOP(BUS_PERI_COM, BIT(10))),
+	DEF_MOD("pci_clkl1pm",		R9A08G045_PCI_CLKL1PM, R9A08G045_CLK_ZT, 0x608, 1,
+					MSTOP(BUS_PERI_COM, BIT(10))),
 	DEF_MOD("spdif_pclk",		R9A08G045_SPDIF_PCLK, R9A08G045_CLK_P0, 0x60c, 0,
 					MSTOP(BUS_MCPU3, BIT(6))),
 	DEF_MOD("i3c_pclk",		R9A08G045_I3C_PCLK, R9A08G045_CLK_TSU, 0x610, 0,
@@ -465,6 +469,10 @@ static const unsigned int r9a08g045_crit_resets[] = {
 	R9A08G045_DMAC_RST_ASYNC,
 };
 
+static const unsigned int r9a08g045_no_pm_mod_clks[] = {
+	MOD_CLK_BASE + R9A08G045_PCI_CLKL1PM,
+};
+
 const struct rzg2l_cpg_info r9a08g045_cpg_info = {
 	/* Core Clocks */
 	.core_clks = r9a08g045_core_clks,
@@ -480,6 +488,10 @@ const struct rzg2l_cpg_info r9a08g045_cpg_info = {
 	.mod_clks = r9a08g045_mod_clks,
 	.num_mod_clks = ARRAY_SIZE(r9a08g045_mod_clks),
 	.num_hw_mod_clks = R9A08G045_VBAT_BCLK + 1,
+
+	/* No PM modules Clocks */
+	.no_pm_mod_clks = r9a08g045_no_pm_mod_clks,
+	.num_no_pm_mod_clks = ARRAY_SIZE(r9a08g045_no_pm_mod_clks),
 
 	/* Resets */
 	.resets = r9a08g045_resets,
