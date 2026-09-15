@@ -56,6 +56,20 @@
 #define RTCA3_RYRAR_YR			GENMASK(7, 0)
 #define RTCA3_RYRAREN			0x1e
 
+/* For Binary Count Mode Registers */
+#define RTCA3_BCNT0			RTCA3_RSECCNT
+#define RTCA3_BCNT1			RTCA3_RMINCNT
+#define RTCA3_BCNT2			RTCA3_RHRCNT
+#define RTCA3_BCNT3			RTCA3_RWKCNT
+#define RTCA3_BCNT0AR			RTCA3_RSECAR
+#define RTCA3_BCNT1AR			RTCA3_RMINAR
+#define RTCA3_BCNT2AR			RTCA3_RHRAR
+#define RTCA3_BCNT3AR			RTCA3_RWKAR
+#define RTCA3_BCNT0AER			RTCA3_RDAYAR
+#define RTCA3_BCNT1AER			RTCA3_RMONAR
+#define RTCA3_BCNT2AER			RTCA3_RYRAR
+#define RTCA3_BCNT3AER			RTCA3_RYRAREN
+
 /* Alarm enable bit (for all alarm registers). */
 #define RTCA3_AR_ENB			BIT(7)
 
@@ -125,6 +139,9 @@ struct rtca3_ppb_per_cycle {
  * @clk: counter clock
  * @wakeup_irq: wakeup IRQ
  * @loses_power_on_suspend: RTC loses power on suspend-to-RAM
+ * @bcnt_mode: RTC operates in binary count mode
+ * @range_min: minimum supported time64_t value
+ * @range_max: maximum supported time64_t value
  */
 struct rtca3_priv {
 	void __iomem *base;
@@ -135,8 +152,11 @@ struct rtca3_priv {
 	spinlock_t lock;
 	struct rtca3_ppb_per_cycle ppb;
 	struct clk *clk;
+	time64_t range_min;
+	time64_t range_max;
 	int wakeup_irq;
 	bool loses_power_on_suspend;
+	bool bcnt_mode;
 };
 
 static void rtca3_byte_update_bits(struct rtca3_priv *priv, u8 off, u8 mask, u8 val)
@@ -255,39 +275,58 @@ static int rtca3_read_time(struct device *dev, struct rtc_time *tm)
 	if (!(tmp & RTCA3_RCR2_START))
 		return -EINVAL;
 
-	do {
-		/* Clear carry interrupt. */
-		rtca3_byte_update_bits(priv, RTCA3_RSR, RTCA3_RSR_CF, 0);
+	if (priv->bcnt_mode) {
+		u32 secs;
+		u8 trials2 = 0;
 
-		/* Read counters. */
-		sec = readb(priv->base + RTCA3_RSECCNT);
-		min = readb(priv->base + RTCA3_RMINCNT);
-		hour = readb(priv->base + RTCA3_RHRCNT);
-		wday = readb(priv->base + RTCA3_RWKCNT);
-		mday = readb(priv->base + RTCA3_RDAYCNT);
-		month = readb(priv->base + RTCA3_RMONCNT);
-		year = readw(priv->base + RTCA3_RYRCNT);
+		do {
+			rtca3_byte_update_bits(priv, RTCA3_RSR, RTCA3_RSR_CF, 0);
+			secs  = (u32)readb(priv->base + RTCA3_BCNT0);
+			secs |= (u32)readb(priv->base + RTCA3_BCNT1) << 8;
+			secs |= (u32)readb(priv->base + RTCA3_BCNT2) << 16;
+			secs |= (u32)readb(priv->base + RTCA3_BCNT3) << 24;
+			tmp = readb(priv->base + RTCA3_RSR);
+		} while ((tmp & RTCA3_RSR_CF) && ++trials2 < 5);
 
-		tmp = readb(priv->base + RTCA3_RSR);
+		if (trials2 >= 5)
+			return -ETIMEDOUT;
 
-		/*
-		 * We cannot generate carries due to reading 64Hz counter as
-		 * the driver doesn't implement carry, thus, carries will be
-		 * generated once per seconds. Add a timeout of 5 trials here
-		 * to avoid infinite loop, if any.
-		 */
-	} while ((tmp & RTCA3_RSR_CF) && ++trials < 5);
+		rtc_time64_to_tm((time64_t)secs, tm);
+	} else {
+		do {
+			/* Clear carry interrupt. */
+			rtca3_byte_update_bits(priv, RTCA3_RSR, RTCA3_RSR_CF, 0);
 
-	if (trials >= 5)
-		return -ETIMEDOUT;
+			/* Read counters. */
+			sec = readb(priv->base + RTCA3_RSECCNT);
+			min = readb(priv->base + RTCA3_RMINCNT);
+			hour = readb(priv->base + RTCA3_RHRCNT);
+			wday = readb(priv->base + RTCA3_RWKCNT);
+			mday = readb(priv->base + RTCA3_RDAYCNT);
+			month = readb(priv->base + RTCA3_RMONCNT);
+			year = readw(priv->base + RTCA3_RYRCNT);
 
-	tm->tm_sec = bcd2bin(FIELD_GET(RTCA3_RSECCNT_SEC, sec));
-	tm->tm_min = bcd2bin(FIELD_GET(RTCA3_RMINCNT_MIN, min));
-	tm->tm_hour = bcd2bin(FIELD_GET(RTCA3_RHRCNT_HR, hour));
-	tm->tm_wday = bcd2bin(FIELD_GET(RTCA3_RWKCNT_WK, wday));
-	tm->tm_mday = bcd2bin(FIELD_GET(RTCA3_RDAYCNT_DAY, mday));
-	tm->tm_mon = bcd2bin(FIELD_GET(RTCA3_RMONCNT_MONTH, month)) - 1;
-	tm->tm_year = rtca3_decode_year(RTCA3_RYRCNT_YEAR, year);
+			tmp = readb(priv->base + RTCA3_RSR);
+
+			/*
+			 * We cannot generate carries due to reading 64Hz counter as
+			 * the driver doesn't implement carry, thus, carries will be
+			 * generated once per seconds. Add a timeout of 5 trials here
+			 * to avoid infinite loop, if any.
+			 */
+		} while ((tmp & RTCA3_RSR_CF) && ++trials < 5);
+
+		if (trials >= 5)
+			return -ETIMEDOUT;
+
+		tm->tm_sec = bcd2bin(FIELD_GET(RTCA3_RSECCNT_SEC, sec));
+		tm->tm_min = bcd2bin(FIELD_GET(RTCA3_RMINCNT_MIN, min));
+		tm->tm_hour = bcd2bin(FIELD_GET(RTCA3_RHRCNT_HR, hour));
+		tm->tm_wday = bcd2bin(FIELD_GET(RTCA3_RWKCNT_WK, wday));
+		tm->tm_mday = bcd2bin(FIELD_GET(RTCA3_RDAYCNT_DAY, mday));
+		tm->tm_mon = bcd2bin(FIELD_GET(RTCA3_RMONCNT_MONTH, month)) - 1;
+		tm->tm_year = rtca3_decode_year(RTCA3_RYRCNT_YEAR, year);
+	}
 
 	return 0;
 }
@@ -305,17 +344,26 @@ static int __rtca3_set_time(struct rtca3_priv *priv, struct rtc_time *tm)
 	if (ret)
 		return ret;
 
-	/* Update time. */
-	writeb(bin2bcd(tm->tm_sec), priv->base + RTCA3_RSECCNT);
-	writeb(bin2bcd(tm->tm_min), priv->base + RTCA3_RMINCNT);
-	writeb(bin2bcd(tm->tm_hour), priv->base + RTCA3_RHRCNT);
-	writeb(bin2bcd(tm->tm_wday), priv->base + RTCA3_RWKCNT);
-	writeb(bin2bcd(tm->tm_mday), priv->base + RTCA3_RDAYCNT);
-	writeb(bin2bcd(tm->tm_mon + 1), priv->base + RTCA3_RMONCNT);
-	writew(bin2bcd(tm->tm_year % 100), priv->base + RTCA3_RYRCNT);
+	if (priv->bcnt_mode) {
+		u32 secs = (u32)rtc_tm_to_time64(tm);
 
-	/* Make sure we can read back the counters. */
-	rtca3_prepare_cntalrm_regs_for_read(priv, true);
+		writeb(secs & 0xff, priv->base + RTCA3_BCNT0);
+		writeb((secs >> 8) & 0xff, priv->base + RTCA3_BCNT1);
+		writeb((secs >> 16) & 0xff, priv->base + RTCA3_BCNT2);
+		writeb((secs >> 24) & 0xff, priv->base + RTCA3_BCNT3);
+	} else {
+		/* Calendar count mode: BCD-encoded calendar fields. */
+		writeb(bin2bcd(tm->tm_sec), priv->base + RTCA3_RSECCNT);
+		writeb(bin2bcd(tm->tm_min), priv->base + RTCA3_RMINCNT);
+		writeb(bin2bcd(tm->tm_hour), priv->base + RTCA3_RHRCNT);
+		writeb(bin2bcd(tm->tm_wday), priv->base + RTCA3_RWKCNT);
+		writeb(bin2bcd(tm->tm_mday), priv->base + RTCA3_RDAYCNT);
+		writeb(bin2bcd(tm->tm_mon + 1), priv->base + RTCA3_RMONCNT);
+		writew(bin2bcd(tm->tm_year % 100), priv->base + RTCA3_RYRCNT);
+
+		/* Make sure we can read back the counters. */
+		rtca3_prepare_cntalrm_regs_for_read(priv, true);
+	}
 
 	/* Start RTC. */
 	writeb(rcr2 | RTCA3_RCR2_START, priv->base + RTCA3_RCR2);
@@ -374,23 +422,34 @@ static int rtca3_read_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 
 	guard(spinlock_irqsave)(&priv->lock);
 
-	sec = readb(priv->base + RTCA3_RSECAR);
-	min = readb(priv->base + RTCA3_RMINAR);
-	hour = readb(priv->base + RTCA3_RHRAR);
-	wday = readb(priv->base + RTCA3_RWKAR);
-	mday = readb(priv->base + RTCA3_RDAYAR);
-	month = readb(priv->base + RTCA3_RMONAR);
-	year = readw(priv->base + RTCA3_RYRAR);
+	if (priv->bcnt_mode) {
+		u32 val;
 
-	tm->tm_sec = bcd2bin(FIELD_GET(RTCA3_RSECAR_SEC, sec));
-	tm->tm_min = bcd2bin(FIELD_GET(RTCA3_RMINAR_MIN, min));
-	tm->tm_hour = bcd2bin(FIELD_GET(RTCA3_RHRAR_HR, hour));
-	tm->tm_wday = bcd2bin(FIELD_GET(RTCA3_RWKAR_DAYW, wday));
-	tm->tm_mday = bcd2bin(FIELD_GET(RTCA3_RDAYAR_DATE, mday));
-	tm->tm_mon = bcd2bin(FIELD_GET(RTCA3_RMONAR_MON, month)) - 1;
-	tm->tm_year = rtca3_decode_year(RTCA3_RYRAR_YR, year);
+		val  = (u32)readb(priv->base + RTCA3_BCNT0AR);
+		val |= (u32)readb(priv->base + RTCA3_BCNT1AR) << 8;
+		val |= (u32)readb(priv->base + RTCA3_BCNT2AR) << 16;
+		val |= (u32)readb(priv->base + RTCA3_BCNT3AR) << 24;
+		rtc_time64_to_tm((time64_t)val, tm);
+		wkalrm->enabled = !!(readb(priv->base + RTCA3_RCR1) & RTCA3_RCR1_AIE);
+	} else {
+		sec = readb(priv->base + RTCA3_RSECAR);
+		min = readb(priv->base + RTCA3_RMINAR);
+		hour = readb(priv->base + RTCA3_RHRAR);
+		wday = readb(priv->base + RTCA3_RWKAR);
+		mday = readb(priv->base + RTCA3_RDAYAR);
+		month = readb(priv->base + RTCA3_RMONAR);
+		year = readw(priv->base + RTCA3_RYRAR);
 
-	wkalrm->enabled = !!(readb(priv->base + RTCA3_RCR1) & RTCA3_RCR1_AIE);
+		tm->tm_sec = bcd2bin(FIELD_GET(RTCA3_RSECAR_SEC, sec));
+		tm->tm_min = bcd2bin(FIELD_GET(RTCA3_RMINAR_MIN, min));
+		tm->tm_hour = bcd2bin(FIELD_GET(RTCA3_RHRAR_HR, hour));
+		tm->tm_wday = bcd2bin(FIELD_GET(RTCA3_RWKAR_DAYW, wday));
+		tm->tm_mday = bcd2bin(FIELD_GET(RTCA3_RDAYAR_DATE, mday));
+		tm->tm_mon = bcd2bin(FIELD_GET(RTCA3_RMONAR_MON, month)) - 1;
+		tm->tm_year = rtca3_decode_year(RTCA3_RYRAR_YR, year);
+
+		wkalrm->enabled = !!(readb(priv->base + RTCA3_RCR1) & RTCA3_RCR1_AIE);
+	}
 
 	return 0;
 }
@@ -418,18 +477,31 @@ static int rtca3_set_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 			return ret;
 
 		/* Set the time and enable the alarm. */
-		writeb(RTCA3_AR_ENB | bin2bcd(tm->tm_sec), priv->base + RTCA3_RSECAR);
-		writeb(RTCA3_AR_ENB | bin2bcd(tm->tm_min), priv->base + RTCA3_RMINAR);
-		writeb(RTCA3_AR_ENB | bin2bcd(tm->tm_hour), priv->base + RTCA3_RHRAR);
-		writeb(RTCA3_AR_ENB | bin2bcd(tm->tm_wday), priv->base + RTCA3_RWKAR);
-		writeb(RTCA3_AR_ENB | bin2bcd(tm->tm_mday), priv->base + RTCA3_RDAYAR);
-		writeb(RTCA3_AR_ENB | bin2bcd(tm->tm_mon + 1), priv->base + RTCA3_RMONAR);
+		if (priv->bcnt_mode) {
+			u32 secs = (u32)rtc_tm_to_time64(tm);
 
-		writew(bin2bcd(tm->tm_year % 100), priv->base + RTCA3_RYRAR);
-		writeb(RTCA3_AR_ENB, priv->base + RTCA3_RYRAREN);
+			writeb(secs & 0xff, priv->base + RTCA3_BCNT0AR);
+			writeb((secs >> 8)  & 0xff, priv->base + RTCA3_BCNT1AR);
+			writeb((secs >> 16) & 0xff, priv->base + RTCA3_BCNT2AR);
+			writeb((secs >> 24) & 0xff, priv->base + RTCA3_BCNT3AR);
+			writeb(0xff, priv->base + RTCA3_BCNT0AER);
+			writeb(0xff, priv->base + RTCA3_BCNT1AER);
+			writeb(0xff, priv->base + RTCA3_BCNT2AER);
+			writeb(0xff, priv->base + RTCA3_BCNT3AER);
+		} else {
+			writeb(RTCA3_AR_ENB | bin2bcd(tm->tm_sec), priv->base + RTCA3_RSECAR);
+			writeb(RTCA3_AR_ENB | bin2bcd(tm->tm_min), priv->base + RTCA3_RMINAR);
+			writeb(RTCA3_AR_ENB | bin2bcd(tm->tm_hour), priv->base + RTCA3_RHRAR);
+			writeb(RTCA3_AR_ENB | bin2bcd(tm->tm_wday), priv->base + RTCA3_RWKAR);
+			writeb(RTCA3_AR_ENB | bin2bcd(tm->tm_mday), priv->base + RTCA3_RDAYAR);
+			writeb(RTCA3_AR_ENB | bin2bcd(tm->tm_mon + 1), priv->base + RTCA3_RMONAR);
 
-		/* Make sure we can read back the counters. */
-		rtca3_prepare_cntalrm_regs_for_read(priv, false);
+			writew(bin2bcd(tm->tm_year % 100), priv->base + RTCA3_RYRAR);
+			writeb(RTCA3_AR_ENB, priv->base + RTCA3_RYRAREN);
+
+			/* Make sure we can read back the counters. */
+			rtca3_prepare_cntalrm_regs_for_read(priv, false);
+		}
 
 		/* Need to wait for 2 * 1/64 periodic interrupts to be generated. */
 		atomic_set(&priv->alrm_sstep, RTCA3_ALRM_SSTEP_INIT);
@@ -592,8 +664,13 @@ static int rtca3_initial_setup(struct clk *clk, struct rtca3_priv *priv)
 
 	sleep_us = DIV_ROUND_UP_ULL(1000000ULL, osc32k_rate) * 6;
 
-	priv->ppb.ten_sec = DIV_ROUND_CLOSEST_ULL(1000000000ULL, (osc32k_rate * 10));
-	priv->ppb.sixty_sec = DIV_ROUND_CLOSEST_ULL(1000000000ULL, (osc32k_rate * 60));
+	if (priv->bcnt_mode) {
+		priv->ppb.ten_sec = DIV_ROUND_CLOSEST_ULL(1000000000ULL, (osc32k_rate * 8));
+		priv->ppb.sixty_sec = DIV_ROUND_CLOSEST_ULL(1000000000ULL, (osc32k_rate * 32));
+	} else {
+		priv->ppb.ten_sec = DIV_ROUND_CLOSEST_ULL(1000000000ULL, (osc32k_rate * 10));
+		priv->ppb.sixty_sec = DIV_ROUND_CLOSEST_ULL(1000000000ULL, (osc32k_rate * 60));
+	}
 
 	/*
 	 * According to HW manual (section 22.4.2. Clock and count mode setting procedure)
@@ -603,9 +680,17 @@ static int rtca3_initial_setup(struct clk *clk, struct rtca3_priv *priv)
 
 	mask = RTCA3_RCR2_START | RTCA3_RCR2_HR24;
 	val = readb(priv->base + RTCA3_RCR2);
-	/* Only disable the interrupts if already started in 24 hours and calendar count mode. */
-	if ((val & mask) == mask) {
-		/* Disable all interrupts. */
+
+	if (priv->bcnt_mode) {
+		if ((val & RTCA3_RCR2_START) && (val & RTCA3_RCR2_CNTMD)) {
+			mask = RTCA3_RCR1_AIE | RTCA3_RCR1_CIE | RTCA3_RCR1_PIE;
+			return rtca3_alarm_irq_set_helper(priv, mask, 0);
+		}
+	} else if (((val & mask) == mask) && !(val & RTCA3_RCR2_CNTMD)) {
+		/*
+		 * RTC is already running in calendar mode (HR24, START set,
+		 * CNTMD clear). Disable all interrupts and skip reconfigure.
+		 */
 		mask = RTCA3_RCR1_AIE | RTCA3_RCR1_CIE | RTCA3_RCR1_PIE;
 		return rtca3_alarm_irq_set_helper(priv, mask, 0);
 	}
@@ -655,6 +740,10 @@ static int rtca3_initial_setup(struct clk *clk, struct rtca3_priv *priv)
 	/* Start the RTC and enable automatic time error adjustment. */
 	mask = RTCA3_RCR2_START | RTCA3_RCR2_AADJE;
 	val |= RTCA3_RCR2_START | RTCA3_RCR2_AADJE;
+	if (priv->bcnt_mode)
+		val |= RTCA3_RCR2_CNTMD;
+	else
+		val &= ~RTCA3_RCR2_CNTMD;
 	writeb(val, priv->base + RTCA3_RCR2);
 	ret = readb_poll_timeout(priv->base + RTCA3_RCR2, tmp, ((tmp & mask) == mask),
 				 10, RTCA3_START_TIMEOUT_US);
@@ -682,12 +771,11 @@ static int rtca3_initial_setup(struct clk *clk, struct rtca3_priv *priv)
 	 * So, use the system time for the initial setup.
 	 */
 	ktime_get_real_ts64(&stime);
-	if ((stime.tv_sec < RTC_TIMESTAMP_BEGIN_2000) ||
-	    (stime.tv_sec > RTC_TIMESTAMP_END_2099))
-		rtc_time64_to_tm(RTC_TIMESTAMP_BEGIN_2000, &tm);
+	if (stime.tv_sec < priv->range_min || stime.tv_sec > priv->range_max)
+		rtc_time64_to_tm(priv->range_min, &tm);
 	else
 		rtc_time64_to_tm(stime.tv_sec, &tm);
-	
+
 	return __rtca3_set_time(priv, &tm);
 }
 
@@ -796,6 +884,16 @@ static int rtca3_probe(struct platform_device *pdev)
 	atomic_set(&priv->alrm_sstep, RTCA3_ALRM_SSTEP_DONE);
 	init_completion(&priv->set_alarm_completion);
 
+	priv->bcnt_mode = of_property_read_bool(dev->of_node, "renesas,bcnt-mode");
+
+	if (priv->bcnt_mode) {
+		priv->range_min = 0;
+		priv->range_max = U32_MAX;
+	} else {
+		priv->range_min = RTC_TIMESTAMP_BEGIN_2000;
+		priv->range_max = RTC_TIMESTAMP_END_2099;
+	}
+
 	ret = rtca3_initial_setup(clk, priv);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to setup the RTC!\n");
@@ -814,8 +912,8 @@ static int rtca3_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->rtc_dev);
 
 	priv->rtc_dev->ops = &rtca3_ops;
-	priv->rtc_dev->range_min = RTC_TIMESTAMP_BEGIN_2000;
-	priv->rtc_dev->range_max = RTC_TIMESTAMP_END_2099;
+	priv->rtc_dev->range_min = priv->range_min;
+	priv->rtc_dev->range_max = priv->range_max;
 
 	return devm_rtc_register_device(priv->rtc_dev);
 }
