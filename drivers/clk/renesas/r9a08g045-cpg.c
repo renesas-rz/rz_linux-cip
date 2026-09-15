@@ -66,7 +66,7 @@
 
 enum clk_ids {
 	/* Core Clock Outputs exported to DT */
-	LAST_DT_CORE_CLK = R9A08G045_SWD,
+	LAST_DT_CORE_CLK = R9A08G045_SPI_CLK_SPI,
 
 	/* External Input Clocks */
 	CLK_EXTAL,
@@ -185,6 +185,7 @@ static const struct cpg_core_clk r9a08g045_core_clks[] = {
 		    dtable_1_32, 400000000UL, 200000000UL, CLK_SET_RATE_PARENT,
 		    rzg3s_cpg_div_clk_notifier),
 	DEF_FIXED("SPI1", R9A08G045_CLK_SPI1, R9A08G045_CLK_SPI0, 1, 2),
+	DEF_FIXED("spi_clk_spi", R9A08G045_SPI_CLK_SPI, CLK_PLL3_DIV6, 1, 2),
 	DEF_FIXED(".sd0_div4", CLK_SD0_DIV4, R9A08G045_CLK_SD0, 1, 4),
 	DEF_FIXED(".sd1_div4", CLK_SD1_DIV4, R9A08G045_CLK_SD1, 1, 4),
 	DEF_FIXED(".sd2_div4", CLK_SD2_DIV4, R9A08G045_CLK_SD2, 1, 4),
