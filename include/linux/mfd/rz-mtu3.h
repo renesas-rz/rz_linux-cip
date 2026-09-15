@@ -200,6 +200,7 @@ struct rz_mtu3_channel {
  * @clk: MTU3 module clock
  * @rz_mtu3_channel: HW channels
  * @priv_data: MTU3 core driver private data
+ * @rstc: MTU3 reset control, shared with subdevices for S2R support
  */
 struct rz_mtu3 {
 	struct clk *clk;
@@ -207,6 +208,7 @@ struct rz_mtu3 {
 	struct platform_device *pdev;
 
 	void *priv_data;
+	struct reset_control *rstc;
 };
 
 static inline bool rz_mtu3_request_channel(struct rz_mtu3_channel *ch)

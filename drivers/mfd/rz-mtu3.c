@@ -417,9 +417,12 @@ static int rz_mtu3_probe(struct platform_device *pdev)
 		}
 	}
 
-	rstc = devm_reset_control_get_optional_exclusive_deasserted(dev, NULL);
-	if (IS_ERR(rstc))
+	rstc = devm_reset_control_get_optional_shared(dev, NULL);
+	if (IS_ERR(rstc)) {
+		dev_err(dev, "cannot get reset control\n");
 		return PTR_ERR(rstc);
+	}
+	ddata->rstc = rstc;
 
 	ddata->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(ddata->clk))
