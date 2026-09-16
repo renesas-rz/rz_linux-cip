@@ -101,6 +101,9 @@ rgb-to-hdmi-out {
 		adi,input-colorspace = "rgb";
 		adi,input-clock = "1x";
 
+		interrupt-parent = <&pinctrl>;
+		interrupts = <RZG3E_GPIO(4, 4) IRQ_TYPE_EDGE_FALLING>;
+
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
