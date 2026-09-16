@@ -36,7 +36,19 @@
 #define ICU_ERR_INT_START			(ICU_CA55_INT_LAST + 1)
 #define ICU_ERR_INT_COUNT			1
 #define ICU_ERR_INT_LAST			(ICU_ERR_INT_START + ICU_ERR_INT_COUNT - 1)
-#define ICU_NUM_IRQ				(ICU_ERR_INT_LAST + 1)
+#define ICU_GPT_START				(ICU_ERR_INT_LAST + 1)
+#define ICU_GPT_COUNT				4
+#define ICU_GPT_LAST				(ICU_GPT_START + ICU_GPT_COUNT - 1)
+#define ICU_NUM_DT_IRQ				(ICU_GPT_LAST + 1)
+
+
+/* GPT Error Interrupt Status Control for RZ/G3E RZ/V2H and RZ/V2N*/
+#define GPT_MAX_CHANNELS			2
+#define ICU_GPT_OVF_COUNT			8
+#define ICU_GPT_OVF_VIRT_START			ICU_NUM_DT_IRQ
+#define ICU_GPT_OVF_VIRT_LAST			(ICU_GPT_OVF_VIRT_START + \
+						(GPT_MAX_CHANNELS * ICU_GPT_OVF_COUNT) - 1)
+#define ICU_NUM_IRQ				(ICU_GPT_OVF_VIRT_LAST + 1)
 
 /* Registers */
 #define ICU_NSCNT				0x00
@@ -113,6 +125,9 @@
 #define ICU_NUM_BE				4
 #define ICU_NUM_A55ERR				4
 
+/*GPT Error Interrupt*/
+#define ICU_ERINTA55CTL_GPT_OVF_MASK(ch)	((ch) ? GENMASK(17, 10) : GENMASK(25, 18))
+
 /**
  * struct rzv2h_irqc_reg_cache - registers cache (necessary for suspend/resume)
  * @nitsr: ICU_NITSR register
@@ -172,6 +187,7 @@ static struct rzv2h_icu_priv {
 	void __iomem			*base;
 	struct irq_fwspec		fwspec[ICU_NUM_IRQ];
 	raw_spinlock_t			lock;
+	struct irq_domain		*domain;
 	const struct rzv2h_hw_info	*info;
 	struct rzv2h_irqc_reg_cache	cache;
 } *rzv2h_icu_data;
@@ -668,6 +684,36 @@ static const struct irq_chip rzv2h_icu_swpe_err_chip = {
 				  IRQCHIP_SKIP_SET_WAKE,
 };
 
+static const struct irq_chip rzv2h_icu_gpt_err_chip = {
+	.name			= "rzv2h-icu",
+	.irq_eoi		= irq_chip_eoi_parent,
+	.irq_mask		= irq_chip_mask_parent,
+	.irq_unmask		= irq_chip_unmask_parent,
+	.irq_disable		= irq_chip_disable_parent,
+	.irq_enable		= irq_chip_enable_parent,
+	.irq_get_irqchip_state	= irq_chip_get_parent_state,
+	.irq_set_irqchip_state	= irq_chip_set_parent_state,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
+	.irq_set_type		= irq_chip_set_type_parent,
+	.irq_set_affinity	= irq_chip_set_affinity_parent,
+	.flags			= IRQCHIP_MASK_ON_SUSPEND |
+				  IRQCHIP_SET_TYPE_MASKED |
+				  IRQCHIP_SKIP_SET_WAKE,
+};
+static int rzv2h_icu_map(struct irq_domain *domain, unsigned int irq, irq_hw_number_t hwirq)
+{
+	struct rzv2h_icu_priv *priv = domain->host_data;
+
+	 /* Only map the virtual GPT OVF sub-IRQs via .map() */
+	if (hwirq < ICU_GPT_OVF_VIRT_START || hwirq > ICU_GPT_OVF_VIRT_LAST)
+		return -EINVAL;
+
+	irq_set_chip_data(irq, priv);
+	irq_set_chip_and_handler(irq, &dummy_irq_chip, handle_simple_irq);
+
+	return 0;
+}
+
 #define hwirq_within(hwirq, which)	((hwirq) >= which##_START && (hwirq) <= which##_LAST)
 
 static int rzv2h_icu_alloc(struct irq_domain *domain, unsigned int virq, unsigned int nr_irqs,
@@ -703,6 +749,7 @@ static int rzv2h_icu_alloc(struct irq_domain *domain, unsigned int virq, unsigne
 		chip = &rzv2h_icu_swint_chip;
 	} else if (hwirq_within(hwirq, ICU_ERR_INT)) {
 		chip = &rzv2h_icu_swpe_err_chip;
+		chip = &rzv2h_icu_gpt_err_chip;
 	} else {
 		chip = &rzv2h_icu_nmi_chip;
 	}
@@ -718,6 +765,7 @@ static int rzv2h_icu_alloc(struct irq_domain *domain, unsigned int virq, unsigne
 }
 
 static const struct irq_domain_ops rzv2h_icu_domain_ops = {
+	.map		= rzv2h_icu_map,
 	.alloc		= rzv2h_icu_alloc,
 	.free		= irq_domain_free_irqs_common,
 	.translate	= irq_domain_translate_twocell,
@@ -729,7 +777,7 @@ static int rzv2h_icu_parse_interrupts(struct rzv2h_icu_priv *priv, struct device
 	unsigned int i;
 	int ret;
 
-	for (i = 0; i < ICU_NUM_IRQ; i++) {
+	for (i = 0; i < ICU_NUM_DT_IRQ; i++) {
 		ret = of_irq_parse_one(np, i, &map);
 		if (ret)
 			return ret;
@@ -745,7 +793,7 @@ static irqreturn_t rzv2h_icu_error_irq(int irq, void *data)
 	struct rzv2h_icu_priv *priv = data;
 	const struct rzv2h_hw_info *hw_info = priv->info;
 	void __iomem *base = priv->base;
-	unsigned int k;
+	unsigned int k, bit;
 	u32 st;
 
 	/* 1) Bus errors (BEISR0..3) */
@@ -770,9 +818,37 @@ static irqreturn_t rzv2h_icu_error_irq(int irq, void *data)
 
 	/* 3) IP/CA55 error interrupt status (ERINTA55CTL0..3) */
 	for (k = 0; k < ICU_NUM_A55ERR; k++) {
+		unsigned long gpt_gtciv;
 		st = readl(base + ICU_ERINTA55CTL(k));
 		if (!st)
 			continue;
+		switch (k) {
+			case 0:		/* ERINTA55CTL0 */
+				break;
+			case 1:		/* ERINTA55CTL1 */
+				gpt_gtciv = FIELD_GET(ICU_ERINTA55CTL_GPT_OVF_MASK(0), st);
+				break;
+			case 2:		/* ERINTA55CTL2 */
+				gpt_gtciv = FIELD_GET(ICU_ERINTA55CTL_GPT_OVF_MASK(1), st);
+				break;
+			case 3:		/* ERINTA55CTL3 */
+				break;
+		}
+
+		if (gpt_gtciv) {
+			for_each_set_bit(bit, &gpt_gtciv, ICU_GPT_OVF_COUNT) {
+				unsigned int gpt_ch = k == 1 ? 0 : 1;
+				unsigned int hwirq;
+				unsigned int virq;
+
+				hwirq = ICU_GPT_OVF_VIRT_START + (gpt_ch * ICU_GPT_OVF_COUNT) + bit;
+				virq = irq_find_mapping(priv->domain, hwirq);
+				if (virq)
+					generic_handle_irq(virq);
+			}
+			writel_relaxed(0xffffffff, base + ICU_ERINTA55CRL(k));
+			continue;
+		}
 
 		/* there is no relation with status bits so clear all the interrupts */
 		writel_relaxed(0xffffffff, base + ICU_ERINTA55CRL(k));
@@ -789,6 +865,26 @@ static irqreturn_t rzv2h_icu_swint_irq(int irq, void *data)
 	pr_info("SWINT interrupt for CA55 core %u\n", cpu);
 	return IRQ_HANDLED;
 }
+
+int rzv2h_icu_gpt_irq_mapping(struct device_node *node, unsigned int ovf_idx,
+				unsigned int channel_id)
+{
+	struct irq_domain *domain;
+	unsigned int hwirq;
+
+	domain = irq_find_host(node);
+	if (!domain)
+		return -ENODEV;
+
+	if (channel_id >= GPT_MAX_CHANNELS || ovf_idx >= ICU_GPT_OVF_COUNT)
+		return -EINVAL;
+
+	hwirq = ICU_GPT_OVF_VIRT_START + (channel_id * ICU_GPT_OVF_COUNT) + ovf_idx;
+
+	/* Virtual IRQ: create mapping via domain .map() */
+	return irq_create_mapping(domain, hwirq);
+}
+EXPORT_SYMBOL_GPL(rzv2h_icu_gpt_irq_mapping);
 
 static int rzv2h_icu_setup_irqs(struct platform_device *pdev, struct irq_domain *irq_domain)
 {
@@ -898,6 +994,7 @@ static int rzv2h_icu_probe_common(struct platform_device *pdev, struct device_no
 		goto pm_put;
 	}
 
+	rzv2h_icu_data->domain = irq_domain;
 	rzv2h_icu_data->info = hw_info;
 
 	register_syscore_ops(&rzv2h_irqc_syscore_ops);
