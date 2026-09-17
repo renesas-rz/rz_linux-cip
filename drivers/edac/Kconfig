@@ -564,5 +564,11 @@ config EDAC_VERSAL
 	  Support injecting both correctable and uncorrectable errors
 	  for debugging purposes.
 
+config EDAC_RZG2L
+	tristate "RZG2L ECC Support"
+	depends on ARCH_RZG2L
+	help
+	  Support for error detection and correction on the Renesas RZ/G2L,
+	  RZ/G2LC, RZ/G2UL and RZ/V2L.
 
 endif # EDAC
