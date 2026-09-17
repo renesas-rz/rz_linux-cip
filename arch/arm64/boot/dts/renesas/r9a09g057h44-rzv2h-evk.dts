@@ -91,6 +91,7 @@
 		mmc1 = &sdhi1;
 		rtc0 = &rtc;
 		serial0 = &scif;
+		gpt0 = &gpt0;
 #if (SEL_CAN0_HEADER == RSCI_HEADER)
 		serial1 = &rsci4;
 #endif
