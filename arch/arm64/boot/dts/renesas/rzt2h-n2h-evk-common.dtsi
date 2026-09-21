@@ -788,7 +788,7 @@
 	status = "okay";
 
 	assigned-clocks = <&cpg CPG_CORE R9A09G077_XSPI_CLK0>;
-	assigned-clock-rates = <50000000>;
+	assigned-clock-rates = <133333334>;
 
 	flash@0 {
 		compatible = "jedec,spi-nor";
@@ -801,7 +801,6 @@
 		 */
 		spi-tx-bus-width = <1>;
 		spi-rx-bus-width = <1>;
-		spi-max-frequency = <50000000>;
 
 		partitions {
 			compatible = "fixed-partitions";
@@ -834,7 +833,7 @@
 	status = "okay";
 
 	assigned-clocks = <&cpg CPG_CORE R9A09G077_XSPI_CLK1>;
-	assigned-clock-rates = <50000000>;
+	assigned-clock-rates = <133333334>;
 
 	flash@0 {
 		compatible = "jedec,spi-nor";
@@ -843,7 +842,6 @@
 		m25p,fast-read;
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
-		spi-max-frequency = <50000000>;
 
 		partitions {
 			compatible = "fixed-partitions";
