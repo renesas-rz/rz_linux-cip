@@ -5,6 +5,7 @@
  * Copyright (C) 2025 Renesas Electronics Corp.
  */
 
+#include <dt-bindings/clock/renesas,r9a09g077-cpg-mssr.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/net/mscc-phy-vsc8531.h>
@@ -22,6 +23,8 @@
 		serial0 = &sci0;
 		serial1 = &sci1;
 		serial2 = &sci3;
+		spi0 = &xspi0;
+		spi1 = &xspi1;
 	};
 
 	chosen {
@@ -608,51 +611,43 @@
 #endif
 #endif
 
-	xspi0_pins: xspi0 {
-		xspi0_clk {
-			pinmux = <RZT2H_PORT_PINMUX(5, 1, 0x1C)>, /* XSPI0_CKP */
-				 <RZT2H_PORT_PINMUX(5, 2, 0x1C)>; /* XSPI0_CKN */
-		};
-
-		xspi0_data {
-			pinmux = <RZT2H_PORT_PINMUX(5, 6, 0x1C)>, /* XSPI0_IO0 */
-				 <RZT2H_PORT_PINMUX(5, 7, 0x1C)>, /* XSPI0_IO1 */
-				 <RZT2H_PORT_PINMUX(6, 0, 0x1C)>, /* XSPI0_IO2 */
-				 <RZT2H_PORT_PINMUX(6, 1, 0x1C)>, /* XSPI0_IO3 */
-				 <RZT2H_PORT_PINMUX(6, 2, 0x1C)>, /* XSPI0_IO4 */
-				 <RZT2H_PORT_PINMUX(6, 3, 0x1C)>, /* XSPI0_IO5 */
-				 <RZT2H_PORT_PINMUX(6, 4, 0x1C)>, /* XSPI0_IO6 */
-				 <RZT2H_PORT_PINMUX(6, 5, 0x1C)>; /* XSPI0_IO7 */
-		};
-
-		xspi0_cs {
-			pinmux = <RZT2H_PORT_PINMUX(5, 3, 0x1C)>; /* XSPI0_CS0 */
-		};
-
-		xspi0_rst {
-			pinmux = <RZT2H_PORT_PINMUX(6, 6, 0x1C)>; /* XSPI0_RESET0 */
-		};
-
-		xspi0_ds {
-			pinmux = <RZT2H_PORT_PINMUX(5, 5, 0x1C)>; /* XSPI0_DS */
+	xspi0_pins: xspi0-group {
+		ctrl-data-pins {
+			pinmux = <RZT2H_PORT_PINMUX(5, 1, 0x1c)>, /* XSPI0_CKP */
+				 <RZT2H_PORT_PINMUX(5, 3, 0x1c)>, /* XSPI0_CS0 */
+				 <RZT2H_PORT_PINMUX(5, 5, 0x1c)>, /* XSPI0_DS */
+				 <RZT2H_PORT_PINMUX(5, 6, 0x1c)>, /* XSPI0_IO0 */
+				 <RZT2H_PORT_PINMUX(5, 7, 0x1c)>, /* XSPI0_IO1 */
+				 <RZT2H_PORT_PINMUX(6, 0, 0x1c)>, /* XSPI0_IO2 */
+				 <RZT2H_PORT_PINMUX(6, 1, 0x1c)>, /* XSPI0_IO3 */
+				 <RZT2H_PORT_PINMUX(6, 2, 0x1c)>, /* XSPI0_IO4 */
+				 <RZT2H_PORT_PINMUX(6, 3, 0x1c)>, /* XSPI0_IO5 */
+				 <RZT2H_PORT_PINMUX(6, 4, 0x1c)>, /* XSPI0_IO6 */
+				 <RZT2H_PORT_PINMUX(6, 5, 0x1c)>, /* XSPI0_IO7 */
+				 <RZT2H_PORT_PINMUX(6, 6, 0x1c)>; /* XSPI0_RESET0 */
+			drive-strength-microamp = <9000>;
+			input-schmitt-disable;
+			slew-rate = <1>;
 		};
 	};
 
-	xspi1_pins: xspi1 {
-		xspi1_clk {
-			pinmux = <RZT2H_PORT_PINMUX(1, 0, 0x1C)>; /* XSPI1_CKP */
-		};
-
-		xspi1_data {
-			pinmux = <RZT2H_PORT_PINMUX(1, 4, 0x1C)>, /* XSPI1_IO0 */
-				 <RZT2H_PORT_PINMUX(1, 5, 0x1C)>, /* XSPI1_IO1 */
-				 <RZT2H_PORT_PINMUX(1, 6, 0x1C)>, /* XSPI1_IO2 */
-				 <RZT2H_PORT_PINMUX(1, 7, 0x1C)>; /* XSPI1_IO3 */
-		};
-
-		xspi1_cs {
-			pinmux = <RZT2H_PORT_PINMUX(1, 1, 0x1C)>; /* XSPI1_CS0 */
-		};
+	/*
+	 * XSPI1 Pin Configuration:
+	 * ------------------------
+	 * Signal     | Pin      | RZ/T2H (SW1)  | RZ/N2H (DSW2)
+	 * -----------|----------|---------------|---------------
+	 * ALL        | Multiple | 6: ON         | 6: ON
+	 */
+	xspi1_pins: xspi1-pins {
+		pinmux = <RZT2H_PORT_PINMUX(1, 0, 0x1c)>, /* XSPI1_CKP */
+			 <RZT2H_PORT_PINMUX(1, 1, 0x1c)>, /* XSPI1_CS0 */
+			 <RZT2H_PORT_PINMUX(1, 4, 0x1c)>, /* XSPI1_IO0 */
+			 <RZT2H_PORT_PINMUX(1, 5, 0x1c)>, /* XSPI1_IO1 */
+			 <RZT2H_PORT_PINMUX(1, 6, 0x1c)>, /* XSPI1_IO2 */
+			 <RZT2H_PORT_PINMUX(1, 7, 0x1c)>; /* XSPI1_IO3 */
+		drive-strength-microamp = <9000>;
+		input-schmitt-enable;
+		slew-rate = <1>;
 	};
 };
 
@@ -790,20 +785,23 @@
 &xspi0 {
 	pinctrl-0 = <&xspi0_pins>;
 	pinctrl-names = "default";
-
 	status = "okay";
+
+	assigned-clocks = <&cpg CPG_CORE R9A09G077_XSPI_CLK0>;
+	assigned-clock-rates = <50000000>;
 
 	flash@0 {
 		compatible = "jedec,spi-nor";
 		reg = <0>;
+		vcc-supply = <&reg_3p3v>;
 		m25p,fast-read;
-		spi-max-frequency = <50000000>;
 		/*
 		 * Configure for 1-bit mode to prevent the BootROM from failing
 		 * to load the first-stage bootloader following a watchdog reset.
 		 */
 		spi-tx-bus-width = <1>;
 		spi-rx-bus-width = <1>;
+		spi-max-frequency = <50000000>;
 
 		partitions {
 			compatible = "fixed-partitions";
@@ -823,8 +821,8 @@
 			};
 
 			partition@800000 {
-				label = "test-area-0";
-				reg = <0x800000 0x03800000>;
+				label = "user-0";
+				reg = <0x800000 0x003800000>;
 			};
 		};
 	};
@@ -833,16 +831,19 @@
 &xspi1 {
 	pinctrl-0 = <&xspi1_pins>;
 	pinctrl-names = "default";
-
 	status = "okay";
 
+	assigned-clocks = <&cpg CPG_CORE R9A09G077_XSPI_CLK1>;
+	assigned-clock-rates = <50000000>;
+
 	flash@0 {
-		compatible = "atmel,at25sf128a", "jedec,spi-nor";
+		compatible = "jedec,spi-nor";
 		reg = <0>;
+		vcc-supply = <&reg_3p3v>;
 		m25p,fast-read;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 		spi-max-frequency = <50000000>;
-		spi-tx-bus-width = <1>;
-		spi-rx-bus-width = <1>;
 
 		partitions {
 			compatible = "fixed-partitions";
@@ -852,18 +853,16 @@
 			partition@0 {
 				label = "bl2-1";
 				reg = <0x00000000 0x00060000>;
-				read-only;
 			};
 
 			partition@60000 {
 				label = "fip-1";
 				reg = <0x00060000 0x007a0000>;
-				read-only;
 			};
 
 			partition@800000 {
-				label = "test-area-1";
-				reg = <0x00800000 0x00800000>;
+				label = "user-1";
+				reg = <0x800000 0x800000>;
 			};
 		};
 	};
