@@ -805,7 +805,7 @@ static const struct rzg2l_cru_info rzv2h_cru_info = {
 	.max_width = 4095,
 	.max_height = 4095,
 	.image_conv = ICnIPMC_C0,
-	.has_stride = true,
+	.stride_align = 128,
 	.regs = rzg3e_cru_regs,
 	.irq_handler = rzg3e_cru_irq,
 	.enable_interrupts = rzg3e_cru_enable_interrupts,
@@ -815,17 +815,17 @@ static const struct rzg2l_cru_info rzv2h_cru_info = {
 };
 
 static const struct rzg2l_cru_info rzv2n_cru_info = {
-       .cru_type = RZV2H_CRU_TYPE,
-       .max_width = 4095,
-       .max_height = 4095,
-       .image_conv = ICnIPMC_C0,
-       .has_stride = true,
-       .regs = rzg3e_cru_regs,
-       .irq_handler = rzg3e_cru_irq,
-       .enable_interrupts = rzg3e_cru_enable_interrupts,
-       .disable_interrupts = rzg3e_cru_disable_interrupts,
-       .fifo_empty = rzg3e_fifo_empty,
-       .max_cru_channels = 2,
+	.cru_type = RZV2H_CRU_TYPE,
+	.max_width = 4095,
+	.max_height = 4095,
+	.image_conv = ICnIPMC_C0,
+	.stride_align = 128,
+	.regs = rzg3e_cru_regs,
+	.irq_handler = rzg3e_cru_irq,
+	.enable_interrupts = rzg3e_cru_enable_interrupts,
+	.disable_interrupts = rzg3e_cru_disable_interrupts,
+	.fifo_empty = rzg3e_fifo_empty,
+	.max_cru_channels = 2,
 };
 
 static const u16 rzg2l_cru_regs[] = {
