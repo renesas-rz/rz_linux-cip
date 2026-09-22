@@ -157,6 +157,7 @@ struct spdif_dev_data {
 	/* clock */
 	unsigned long audio_clk_1;
 	unsigned long audio_clk_2;
+	int clk_refcount;
 
 	struct device *adg_dev;
 	int spdif_id;
@@ -283,11 +284,10 @@ static int rz_spdif_stop(struct spdif_dev_data *spdif, struct rz_spdif_stream *s
 		dmaengine_terminate_async(strm->dma_ch);
 
 	/* Disable SPDIF to idle state */
-	if (rz_spdif_is_stream_running(&spdif->playback)) {
+	if (strm == &spdif->playback) {
 		rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_TME_BIT, 0);
 		rz_spdif_wait_stat(spdif, SPDIF_TIS_BIT, true);
-	}
-	if (rz_spdif_is_stream_running(&spdif->capture)) {
+	} else {
 		rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_RME_BIT, 0);
 		rz_spdif_wait_stat(spdif, SPDIF_RIS_BIT, true);
 	}
@@ -327,7 +327,7 @@ static int rz_spdif_start(struct spdif_dev_data *spdif, struct rz_spdif_stream *
 	if (!spdif->is_dma)
 		rz_spdif_pio_init(spdif, strm);
 
-	if (rz_spdif_is_stream_running(&spdif->playback)) {
+	if (strm == &spdif->playback) {
 		/* Enable transmitter module */
 		rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_TME_BIT, SPDIF_TME_BIT);
 		ret = rz_spdif_wait_stat(spdif, SPDIF_TIS_BIT, false);
@@ -335,8 +335,7 @@ static int rz_spdif_start(struct spdif_dev_data *spdif, struct rz_spdif_stream *
 			rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_TME_BIT, 0);
 			return ret;
 		}
-	}
-	if (rz_spdif_is_stream_running(&spdif->capture)) {
+	} else {
 		/* Enable receiver module */
 		rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_RME_BIT, SPDIF_RME_BIT);
 		ret = rz_spdif_wait_stat(spdif, SPDIF_RIS_BIT, false);
@@ -371,7 +370,7 @@ static int rz_spdif_irq(struct spdif_dev_data *spdif,
 			struct rz_spdif_stream *strm, int enable)
 {
 	if (enable) {
-		if (rz_spdif_is_stream_running(&spdif->playback)) {
+		if (strm == &spdif->playback) {
 			/* Channel status information */
 			rz_spdif_reg_writel(spdif, SPDIF_TLCS, spdif->spdout.s_buf[SPDIF_CH1]);
 			rz_spdif_reg_writel(spdif, SPDIF_TRCS, spdif->spdout.s_buf[SPDIF_CH2]);
@@ -393,8 +392,7 @@ static int rz_spdif_irq(struct spdif_dev_data *spdif,
 			} else
 				/* Enable transmitter interrupt */
 				rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_TCBI_BIT, SPDIF_TCBI_BIT);
-		}
-		if (rz_spdif_is_stream_running(&spdif->capture)) {
+		} else {
 			/* Enable interrupt (Channel status full) */
 			rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_RCSI_BIT, SPDIF_RCSI_BIT);
 
@@ -412,7 +410,7 @@ static int rz_spdif_irq(struct spdif_dev_data *spdif,
 				rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_RCBI_BIT, SPDIF_RCBI_BIT);
 		}
 	} else {
-		if (rz_spdif_is_stream_running(&spdif->playback)) {
+		if (strm == &spdif->playback) {
 			/* Disable error interrupt */
 			rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_TEIE_BIT | SPDIF_ABUI_BIT, 0);
 
@@ -420,8 +418,7 @@ static int rz_spdif_irq(struct spdif_dev_data *spdif,
 			rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_TCBI_BIT | SPDIF_TUII_BIT, 0);
 			/* Disable DMA transmitter */
 			rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_TDE_BIT, 0);
-		}
-		if (rz_spdif_is_stream_running(&spdif->capture)) {
+		} else {
 			/* Disable error interrupt */
 			rz_spdif_bset(spdif, SPDIF_CTRL, SPDIF_REIE_BIT | SPDIF_ABOI_BIT, 0);
 
@@ -487,6 +484,37 @@ dai_trigger_end:
 	return ret;
 }
 
+
+static int rz_spdif_clk_get(struct spdif_dev_data *spdif)
+{
+	int ret = 0;
+
+	if (spdif->clk_refcount > 0) {
+		spdif->clk_refcount++;
+		return 0;
+	}
+
+	if (spdif->soc_data->ops && spdif->soc_data->ops->set_clk) {
+		ret = spdif->soc_data->ops->set_clk(spdif, spdif->rate, true);
+		if (ret)
+			return ret;
+	}
+
+	spdif->clk_refcount++;
+
+	return 0;
+}
+
+static void rz_spdif_clk_put(struct spdif_dev_data *spdif)
+{
+	if (spdif->clk_refcount <= 0)
+		return;
+
+	if (--spdif->clk_refcount == 0)
+		if (spdif->soc_data->ops && spdif->soc_data->ops->set_clk)
+			spdif->soc_data->ops->set_clk(spdif, spdif->rate, false);
+}
+
 static int rz_spdif_dai_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params,
 				  struct snd_soc_dai *dai)
@@ -504,7 +532,7 @@ static int rz_spdif_dai_hw_params(struct snd_pcm_substream *substream,
 		return -EIO;
 	}
 
-	ret = spdif->soc_data->ops->set_clk(spdif, spdif->rate, true);
+	ret = rz_spdif_clk_get(spdif);
 	if (ret)
 		return ret;
 
@@ -583,7 +611,7 @@ static int rz_spdif_dai_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 
 err_disable_clk:
-	spdif->soc_data->ops->set_clk(spdif, spdif->rate, false);
+	rz_spdif_clk_put(spdif);
 
 	return ret;
 }
@@ -593,13 +621,8 @@ static int rz_spdif_dai_hw_free(struct snd_pcm_substream *substream,
 {
 	struct spdif_dev_data *spdif = snd_soc_dai_get_drvdata(dai);
 	struct rz_spdif_stream *strm = rz_spdif_stream_get(spdif, substream);
-	int ret;
 
-	if (spdif->soc_data->ops && spdif->soc_data->ops->set_clk) {
-		ret = spdif->soc_data->ops->set_clk(spdif, spdif->rate, false);
-		if (ret)
-			return ret;
-	}
+	rz_spdif_clk_put(spdif);
 
 	if (spdif->is_dma && strm->dma_ch) {
 		dmaengine_terminate_sync(strm->dma_ch);
