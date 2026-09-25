@@ -490,7 +490,7 @@
 		};
 
 		irqc: interrupt-controller@11050000 {
-			compatible = "renesas,r9a08g045-irqc", "renesas,rzg2l-irqc";
+			compatible = "renesas,r9a08g045-irqc", "renesas,rzg2l-irqc", "syscon";
 			#interrupt-cells = <2>;
 			#address-cells = <0>;
 			interrupt-controller;
