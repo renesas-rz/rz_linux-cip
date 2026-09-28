@@ -20,6 +20,7 @@ properties:
               - renesas,r9a07g043-sci     # RZ/G2UL and RZ/Five
               - renesas,r9a07g044-sci     # RZ/G2{L,LC}
               - renesas,r9a07g054-sci     # RZ/V2L
+              - renesas,r9a08g045-sci     # RZ/G3S
           - const: renesas,sci            # generic SCI compatible UART
 
       - items:
@@ -71,6 +72,7 @@ if:
           - renesas,r9a07g043-sci
           - renesas,r9a07g044-sci
           - renesas,r9a07g054-sci
+          - renesas,r9a08g045-sci
 then:
   properties:
     resets:
