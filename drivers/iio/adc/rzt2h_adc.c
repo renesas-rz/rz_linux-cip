@@ -71,6 +71,7 @@ struct rzt2h_adc {
 	void __iomem *base;
 	struct device *dev;
 	struct reset_control *rstc;
+	phys_addr_t phys_base;
 	struct completion completion;
 	/* lock to protect against multiple access to the device */
 	struct mutex lock;
@@ -288,6 +289,7 @@ static int rzt2h_adc_probe(struct platform_device *pdev)
 	struct rzt2h_adc *adc;
 	const struct rzt2h_adc_data *data;
 	struct rzt2h_adc_sysc *sysc;
+	struct resource *res;
 	int ret;
 
 	data = device_get_match_data(dev);
@@ -333,9 +335,11 @@ static int rzt2h_adc_probe(struct platform_device *pdev)
 					     "failed to get sysc regmap\n");
 	}
 
-	adc->base = devm_platform_ioremap_resource(pdev, 0);
+	adc->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(adc->base))
 		return PTR_ERR(adc->base);
+
+	adc->phys_base = res->start;
 
 	adc->rstc = devm_reset_control_get_optional_shared(dev, NULL);
 	if (IS_ERR(adc->rstc))
