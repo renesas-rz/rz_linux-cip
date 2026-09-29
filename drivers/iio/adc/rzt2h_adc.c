@@ -79,6 +79,8 @@ struct rzt2h_adc {
 	unsigned int num_channels;
 	const struct rzt2h_adc_data *data;
 	struct rzt2h_adc_sysc *sysc;
+
+	int irq;
 };
 
 struct rzt2h_adc_ops {
@@ -286,7 +288,7 @@ static int rzt2h_adc_probe(struct platform_device *pdev)
 	struct rzt2h_adc *adc;
 	const struct rzt2h_adc_data *data;
 	struct rzt2h_adc_sysc *sysc;
-	int ret, irq;
+	int ret;
 
 	data = device_get_match_data(dev);
 	if (!data)
@@ -358,11 +360,11 @@ static int rzt2h_adc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	irq = platform_get_irq_byname(pdev, "adi");
-	if (irq < 0)
-		return irq;
+	adc->irq = platform_get_irq_byname(pdev, "adi");
+	if (adc->irq < 0)
+		return adc->irq;
 
-	ret = devm_request_irq(dev, irq, rzt2h_adc_isr, 0, dev_name(dev), adc);
+	ret = devm_request_irq(dev, adc->irq, rzt2h_adc_isr, 0, dev_name(dev), adc);
 	if (ret)
 		return ret;
 
