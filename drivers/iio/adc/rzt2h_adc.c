@@ -77,7 +77,6 @@ struct rzt2h_adc {
 
 	const struct iio_chan_spec *channels;
 	unsigned int num_channels;
-	unsigned int max_channels;
 	const struct rzt2h_adc_data *data;
 	struct rzt2h_adc_sysc *sysc;
 };
@@ -245,7 +244,6 @@ static int rzt2h_adc_parse_properties(struct rzt2h_adc *adc)
 {
 	const struct rzt2h_adc_data *data = adc->data;
 	struct iio_chan_spec *chan_array;
-	unsigned int i;
 	int ret;
 
 	ret = devm_iio_adc_device_alloc_chaninfo_se(adc->dev,
@@ -257,10 +255,6 @@ static int rzt2h_adc_parse_properties(struct rzt2h_adc *adc)
 
 	adc->num_channels = ret;
 	adc->channels = chan_array;
-
-	for (i = 0; i < adc->num_channels; i++)
-		if (chan_array[i].channel + 1 > data->max_channels)
-			adc->max_channels = chan_array[i].channel + 1;
 
 	return 0;
 }
