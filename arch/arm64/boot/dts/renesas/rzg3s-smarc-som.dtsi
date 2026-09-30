@@ -302,6 +302,16 @@
 		};
 	};
 
+	i3c_pins: i3c {
+		pins = "I3C_SDA", "I3C_SCL";
+#if SW_CONFIG4 == SW_ON
+		power-source = <1200>;
+#else
+		power-source = <1800>;
+#endif
+		input-enable;
+	};
+
 	sdhi0_pins: sd0 {
 		data {
 			pins = "SD0_DATA0", "SD0_DATA1", "SD0_DATA2", "SD0_DATA3";
@@ -469,5 +479,13 @@
 };
 
 &ostm7 {
+	status = "okay";
+};
+
+&i3c {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i3c_pins>;
+	i2c-scl-hz = <400000>;
+	i3c-scl-hz = <3000000>;
 	status = "okay";
 };
