@@ -2127,6 +2127,14 @@
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
+
+		edac: edac@80300000 {
+			compatible = "renesas,r9a09g087-edac",
+				     "renesas,r9a09g077-edac";
+			reg = <0 0x80300000 0 0x10000>;
+			interrupts = <GIC_SPI 826 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "ecc_irq";
+		};
 	};
 
 	stmmac_axi_setup: stmmac-axi-config {
