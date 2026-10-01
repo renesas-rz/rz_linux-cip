@@ -308,6 +308,10 @@
 			clocks = <&cpg CPG_MOD 263>,
 				 <&cpg CPG_MOD 264>;
 			clock-names = "pclk", "adclk";
+			dmas =  <&dmac0 0x44c8>, <&dmac1 0x44c8>,
+				<&dmac2 0x44c8>, <&dmac3 0x44c8>,
+				<&dmac4 0x44c8>;
+			dma-names = "rx", "rx", "rx", "rx", "rx";
 			resets =  <&cpg 246>;
 			reset-names = "adrst-n";
 			power-domains = <&cpg>;
