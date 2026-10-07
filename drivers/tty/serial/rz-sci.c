@@ -1392,6 +1392,9 @@ static int sci_init_single(struct platform_device *dev,
 	if (res == NULL)
 		return -ENOMEM;
 
+	if (port->mapbase != res->start)
+		port->membase = NULL;
+
 	port->mapbase = res->start;
 	sci_port->reg_size = resource_size(res);
 
