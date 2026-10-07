@@ -498,7 +498,7 @@
 		reg = <0x1a 0x0 0x0>;
 #endif
 
-		clocks = <&snd_rzv2n>;
+		clocks = <&snd_rzv2n 0>;
 		clock-names = "mclk";
 
 		dlg,micbias1-lvl = <2500>;
@@ -1122,8 +1122,8 @@
 	status = "okay";
 
 	/* audio_clkout provider */
-	#clock-cells = <0>;
-	clock-frequency = <11289600>;
+	#clock-cells = <1>;
+	clock-frequency = <11289600 6144000>;
 
 	/* Multi DAI */
 	#sound-dai-cells = <1>;
