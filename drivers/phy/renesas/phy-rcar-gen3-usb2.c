@@ -1135,9 +1135,16 @@ static int rcar_gen3_phy_usb2_vbus_regulator_get_exclusive_enable(struct rcar_ge
 			return ret;
 	}
 
-	if (regulator_is_enabled(channel->vbus))
+	if (regulator_is_enabled(channel->vbus)) {
+		/*
+		 * The internal regulator is enabled above only so that the regulator
+		 * core holds a reference to it. Do not drive VBUS until the port's
+		 * role is known; rcar_gen3_enable_vbus_ctrl() switches it from then on.
+		 */
+		regulator_hardware_enable(channel->vbus, false);
 		return devm_add_action_or_reset(dev, rcar_gen3_phy_usb2_vbus_disable_action,
 						channel->vbus);
+	}
 
 	return 0;
 }
