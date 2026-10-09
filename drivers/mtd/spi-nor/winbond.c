@@ -43,7 +43,7 @@ static const struct spi_nor_fixups w25q128_fixups = {
 };
 
 static int
-w25q256_post_bfpt_fixups(struct spi_nor *nor,
+winbond_4b_opcodes_post_bfpt_fixups(struct spi_nor *nor,
 			 const struct sfdp_parameter_header *bfpt_header,
 			 const struct sfdp_bfpt *bfpt)
 {
@@ -54,6 +54,9 @@ w25q256_post_bfpt_fixups(struct spi_nor *nor,
 	 * table.
 	 * To differentiate between W25Q256JV and W25Q256FV check SFDP header
 	 * version: only JV has JESD216A compliant structure (version 5).
+	 *
+	 * Other Winbond parts with the same JESD216A behavior can reuse this
+	 * fixup. Ex: W25M512JW
 	 */
 	if (bfpt_header->major == SFDP_JESD216_MAJOR &&
 	    bfpt_header->minor == SFDP_JESD216A_MINOR)
@@ -62,8 +65,8 @@ w25q256_post_bfpt_fixups(struct spi_nor *nor,
 	return 0;
 }
 
-static const struct spi_nor_fixups w25q256_fixups = {
-	.post_bfpt = w25q256_post_bfpt_fixups,
+static const struct spi_nor_fixups winbond_4b_opcodes_fixups = {
+	.post_bfpt = winbond_4b_opcodes_post_bfpt_fixups,
 };
 
 static const struct flash_info winbond_nor_parts[] = {
@@ -139,7 +142,7 @@ static const struct flash_info winbond_nor_parts[] = {
 		.name = "w25q256",
 		.size = SZ_32M,
 		.no_sfdp_flags = SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ,
-		.fixups = &w25q256_fixups,
+		.fixups = &winbond_4b_opcodes_fixups,
 	}, {
 		.id = SNOR_ID(0xef, 0x40, 0x20),
 		.name = "w25q512jvq",
@@ -225,6 +228,7 @@ static const struct flash_info winbond_nor_parts[] = {
 		.name = "w25m512jw",
 		.size = SZ_64M,
 		.no_sfdp_flags = SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ,
+		.fixups = &winbond_4b_opcodes_fixups,
 	}, {
 		.id = SNOR_ID(0xef, 0x71, 0x19),
 		.name = "w25m512jv",
