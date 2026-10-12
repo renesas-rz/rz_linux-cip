@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * PCIe endpoint driver for Renesas RZ Series SoCs
- *  Copyright (c) 2025 Renesas Electronics Europe GmbH
+ * Copyright (c) 2025 Renesas Electronics Europe GmbH
  */
 
 #include <linux/delay.h>
@@ -57,6 +57,7 @@ struct rz_pcie_window_config {
 
 struct rz_pcie_func_config {
 	struct rz_pcie_window_config bar_win[PCI_STD_NUM_BARS];
+	const struct pci_epc_features features;
 };
 
 struct rz_pcie_soc_data {
@@ -96,7 +97,7 @@ struct rz_pcie_endpoint {
 	phys_addr_t			*ob_mapped_addr;
 	struct pci_epc_mem_window	*ob_window;
 	u8				max_functions;
-	unsigned long			*ib_window_map;
+	unsigned long			*ib_window_map[RZ_EPC_MAX_FUNCTIONS];
 	u32				num_ib_windows;
 	u32				num_ob_windows;
 	int				channel;
@@ -109,22 +110,22 @@ struct rz_pcie_endpoint {
 };
 
 /* Static Function */
-static void rz_write_conf_ep(struct rz_pcie *pcie, u32 data, int where)
+static void rz_write_conf_ep(struct rz_pcie *pcie, u32 data, int where, u8 fn)
 {
 	writel_relaxed(RZG3S_PCI_PERM_CFG_HWINIT_EN,
 		       pcie->base + RZG3S_PCI_PERM);
-	writel_relaxed(data, pcie->base_cfg + where);
+	writel_relaxed(data, pcie->base_cfg + RZ_PCI_EP_TYPE0_CFG(where, fn));
 	writel_relaxed(0, pcie->base + RZG3S_PCI_PERM);
 }
 
 static u32 rz_read_conf_ep(struct rz_pcie *pcie, int where, u8 fn)
 {
-	return readl_relaxed(pcie->base_cfg + where);
+	return readl_relaxed(pcie->base_cfg + RZ_PCI_EP_TYPE0_CFG(where, fn));
 }
 
 static void rz_pcie_set_outbound_ep(struct rz_pcie *pcie, int win,
 				    phys_addr_t cpu_addr, u64 pci_addr,
-				    size_t size)
+				    size_t size, u8 fn)
 {
 	u64 mask;
 
@@ -137,39 +138,44 @@ static void rz_pcie_set_outbound_ep(struct rz_pcie *pcie, int win,
 	mask = roundup_pow_of_two(size) - 1;
 
 	/* Set PCIe window mask */
-	writel_relaxed(lower_32_bits(mask), pcie->base + RZG3S_PCI_PWMASKL(win));
-	writel_relaxed(upper_32_bits(mask), pcie->base + RZG3S_PCI_PWMASKU(win));
+	writel_relaxed(lower_32_bits(mask), pcie->base +
+		       RZ_PCI_EP_AXI_CFG(RZG3S_PCI_PWMASKL(win), fn));
+	writel_relaxed(upper_32_bits(mask), pcie->base +
+		       RZ_PCI_EP_AXI_CFG(RZG3S_PCI_PWMASKU(win), fn));
 
 	/* Set PCIe destination */
-	writel_relaxed(lower_32_bits(pci_addr), pcie->base + RZG3S_PCI_PDESTL(win));
-	writel_relaxed(upper_32_bits(pci_addr), pcie->base + RZG3S_PCI_PDESTU(win));
+	writel_relaxed(lower_32_bits(pci_addr), pcie->base +
+		       RZ_PCI_EP_AXI_CFG(RZG3S_PCI_PDESTL(win), fn));
+	writel_relaxed(upper_32_bits(pci_addr), pcie->base +
+		       RZ_PCI_EP_AXI_CFG(RZG3S_PCI_PDESTU(win), fn));
 
 	/* Set PCIe window base */
 	writel_relaxed(lower_32_bits(cpu_addr) | RZG3S_PCI_PWBASEL_ENA,
-		       pcie->base + RZG3S_PCI_PWBASEL(win));
-	writel_relaxed(upper_32_bits(cpu_addr), pcie->base + RZG3S_PCI_PWBASEU(win));
+		       pcie->base + RZ_PCI_EP_AXI_CFG(RZG3S_PCI_PWBASEL(win), fn));
+	writel_relaxed(upper_32_bits(cpu_addr), pcie->base +
+		       RZ_PCI_EP_AXI_CFG(RZG3S_PCI_PWBASEU(win), fn));
 }
 
 static void rz_pcie_set_inbound_ep(struct rz_pcie *pcie, u64 cpu_addr,
 				   u64 pci_addr, u64 mask, u8 idx, u8 fn)
 {
 	/* Set CPU window base address */
-	writel_relaxed(lower_32_bits(cpu_addr),
-		       pcie->base + RZG3S_PCI_ADESTL(idx));
-	writel_relaxed(upper_32_bits(cpu_addr),
-		       pcie->base + RZG3S_PCI_ADESTU(idx));
+	writel_relaxed(lower_32_bits(cpu_addr), pcie->base +
+		       RZ_PCI_EP_AXI_CFG(RZG3S_PCI_ADESTL(idx), fn));
+	writel_relaxed(upper_32_bits(cpu_addr), pcie->base +
+		       RZ_PCI_EP_AXI_CFG(RZG3S_PCI_ADESTU(idx), fn));
 
 	/* Set window size */
-	writel_relaxed(lower_32_bits(mask),
-		       pcie->base + RZG3S_PCI_AWMASKL(idx));
-	writel_relaxed(upper_32_bits(mask),
-		       pcie->base + RZG3S_PCI_AWMASKU(idx));
+	writel_relaxed(lower_32_bits(mask), pcie->base +
+		       RZ_PCI_EP_AXI_CFG(RZG3S_PCI_AWMASKL(idx), fn));
+	writel_relaxed(upper_32_bits(mask), pcie->base +
+		       RZ_PCI_EP_AXI_CFG(RZG3S_PCI_AWMASKU(idx), fn));
 
 	/* Set PCIe window base address and enable the window */
 	writel_relaxed(lower_32_bits(pci_addr) | RZG3S_PCI_AWBASEL_WIN_ENA,
-		       pcie->base + RZG3S_PCI_AWBASEL(idx));
-	writel_relaxed(upper_32_bits(pci_addr),
-		       pcie->base + RZG3S_PCI_AWBASEU(idx));
+		       pcie->base + RZ_PCI_EP_AXI_CFG(RZG3S_PCI_AWBASEL(idx), fn));
+	writel_relaxed(upper_32_bits(pci_addr), pcie->base +
+		       RZ_PCI_EP_AXI_CFG(RZG3S_PCI_AWBASEU(idx), fn));
 }
 
 
@@ -181,18 +187,25 @@ static void rz_pcie_setting_config_ep(struct rz_pcie *pcie, u8 func_no)
 
 	/* Clear BAR mask register */
 	for (int i = 0; i < PCI_STD_NUM_BARS; i++)
-		writel_relaxed(0, pcie->base_cfg + RZ_PCI_EP_CFG_BARMSK(i));
+		writel_relaxed(0, pcie->base_cfg +
+			       RZ_PCI_EP_TYPE0_CFG(RZ_PCI_EP_CFG_BARMSK(i),
+						   func_no));
 
 	/* Setting following hardware manual */
-	writel_relaxed(0, pcie->base_cfg + RZG3S_PCI_CFG_BSIZE00_01);
-	writel_relaxed(0, pcie->base_cfg + RZ_PCI_EP_CFG_BSIZE02_03);
-	writel_relaxed(0, pcie->base_cfg + RZ_PCI_EP_CFG_BSIZE04_05);
-	writel_relaxed(0, pcie->base_cfg + RZ_PCI_EP_CFG_BSIZE06);
+	writel_relaxed(0, pcie->base_cfg +
+		       RZ_PCI_EP_TYPE0_CFG(RZG3S_PCI_CFG_BSIZE00_01, func_no));
+	writel_relaxed(0, pcie->base_cfg +
+		       RZ_PCI_EP_TYPE0_CFG(RZ_PCI_EP_CFG_BSIZE02_03, func_no));
+	writel_relaxed(0, pcie->base_cfg +
+		       RZ_PCI_EP_TYPE0_CFG(RZ_PCI_EP_CFG_BSIZE04_05, func_no));
+	writel_relaxed(0, pcie->base_cfg +
+		       RZ_PCI_EP_TYPE0_CFG(RZ_PCI_EP_CFG_BSIZE06, func_no));
 
 	writel_relaxed(PCI_EXP_DEVCTL_PAYLOAD_256B |
 		       PCI_EXP_DEVCTL_READRQ_512B |
 		       PCI_EXP_DEVCTL_RELAX_EN,
-		       pcie->base_cfg + RZG3S_PCI_CFG_DEVCS);
+		       pcie->base_cfg +
+		       RZ_PCI_EP_TYPE0_CFG(RZG3S_PCI_CFG_DEVCS, func_no));
 }
 
 static int PCIE_EP_IRQ_Initialize(struct rz_pcie *pcie)
@@ -238,7 +251,7 @@ static int rz_pcie_hw_init_ep(struct rz_pcie *pcie, int channel)
 {
 	struct rz_pcie_endpoint *ep = container_of(pcie, struct rz_pcie_endpoint, pcie);
 	u32 mask = RZG3S_PCI_RESET_RST_LOAD_B | RZG3S_PCI_RESET_RST_CFG_B;
-	int ret;
+	int ret, i;
 
 	/* Put controller in EP mode */
 	ret = rzg3s_sysc_config_func(ep->sysc, RZG3S_SYSC_FUNC_ID_MODE, 0,
@@ -280,7 +293,8 @@ static int rz_pcie_hw_init_ep(struct rz_pcie *pcie, int channel)
 	writew_relaxed(ep->device_id, pcie->base_cfg + PCI_DEVICE_ID);
 
 	/* set BAR */
-	rz_pcie_setting_config_ep(pcie, 0);
+	for (i = 0; i < RZ_EPC_MAX_FUNCTIONS; i++)
+		rz_pcie_setting_config_ep(pcie, i);
 
 	/* Disable access control to the CFGU */
 	writel_relaxed(0, pcie->base + RZG3S_PCI_PERM);
@@ -407,33 +421,33 @@ static int rz_pcie_ep_write_header(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	if (!func_no)
 		val = hdr->vendorid;
 	else
-		val = rz_read_conf_ep(pcie, RZG3S_PCI_CFG_VID, func_no);
+		val = readl_relaxed(pcie->base_cfg + RZG3S_PCI_CFG_VID);
 
 	val |= hdr->deviceid << 16;
-	rz_write_conf_ep(pcie, val, RZG3S_PCI_CFG_VID);
+	rz_write_conf_ep(pcie, val, RZG3S_PCI_CFG_VID, func_no);
 
 	val = hdr->revid;
 	val |= hdr->progif_code << 8;
 	val |= hdr->subclass_code << 16;
 	val |= hdr->baseclass_code << 24;
-	rz_write_conf_ep(pcie, val, PCI_CLASS_REVISION);
+	rz_write_conf_ep(pcie, val, PCI_CLASS_REVISION, func_no);
 
 	if (!func_no)
 		val = hdr->subsys_vendor_id;
 	else
-		val = rz_read_conf_ep(pcie, PCI_SUBSYSTEM_VENDOR_ID, func_no);
+		val = readl_relaxed(pcie->base_cfg + PCI_SUBSYSTEM_VENDOR_ID);
 	val |= hdr->subsys_id << 16;
-	rz_write_conf_ep(pcie, val, PCI_SUBSYSTEM_VENDOR_ID);
+	rz_write_conf_ep(pcie, val, PCI_SUBSYSTEM_VENDOR_ID, func_no);
 
 	if (hdr->interrupt_pin > PCI_INTERRUPT_INTA)
 		return -EINVAL;
 
 	val = rz_read_conf_ep(pcie, RZ_PCI_EP_CFG_INT, func_no);
 	val |= (hdr->interrupt_pin << 8);
-	rz_write_conf_ep(pcie, val, RZ_PCI_EP_CFG_INT);
+	rz_write_conf_ep(pcie, val, RZ_PCI_EP_CFG_INT, func_no);
 
 	rz_write_conf_ep(pcie, PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY,
-			 PCI_COMMAND);
+			 PCI_COMMAND, func_no);
 
 	return 0;
 }
@@ -466,9 +480,9 @@ static int rz_pcie_ep_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	if (flags & PCI_BASE_ADDRESS_MEM_TYPE_64) {
 		mask = size - 1;
 		rz_write_conf_ep(pcie, lower_32_bits(mask),
-				 RZ_PCI_EP_CFG_BARMSK(bar));
+				 RZ_PCI_EP_CFG_BARMSK(bar), func_no);
 		rz_write_conf_ep(pcie, upper_32_bits(mask),
-				 RZ_PCI_EP_CFG_BARMSK(bar + 1));
+				 RZ_PCI_EP_CFG_BARMSK(bar + 1), func_no);
 	}
 
 	win_cfg = &data->func_cfg[func_no].bar_win[bar];
@@ -504,7 +518,7 @@ static int rz_pcie_ep_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 			goto err_set_ib;
 		}
 
-		if (test_bit(idx, ep->ib_window_map)) {
+		if (test_bit(idx, ep->ib_window_map[func_no])) {
 			dev_err(pcie->dev,
 				"BAR%d: inbound window %d already in use\n",
 				bar, idx);
@@ -513,7 +527,7 @@ static int rz_pcie_ep_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 
 		rz_pcie_set_inbound_ep(pcie, cpu_addr, pci_addr, mask,
 				       idx, func_no);
-		set_bit(idx, ep->ib_window_map);
+		set_bit(idx, ep->ib_window_map[func_no]);
 		cpu_addr += align_limit;
 		pci_addr += align_limit;
 		idx++;
@@ -523,7 +537,7 @@ static int rz_pcie_ep_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 
 err_set_ib:
 	for (i = idx_base; i < idx; i++)
-		clear_bit(i, ep->ib_window_map);
+		clear_bit(i, ep->ib_window_map[func_no]);
 
 	return -EINVAL;
 }
@@ -542,8 +556,8 @@ static void rz_pcie_ep_clear_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 		return;
 
 	if (flags & PCI_BASE_ADDRESS_MEM_TYPE_64) {
-		rz_write_conf_ep(pcie, 0, RZ_PCI_EP_CFG_BARMSK(bar));
-		rz_write_conf_ep(pcie, 0, RZ_PCI_EP_CFG_BARMSK(bar + 1));
+		rz_write_conf_ep(pcie, 0, RZ_PCI_EP_CFG_BARMSK(bar), func_no);
+		rz_write_conf_ep(pcie, 0, RZ_PCI_EP_CFG_BARMSK(bar + 1), func_no);
 	}
 
 	win_cfg = &ep->data->func_cfg[func_no].bar_win[bar];
@@ -554,16 +568,16 @@ static void rz_pcie_ep_clear_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	idx_end  = win_cfg->start + win_cfg->num;
 
 	for (idx = idx_base; idx < idx_end; idx++) {
-		if (!test_bit(idx, ep->ib_window_map))
+		if (!test_bit(idx, ep->ib_window_map[func_no]))
 			continue;
 
 		rz_pcie_set_inbound_ep(pcie, 0, 0, 0, idx, func_no);
-		clear_bit(idx, ep->ib_window_map);
+		clear_bit(idx, ep->ib_window_map[func_no]);
 	}
 }
 
 static int rz_pcie_ep_set_msi(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
-				 u8 interrupts)
+			      u8 interrupts)
 {
 	struct rz_pcie_endpoint *ep = epc_get_drvdata(epc);
 	struct rz_pcie *pcie = &ep->pcie;
@@ -572,7 +586,7 @@ static int rz_pcie_ep_set_msi(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	flags = rz_read_conf_ep(pcie, RZ_PCI_EP_CFG_MSICAP, func_no);
 	flags &= ~RZ_PCI_EP_CFG_MSICAP_MMESCAP;
 	flags |= FIELD_PREP(RZ_PCI_EP_CFG_MSICAP_MMESCAP, interrupts);
-	rz_write_conf_ep(pcie, flags, RZ_PCI_EP_CFG_MSICAP);
+	rz_write_conf_ep(pcie, flags, RZ_PCI_EP_CFG_MSICAP, func_no);
 
 	return 0;
 }
@@ -592,7 +606,7 @@ static int rz_pcie_ep_get_msi(struct pci_epc *epc, u8 func_no, u8 vfunc_no)
 }
 
 static int rz_pcie_ep_map_addr(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
-				 phys_addr_t addr, u64 pci_addr, size_t size)
+			       phys_addr_t addr, u64 pci_addr, size_t size)
 {
 	struct rz_pcie_endpoint *ep = epc_get_drvdata(epc);
 	struct rz_pcie *pcie = &ep->pcie;
@@ -624,7 +638,7 @@ static int rz_pcie_ep_map_addr(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	if ((!IS_ALIGNED(pci_addr, SZ_4K) || (!IS_ALIGNED(addr, SZ_4K))))
 		return -EINVAL;
 
-	rz_pcie_set_outbound_ep(pcie, window, addr, pci_addr, size);
+	rz_pcie_set_outbound_ep(pcie, window, addr, pci_addr, size, func_no);
 
 	ep->ob_mapped_addr[window] = addr;
 
@@ -632,7 +646,7 @@ static int rz_pcie_ep_map_addr(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 }
 
 static void rz_pcie_ep_unmap_addr(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
-				    phys_addr_t addr)
+				  phys_addr_t addr)
 {
 	struct rz_pcie_endpoint *ep = epc_get_drvdata(epc);
 	struct rz_pcie *pcie = &ep->pcie;
@@ -645,17 +659,22 @@ static void rz_pcie_ep_unmap_addr(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	if (idx >= ep->num_ob_windows)
 		return;
 
-	rz_pcie_set_outbound_ep(pcie, idx, 0x0, 0x0, 0x0);
+	rz_pcie_set_outbound_ep(pcie, idx, 0x0, 0x0, 0x0, func_no);
 
 	ep->ob_mapped_addr[idx] = 0;
 }
 
 static int rz_pcie_ep_assert_intx(struct rz_pcie_endpoint *ep,
-				    u8 func_no)
+				  u8 func_no)
 {
 	struct rz_pcie *pcie = &ep->pcie;
 	u32 val;
 	int ret;
+
+	if (func_no >= RZ_EPC_MAX_FUNCTIONS) {
+		dev_err(pcie->dev, "Cannot select INTx function %u\n", func_no);
+		return -EINVAL;
+	}
 
 	/* Check MSI enable bit */
 	val = rz_read_conf_ep(pcie, RZ_PCI_EP_CFG_MSICAP, func_no);
@@ -665,7 +684,8 @@ static int rz_pcie_ep_assert_intx(struct rz_pcie_endpoint *ep,
 	}
 
 	/* SYS assert INTX interrupt */
-	ret = rzg3s_sysc_config_func(ep->sysc, RZG3S_SYSC_FUNC_ID_INTX, 1,
+	ret = rzg3s_sysc_config_func(ep->sysc, RZG3S_SYSC_FUNC_ID_INTX,
+				     RZ_PCI_EP_INTX(func_no),
 				     ep->channel);
 	if (ret) {
 		dev_err(pcie->dev, "Cannot assert INTx interrupt\n");
@@ -686,7 +706,7 @@ static int rz_pcie_ep_assert_intx(struct rz_pcie_endpoint *ep,
 }
 
 static int rz_pcie_ep_assert_msi(struct rz_pcie_endpoint *ep,
-				   u8 func_no, u8 interrupt_num)
+				 u8 func_no, u8 interrupt_num)
 {
 	struct rz_pcie *pcie = &ep->pcie;
 	u16 msi_count;
@@ -712,6 +732,13 @@ static int rz_pcie_ep_assert_msi(struct rz_pcie_endpoint *ep,
 	if (ret) {
 		dev_err(pcie->dev, "Cannot select MSI %u interrupt\n",
 			interrupt_num);
+		return ret;
+	}
+
+	ret = rzg3s_sysc_config_func(ep->sysc, RZG3S_SYSC_FUNC_ID_MSI4,
+				     func_no, ep->channel);
+	if (ret) {
+		dev_err(pcie->dev, "Cannot select function %u\n", func_no);
 		return ret;
 	}
 
@@ -808,26 +835,20 @@ static int rz_pcie_ep_raise_irq(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 
 }
 
-static const struct pci_epc_features rz_pcie_epc_features = {
-	.linkup_notifier = true,
-	.msi_capable = true,
-	.msix_capable = false,
-	/* use 64-bit BARs so mark BAR[1,3,5] as reserved */
-	.bar[BAR_0] = { .type = BAR_FIXED, .fixed_size = SZ_4M,
-			.only_64bit = true, },
-	.bar[BAR_1] = { .type = BAR_RESERVED, },
-	.bar[BAR_2] = { .type = BAR_FIXED, .fixed_size = SZ_4M,
-			.only_64bit = true, },
-	.bar[BAR_3] = { .type = BAR_RESERVED, },
-	.bar[BAR_4] = { .type = BAR_FIXED, .fixed_size = SZ_8K,
-			.only_64bit = true, },
-	.bar[BAR_5] = { .type = BAR_RESERVED, },
-};
-
 static const struct pci_epc_features *rz_pcie_ep_get_features(struct pci_epc *epc,
-								u8 func_no, u8 vfunc_no)
+							      u8 func_no, u8 vfunc_no)
 {
-	return &rz_pcie_epc_features;
+	struct rz_pcie_endpoint *ep = epc_get_drvdata(epc);
+	const struct rz_pcie_soc_data *data = ep->data;
+	struct rz_pcie *pcie = &ep->pcie;
+
+	if (func_no >= RZ_EPC_MAX_FUNCTIONS) {
+		dev_warn(pcie->dev, "invalid func_no %u, using default features\n",
+			 func_no);
+		return &data->func_cfg[0].features;
+	}
+
+	return &data->func_cfg[func_no].features;
 }
 
 static irqreturn_t rz_pcie_ep_dl_updown_irq_thread(int irq, void *data)
@@ -881,6 +902,44 @@ static const struct rz_pcie_func_config rzv2h_func_configs[] = {
 			[BAR_0] = { .start = 0, .num = 4 },
 			[BAR_2] = { .start = 4, .num = 4 },
 		},
+		.features = {
+			.linkup_notifier = true,
+			.msi_capable = true,
+			.msix_capable = false,
+			/* use 64-bit BARs so mark BAR[1,3,5] as reserved */
+			.bar[BAR_0] = { .type = BAR_FIXED, .fixed_size = SZ_4M,
+					.only_64bit = true, },
+			.bar[BAR_1] = { .type = BAR_RESERVED, },
+			.bar[BAR_2] = { .type = BAR_FIXED, .fixed_size = SZ_4M,
+					.only_64bit = true, },
+			.bar[BAR_3] = { .type = BAR_RESERVED, },
+			.bar[BAR_4] = { .type = BAR_FIXED, .fixed_size = SZ_8K,
+					.only_64bit = true, },
+			.bar[BAR_5] = { .type = BAR_RESERVED, },
+		},
+	},
+	/* Function 1 */
+	{
+		.bar_win = {
+			[BAR_0] = { .start = 0, .num = 8 },
+		},
+		.features = {
+			.linkup_notifier = true,
+			.msi_capable = true,
+			.msix_capable = false,
+			/*
+			 * Use 64-bit BARs so mark BAR[1,5] as reserved
+			 * BAR[2,3] are reserved for Function 1.
+			 */
+			.bar[BAR_0] = { .type = BAR_FIXED, .fixed_size = SZ_8M,
+					.only_64bit = true, },
+			.bar[BAR_1] = { .type = BAR_RESERVED, },
+			.bar[BAR_2] = { .type = BAR_RESERVED, },
+			.bar[BAR_3] = { .type = BAR_RESERVED, },
+			.bar[BAR_4] = { .type = BAR_FIXED, .fixed_size = SZ_8K,
+					.only_64bit = true, },
+			.bar[BAR_5] = { .type = BAR_RESERVED, },
+		},
 	},
 };
 
@@ -891,7 +950,7 @@ static const struct rz_pcie_soc_data rzv2h_soc_data = {
 		.functions = {
 			[RZG3S_SYSC_FUNC_ID_INTX] = {
 				.offset = 0x1000,
-				.mask = BIT(0),
+				.mask = GENMASK(1, 0),
 			},
 			[RZG3S_SYSC_FUNC_ID_MSI1] = {
 				.offset = 0x1004,
@@ -900,6 +959,10 @@ static const struct rz_pcie_soc_data rzv2h_soc_data = {
 			[RZG3S_SYSC_FUNC_ID_MSI2] = {
 				.offset = 0x1008,
 				.mask = GENMASK(4, 0),
+			},
+			[RZG3S_SYSC_FUNC_ID_MSI4] = {
+				.offset = 0x1010,
+				.mask = GENMASK(2, 0),
 			},
 			[RZG3S_SYSC_FUNC_ID_L1_ALLOW] = {
 				.offset = 0x1020,
@@ -926,7 +989,7 @@ static const struct rz_pcie_soc_data rzv2n_soc_data = {
 		.functions = {
 			[RZG3S_SYSC_FUNC_ID_INTX] = {
 				.offset = 0x1000,
-				.mask = BIT(0),
+				.mask = GENMASK(1, 0),
 			},
 			[RZG3S_SYSC_FUNC_ID_MSI1] = {
 				.offset = 0x1004,
@@ -935,6 +998,10 @@ static const struct rz_pcie_soc_data rzv2n_soc_data = {
 			[RZG3S_SYSC_FUNC_ID_MSI2] = {
 				.offset = 0x1008,
 				.mask = GENMASK(4, 0),
+			},
+			[RZG3S_SYSC_FUNC_ID_MSI4] = {
+				.offset = 0x1010,
+				.mask = GENMASK(2, 0),
 			},
 			[RZG3S_SYSC_FUNC_ID_L1_ALLOW] = {
 				.offset = 0x1020,
@@ -955,6 +1022,43 @@ static const struct rz_pcie_func_config rzt2h_func_configs[] = {
 			[BAR_0] = { .start = 0, .num = 4 },
 			[BAR_2] = { .start = 4, .num = 4 },
 		},
+		.features = {
+			.linkup_notifier = true,
+			.msi_capable = true,
+			.msix_capable = false,
+			/* use 64-bit BARs so mark BAR[1,3,5] as reserved */
+			.bar[BAR_0] = { .type = BAR_FIXED, .fixed_size = SZ_4M,
+					.only_64bit = true, },
+			.bar[BAR_1] = { .type = BAR_RESERVED, },
+			.bar[BAR_2] = { .type = BAR_FIXED, .fixed_size = SZ_4M,
+					.only_64bit = true, },
+			.bar[BAR_3] = { .type = BAR_RESERVED, },
+			.bar[BAR_4] = { .type = BAR_FIXED, .fixed_size = SZ_8K,
+					.only_64bit = true, },
+			.bar[BAR_5] = { .type = BAR_RESERVED, },
+		},
+	},
+	/* Function 1 */
+	{
+		.bar_win = {
+			[BAR_0] = { .start = 0, .num = 4 },
+			[BAR_2] = { .start = 4, .num = 4 },
+		},
+		.features = {
+			.linkup_notifier = true,
+			.msi_capable = true,
+			.msix_capable = false,
+			/* use 64-bit BARs so mark BAR[1,3,5] as reserved */
+			.bar[BAR_0] = { .type = BAR_FIXED, .fixed_size = SZ_4M,
+					.only_64bit = true, },
+			.bar[BAR_1] = { .type = BAR_RESERVED, },
+			.bar[BAR_2] = { .type = BAR_FIXED, .fixed_size = SZ_4M,
+					.only_64bit = true, },
+			.bar[BAR_3] = { .type = BAR_RESERVED, },
+			.bar[BAR_4] = { .type = BAR_FIXED, .fixed_size = SZ_8K,
+					.only_64bit = true, },
+			.bar[BAR_5] = { .type = BAR_RESERVED, },
+		},
 	},
 };
 
@@ -966,7 +1070,7 @@ static const struct rz_pcie_soc_data rzt2h_soc_data = {
 		.functions = {
 			[RZG3S_SYSC_FUNC_ID_INTX] = {
 				.offset = 0x2000,
-				.mask = BIT(0),
+				.mask = GENMASK(1, 0),
 			},
 			[RZG3S_SYSC_FUNC_ID_MSI1] = {
 				.offset = 0x2004,
@@ -975,6 +1079,10 @@ static const struct rz_pcie_soc_data rzt2h_soc_data = {
 			[RZG3S_SYSC_FUNC_ID_MSI2] = {
 				.offset = 0x2008,
 				.mask = GENMASK(4, 0),
+			},
+			[RZG3S_SYSC_FUNC_ID_MSI4] = {
+				.offset = 0x2010,
+				.mask = GENMASK(2, 0),
 			},
 			[RZG3S_SYSC_FUNC_ID_L1_ALLOW] = {
 				.offset = 0x2020,
@@ -1093,13 +1201,15 @@ static int rz_pcie_ep_probe(struct platform_device *pdev)
 	}
 
 	ep->num_ib_windows = RZG3S_MAX_WINDOWS;
-	ep->ib_window_map =
-			devm_kcalloc(dev, BITS_TO_LONGS(ep->num_ib_windows),
-				     sizeof(long), GFP_KERNEL);
-	if (!ep->ib_window_map) {
-		err = -ENOMEM;
-		dev_err(dev, "failed to allocate memory for inbound map\n");
-		goto err_pm_put;
+	for (int i = 0; i < ep->max_functions; i++) {
+		ep->ib_window_map[i] = devm_kcalloc(dev,
+				BITS_TO_LONGS(ep->num_ib_windows),
+					      sizeof(long), GFP_KERNEL);
+		if (!ep->ib_window_map[i]) {
+			err = -ENOMEM;
+			dev_err(dev, "failed to allocate inbound map for func %d\n", i);
+			goto err_pm_put;
+		}
 	}
 
 	ep->ob_mapped_addr = devm_kcalloc(dev, ep->num_ob_windows,
@@ -1156,8 +1266,8 @@ static int rz_pcie_ep_probe(struct platform_device *pdev)
 	err = devm_request_threaded_irq(dev, irq, NULL,
 					rz_pcie_ep_dl_updown_irq_thread,
 					IRQF_ONESHOT, devname, ep);
-        if (err)
-                goto err_pm_put;
+	if (err)
+		goto err_pm_put;
 
 	/* Don't failed if PCIe DMA not enabled */
 	dmac = &ep->dmac;
@@ -1243,9 +1353,8 @@ static int rz_pcie_ep_resume_noirq(struct device *dev)
 	if (ret)
 		goto rpm_put;
 
-	for (i = PCI_EP_CFG_REG_NUM - 1; i >= 0; i--) {
-		rz_write_conf_ep(pcie, saved_regs->cfg_regs[i], i * 4);
-	}
+	for (i = PCI_EP_CFG_REG_NUM - 1; i >= 0; i--)
+		rz_write_conf_ep(pcie, saved_regs->cfg_regs[i], i * 4, 0);
 
 	for (i = 0; i < RZG3S_MAX_WINDOWS; i++) {
 		writel_relaxed(saved_regs->axi_win_regs.base_L[i], pcie->base + RZG3S_PCI_AWBASEL(i));

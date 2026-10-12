@@ -156,6 +156,11 @@
 #define RZG3S_PCI_CFG_BSIZE00_01		0xc8
 
 /* Only in endpoint mode */
+#define RZ_PCI_EP_AXI_CFG(reg, fn)		(reg  + (fn) * 0x200)
+#define RZ_PCI_EP_TYPE0_CFG(reg, fn)		(reg  + (fn) * 0x1000)
+
+#define RZ_PCI_EP_INTX(fn)			BIT(fn)
+
 #define RZ_PCI_EP_CFG_BARMSK(id)		(RZG3S_PCI_CFG_BARMSK00L + (id) * 0x4)
 #define RZ_PCI_EP_CFG_INT			0x3c
 #define RZ_PCI_EP_CFG_BSIZE02_03		0xcc
@@ -214,6 +219,7 @@ enum rzg3s_sysc_func_id {
 	RZG3S_SYSC_FUNC_ID_INTX,
 	RZG3S_SYSC_FUNC_ID_MSI1,
 	RZG3S_SYSC_FUNC_ID_MSI2,
+	RZG3S_SYSC_FUNC_ID_MSI4,
 	RZG3S_SYSC_FUNC_ID_L1_ALLOW,
 	RZG3S_SYSC_FUNC_ID_MODE,
 	RZG3S_SYSC_FUNC_LANES_MODE,
