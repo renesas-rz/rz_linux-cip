@@ -197,12 +197,6 @@
 		compatible = "renesas,vspm_if";
 	};
 
-	pcie_refclk: clock-pcie-ref {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <100000000>;
-	};
-
 	reg_0p8v: regulator0 {
 		compatible = "regulator-fixed";
 
@@ -949,8 +943,15 @@
 	status = "okay";
 };
 
+&pcie0 {
+	pinctrl-0 = <&pcie0_pins>;
+	pinctrl-names = "default";
+	num-lanes = <4>;
+	status = "okay";
+};
+
 &pcie_port0 {
-	clocks = <&pcie_refclk>;
+	clocks = <&versa3 5>;
 	clock-names = "ref";
 };
 
@@ -1033,6 +1034,12 @@
 #endif
 	};
 #endif
+
+	pcie0_pins: pcie0 {
+		pins = "PCIE0_RSTOUTB";
+		slew-rate = <0>;
+		renesas,output-impedance = <2>;
+	};
 
 	scif_pins: scif {
 		pins = "SCIF_TXD", "SCIF_RXD";
@@ -1346,10 +1353,6 @@
 			};
 		};
 	};
-};
-
-&pcie0 {
-	status = "okay";
 };
 
 #if (SEL_CAN0_HEADER == CAN_HEADER || SEL_CAN1_HEADER == CAN_HEADER)
