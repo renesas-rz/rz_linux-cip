@@ -799,9 +799,9 @@
 
 	status = "okay";
 	eeprom: eeprom@50 {
-		compatible = "renesas,r1ex24016", "atmel,24c16";
+		compatible = "microchip,24c32", "atmel,24c32";
 		reg = <0x50>;
-		pagesize = <16>;
+		pagesize = <32>;
 
 		nvmem-layout {
 			compatible = "fixed-layout";
