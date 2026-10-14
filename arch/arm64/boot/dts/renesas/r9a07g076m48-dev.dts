@@ -809,7 +809,7 @@
 			#size-cells = <1>;
 
 			hpsw_mode_cell: hpsw-mode@0 {
-				reg = <0x7FF 0x01>;
+				reg = <0xFFF 0x01>;
 			};
 		};
 	};
