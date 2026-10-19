@@ -511,8 +511,8 @@
 	status = "okay";
 
 	/* audio_clkout */
-	#clock-cells = <0>;
-	clock-frequency = <11289600>;
+	#clock-cells = <1>;
+	clock-frequency = <5644800 6144000>;
 
 	/* Multi DAI */
 	#sound-dai-cells = <1>;
