@@ -107,6 +107,7 @@ struct rz_pcie_endpoint {
 	u32				vendor_id;
 	u32				device_id;
 	bool				link_up;
+	bool				has_companion;
 };
 
 /* Static Function */
@@ -265,15 +266,26 @@ static int rz_pcie_hw_init_ep(struct rz_pcie *pcie, int channel)
 	/* De-assert LOAD_B, CFG_B */
 	rzg3s_pcie_update_bits(pcie->base, RZG3S_PCI_RESET, mask, mask);
 
-	/*
-	 * Put controller in:
-	 * - 4 lanes mode x 1 channel (RZ/V2H)
-	 * - 2 lanes mode x 1 channel (RZ/T2H)
-	 */
-	ret = rzg3s_sysc_config_func(ep->sysc, RZG3S_SYSC_FUNC_LANES_MODE, 1,
-				     ep->channel);
-	if (ret)
-		return ret;
+	if (ep->data->max_channels > 1) {
+		if ((!ep->has_companion) && (!ep->channel))
+			/*
+			 * Put controller in:
+			 * - 4 lanes mode x 1 channel (RZ/V2H)
+			 * - 2 lanes mode x 1 channel (RZ/T2H)
+			 */
+			ret = rzg3s_sysc_config_func(ep->sysc, RZG3S_SYSC_FUNC_LANES_MODE,
+						     1, ep->channel);
+		else
+			/*
+			 * Put controller in:
+			 * - 2 lanes mode x 2 channel (RZ/V2H)
+			 * - 1 lane  mode x 2 channel (RZ/T2H)
+			 */
+			ret = rzg3s_sysc_config_func(ep->sysc, RZG3S_SYSC_FUNC_LANES_MODE,
+						     3, ep->channel);
+		if (ret)
+			return ret;
+	}
 
 	/* Set the PHY, if any */
 	if (ep->data->init_phy) {
@@ -950,18 +962,22 @@ static const struct rz_pcie_soc_data rzv2h_soc_data = {
 		.functions = {
 			[RZG3S_SYSC_FUNC_ID_INTX] = {
 				.offset = 0x1000,
+				.stride = 0x30,
 				.mask = GENMASK(1, 0),
 			},
 			[RZG3S_SYSC_FUNC_ID_MSI1] = {
 				.offset = 0x1004,
+				.stride = 0x30,
 				.mask = BIT(0),
 			},
 			[RZG3S_SYSC_FUNC_ID_MSI2] = {
 				.offset = 0x1008,
+				.stride = 0x30,
 				.mask = GENMASK(4, 0),
 			},
 			[RZG3S_SYSC_FUNC_ID_MSI4] = {
 				.offset = 0x1010,
+				.stride = 0x30,
 				.mask = GENMASK(2, 0),
 			},
 			[RZG3S_SYSC_FUNC_ID_L1_ALLOW] = {
@@ -1070,18 +1086,22 @@ static const struct rz_pcie_soc_data rzt2h_soc_data = {
 		.functions = {
 			[RZG3S_SYSC_FUNC_ID_INTX] = {
 				.offset = 0x2000,
+				.stride = 0x30,
 				.mask = GENMASK(1, 0),
 			},
 			[RZG3S_SYSC_FUNC_ID_MSI1] = {
 				.offset = 0x2004,
+				.stride = 0x30,
 				.mask = BIT(0),
 			},
 			[RZG3S_SYSC_FUNC_ID_MSI2] = {
 				.offset = 0x2008,
+				.stride = 0x30,
 				.mask = GENMASK(4, 0),
 			},
 			[RZG3S_SYSC_FUNC_ID_MSI4] = {
 				.offset = 0x2010,
+				.stride = 0x30,
 				.mask = GENMASK(2, 0),
 			},
 			[RZG3S_SYSC_FUNC_ID_L1_ALLOW] = {
@@ -1130,6 +1150,7 @@ static int rz_pcie_ep_probe(struct platform_device *pdev)
 	struct rz_pcie *pcie;
 	struct pci_epc *epc;
 	const char *devname;
+	struct device_node *companion;
 	int irq, err, channel;
 
 	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
@@ -1185,6 +1206,12 @@ static int rz_pcie_ep_probe(struct platform_device *pdev)
 			dev_err(pcie->dev, "%pOF: Invalid pcie,channel '%u'\n",
 				dev->of_node, ep->channel);
 			return -EINVAL;
+		}
+
+		companion = of_parse_phandle(dev->of_node, "renesas,pcie-companion", 0);
+		if (companion) {
+			if (of_device_is_available(companion))
+				ep->has_companion = true;
 		}
 	}
 
