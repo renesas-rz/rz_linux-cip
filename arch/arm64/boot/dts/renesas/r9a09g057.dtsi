@@ -1712,7 +1712,7 @@
 			      <0x0 0x38000000 0x0 0x04000000>,
 			      <0x0 0x3c000000 0x0 0x04000000>;
 			reg-names = "apb-base", "memory0", "memory1";
-			interrupts = <GIC_SPI 819 IRQ_TYPE_LEVEL_HIGH>,
+			interrupts = <GIC_SPI 814 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 827 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 828 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "all", "dma", "pcie_evt";
