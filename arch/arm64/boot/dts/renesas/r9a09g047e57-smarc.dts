@@ -7,49 +7,16 @@
 
 /dts-v1/;
 
-/* Switch selection settings */
-#define SW_GPIO8_CAN0_STB	0
-#define SW_GPIO9_CAN1_STB	0
-#define SW_LCD_EN		0
-#define SW_PDM_EN		0
-#define SW_SER0_PMOD		1
-#define SW_SER2_EN		1
-#define SW_SD0_DEV_SEL		0
-#define SW_SDIO_M2E		0
-#define SW_HDMI_EN		0
-
-/*
- * Display support selection:
- * 0 - disable display selection support
- * 1 - enable display selection support
- * for:
- * - MIPI DSI: RZG3E_SMARC_MIPI_DSI_ENABLE
- * - LVDS: RZG3E_SMARC_LVDS_ENABLE
- * - Parallel RGB: SW_LCD_EN from above switch selection settings
- */
-
-#define RZG3E_SMARC_MIPI_DSI_ENABLE	1
-#define RZG3E_SMARC_LVDS_ENABLE		1
+#include "rzg3e-smarc-switches.h"
 
 /* Only maximum 2 display selections are enabled at the same time */
 #if (RZG3E_SMARC_MIPI_DSI_ENABLE & RZG3E_SMARC_LVDS_ENABLE & SW_LCD_EN)
 #error "Only maximum 2 display selections are enabled at the same time"
 #endif
 
-#define PMOD_GPIO4		0
-#define PMOD_GPIO6		0
-#define PMOD_GPIO7		0
-
 #define KEY_1_GPIO		RZG3E_GPIO(3, 1)
 #define KEY_2_GPIO		RZG3E_GPIO(8, 4)
 #define KEY_3_GPIO		RZG3E_GPIO(8, 5)
-
-/*
- * Mode selection settings RSPI0_RSCI8_SEL:
- * 1 - RSCI8			0 - RSPI0 (default)
- */
-
-#define RSPI0_RSCI8_SEL		0
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
@@ -204,21 +171,6 @@
 };
 #endif
 
-#if (!SW_LCD_EN) && (!SW_GPIO8_CAN0_STB) && (!SW_GPIO9_CAN1_STB)
-&gpt0 {
-	pinctrl-0 = <&gpt0_pins>;
-	pinctrl-names = "default";
-	status = "okay";
-	renesas,poegs = <&poeg0gd 4>;
-};
-
-&poeg0gd {
-	status = "okay";
-	renesas,poeg-config = <1>;
-};
-
-#endif
-
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "default";
@@ -300,13 +252,6 @@
 #endif
 	};
 
-#if (!SW_LCD_EN)
-	gpt0_pins: gpt0 {
-		pinmux = <RZG3E_PORT_PINMUX(5, 4, 10)>, /* GTIOC4A */
-			 <RZG3E_PORT_PINMUX(5, 5, 10)>; /* GTIOC4B */
-	};
-#endif
-
 	i2c0_pins: i2c0 {
 		pinmux = <RZG3E_PORT_PINMUX(D, 4, 4)>, /* SCL0 */
 			 <RZG3E_PORT_PINMUX(D, 5, 4)>; /* SDA0 */
@@ -338,16 +283,6 @@
 	};
 #endif
 
-#if (!SW_LCD_EN) && (SW_SER0_PMOD)
-	rsci4_pins: rsci4 {
-		pinmux = <RZG3E_PORT_PINMUX(7, 6, 5)>, /* RXD4 */
-			 <RZG3E_PORT_PINMUX(7, 7, 5)>, /* TXD4 */
-			 <RZG3E_PORT_PINMUX(8, 0, 6)>, /* CTS4N */
-			 <RZG3E_PORT_PINMUX(8, 1, 5)>; /* RTS4N */
-		bias-pull-up;
-	};
-#endif
-
 #if (!SW_LCD_EN)
 	rsci9_pins: rsci9 {
 		pinmux = <RZG3E_PORT_PINMUX(8, 2, 5)>, /* RXD9 */
@@ -360,21 +295,6 @@
 		pins = "SCIF_TXD", "SCIF_RXD";
 		renesas,output-impedance = <1>;
 	};
-
-#if (!RSPI0_RSCI8_SPI_SEL)
-	rspi0_pins: rspi0 {
-		pinmux = <RZG3E_PORT_PINMUX(M, 4, 2)>, /* MISOA */
-			 <RZG3E_PORT_PINMUX(M, 5, 2)>, /* MOSIA */
-			 <RZG3E_PORT_PINMUX(M, 7, 2)>, /* SSLA0 */
-			 <RZG3E_PORT_PINMUX(M, 6, 2)>; /* RSPCKA */
-	};
-#else
-	rsci8_master_pins: rscri8_master {
-		pinmux = <RZG3E_PORT_PINMUX(M, 5, 5)>, /* SCI8_TXD_MOSI_SDA */
-			 <RZG3E_PORT_PINMUX(M, 4, 5)>, /* SCI8_RXD_MISO_SCL */
-			 <RZG3E_PORT_PINMUX(M, 6, 5)>; /* SCI8_SCLK */
-	};
-#endif
 
 	sd1-pwr-en-hog {
 		gpio-hog;
@@ -447,17 +367,6 @@
 };
 #endif
 
-#if (!SW_LCD_EN) && (SW_SER0_PMOD)
-&rsci4 {
-	pinctrl-0 = <&rsci4_pins>;
-	pinctrl-names = "default";
-
-	uart-has-rtscts;
-
-	status = "okay";
-};
-#endif
-
 #if (!SW_LCD_EN)
 &rsci9 {
 	pinctrl-0 = <&rsci9_pins>;
@@ -471,29 +380,6 @@
 	pinctrl-0 = <&scif_pins>;
 	pinctrl-names = "default";
 };
-
-#if (!RSPI0_RSCI8_SPI_SEL)
-&rspi0 {
-	pinctrl-0 = <&rspi0_pins>;
-	pinctrl-names = "default";
-
-	status = "okay";
-};
-#else
-&rsci8 {
-	pinctrl-0 = <&rsci8_master_pins>;
-	pinctrl-names = "master";
-
-	status = "okay";
-
-	renesas,rsci_spi;
-	num-cs = <1>;
-	#size-cells = <0>;
-	#address-cells = <1>;
-	/* Using cs-gpios property when is master mode */
-	cs-gpios = <&pinctrl RZG3E_GPIO(M, 7) GPIO_ACTIVE_HIGH>;
-};
-#endif
 
 &sdhi1 {
 	pinctrl-0 = <&sdhi1_pins>;

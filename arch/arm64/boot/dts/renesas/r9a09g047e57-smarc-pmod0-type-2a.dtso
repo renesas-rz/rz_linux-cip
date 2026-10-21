@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the RZ/G3E SMARC Carrier II EVK PMOD0 Type 2A part
+ *
+ * Copyright (C) 2026 Renesas Electronics Corp.
+ *
+ * SMARC Carrier II EVK
+ * +--------------------------------------------+
+ * |PMOD0_2A (PMOD0 PIN HEADER)			|
+ * |	SPI1_CS0#  (pin1)  (pin7)  PMOD0_GPIO4	|
+ * |	SPI1_DO    (pin2)  (pin8)  PMOD0_GPIO5	|
+ * |	SPI1_DIN   (pin3)  (pin9)  PMOD0_GPIO6	|
+ * |	SPI1_CK    (pin4)  (pin10) PMOD0_GPIO7	|
+ * |	GND        (pin5)  (pin11) GND		|
+ * |	PWR_PMOD0  (pin6)  (pin12) PWR_PMOD0	|
+ * +--------------------------------------------+
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/renesas,r9a09g047-pinctrl.h>
+
+#include "rzg3e-smarc-switches.h"
+
+/*
+ * PMOD0 SPI controller selection:
+ * @RSPI0_RSCI8_SEL:
+ *	0 - RSPI0 is used as SPI master
+ *	1 - RSCI8 is used in SPI master mode
+ */
+#define RSPI0_RSCI8_SEL	0
+
+&pinctrl {
+#if RSPI0_RSCI8_SEL
+	rsci8_master_pins: rsci8-master {
+		pinmux = <RZG3E_PORT_PINMUX(M, 5, 5)>, /* MOSI8 */
+			 <RZG3E_PORT_PINMUX(M, 4, 5)>, /* MISO8 */
+			 <RZG3E_PORT_PINMUX(M, 6, 5)>; /* SCK8 */
+	};
+#else
+	rspi0_pins: rspi0 {
+		pinmux = <RZG3E_PORT_PINMUX(M, 4, 2)>, /* MISOA */
+			 <RZG3E_PORT_PINMUX(M, 5, 2)>, /* MOSIA */
+			 <RZG3E_PORT_PINMUX(M, 6, 2)>, /* RSPCKA */
+			 <RZG3E_PORT_PINMUX(M, 7, 2)>; /* SSLA0 */
+	};
+#endif
+};
+
+#if RSPI0_RSCI8_SEL
+&rsci8 {
+	pinctrl-0 = <&rsci8_master_pins>;
+	pinctrl-names = "master";
+	status = "okay";
+
+	renesas,rsci_spi;
+	num-cs = <1>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	cs-gpios = <&pinctrl RZG3E_GPIO(M, 7) GPIO_ACTIVE_HIGH>;
+};
+#else
+&rspi0 {
+	pinctrl-0 = <&rspi0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+#endif

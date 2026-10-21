@@ -5,26 +5,7 @@
  * Copyright (C) 2024 Renesas Electronics Corp.
  */
 
-/*
- * Please set the below switch position on the SoM and the corresponding macro
- * on the board DTS:
- *
- * Switch position SYS.1, Macro SW_SD0_DEV_SEL:
- *      0 - SD0 is connected to eMMC (default)
- *      1 - SD0 is connected to uSD0 card
- *
- * Switch position SYS.5, Macro SW_LCD_EN:
- *      0 - Select Misc. Signals routing
- *      1 - Select LCD
- *
- * Switch position BOOT.6, Macro SW_PDM_EN:
- *      0 - Select CAN routing
- *      1 - Select PDM
- *
- * SW_HDMI_EN when RZG3E_SMARC_MIPI_DSI_ENABLE is set:
- *     0 - MIPI DSI is connected to Carrier HDMI (default)
- *     1 - MIPI DSI is connected to Module DSI connector
- */
+#include "rzg3e-smarc-switches.h"
 
 / {
 	compatible = "renesas,rzg3e-smarcm", "renesas,r9a09g047e57", "renesas,r9a09g047";
