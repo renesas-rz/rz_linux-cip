@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the RZ/G3E SMARC Carrier II EVK PMOD1 Type 3A part
+ *
+ * Copyright (C) 2026 Renesas Electronics Corp.
+ *
+ * SMARC Carrier II EVK
+ * +--------------------------------------------+
+ * |PMOD1_3A (PMOD1 PIN HEADER)			|
+ * |	SER0_CTS#  (pin1)  (pin7)  PMOD1_GPIO10	|
+ * |	SER0_TX    (pin2)  (pin8)  PMOD1_GPIO11	|
+ * |	SER0_RX    (pin3)  (pin9)  PMOD1_GPIO12	|
+ * |	SER0_RTS#  (pin4)  (pin10) PMOD1_GPIO13	|
+ * |	GND        (pin5)  (pin11) GND		|
+ * |	PWR_PMOD1  (pin6)  (pin12) PWR_PMOD1	|
+ * +--------------------------------------------+
+ *
+ * The following switches should be set as follows for RSCI4:
+ * - SW_LCD_EN: OFF
+ * - SW_SER0_PMOD: ON
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/pinctrl/renesas,r9a09g047-pinctrl.h>
+#include "rzg3e-smarc-switches.h"
+
+&pinctrl {
+#if (!SW_LCD_EN) && (SW_SER0_PMOD)
+	rsci4_pins: rsci4 {
+		pinmux = <RZG3E_PORT_PINMUX(7, 6, 5)>, /* RXD4 */
+			 <RZG3E_PORT_PINMUX(7, 7, 5)>, /* TXD4 */
+			 <RZG3E_PORT_PINMUX(8, 0, 6)>, /* CTS4N */
+			 <RZG3E_PORT_PINMUX(8, 1, 5)>; /* RTS4N */
+		bias-pull-up;
+	};
+#endif
+};
+
+#if (!SW_LCD_EN) && (SW_SER0_PMOD)
+&rsci4 {
+	pinctrl-0 = <&rsci4_pins>;
+	pinctrl-names = "default";
+	uart-has-rtscts;
+	status = "okay";
+};
+#endif
