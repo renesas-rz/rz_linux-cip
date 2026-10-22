@@ -134,7 +134,7 @@
 #define MAX_RSTS		2
 #define PREALLOC_BUFFER         (SZ_32K)
 #define PREALLOC_BUFFER_MAX     (SZ_32K)
-#define RZ_PDM_RATES		SNDRV_PCM_RATE_8000_48000
+#define RZ_PDM_RATES		SNDRV_PCM_RATE_KNOT
 #define RZ_PDM_FORMATS		(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_LE)
 
 struct rz_pdm_stream {
@@ -199,6 +199,17 @@ static const unsigned int rz_pdm_lpf[] = {
 	0x0400, 0x1ff8, 0x000a, 0x1ff0, 0x0018, 0x1fdc, 0x0034, 0x1fb3,
 	0x0076, 0x1f2e, 0x0289, 0x0289, 0x1f2e, 0x0076, 0x1fb3, 0x0034,
 	0x1fdc, 0x0018, 0x1ff0, 0x000a, 0x1ff8,
+};
+
+static const unsigned int rz_pdm_rates[] = {
+	8000, 10000, 12000, 15000, 16000, 20000,
+	24000, 25000, 30000, 40000, 48000,
+};
+
+static const struct snd_pcm_hw_constraint_list rz_pdm_rate_constraints = {
+	.count = ARRAY_SIZE(rz_pdm_rates),
+	.list  = rz_pdm_rates,
+	.mask  = 0,
 };
 
 static int rz_pdm_dma_slave_config(struct rz_pdm_priv *pdm, u32 ch);
@@ -529,8 +540,16 @@ dai_trigger_end:
 	return ret;
 }
 
+static int rz_pdm_dai_startup(struct snd_pcm_substream *substream,
+			      struct snd_soc_dai *dai)
+{
+	return snd_pcm_hw_constraint_list(substream->runtime, 0,
+					  SNDRV_PCM_HW_PARAM_RATE,
+					  &rz_pdm_rate_constraints);
+}
 
 static const struct snd_soc_dai_ops rz_pdm_dai_ops = {
+	.startup	= rz_pdm_dai_startup,
 	.hw_params	= rz_pdm_dai_hw_params,
 	.trigger	= rz_pdm_dai_trigger,
 };
