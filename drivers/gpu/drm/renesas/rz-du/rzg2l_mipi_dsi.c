@@ -989,15 +989,20 @@ static int rzg2l_mipi_dsi_start_video(struct rzg2l_mipi_dsi *dsi)
 	return ret;
 }
 
-static int rzg2l_mipi_dsi_stop_video(struct rzg2l_mipi_dsi *dsi)
+static int rzg2l_mipi_dsi_stop_video(struct rzg2l_mipi_dsi *dsi,
+				     const struct drm_display_mode *mode)
 {
 	u32 status;
+	u32 frame_us;
 	int ret;
+
+	/* Get time microsecond per frame */
+	frame_us = DIV_ROUND_UP(USEC_PER_SEC, drm_mode_vrefresh(mode));
 
 	rzg2l_mipi_dsi_link_write(dsi, VICH1SET0R, VICH1SET0R_VSTPAFT);
 	ret = read_poll_timeout(rzg2l_mipi_dsi_link_read, status,
 				(status & VICH1SR_STOP) && (!(status & VICH1SR_RUNNING)),
-				2000, 20000, false, dsi, VICH1SR);
+				frame_us / 10, frame_us, false, dsi, VICH1SR);
 	if (ret < 0)
 		goto err;
 
@@ -1109,9 +1114,17 @@ err_stop:
 static void rzg2l_mipi_dsi_atomic_disable(struct drm_bridge *bridge,
 					  struct drm_bridge_state *old_bridge_state)
 {
+	struct drm_atomic_state *state = old_bridge_state->base.state;
 	struct rzg2l_mipi_dsi *dsi = bridge_to_rzg2l_mipi_dsi(bridge);
+	const struct drm_display_mode *mode;
+	struct drm_connector *connector;
+	struct drm_crtc *crtc;
 
-	rzg2l_mipi_dsi_stop_video(dsi);
+	connector = drm_atomic_get_old_connector_for_encoder(state, bridge->encoder);
+	crtc = drm_atomic_get_old_connector_state(state, connector)->crtc;
+	mode = &drm_atomic_get_old_crtc_state(state, crtc)->adjusted_mode;
+
+	rzg2l_mipi_dsi_stop_video(dsi, mode);
 	rzg2l_mipi_dsi_stop_hs_clock(dsi);
 }
 
