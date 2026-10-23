@@ -39,7 +39,7 @@
  * SEL_OTG = 1 use OTG with J4
  * SEL_OTG = 0 use USB host with J2 and USB function with J3 (default)
  */
-#define SEL_OTG                0
+#define SEL_OTG			0
 
 /*
  * Set the marco SEL_I2C0_ADC12 to the values below to select the usage of:
@@ -897,6 +897,9 @@
 &usb2_phy {
 	pinctrl-0 = <&usb_pins>;
 	pinctrl-names = "default";
+#if !(SEL_OTG)
+	renesas,no-otg-pins;
+#endif
 
 	status = "okay";
 };
