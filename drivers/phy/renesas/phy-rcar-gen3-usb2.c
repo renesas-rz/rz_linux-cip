@@ -294,7 +294,7 @@ static void rcar_gen3_init_from_a_peri_to_a_host(struct rcar_gen3_chan *ch)
 
 static bool rcar_gen3_check_id(struct rcar_gen3_chan *ch)
 {
-	if (ch->phy_data->vblvl_ctrl) {
+	if (ch->phy_data->vblvl_ctrl && !ch->phy_data->no_adp_ctrl) {
 		u32 val = readl(ch->base + USB2_ADPCTRL);
 		bool vbus_valid = val & USB2_ADPCTRL_VBUSVALID;
 		bool device = val & USB2_ADPCTRL_IDDIG;
@@ -674,6 +674,13 @@ static const struct rcar_gen3_phy_drv_data rz_t2h_phy_usb2_data = {
 	.obint_enable_bits = USB2_OBINT_IDCHG_EN | USB2_OBINT_VBSTAINT,
 };
 
+static const struct rcar_gen3_phy_drv_data rz_t2n_phy_usb2_data = {
+	.phy_usb2_ops = &rcar_gen3_phy_usb2_ops,
+	.no_adp_ctrl = true,
+	.vblvl_ctrl = true,
+	.obint_enable_bits = USB2_OBINT_IDCHG_EN | USB2_OBINT_VBSTAINT,
+};
+
 static const struct rcar_gen3_phy_drv_data rz_v2h_phy_usb2_data = {
 	.phy_usb2_ops = &rcar_gen3_phy_usb2_ops,
 	.no_adp_ctrl = true,
@@ -709,6 +716,10 @@ static const struct of_device_id rcar_gen3_phy_usb2_match_table[] = {
 	{
 		.compatible = "renesas,usb2-phy-r9a09g077",
 		.data = &rz_t2h_phy_usb2_data,
+	},
+	{
+		.compatible = "renesas,rzt2-usb2-phy",
+		.data = &rz_t2n_phy_usb2_data,
 	},
 	{
 		.compatible = "renesas,rzg2l-usb2-phy",
