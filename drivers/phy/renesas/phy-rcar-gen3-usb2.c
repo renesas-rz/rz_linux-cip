@@ -302,6 +302,16 @@ static bool rcar_gen3_check_id(struct rcar_gen3_chan *ch)
 		return device == vbus_valid;
 	}
 
+	/*
+	 * RZ/T2N has no ADPCTRL. If the board does not use the OTG ID pin
+	 * (separate host and function connectors), follow VBUS instead.
+	 */
+	if (ch->phy_data->vblvl_ctrl && !ch->uses_otg_pins) {
+		u32 val = readl(ch->base + USB2_VBCTRL);
+
+		return FIELD_GET(USB2_VBCTRL_VBSTA_MASK, val) == USB2_VBCTRL_VBSTA_DEFAULT;
+	}
+
 	if (!ch->uses_otg_pins)
 		return ch->dr_mode != USB_DR_MODE_HOST;
 
