@@ -115,6 +115,7 @@ struct sci_of_data {
 	unsigned short regtype;
 	unsigned short type;
 	bool has_rs485;
+	bool tdxe_auto_clear;
 };
 
 struct sci_port {
@@ -173,6 +174,7 @@ struct sci_port {
 	bool has_rs485;
 	bool autorts;
 	bool tx_occurred;
+	bool has_tdxe_auto_clear;
 
 	struct serial_rs485 rs485_supported;
 };
