@@ -492,23 +492,13 @@ static void rzg2l_cru_initialize_axi(struct rzg2l_cru_dev *cru)
 				AMnSDMBVALID_SDMBVALID(cru->num_buf - 1));
 
 	scoped_guard(spinlock_irq, &cru->hw_lock) {
-		if (cru->frame_skip) {
-			/*
-			 * When frame_skip > 0, pre-load ALL slots with the
-			 * scratch buffer address to avoid AXI Bus Errors.
-			 * The CRU hardware starts writing to all num_buf slots
-			 * immediately after start. If only slot=0 is initialized
-			 * (normal path), slots 1..N-1 still contain invalid/stale
-			 * DMA addresses, causing AXI Bus Errors at seq=1, seq=2, etc.
-			 *
-			 * ISR will replace scratch with real buffers after the
-			 * skip phase ends via rzg2l_cru_fill_hw_slot().
-			 */
-			for (i = 0; i < cru->num_buf; i++) {
-				cru->queue_buf[i] = NULL;
-				rzg2l_cru_set_slot_addr(cru, i, cru->scratch_phys);
-			}
-		} else {
+		/* Initialize ALL slots to scratch FIRST - prevents Bus Error */
+		for (i = 0; i < cru->num_buf; i++) {
+			cru->queue_buf[i] = NULL;
+			rzg2l_cru_set_slot_addr(cru, i, cru->scratch_phys);
+		}
+
+		if (!cru->frame_skip) {
 			/*
 			 * Program slot#0 with the first available buffer, if any. Pass to the
 			 * function 'num_buf - 1' as rzg2l_cru_fill_hw_slot() calculates which
