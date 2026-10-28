@@ -464,7 +464,12 @@ struct rzg2l_cru_dev {
 	int linear_matrix_b[3]; /* BR, BG, BB */
 
 	int id;
+
+	struct task_struct *retry_thread;
 };
+
+int rzg2l_cru_pm_suspend(struct device *dev);
+int rzg2l_cru_pm_resume(struct device *dev);
 
 int rzg2l_cru_start_image_processing(struct rzg2l_cru_dev *cru);
 void rzg2l_cru_stop_image_processing(struct rzg2l_cru_dev *cru);

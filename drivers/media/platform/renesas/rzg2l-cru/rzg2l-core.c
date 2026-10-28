@@ -523,7 +523,7 @@ static int rzg2l_cru_media_init(struct rzg2l_cru_dev *cru)
 	return 0;
 }
 
-static int rzg2l_cru_pm_suspend(struct device *dev)
+int rzg2l_cru_pm_suspend(struct device *dev)
 {
 	struct rzg2l_cru_dev *cru = dev_get_drvdata(dev);
 	struct reset_control_bulk_data resets[] = {
@@ -552,7 +552,7 @@ static int rzg2l_cru_pm_suspend(struct device *dev)
 	return 0;
 }
 
-static int rzg2l_cru_pm_resume(struct device *dev)
+int rzg2l_cru_pm_resume(struct device *dev)
 {
 	struct rzg2l_cru_dev *cru = dev_get_drvdata(dev);
 	struct reset_control_bulk_data resets[] = {
