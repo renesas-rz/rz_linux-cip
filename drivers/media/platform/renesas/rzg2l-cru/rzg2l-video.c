@@ -33,6 +33,8 @@
 
 #define RZG2L_CRU_STRIDE_MAX		32640
 
+#define RZG2L_CRU_RETRY_MAX		5
+
 struct rzg2l_cru_buffer {
 	struct vb2_v4l2_buffer vb;
 	struct list_head list;
@@ -330,6 +332,66 @@ static void rzg2l_cru_fill_hw_slot(struct rzg2l_cru_dev *cru, int slot)
 		rzg2l_cru_set_slot_addr(cru, next_slot, phys_addr);
 	}
 }
+
+static int rzg2l_cru_restart_streaming(struct rzg2l_cru_dev *cru)
+{
+	int ret;
+
+	ret = rzg2l_cru_pm_suspend(cru->dev);
+	if (ret) {
+		dev_err(cru->dev, "Failed to suspend CRU stream: %d\n", ret);
+		return ret;
+	}
+
+	msleep(RZG2L_TIMEOUT_MS);
+
+	ret = rzg2l_cru_pm_resume(cru->dev);
+	if (ret) {
+		dev_err(cru->dev, "Failed to resume CRU stream: %d\n", ret);
+		return ret;
+	}
+
+	dev_info(cru->dev, "CRU restart successful\n");
+
+	return 0;
+}
+
+static int rzg2l_cru_retry_streaming_func(void *data)
+{
+	struct rzg2l_cru_dev *cru = (struct rzg2l_cru_dev *)data;
+	int retry;
+
+	/* Wait up to 500ms for first frame */
+	msleep(RZG2L_TIMEOUT_MS * 5);
+
+	for (retry = 1; retry <= RZG2L_CRU_RETRY_MAX; retry++) {
+		if (!cru->running || cru->sequence)
+			goto thread_exit;
+
+		if (rzg2l_cru_restart_streaming(cru)) {
+			dev_err(cru->dev, "CRU failed to restart sequence\n");
+			vb2_queue_error(&cru->queue);
+			goto thread_exit;
+		}
+
+		dev_info(cru->dev, "CRU Restarting (retry %d/%d)\n",
+			 retry, RZG2L_CRU_RETRY_MAX);
+
+		/* Wait up to 500ms for first frame */
+		msleep(RZG2L_TIMEOUT_MS * 5);
+	}
+
+	if (!cru->sequence) {
+		dev_err(cru->dev, "CRU FAILED after %d retries\n",
+			RZG2L_CRU_RETRY_MAX);
+		vb2_queue_error(&cru->queue);
+	}
+
+thread_exit:
+	cru->retry_thread = NULL;
+	return 0;
+}
+
 static void rzg2l_cru_parallel_setup(struct rzg2l_cru_dev *cru,
 				     const struct rzg2l_cru_ip_format *ip_fmt)
 {
@@ -1146,6 +1208,19 @@ static int rzg2l_cru_start_streaming_vq(struct vb2_queue *vq, unsigned int count
 	}
 
 	cru->running = true;
+
+	/* Start retry thread for MIPI CSI2 */
+	if (cru->is_csi) {
+		cru->retry_thread = kthread_create(rzg2l_cru_retry_streaming_func, cru,
+						   "CRU retry");
+		if (IS_ERR(cru->retry_thread)) {
+			dev_err(cru->dev, "Failed to create retry thread: %ld\n",
+				PTR_ERR(cru->retry_thread));
+			cru->retry_thread = NULL;
+		} else
+			wake_up_process(cru->retry_thread);
+	}
+
 	dev_dbg(cru->dev, "Starting to capture\n");
 	return 0;
 
@@ -1169,6 +1244,12 @@ err_pm_put:
 static void rzg2l_cru_stop_streaming_vq(struct vb2_queue *vq)
 {
 	struct rzg2l_cru_dev *cru = vb2_get_drv_priv(vq);
+
+	/* Stop retry thread first */
+	if (cru->retry_thread) {
+		kthread_stop(cru->retry_thread);
+		cru->retry_thread = NULL;
+	}
 
 	if (cru->running) {
 		rzg2l_cru_set_stream(cru, 0);
