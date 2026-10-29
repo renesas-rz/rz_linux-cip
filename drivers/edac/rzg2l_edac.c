@@ -7,6 +7,7 @@
  * Authors: LI NAQIN@RENESAS
  */
 
+#include <linux/bitfield.h>
 #include <linux/platform_device.h>
 #include <linux/of_address.h>
 #include <linux/interrupt.h>
@@ -34,74 +35,41 @@
 #define DDR_CLS_DDR4			(0xa)
 
 /* ECC Mode Macros */
-#define ECC_MODE_OFF			24
-#define ECC_MODE_MSK			(0x3 << ECC_MODE_OFF)
 #define ECC_MODE_ENABLE			0x1
 #define ECC_MODE_ED			0x2
 #define ECC_MODE_SECDED			0x3
 
-#define ECC_MODE_REG			0
-#define ECC_SIG_UE_ADDR1_REG		1
-#define ECC_SIG_UE_ADDR2_REG		2
-#define ECC_SIG_UE_SYND_REG		3
-#define ECC_SIG_UE_DATA1_REG		4
-#define ECC_SIG_UE_DATA2_REG		5
-#define ECC_SIG_UE_ID_REG		6
-#define ECC_SIG_CE_ADDR1_REG		7
-#define ECC_SIG_CE_ADDR2_REG		8
-#define ECC_SIG_CE_SYND_REG		9
-#define ECC_SIG_CE_DATA1_REG		10
-#define ECC_SIG_CE_DATA2_REG		11
-#define ECC_SIG_CE_ID_REG		12
-#define ECC_INT_MSK_MASTER_REG		13
-#define ECC_INT_MSK_ECC_REG		14
-#define ECC_INT_STS_ECC_REG		15
-#define ECC_INT_ACK_ECC_REG		16
-#define DDR_CTRL_BUSY_REG		17
-#define ECC_FRC_ERR_REG			18
+#define SIG_ERROR			(SIGRTMIN + 2)
+#define MAX_BUF				(10)
+#define MBIT_CNT_MAX			(0x7)
+#define SBIT_CNT_MAX			(0x1f)
 
-unsigned long g2l_ddrmc_regs[] = {
-	0x174, /* ECC Mode Registers */
-	0x184, /*ECC_SIG_UE_ADDR1_REG*/
-	0x188, /*ECC_SIG_UE_ADDR2_REG*/
-	0x188, /*ECC_SIG_UE_SYND_REG*/
-	0x18c, /*ECC_SIG_UE_DATA1_REG*/
-	0x190, /*ECC_SIG_UE_DATA2_REG*/
-	0x1a4, /*ECC_SIG_UE_ID_REG*/
-	0x194, /*ECC_SIG_CE_ADDR1_REG*/
-	0x198, /*ECC_SIG_CE_ADDR2_REG*/
-	0x198, /*ECC_SIG_CE_SYND_REG*/
-	0x19c, /*ECC_SIG_CE_DATA1_REG*/
-	0x1a0, /*ECC_SIG_CE_DATA2_REG*/
-	0x1a8, /*ECC_SIG_CE_ID_REG*/
-	0x22c, /*ECC_INT_MSK_MASTER_REG*/
-	0x274, /*ECC_INT_MSK_ECC_REG*/
-	0x234, /*ECC_INT_STS_ECC_REG*/
-	0x254, /*ECC_INT_ACK_ECC_REG*/
-	0x218, /*DDR_CTRL_BUSY_REG*/
-	0x178, /*ECC_FRC_ERR_REG*/
+enum rz_ddrmc_param {
+	ECC_MODE_REG,
+	ECC_SIG_UE_ADDR1_REG,
+	ECC_SIG_UE_ADDR2_REG,
+	ECC_SIG_UE_SYND_REG,
+	ECC_SIG_UE_DATA1_REG,
+	ECC_SIG_UE_DATA2_REG,
+	ECC_SIG_UE_ID_REG,
+	ECC_SIG_CE_ADDR1_REG,
+	ECC_SIG_CE_ADDR2_REG,
+	ECC_SIG_CE_SYND_REG,
+	ECC_SIG_CE_DATA1_REG,
+	ECC_SIG_CE_DATA2_REG,
+	ECC_SIG_CE_ID_REG,
+	ECC_INT_MSK_MASTER_REG,
+	ECC_INT_MSK_ECC_REG,
+	ECC_INT_STS_ECC_REG,
+	ECC_INT_ACK_ECC_REG,
+	ECC_CTRL_BUSY_REG,
+	ECC_FRC_ERR_REG,
+	RZ_ECC_MAX_REGS,
 };
 
-unsigned long v2l_ddrmc_regs[] = {
-	0x18c, /* ECC Mode Registers */
-	0x19c, /*ECC_SIG_UE_ADDR1_REG*/
-	0x1a0, /*ECC_SIG_UE_ADDR2_REG*/
-	0x1a0, /*ECC_SIG_UE_SYND_REG*/
-	0x1a4, /*ECC_SIG_UE_DATA1_REG*/
-	0x1a8, /*ECC_SIG_UE_DATA2_REG*/
-	0x1bc, /*ECC_SIG_UE_ID_REG*/
-	0x1ac, /*ECC_SIG_CE_ADDR1_REG*/
-	0x1b0, /*ECC_SIG_CE_ADDR2_REG*/
-	0x1b0, /*ECC_SIG_CE_SYND_REG*/
-	0x1b4, /*ECC_SIG_CE_DATA1_REG*/
-	0x1b8, /*ECC_SIG_CE_DATA2_REG*/
-	0x1c0, /*ECC_SIG_CE_ID_REG*/
-	0x244, /*ECC_INT_MSK_MASTER_REG*/
-	0x28c, /*ECC_INT_MSK_ECC_REG*/
-	0x24c, /*ECC_INT_STS_ECC_REG*/
-	0x26c, /*ECC_INT_ACK_ECC_REG*/
-	0x230, /*DDR_CTRL_BUSY_REG*/
-	0x190, /*ECC_FRC_ERR_REG*/
+struct rz_ddrmc_regs {
+	u32 offset;
+	u32 bitmask;
 };
 
 /* ECC IRQ Macros */
@@ -126,9 +94,64 @@ unsigned long v2l_ddrmc_regs[] = {
 #define MBIT_CNT_MAX		(0x7)
 #define SBIT_CNT_MAX		(0x1f)
 
+struct rzg2l_edac_info {
+	const struct rz_ddrmc_regs *regs;
+};
+
+static const struct rz_ddrmc_regs rzg2l_ddrmc_regs[RZ_ECC_MAX_REGS] = {
+	[ECC_MODE_REG]			= { 0x174, GENMASK(25, 24) },
+	[ECC_SIG_UE_ADDR1_REG]		= { 0x184, GENMASK(31, 0) },
+	[ECC_SIG_UE_ADDR2_REG]		= { 0x188, GENMASK(1, 0) },
+	[ECC_SIG_UE_SYND_REG]		= { 0x188, GENMASK(15, 8) },
+	[ECC_SIG_UE_DATA1_REG]		= { 0x18c, GENMASK(31, 0) },
+	[ECC_SIG_UE_DATA2_REG]		= { 0x190, GENMASK(31, 0) },
+	[ECC_SIG_UE_ID_REG]		= { 0x1a4, GENMASK(17, 0) },
+	[ECC_SIG_CE_ADDR1_REG]		= { 0x194, GENMASK(31, 0) },
+	[ECC_SIG_CE_ADDR2_REG]		= { 0x198, GENMASK(1, 0) },
+	[ECC_SIG_CE_SYND_REG]		= { 0x198, GENMASK(15, 8) },
+	[ECC_SIG_CE_DATA1_REG]		= { 0x19c, GENMASK(31, 0) },
+	[ECC_SIG_CE_DATA2_REG]		= { 0x1a0, GENMASK(31, 0) },
+	[ECC_SIG_CE_ID_REG]		= { 0x1a8, GENMASK(17, 0) },
+	[ECC_INT_MSK_MASTER_REG]	= { 0x22c, GENMASK(31, 0) },
+	[ECC_INT_MSK_ECC_REG]		= { 0x274, GENMASK(15, 0) },
+	[ECC_INT_STS_ECC_REG]		= { 0x234, GENMASK(15, 0) },
+	[ECC_INT_ACK_ECC_REG]		= { 0x254, GENMASK(15, 0) },
+	[ECC_CTRL_BUSY_REG]		= { 0x218, BIT(0) },
+	[ECC_FRC_ERR_REG]		= { 0x178, GENMASK(15, 8) },
+};
+
+static const struct rz_ddrmc_regs rzv2l_ddrmc_regs[RZ_ECC_MAX_REGS] = {
+	[ECC_MODE_REG]			= { 0x18c, GENMASK(25, 24) },
+	[ECC_SIG_UE_ADDR1_REG]		= { 0x19c, GENMASK(31, 0) },
+	[ECC_SIG_UE_ADDR2_REG]		= { 0x1a0, GENMASK(1, 0) },
+	[ECC_SIG_UE_SYND_REG]		= { 0x1a0, GENMASK(15, 8) },
+	[ECC_SIG_UE_DATA1_REG]		= { 0x1a4, GENMASK(31, 0) },
+	[ECC_SIG_UE_DATA2_REG]		= { 0x1a8, GENMASK(31, 0) },
+	[ECC_SIG_UE_ID_REG]		= { 0x1bc, GENMASK(17, 0) },
+	[ECC_SIG_CE_ADDR1_REG]		= { 0x1ac, GENMASK(31, 0) },
+	[ECC_SIG_CE_ADDR2_REG]		= { 0x1b0, GENMASK(1, 0) },
+	[ECC_SIG_CE_SYND_REG]		= { 0x1b0, GENMASK(15, 8) },
+	[ECC_SIG_CE_DATA1_REG]		= { 0x1b4, GENMASK(31, 0) },
+	[ECC_SIG_CE_DATA2_REG]		= { 0x1b8, GENMASK(31, 0) },
+	[ECC_SIG_CE_ID_REG]		= { 0x1c0, GENMASK(17, 0) },
+	[ECC_INT_MSK_MASTER_REG]	= { 0x244, GENMASK(31, 0) },
+	[ECC_INT_MSK_ECC_REG]		= { 0x28c, GENMASK(15, 0) },
+	[ECC_INT_STS_ECC_REG]		= { 0x24c, GENMASK(15, 0) },
+	[ECC_INT_ACK_ECC_REG]		= { 0x26c, GENMASK(15, 0) },
+	[ECC_CTRL_BUSY_REG]		= { 0x230, BIT(0) },
+	[ECC_FRC_ERR_REG]		= { 0x190, GENMASK(15, 8) },
+};
+
+static const struct rzg2l_edac_info rzg2l_info = {
+	.regs = rzg2l_ddrmc_regs,
+};
+
+static const struct rzg2l_edac_info rzv2l_info = {
+	.regs = rzv2l_ddrmc_regs,
+};
+
 struct rzg2l_edac_priv_data {
 	void __iomem *base;
-	const unsigned long *regs;
 
 	/* debugfs entries */
 	struct dentry *dir;
@@ -136,6 +159,8 @@ struct rzg2l_edac_priv_data {
 	struct dentry *sig_file;
 	struct dentry *sbit_file;
 	struct dentry *mbit_file;
+
+	const struct rzg2l_edac_info *info;
 };
 
 static unsigned int pid;
@@ -144,6 +169,24 @@ static unsigned int sbit_err_count;
 static unsigned int mbit_err_count;
 static struct task_struct *t;
 static struct kernel_siginfo info;
+
+static void rzg2l_edac_write(struct rzg2l_edac_priv_data *priv, u32 offset_id, u32 value)
+{
+	if ((offset_id >= RZ_ECC_MAX_REGS) ||
+		(priv->info->regs[offset_id].offset == 0))
+		return;
+
+	writel(value, priv->base + priv->info->regs[offset_id].offset);
+}
+
+static u32 rzg2l_edac_read(struct rzg2l_edac_priv_data *priv, u32 offset_id)
+{
+	if ((offset_id >= RZ_ECC_MAX_REGS) ||
+		(priv->info->regs[offset_id].offset == 0))
+		return 0;
+
+	return readl(priv->base + priv->info->regs[offset_id].offset);
+}
 
 static ssize_t read_pid(struct file *file, char __user *buf,
 			size_t count, loff_t *ppos)
@@ -358,8 +401,8 @@ static void init_mem_layout(struct mem_ctl_info *mci)
 	dimm = edac_get_dimm(mci, 0, 0, 0);
 
 	/* 1. set the dimm edac_mode */
-	val = readl(priv->base + priv->regs[ECC_MODE_REG]) & ECC_MODE_MSK;
-	val >>= ECC_MODE_OFF;
+	val = rzg2l_edac_read(priv, ECC_MODE_REG);
+	val = field_get(priv->info->regs[ECC_MODE_REG].bitmask, val);
 	switch (val) {
 	case ECC_MODE_ENABLE:
 		dimm->edac_mode = EDAC_RESERVED;
@@ -407,26 +450,28 @@ static irqreturn_t edac_ecc_isr(int irq, void *dev_id)
 	priv = mci->pvt_info;
 
 	/* Check the intr status and confirm ECC error intr */
-	int_status = readl(priv->base + priv->regs[ECC_INT_STS_ECC_REG]) & \
-		     ECC_INT_STS_ECC_MSK;
+	int_status = rzg2l_edac_read(priv, ECC_INT_STS_ECC_REG) &
+			priv->info->regs[ECC_INT_STS_ECC_REG].bitmask;
 
-	if (!(int_status & ECC_INT_MSK_ECC))
+	if (!(int_status & priv->info->regs[ECC_INT_MSK_ECC_REG].bitmask))
 		return IRQ_NONE;
 
 	if (int_status & ECC_INT_STS_CE_MSK) {
-		err_addr = (u64)readl(priv->base + priv->regs[ECC_SIG_CE_ADDR2_REG]);
-		err_addr = ((err_addr & 0x3) << 32) | \
-				readl(priv->base + priv->regs[ECC_SIG_CE_ADDR1_REG]);
+		err_addr = rzg2l_edac_read(priv, ECC_SIG_CE_ADDR2_REG) &
+				priv->info->regs[ECC_SIG_CE_ADDR2_REG].bitmask;
+		err_addr = (err_addr << 32) |
+				rzg2l_edac_read(priv, ECC_SIG_CE_ADDR1_REG);
 
-		err_data = (u64)readl(priv->base + priv->regs[ECC_SIG_CE_DATA2_REG]);
+		err_data = rzg2l_edac_read(priv, ECC_SIG_CE_DATA2_REG) &
+				priv->info->regs[ECC_SIG_CE_DATA2_REG].bitmask;
 		err_data = (err_data << 32) | \
-			   readl(priv->base + priv->regs[ECC_SIG_CE_DATA1_REG]);
+			   rzg2l_edac_read(priv, ECC_SIG_CE_DATA1_REG);
 
-		err_id = readl(priv->base + priv->regs[ECC_SIG_CE_ID_REG]) & ECC_SIG_ID_MSK;
+		err_id = rzg2l_edac_read(priv, ECC_SIG_CE_ID_REG) &
+				priv->info->regs[ECC_SIG_CE_ID_REG].bitmask;
 
-		err_synd = readl(priv->base + priv->regs[ECC_SIG_CE_SYND_REG]) & \
-			   ECC_SIG_SYND_MSK;
-		err_synd >>= ECC_SIG_SYND_OFF;
+		err_synd = rzg2l_edac_read(priv, ECC_SIG_CE_SYND_REG);
+		err_synd = field_get(priv->info->regs[ECC_SIG_CE_SYND_REG].bitmask, err_synd);
 
 		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
 			     1,
@@ -437,19 +482,21 @@ static irqreturn_t edac_ecc_isr(int irq, void *dev_id)
 	}
 
 	if (int_status & ECC_INT_STS_UE_MSK) {
-		err_addr = (u64)readl(priv->base + priv->regs[ECC_SIG_UE_ADDR2_REG]);
-		err_addr = ((err_addr & 0x3) << 32) | \
-				readl(priv->base + priv->regs[ECC_SIG_UE_ADDR1_REG]);
+		err_addr = rzg2l_edac_read(priv, ECC_SIG_UE_ADDR2_REG) &
+				priv->info->regs[ECC_SIG_UE_ADDR2_REG].bitmask;
+		err_addr = (err_addr << 32) |
+				rzg2l_edac_read(priv, ECC_SIG_UE_ADDR1_REG);
 
-		err_data = (u64)readl(priv->base + priv->regs[ECC_SIG_UE_DATA2_REG]);
-		err_data = (err_data << 32) | \
-			   readl(priv->base + priv->regs[ECC_SIG_UE_DATA1_REG]);
+		err_data = rzg2l_edac_read(priv, ECC_SIG_UE_DATA2_REG) &
+				priv->info->regs[ECC_SIG_UE_DATA2_REG].bitmask;
+		err_data = (err_data << 32) |
+			   rzg2l_edac_read(priv, ECC_SIG_UE_DATA1_REG);
 
-		err_id = readl(priv->base + priv->regs[ECC_SIG_UE_ID_REG]) & ECC_SIG_ID_MSK;
+		err_id = rzg2l_edac_read(priv, ECC_SIG_UE_ID_REG) &
+				priv->info->regs[ECC_SIG_UE_ID_REG].bitmask;
 
-		err_synd = readl(priv->base + priv->regs[ECC_SIG_UE_SYND_REG]) & \
-			   ECC_SIG_SYND_MSK;
-		err_synd >>= ECC_SIG_SYND_OFF;
+		err_synd = rzg2l_edac_read(priv, ECC_SIG_UE_SYND_REG);
+		err_synd = field_get(priv->info->regs[ECC_SIG_UE_SYND_REG].bitmask, err_synd);
 
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
 			     1,
@@ -470,7 +517,7 @@ static irqreturn_t edac_ecc_isr(int irq, void *dev_id)
 		edac_printk(KERN_ERR, EDAC_MC,
 			"Scrubbing and writeback failed IRQ cleared\n");
 
-	writel(int_status, priv->base + priv->regs[ECC_INT_ACK_ECC_REG]);
+	rzg2l_edac_write(priv, ECC_INT_ACK_ECC_REG, int_status);
 
 	if (t != NULL)
 		send_sig_info(signal_id, &info, t);
@@ -479,10 +526,10 @@ static irqreturn_t edac_ecc_isr(int irq, void *dev_id)
 }
 
 static const struct of_device_id rzg2l_edac_of_match[] = {
-	{ .compatible = "renesas,r9a07g044-edac", .data = g2l_ddrmc_regs},
-	{ .compatible = "renesas,r9a07g043-edac", .data = g2l_ddrmc_regs},
-	{ .compatible = "renesas,r9a07g043f-edac", .data = g2l_ddrmc_regs},
-	{ .compatible = "renesas,r9a07g054-edac", .data = v2l_ddrmc_regs},
+	{ .compatible = "renesas,r9a07g044-edac", .data = &rzg2l_info},
+	{ .compatible = "renesas,r9a07g043-edac", .data = &rzg2l_info},
+	{ .compatible = "renesas,r9a07g043f-edac", .data = &rzg2l_info},
+	{ .compatible = "renesas,r9a07g054-edac", .data = &rzv2l_info},
 	{},
 };
 MODULE_DEVICE_TABLE(of, rzg2l_edac_of_match);
@@ -492,7 +539,7 @@ static int rzg2l_edac_mc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	void __iomem *base;
-	const unsigned long *regs;
+	const struct rzg2l_edac_info *info;
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer layers[1];
 	const struct of_device_id *id;
@@ -511,8 +558,8 @@ static int rzg2l_edac_mc_probe(struct platform_device *pdev)
 			    "rzg2l DDR4 mc base are not defined.\n");
 		return PTR_ERR(base);
 	}
-	regs = of_device_get_match_data(&pdev->dev);
-	if (!regs) {
+	info = of_device_get_match_data(&pdev->dev);
+	if (!info) {
 		edac_printk(KERN_ERR, RZG2L_EDAC_MOD_NAME,
 			    "rzg2l DDR4 mc regs are not found.\n");
 		return -EINVAL;
@@ -535,7 +582,7 @@ static int rzg2l_edac_mc_probe(struct platform_device *pdev)
 	mci->pdev = &pdev->dev;
 	priv = mci->pvt_info;
 	priv->base = base;
-	priv->regs = regs;
+	priv->info = info;
 	platform_set_drvdata(pdev, mci);
 	/* Initialize controller capabilities */
 	mci->mtype_cap = MEM_FLAG_DDR4;
@@ -554,7 +601,7 @@ static int rzg2l_edac_mc_probe(struct platform_device *pdev)
 
 	/* mask all the interrupts in master */
 	val = ECC_INT_MSK_ALL;
-	writel(val, priv->base + priv->regs[ECC_INT_MSK_MASTER_REG]);
+	rzg2l_edac_write(priv, ECC_INT_MSK_MASTER_REG, val);
 
 	/* Setup Interrupt handler for ECC */
 	irq = platform_get_irq_byname(pdev, "ecc_irq");
@@ -605,19 +652,19 @@ static int rzg2l_edac_mc_probe(struct platform_device *pdev)
 	}
 
 	/* Unmask all ECC interrupt */
-	val = readl(priv->base + priv->regs[ECC_INT_MSK_ECC_REG]);
-	val &= ~(ECC_INT_MSK_ECC);
-	writel(val, priv->base + priv->regs[ECC_INT_MSK_ECC_REG]);
+	val = rzg2l_edac_read(priv, ECC_INT_MSK_ECC_REG);
+	val &= ~(priv->info->regs[ECC_INT_MSK_ECC_REG].bitmask);
+	rzg2l_edac_write(priv, ECC_INT_MSK_ECC_REG, val);
 
 	/* Enable the ECC interrupt in master */
-	val = readl(priv->base + priv->regs[ECC_INT_MSK_MASTER_REG]);
+	val = rzg2l_edac_read(priv, ECC_INT_MSK_MASTER_REG);
 	val &= ~(ECC_INT_MSK_MASTER_ECC | ECC_INT_MSK_MASTER_GLB);
-	writel(val, priv->base + priv->regs[ECC_INT_MSK_MASTER_REG]);
+	rzg2l_edac_write(priv, ECC_INT_MSK_MASTER_REG, val);
 
 	/* Ack all ECC interrupt in advance */
-	val = readl(priv->base + priv->regs[ECC_INT_ACK_ECC_REG]);
-	val &= ~ECC_INT_MSK_ECC;
-	writel(val, priv->base + priv->regs[ECC_INT_ACK_ECC_REG]);
+	val = rzg2l_edac_read(priv, ECC_INT_ACK_ECC_REG);
+	val &= ~(priv->info->regs[ECC_INT_MSK_ECC_REG].bitmask);
+	rzg2l_edac_write(priv, ECC_INT_ACK_ECC_REG, val);
 
 	return 0;
 err_create_debug_fs:
@@ -635,14 +682,14 @@ static void rzg2l_edac_mc_remove(struct platform_device *pdev)
 	struct rzg2l_edac_priv_data *priv = mci->pvt_info;
 
 	/* Mask all interrupt from DDR controller in int_mask_master */
-	val = readl(priv->base + priv->regs[ECC_INT_MSK_MASTER_REG]);
+	val = rzg2l_edac_read(priv, ECC_INT_MSK_MASTER_REG);
 	val |= ECC_INT_MSK_ALL;
-	writel(val, priv->base + priv->regs[ECC_INT_MSK_MASTER_REG]);
+	rzg2l_edac_write(priv, ECC_INT_MSK_MASTER_REG, val);
 
 	/* Mask all ECC interrupt */
-	val = readl(priv->base + priv->regs[ECC_INT_MSK_ECC_REG]);
-	val |= ECC_INT_MSK_ECC;
-	writel(val, priv->base + priv->regs[ECC_INT_MSK_ECC_REG]);
+	val = rzg2l_edac_read(priv, ECC_INT_MSK_ECC_REG);
+	val |= priv->info->regs[ECC_INT_MSK_ECC_REG].bitmask;
+	rzg2l_edac_write(priv,ECC_INT_MSK_ECC_REG, val);
 
 	debugfs_remove(priv->pid_file);
 	debugfs_remove(priv->sig_file);
