@@ -413,6 +413,9 @@ done:
 	rsci_serial_out(port, CCR1, ccr1_val);
 	rsci_serial_out(port, CCR4, ccr4_val);
 
+	if (is_rsci_rs485_enabled(port))
+		s->ops->rs485_config(port, termios, &port->rs485);
+
 	ctrl = rsci_serial_in(port, FCR);
 	ctrl |= (FCR_RFRST | FCR_TFRST);
 	rsci_serial_out(port, FCR, ctrl);
