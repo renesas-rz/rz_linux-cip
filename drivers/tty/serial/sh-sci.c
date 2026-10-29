@@ -2036,6 +2036,11 @@ static irqreturn_t sci_tx_end_interrupt(int irq, void *ptr)
 	uart_port_lock_irqsave(port, &flags);
 	ctrl = s->ops->read_reg(port, regs->control) &
 		~(s->params->param_bits->te_clear);
+
+	if ((port->rs485.flags & SER_RS485_ENABLED) &&
+	    !(port->rs485.flags & SER_RS485_RX_DURING_TX) &&
+	    kfifo_is_empty(&tport->xmit_fifo))
+		ctrl |= s->params->param_bits->rx_en;
 	s->ops->write_reg(port, regs->control, ctrl);
 
 	if (sci_is_rsci_type(s->type)) {
