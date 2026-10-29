@@ -1662,6 +1662,27 @@ static int rzv2h_soc_pcie_init_phy(struct rzg3s_pcie_host *host)
 	return 0;
 }
 
+static int rzg3e_soc_pcie_init_phy(struct rzg3s_pcie_host *host)
+{
+	/*
+	 * Enable access permission for physical layer control and status
+	 * registers.
+	 */
+	writel_relaxed(RZG3S_PCI_PERM_PIPE_PHY_REG_EN,
+		       host->axi + RZG3S_PCI_PERM);
+
+	/*
+	 * According to the RZ/G3E HW manual (Rev.1.10, Table 6.6-129
+	 * Initialization Procedure (RC)), hardware requires
+	 * the following PHY parameters:
+	 */
+	writel_relaxed(0x05DBB800, host->axi + RZG3S_PCI_PHY_XCFGD(0xA));
+
+	writel_relaxed(0, host->axi + RZG3S_PCI_PERM);
+
+	return 0;
+}
+
 static int rzt2h_soc_pcie_init_phy(struct rzg3s_pcie_host *host)
 {
 	static const u32 xcfgd_settings[RZG3S_PCI_PHY_XCFGD_NUM] = {
@@ -2081,6 +2102,7 @@ static const struct rzg3s_pcie_soc_data rzg3e_soc_data = {
 	.config_pre_init = rzg3e_pcie_config_pre_init,
 	.config_post_init = rzg3e_pcie_config_post_init,
 	.config_deinit = rzg3e_pcie_config_deinit,
+	.init_phy = rzg3e_soc_pcie_init_phy,
 	.max_channels = 1,
 	.sysc_info = {
 		.functions = {
