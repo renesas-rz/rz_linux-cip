@@ -1598,6 +1598,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			renesas,sysc = <&sys>;
+			renesas,pcie-companion = <&pcie1>;
 			pcie,channel = <0>;
 			num-lanes = <4>;
 			status = "disabled";
@@ -1703,6 +1704,7 @@
 			resets = <&cpg 0xb2>;
 			pcie,channel = <0>;
 			renesas,sysc = <&sys>;
+			renesas,pcie-companion = <&pcie1_ep>;
 			status = "disabled";
 		};
 
