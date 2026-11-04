@@ -776,9 +776,16 @@
 };
 #endif
 #else
+#if (PCIE_SEL == PCIE0 || PCIE_SEL == PCIE0_PCIE1)
 &pcie0_ep {
 	status = "okay";
 };
+#endif
+#if (PCIE_SEL == PCIE1 || PCIE_SEL == PCIE0_PCIE1)
+&pcie1_ep {
+	status = "okay";
+};
+#endif
 #endif
 #endif
 
