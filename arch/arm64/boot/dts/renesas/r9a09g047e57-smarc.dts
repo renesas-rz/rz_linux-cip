@@ -29,7 +29,7 @@
  */
 
 #define RZG3E_SMARC_MIPI_DSI_ENABLE	1
-#define RZG3E_SMARC_LVDS_ENABLE		0
+#define RZG3E_SMARC_LVDS_ENABLE		1
 
 /* Only maximum 2 display selections are enabled at the same time */
 #if (RZG3E_SMARC_MIPI_DSI_ENABLE & RZG3E_SMARC_LVDS_ENABLE & SW_LCD_EN)
