@@ -105,7 +105,7 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	if (IS_ERR(gpt->mmio))
 		return PTR_ERR(gpt->mmio);
 
-	gpt->rstc = devm_reset_control_get_shared(dev, NULL);
+	gpt->rstc = devm_reset_control_get_optional_shared(dev, NULL);
 	if (IS_ERR(gpt->rstc))
 		return dev_err_probe(dev, PTR_ERR(gpt->rstc), "Cannot get reset control\n");
 
@@ -113,9 +113,9 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	if (IS_ERR(gpt->rstc_s))
 		return dev_err_probe(dev, PTR_ERR(gpt->rstc_s), "Cannot get rst_s reset\n");
 
-	gpt->clk = devm_clk_get_optional(dev, "bus");
-	if (IS_ERR(gpt->clk))
-		return dev_err_probe(dev, PTR_ERR(gpt->clk), "Cannot get bus clock\n");
+	gpt->clk_bus = devm_clk_get_optional(dev, "bus");
+	if (IS_ERR(gpt->clk_bus))
+		return dev_err_probe(dev, PTR_ERR(gpt->clk_bus), "Cannot get bus clock\n");
 
 	gpt->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(gpt->clk))
@@ -184,6 +184,7 @@ static const struct rzg2l_gpt_info rzt2h_data = {
 	.flags = RZG2L_GPT_HAS_OVF_IRQ | RZT2H_GPT_HAS_ICU_INTSEL,
 	.calculate_prescale = rzg3e_gpt_calculate_prescale,
 	.gtcr_tpcs = RZG3E_GTCR_TPCS,
+	.gtcr_tpcs_value = RZG3E_GTCR_TPCS_P0_1024,
 	.prescale_mult = 1,
 	.max_hw_channels = 5,
 };
