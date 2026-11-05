@@ -6,6 +6,7 @@
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/units.h>
@@ -75,6 +76,7 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	struct rzg2l_gpt *gpt;
 	const struct rzg2l_gpt_info *info;
 	unsigned long rate;
+	struct device_node *icu_np __free(device_node) = NULL;
 	u32 val;
 	int ret;
 
@@ -143,6 +145,23 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	if (gpt->rate_khz * KILO != rate)
 		return dev_err_probe(dev, -EINVAL, "Rate is not multiple of 1000\n");
 
+	if (gpt->info->flags & RZT2H_GPT_HAS_ICU_INTSEL) {
+		struct platform_device *icu_pdev;
+		icu_np = of_parse_phandle(dev->of_node, "renesas,icu", 0);
+		if (!icu_np)
+			return dev_err_probe(dev, -ENODEV,
+					     "renesas,icu not found\n");
+
+		icu_pdev = of_find_device_by_node(icu_np);
+		of_node_put(icu_np);
+
+		if (!icu_pdev)
+			return dev_err_probe(dev, -ENODEV,
+					     "ICU device not found\n");
+
+		gpt->icu_dev = icu_pdev;
+	}
+
 	platform_set_drvdata(pdev, gpt);
 
 	ret = devm_mfd_add_devices(dev, gpt->id, rzg2l_gpt_devs,
@@ -162,6 +181,7 @@ static const struct rzg2l_gpt_info rzg3e_data = {
 };
 
 static const struct rzg2l_gpt_info rzt2h_data = {
+	.flags = RZG2L_GPT_HAS_OVF_IRQ | RZT2H_GPT_HAS_ICU_INTSEL,
 	.calculate_prescale = rzg3e_gpt_calculate_prescale,
 	.gtcr_tpcs = RZG3E_GTCR_TPCS,
 	.prescale_mult = 1,
