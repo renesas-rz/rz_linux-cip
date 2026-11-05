@@ -130,6 +130,7 @@
 #define RZG2L_MAX_SCALE_FACTOR	1024
 #define RZG2L_MAX_TICKS		((u64)U32_MAX * RZG2L_MAX_SCALE_FACTOR)
 #define RZG2L_GPT_HAS_OVF_IRQ	BIT(0)
+#define RZT2H_GPT_HAS_ICU_INTSEL	BIT(1)
 
 #define RZG2L_MAX_POEG_GROUPS	4
 #define RZG2L_LAST_POEG_GROUP	3
@@ -173,6 +174,9 @@ struct rzg2l_gpt {
 	bool counter_enabled[RZG2L_MAX_HW_CHANNELS];
 	u32 channel_request_count[RZG2L_MAX_HW_CHANNELS];
 	u32 channel_enable_count[RZG2L_MAX_HW_CHANNELS];
+
+	/* ICU device used for RZ/T2H GPT interrupt configuration. */
+	struct platform_device *icu_dev;
 };
 
 #define PHASE_COUNTING_PARAM(_up, _down) \
