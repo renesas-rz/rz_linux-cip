@@ -53,12 +53,122 @@
 #define RZT2H_ICU_DMAC_REQ_SELx_MASK(x)		(GENMASK(9, 0) << ((x) * 10))
 #define RZT2H_ICU_DMAC_REQ_SELx_PREP(x, val)	(FIELD_PREP(GENMASK(9, 0), val) << ((x) * 10))
 
+#define RZT2H_ICU_NS_GPT_INTSEL(n)				(0x2c8 + 0x4 * (n))
+#define RZT2H_ICU_S_GPT_INTSEL(n)				(0x020 + 0x4 * (n))
+
+#define RZT2H_ICU_GPT_INT_SEL_MASK				0xF
+#define RZT2H_ICU_GPT_MAX_INTSEL				4
+#define RZT2H_ICU_GPT_MAX_CHANNELS_PER_INTSEL			2
+
+#define RZT2H_ICU_GPT10_UNIT					10
+#define RZT2H_ICU_GPT_MAX_UNITS					11
+
+/* GPT event source list selected by INTSEL bits */
+enum gpt_insel_event {
+	GPT_CCMPA = 0,
+	GPT_CCMPB,
+	GPT_CMPC,
+	GPT_CMPD,
+	GPT_CMPE,
+	GPT_CMPF,
+	GPT_OVF,
+	GPT_UDF,
+	GPT_MAX_EVENTS,
+};
+
+struct rzt2h_icu_gpt_intsel_event {
+	const char *name;
+};
+
+static const struct rzt2h_icu_gpt_intsel_event rzt2h_gpt_intsel[GPT_MAX_EVENTS] = {
+	[GPT_CCMPA]	= { "gtcia_n" },
+	[GPT_CCMPB]	= { "gtcib_n" },
+	[GPT_CMPC]	= { "gtcic_n" },
+	[GPT_CMPD]	= { "gtcid_n" },
+	[GPT_CMPE]	= { "gtcie_n" },
+	[GPT_CMPF]	= { "gtcif_n" },
+	[GPT_OVF]	= { "gtciv_n" },
+	[GPT_UDF]	= { "gtciu_n" },
+};
+
+static const u8 rzt2h_icu_gpt_max_channels[RZT2H_ICU_GPT_MAX_UNITS] = {5, 5, 5, 5, 5, 5, 5, 5, 5, 7, 4};
+
 struct rzt2h_icu_priv {
 	void __iomem		*base_ns;
 	void __iomem		*base_s;
 	struct irq_fwspec	fwspec[RZT2H_ICU_NUM_IRQ];
 	raw_spinlock_t		lock;
 };
+
+int rzt2h_icu_gpt_intsel_config(struct platform_device *icu_dev,
+				u8 gpt_unit, u8 ch,
+				const char *irq_name, u32 irq_index)
+{
+	struct rzt2h_icu_priv *priv = platform_get_drvdata(icu_dev);
+	struct device *dev = &icu_dev->dev;
+	bool is_safety = (gpt_unit == RZT2H_ICU_GPT10_UNIT);
+	u32 intsel_reg, intsel_val;
+	void __iomem *base;
+	u32 val, mask, shift;
+	int i, order = 0;
+	bool irq_found = false;
+
+	if (irq_index >= RZT2H_ICU_GPT_MAX_INTSEL) {
+		dev_err(dev, "Exceeds maximum GPT event interrupt selection\n");
+		return -EINVAL;
+	}
+
+	if (gpt_unit >= RZT2H_ICU_GPT_MAX_UNITS ||
+	    ch >= rzt2h_icu_gpt_max_channels[gpt_unit]) {
+		dev_err(dev, "Exceeds maximum GPT channels\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < GPT_MAX_EVENTS; i++) {
+		if (!strcmp(irq_name, rzt2h_gpt_intsel[i].name)) {
+			irq_found = true;
+			intsel_val = i;
+			break;
+		}
+	}
+
+	if (!irq_found) {
+		dev_err(dev, "Can not find the expected irq %s\n", irq_name);
+		return -EINVAL;
+	}
+
+	order = ch;
+
+	if (is_safety) {
+		base = priv->base_s;
+		intsel_reg = order /
+			     RZT2H_ICU_GPT_MAX_CHANNELS_PER_INTSEL;
+		intsel_reg = RZT2H_ICU_S_GPT_INTSEL(intsel_reg);
+	} else {
+		base = priv->base_ns;
+
+		for (i = 0; i < gpt_unit; i++)
+			order += rzt2h_icu_gpt_max_channels[i];
+
+		intsel_reg = order /
+			     RZT2H_ICU_GPT_MAX_CHANNELS_PER_INTSEL;
+		intsel_reg = RZT2H_ICU_NS_GPT_INTSEL(intsel_reg);
+	}
+
+	shift = (order % RZT2H_ICU_GPT_MAX_CHANNELS_PER_INTSEL) * 16 +
+		4 * irq_index;
+	mask = RZT2H_ICU_GPT_INT_SEL_MASK << shift;
+
+	guard(raw_spinlock_irqsave)(&priv->lock);
+
+	val = readl(base + intsel_reg);
+	val &= ~mask;
+	val |= intsel_val << shift;
+	writel(val, base + intsel_reg);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rzt2h_icu_gpt_intsel_config);
 
 void rzt2h_icu_register_dma_req(struct platform_device *icu_dev, u8 dmac_index, u8 dmac_channel,
 				u16 req_no)
