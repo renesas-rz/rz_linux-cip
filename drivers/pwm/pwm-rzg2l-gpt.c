@@ -1183,7 +1183,7 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 			return dev_err_probe(dev, -ENODEV, "Failed to parse ICU node\n");
 	}
 
-	for (i = 0; i < RZG2L_MAX_HW_CHANNELS; i++) {
+	for (i = 0; i < max_hw_channels; i++) {
 		for (j = 0; j < ARRAY_SIZE(gpt_irqs); j++) {
 			irq_name = devm_kasprintf(dev, GFP_KERNEL, "%s_%u",
 						  gpt_irqs[j].name, i);
@@ -1290,7 +1290,7 @@ static int rzg2l_gpt_suspend(struct device *dev)
 	struct rzg2l_gpt_chip *rzg2l_gpt = dev_get_drvdata(dev);
 	u32 ch;
 
-	for (ch = 0; ch < RZG2L_MAX_HW_CHANNELS; ch++) {
+	for (ch = 0; ch < rzg2l_gpt->gpt->max_hw_channels; ch++) {
 		rzg2l_gpt->hw_cache[ch].gtintad = rzg2l_gpt_pwm_read(rzg2l_gpt, RZG2L_GTINTAD(ch));
 		rzg2l_gpt->hw_cache[ch].gtior = rzg2l_gpt_pwm_read(rzg2l_gpt, RZG2L_GTIOR(ch));
 	}
@@ -1322,7 +1322,7 @@ static int rzg2l_gpt_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	for (ch = 0; ch < RZG2L_MAX_HW_CHANNELS; ch++) {
+	for (ch = 0; ch < rzg2l_gpt->gpt->max_hw_channels; ch++) {
 		if (rzg2l_gpt->channel_data[ch].deadtime_first) {
 			rzg2l_gpt_mode_setting(rzg2l_gpt, ch);
 			rzg2l_gpt_pwm_write(rzg2l_gpt, RZG2L_GTDBU(ch),
