@@ -41,6 +41,7 @@
 #include <linux/wait.h>
 #include <linux/pm_runtime.h>
 #include <linux/irqchip/irq-renesas-rzv2h.h>
+#include <linux/irqchip/irq-renesas-rzt2h.h>
 #include <linux/mfd/rzg2l-gpt.h>
 
 enum {
@@ -1219,6 +1220,16 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 				return ret;
 			}
 			rzg2l_gpt->irq_map[i][gpt_irqs[j].res_num] = irq;
+
+			/* Configure GPT_INTSEL registers to select GPT interrupt type via ICU */
+			if ((gpt->info->flags & RZT2H_GPT_HAS_ICU_INTSEL) && gpt->icu_dev) {
+				ret = rzt2h_icu_gpt_intsel_config(gpt->icu_dev, gpt->id, i, gpt_irqs[j].name, j);
+				if (ret) {
+					ret = dev_err_probe(dev, ret,
+							    "Failed to selection IRQ via ICU (%s)\n", req_name);
+					return ret;
+				}
+			}
 		}
 	}
 
