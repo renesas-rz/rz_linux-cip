@@ -1156,13 +1156,19 @@ static void rzg3e_pcie_config_pre_init(struct rzg3s_pcie_host *host)
 {
 	u32 mask = RZG3S_PCI_RESET_RST_LOAD_B | RZG3S_PCI_RESET_RST_CFG_B;
 
+	/* De-assert LOAD_B and CFG_B */
+	rzg3s_pcie_update_bits(host->axi, RZG3S_PCI_RESET, mask, mask);
+
 	/* Enable Autonomous Equalization (Gen3 Feature) */
 	rzg3s_pcie_update_bits(host->axi, RZG3S_PCI_PCCTRL1,
 			       RZG3S_PCI_PCCTRL1_MODE_EQ_AUTO,
 			       RZG3S_PCI_PCCTRL1_MODE_EQ_AUTO);
 
-	/* De-assert LOAD_B and CFG_B */
-	rzg3s_pcie_update_bits(host->axi, RZG3S_PCI_RESET, mask, mask);
+	/* Gen3: wait 1ms for RX equalization */
+	rzg3s_pcie_update_bits(host->axi, RZG3S_PCI_MSET4,
+			       RZG3S_PCI_MSET4_EQ_RX_EVAL_WAIT,
+			       FIELD_PREP(RZG3S_PCI_MSET4_EQ_RX_EVAL_WAIT,
+					  RZG3S_PCI_MSET4_EQ_RX_EVAL_WAIT_1MS));
 }
 
 static int rzg3e_pcie_config_deinit(struct rzg3s_pcie_host *host)
