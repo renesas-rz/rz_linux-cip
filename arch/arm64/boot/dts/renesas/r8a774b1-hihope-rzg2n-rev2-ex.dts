@@ -13,3 +13,8 @@
 	compatible = "hoperun,hihope-rzg2-ex", "hoperun,hihope-rzg2n",
 		     "renesas,r8a774b1";
 };
+
+/* Set SW43 = OFF and SW1001[7] = ON for PCIE1 port to be activated */
+&pciec1 {
+	status = "okay";
+};
