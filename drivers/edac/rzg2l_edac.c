@@ -136,6 +136,24 @@ static const struct rz_ddrmc_regs rzv2l_ddrmc_regs[RZ_ECC_MAX_REGS] = {
 	[ECC_FRC_ERR_REG]		= { 0x190, GENMASK(15, 8) },
 };
 
+static const struct rz_ddrmc_regs rzt2h_ddrmc_regs[RZ_ECC_MAX_REGS] = {
+	[ECC_MODE_REG]			= { 0x39c, GENMASK(25, 24) },
+	[ECC_SIG_UE_ADDR1_REG]		= { 0x3ac, GENMASK(31, 0) },
+	[ECC_SIG_UE_ADDR2_REG]		= { 0x3b0, BIT(0) },
+	[ECC_SIG_UE_SYND_REG]		= { 0x3b0, GENMASK(15, 8) },
+	[ECC_SIG_UE_DATA1_REG]		= { 0x3b4, GENMASK(31, 0) },
+	[ECC_SIG_UE_DATA2_REG]		= { 0x3b8, GENMASK(31, 0) },
+	[ECC_SIG_CE_ADDR1_REG]		= { 0x3bc, GENMASK(31, 0) },
+	[ECC_SIG_CE_ADDR2_REG]		= { 0x3c0, BIT(0) },
+	[ECC_SIG_CE_SYND_REG]		= { 0x3c0, GENMASK(15, 8) },
+	[ECC_SIG_CE_DATA1_REG]		= { 0x3c4, GENMASK(31, 0) },
+	[ECC_SIG_CE_DATA2_REG]		= { 0x3c8, GENMASK(31, 0) },
+	[ECC_INT_MSK_MASTER_REG]	= { 0x51c, GENMASK(31, 0) },
+	[ECC_INT_MSK_ECC_REG]		= { 0x56c, GENMASK(31, 0) },
+	[ECC_INT_STS_ECC_REG]		= { 0x524, GENMASK(31, 0) },
+	[ECC_INT_ACK_ECC_REG]		= { 0x548, GENMASK(31, 0) },
+};
+
 static const struct rz_ddrmc_bitfield rzg2l_ddrmc_field_mask[RZ_ECC_MAX_FIELD] = {
 	[ECC_INT_STS_CE_MSK]		= { 0x103 },
 	[ECC_INT_STS_UE_MSK]		= { 0xC },
@@ -151,6 +169,11 @@ static const struct rzg2l_edac_info rzg2l_info = {
 
 static const struct rzg2l_edac_info rzv2l_info = {
 	.regs = rzv2l_ddrmc_regs,
+	.field_mask = rzg2l_ddrmc_field_mask,
+};
+
+static const struct rzg2l_edac_info rzt2h_info = {
+	.regs = rzt2h_ddrmc_regs,
 	.field_mask = rzg2l_ddrmc_field_mask,
 };
 
@@ -535,6 +558,7 @@ static const struct of_device_id rzg2l_edac_of_match[] = {
 	{ .compatible = "renesas,r9a07g043-edac", .data = &rzg2l_info},
 	{ .compatible = "renesas,r9a07g043f-edac", .data = &rzg2l_info},
 	{ .compatible = "renesas,r9a07g054-edac", .data = &rzv2l_info},
+	{ .compatible = "renesas,r9a09g077-edac", .data = &rzt2h_info},
 	{},
 };
 MODULE_DEVICE_TABLE(of, rzg2l_edac_of_match);
