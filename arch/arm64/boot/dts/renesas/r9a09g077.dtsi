@@ -132,6 +132,10 @@
 			interrupt-names = "eri", "rxi", "txi", "tei";
 			clocks = <&cpg CPG_MOD 8>, <&cpg CPG_CORE R9A09G077_CLK_PCLKM>;
 			clock-names = "operation", "bus";
+			dmas = <&dmac0 0x264F>, <&dmac0 0x2650>,
+			       <&dmac1 0x264F>, <&dmac1 0x2650>,
+			       <&dmac2 0x264F>, <&dmac2 0x2650>;
+			dma-names = "rx", "tx", "rx", "tx", "rx", "tx";
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
@@ -146,6 +150,10 @@
 			interrupt-names = "eri", "rxi", "txi", "tei";
 			clocks = <&cpg CPG_MOD 9>, <&cpg CPG_CORE R9A09G077_CLK_PCLKM>;
 			clock-names = "operation", "bus";
+			dmas = <&dmac0 0x2653>, <&dmac0 0x2654>,
+			       <&dmac1 0x2653>, <&dmac1 0x2654>,
+			       <&dmac2 0x2653>, <&dmac2 0x2654>;
+			dma-names = "rx", "tx", "rx", "tx", "rx", "tx";
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
@@ -160,6 +168,10 @@
 			interrupt-names = "eri", "rxi", "txi", "tei";
 			clocks = <&cpg CPG_MOD 10>, <&cpg CPG_CORE R9A09G077_CLK_PCLKM>;
 			clock-names = "operation", "bus";
+			dmas = <&dmac0 0x2657>, <&dmac0 0x2658>,
+			       <&dmac1 0x2657>, <&dmac1 0x2658>,
+			       <&dmac2 0x2657>, <&dmac2 0x2658>;
+			dma-names = "rx", "tx", "rx", "tx", "rx", "tx";
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
@@ -174,6 +186,10 @@
 			interrupt-names = "eri", "rxi", "txi", "tei";
 			clocks = <&cpg CPG_MOD 11>, <&cpg CPG_CORE R9A09G077_CLK_PCLKM>;
 			clock-names = "operation", "bus";
+			dmas = <&dmac0 0x265B>, <&dmac0 0x265C>,
+			       <&dmac1 0x265B>, <&dmac1 0x265C>,
+			       <&dmac2 0x265B>, <&dmac2 0x265C>;
+			dma-names = "rx", "tx", "rx", "tx", "rx", "tx";
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
@@ -188,6 +204,10 @@
 			interrupt-names = "eri", "rxi", "txi", "tei";
 			clocks = <&cpg CPG_MOD 12>, <&cpg CPG_CORE R9A09G077_CLK_PCLKM>;
 			clock-names = "operation", "bus";
+			dmas = <&dmac0 0x265F>, <&dmac0 0x2660>,
+			       <&dmac1 0x265F>, <&dmac1 0x2660>,
+			       <&dmac2 0x265F>, <&dmac2 0x2660>;
+			dma-names = "rx", "tx", "rx", "tx", "rx", "tx";
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
@@ -202,6 +222,10 @@
 			interrupt-names = "eri", "rxi", "txi", "tei";
 			clocks = <&cpg CPG_MOD 600>, <&cpg CPG_CORE R9A09G077_CLK_PCLKM>;
 			clock-names = "operation", "bus";
+			dmas = <&dmac0 0x2663>, <&dmac0 0x2664>,
+			       <&dmac1 0x2663>, <&dmac1 0x2664>,
+			       <&dmac2 0x2663>, <&dmac2 0x2664>;
+			dma-names = "rx", "tx", "rx", "tx", "rx", "tx";
 			power-domains = <&cpg>;
 			status = "disabled";
 		};
