@@ -157,6 +157,7 @@ struct spi_ops {
 	int (*set_config_register)(struct rsci_data *rsci, int access_size);
 	int (*transfer_one)(struct spi_controller *ctlr,
 			    struct spi_device *spi, struct spi_transfer *xfer);
+	const char *fck_name;
 	u16 extra_mode_bits;
 	u16 min_div;
 	u16 max_div;
@@ -198,6 +199,7 @@ static void rsci_spi_set_rate(struct rsci_data *rsci)
 static int rsci_spi_common_set_config_register(struct rsci_data *rsci,
 					       int access_size)
 {
+	u32 trg = rsci->ops->fifo_size - 1;
 	u32 fcr, ccr0 = 0;
 
 	/* Set CCR0 initial settings */
@@ -207,7 +209,7 @@ static int rsci_spi_common_set_config_register(struct rsci_data *rsci,
 	rsci_write32(rsci, FCR_TFRST | FCR_RFRST, RSCI_FCR);
 
 	/* Set FCR initial setting */
-	fcr = FCR_TTRG(0x1F) | FCR_RTRG(0) | FCR_RSTRG(0x1f);
+	fcr = FCR_TTRG(trg) | FCR_RTRG(0) | FCR_RSTRG(trg);
 	rsci_write32(rsci, fcr, RSCI_FCR);
 
 	/* Set CCR3 except MOD[2:0] initial setting */
@@ -758,6 +760,7 @@ static void rsci_spi_remove(struct platform_device *pdev)
 static const struct spi_ops rsci_common_ops = {
 	.set_config_register	=	rsci_spi_common_set_config_register,
 	.transfer_one		=	rsci_spi_common_transfer_one,
+	.fck_name		=	"tclk",
 	.min_div		=	2,
 	.max_div		=	4096,
 	.flags			=	SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX,
@@ -765,10 +768,22 @@ static const struct spi_ops rsci_common_ops = {
 	.num_hw_ss		=	0,
 };
 
+static const struct spi_ops rsci_rzt2h_ops = {
+	.set_config_register	=	rsci_spi_common_set_config_register,
+	.transfer_one		=	rsci_spi_common_transfer_one,
+	.fck_name		=	"operation",
+	.min_div		=	2,
+	.max_div		=	4096,
+	.flags			=	SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX,
+	.fifo_size		=	16,
+	.num_hw_ss		=	0,
+};
+
 #ifdef CONFIG_OF
 static const struct of_device_id rsci_of_match[] = {
 	/* RSCI SPI on RZ/V2H and similar SoCs */
 	{ .compatible = "renesas,r9a09g047-rsci", .data = &rsci_common_ops },
+	{ .compatible = "renesas,r9a09g077-rsci", .data = &rsci_rzt2h_ops },
 	{ /* sentinel */ }
 };
 
@@ -798,7 +813,7 @@ static int rsci_spi_parse_dt(struct device *dev, struct spi_controller *ctlr)
 		ctlr->num_chipselect = num_cs;
 	}
 
-	rstc = devm_reset_control_array_get_exclusive(dev);
+	rstc = devm_reset_control_array_get_optional_exclusive(dev);
 	if (IS_ERR(rstc))
 		return dev_err_probe(dev, PTR_ERR(rstc),
 				     "failed to get presetn reset\n");
@@ -901,7 +916,7 @@ static int rsci_spi_probe(struct platform_device *pdev)
 		goto error1;
 	}
 
-	rsci->tclk = devm_clk_get(&pdev->dev, "tclk");
+	rsci->tclk = devm_clk_get(&pdev->dev, ops->fck_name);
 	if (IS_ERR(rsci->tclk)) {
 		dev_err(&pdev->dev, "cannot get clock\n");
 		ret = PTR_ERR(rsci->tclk);
