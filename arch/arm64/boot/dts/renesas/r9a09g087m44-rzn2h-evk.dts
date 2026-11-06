@@ -8,6 +8,7 @@
 /dts-v1/;
 
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/soc/renesas,rsci.h>
 
 #include "r9a09g087m44.dtsi"
 
@@ -110,6 +111,20 @@
  */
 #define SEL_PCIE_EP_RC		1
 
+/*
+ * Jumper setting
+ *
+ * Please change the jumper setting corresponding to below Macros:
+ * RSCI1_SEL modes:
+ *      RSCI_UART (default)
+ *      RSCI_I2C
+ *      RSCI_SPI
+ *
+ * P18_2 is shared between SCI1_SCK1 and key-1 (SW2), so key-1 is
+ * disabled when RSCI_SPI is selected.
+ */
+#define RSCI1_SEL		RSCI_UART
+
 #include "rzt2h-n2h-evk-common.dtsi"
 
 /*
@@ -141,6 +156,7 @@
 	keys {
 		compatible = "gpio-keys";
 
+#if (RSCI1_SEL != RSCI_SPI)
 		key-1 {
 			interrupts-extended = <&pinctrl RZT2H_GPIO(18, 2) IRQ_TYPE_EDGE_FALLING>;
 			linux,code = <KEY_1>;
@@ -148,6 +164,7 @@
 			wakeup-source;
 			debounce-interval = <20>;
 		};
+#endif
 
 		key-2 {
 			interrupts-extended = <&pinctrl RZT2H_GPIO(0, 4) IRQ_TYPE_EDGE_FALLING>;
