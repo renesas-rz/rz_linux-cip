@@ -97,6 +97,7 @@ enum rsci_reg_list {
 
 struct rsci_of_data {
 	const u8 *regs;
+	const char *fck_name;
 };
 
 struct rsci_dev {
@@ -376,6 +377,7 @@ static int rsci_i2c_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rsci_dev *riic;
 	struct i2c_adapter *adap;
+	const struct rsci_of_data *info;
 	int i, ret;
 
 	if (!of_property_read_bool(dev->of_node,
@@ -386,11 +388,14 @@ static int rsci_i2c_probe(struct platform_device *pdev)
 	if (!riic)
 		return -ENOMEM;
 
+	info = of_device_get_match_data(dev);
+	riic->info = info;
+
 	riic->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(riic->base))
 		return PTR_ERR(riic->base);
 
-	riic->t_clk = devm_clk_get(dev, "tclk");
+	riic->t_clk = devm_clk_get(dev, info->fck_name);
 	if (IS_ERR(riic->t_clk)) {
 		dev_err(dev, "missing controller tck clock");
 		return PTR_ERR(riic->t_clk);
@@ -398,7 +403,7 @@ static int rsci_i2c_probe(struct platform_device *pdev)
 
 	riic->dev = dev;
 
-	riic->rstc = devm_reset_control_array_get_exclusive(dev);
+	riic->rstc = devm_reset_control_array_get_optional_exclusive(dev);
 	if (IS_ERR(riic->rstc))
 		return dev_err_probe(dev, PTR_ERR(riic->rstc),
 				     "Error: failed to get reset ctrl\n");
@@ -430,8 +435,6 @@ static int rsci_i2c_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
-
-	riic->info = of_device_get_match_data(dev);
 
 	adap = &riic->adapter;
 	i2c_set_adapdata(adap, riic);
@@ -508,6 +511,12 @@ static const u8 rsci_common_regs[RSCI_NR_REG] = {
 
 static const struct rsci_of_data rsci_common_info = {
 	.regs = rsci_common_regs,
+	.fck_name = "tclk",
+};
+
+static const struct rsci_of_data rsci_rzt2h_info = {
+	.regs = rsci_common_regs,
+	.fck_name = "operation",
 };
 
 static int rsci_i2c_suspend(struct device *dev)
@@ -556,6 +565,7 @@ static const struct dev_pm_ops rsci_i2c_pm_ops = {
 
 static const struct of_device_id rsci_i2c_dt_ids[] = {
 	{ .compatible = "renesas,r9a09g047-rsci", .data = &rsci_common_info },
+	{ .compatible = "renesas,r9a09g077-rsci", .data = &rsci_rzt2h_info },
 	{ /* Sentinel */ },
 };
 
