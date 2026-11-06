@@ -1668,6 +1668,7 @@
 			resets = <&cpg 1208>;
 			reset-names = "aresetn";
 			pcie,channel = <0>;
+			renesas,pcie-companion = <&pcie1_ep>;
 			renesas,sysc = <&sys0>;
 			status = "disabled";
 		};
