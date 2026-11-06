@@ -8,6 +8,7 @@
 /dts-v1/;
 
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/soc/renesas,rsci.h>
 
 #include "r9a09g077m44.dtsi"
 
@@ -101,6 +102,17 @@
 #define SEL_RSPI0_GMAC2		1
 
 #define POE3_SUPPORT		0
+
+/*
+ * Jumper setting
+ *
+ * Please change the jumper setting corresponding to below Macros:
+ * RSCI1_SEL modes:
+ *      RSCI_UART (default)
+ *      RSCI_I2C
+ *      RSCI_SPI
+ */
+#define RSCI1_SEL		RSCI_UART
 
 #include "rzt2h-n2h-evk-common.dtsi"
 

@@ -21,7 +21,9 @@
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
 		serial0 = &sci0;
+#if (RSCI1_SEL == RSCI_UART)
 		serial1 = &sci1;
+#endif
 		serial2 = &sci3;
 		spi0 = &xspi0;
 		spi1 = &xspi1;
@@ -480,13 +482,51 @@
 			 <RZT2H_PORT_PINMUX(27, 5, 0x14)>;
 	};
 
-	sci1_pins: sci1 {
-		pinmux = <RZT2H_PORT_PINMUX(18, 4, 0x14)>, /* SCI1_TXD */
-			 <RZT2H_PORT_PINMUX(18, 3, 0x14)>, /* SCI1_RXD */
-			 <RZT2H_PORT_PINMUX(18, 6, 0x14)>, /* CTS1# */
-			 <RZT2H_PORT_PINMUX(18, 5, 0x14)>; /* RTS1# */
+	/*
+	 * SCI1 Pin Configuration (selected by RSCI1_SEL):
+	 * ------------------------
+	 * Signal                 | Pin   | UART  | I2C | SPI
+	 * -----------------------|-------|-------|-----|------------------
+	 * SCI1_TXD1_SDA1_MOSI1   | P18_4 | TXD   | SDA | MOSI
+	 * SCI1_RXD1_SCL1_MISO1   | P18_3 | RXD   | SCL | MISO
+	 * SCI1_SCK1              | P18_2 | -     | -   | SCLK
+	 * SCI1_CTS1#/RTS1#/SS1#  | P18_5 | RTS1# | -   | CS (GPIO) / SSL
+	 * SCI1_CTS1#             | P18_6 | CTS1# | -   | -
+	 */
+	sci1_common_pins: sci1_common {
+		pinmux = <RZT2H_PORT_PINMUX(18, 4, 0x14)>, /* SCI1_TXD1_SDA1_MOSI1 */
+			 <RZT2H_PORT_PINMUX(18, 3, 0x14)>; /* SCI1_RXD1_SCL1_MISO1 */
+#if (RSCI1_SEL == RSCI_UART)
 		bias-pull-up;
+#elif (RSCI1_SEL == RSCI_SPI)
+		drive-strength-microamp = <9000>;
+		slew-rate = <1>;
+		input-schmitt-disable;
+#endif
 	};
+
+#if (RSCI1_SEL == RSCI_UART)
+	sci1_ctsrts_pins: sci1_ctsrts {
+		pinmux = <RZT2H_PORT_PINMUX(18, 6, 0x14)>, /* SCI1_CTS1# */
+			 <RZT2H_PORT_PINMUX(18, 5, 0x14)>; /* SCI1_RTS1# */
+	};
+#endif
+
+#if (RSCI1_SEL == RSCI_SPI)
+	sci1_sclk_pins: sci1_sclk {
+		pinmux = <RZT2H_PORT_PINMUX(18, 2, 0x14)>; /* SCI1_SCLK */
+		drive-strength-microamp = <9000>;
+		slew-rate = <1>;
+		input-schmitt-disable;
+	};
+
+	sci1_ssl_pins: sci1_ssl {
+		pinmux = <RZT2H_PORT_PINMUX(18, 5, 0x14)>; /* SCI1_SSL */
+		drive-strength-microamp = <9000>;
+		slew-rate = <1>;
+		input-schmitt-disable;
+	};
+#endif
 
 	sci3_pins: sci3 {
 		data-pins {
@@ -658,11 +698,31 @@
 };
 
 &sci1 {
-	pinctrl-0 = <&sci1_pins>;
+	status = "okay";
+
+#if (RSCI1_SEL == RSCI_SPI)
+	pinctrl-0 = <&sci1_common_pins &sci1_sclk_pins>;
+	pinctrl-1 = <&sci1_common_pins &sci1_sclk_pins &sci1_ssl_pins>;
+	pinctrl-names = "master", "slave";
+
+	renesas,rsci_spi;
+	num-cs = <1>;
+	#size-cells = <0>;
+	#address-cells = <1>;
+	/* Using cs-gpios property when is master mode */
+	cs-gpios = <&pinctrl RZT2H_GPIO(18, 5) GPIO_ACTIVE_HIGH>;
+
+#elif (RSCI1_SEL == RSCI_UART)
+	pinctrl-0 = <&sci1_common_pins &sci1_ctsrts_pins>;
 	pinctrl-names = "default";
 
 	uart-has-rtscts;
-	status = "okay";
+#elif (RSCI1_SEL == RSCI_I2C)
+	pinctrl-0 = <&sci1_common_pins>;
+	pinctrl-names = "default";
+
+	renesas,rsci_i2c;
+#endif
 };
 
 &sci3 {
