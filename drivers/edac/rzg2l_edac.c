@@ -67,35 +67,29 @@ enum rz_ddrmc_param {
 	RZ_ECC_MAX_REGS,
 };
 
+enum rz_ddrmc_field_id {
+	ECC_INT_STS_CE_MSK,
+	ECC_INT_STS_UE_MSK,
+	ECC_INT_STS_SCRB_MSK,
+	ECC_CE_SYND_SHIFT,
+	ECC_INT_MSK_MASTER_ECC,
+	ECC_INT_MSK_MASTER_GLB,
+
+	RZ_ECC_MAX_FIELD,
+};
+
 struct rz_ddrmc_regs {
 	u32 offset;
 	u32 bitmask;
 };
 
-/* ECC IRQ Macros */
-#define ECC_INT_MSK_MASTER_ECC_OFF	1
-#define ECC_INT_MSK_MASTER_GLB_OFF	31
-#define ECC_INT_MSK_MASTER_ECC		BIT(ECC_INT_MSK_MASTER_ECC_OFF)
-#define ECC_INT_MSK_MASTER_GLB		BIT(ECC_INT_MSK_MASTER_GLB_OFF)
-#define ECC_INT_MSK_ECC			(0xffff)
-#define ECC_INT_MSK_ALL			GENMASK(31, 0)
-#define ECC_INT_STS_ECC_MSK		(ECC_INT_MSK_ECC)
-#define ECC_INT_STS_CE_MSK		0x103
-#define ECC_INT_STS_UE_MSK		0xC
-#define ECC_INT_STS_SCRB_MSK		0x80
-
-/* ECC signature  Macros */
-#define ECC_SIG_SYND_OFF		8
-#define ECC_SIG_SYND_MSK		(0xff << ECC_SIG_SYND_OFF)
-#define ECC_SIG_ID_MSK			(0x3ffff)
-
-#define SIG_ERROR		(SIGRTMIN + 2)
-#define MAX_BUF			(10)
-#define MBIT_CNT_MAX		(0x7)
-#define SBIT_CNT_MAX		(0x1f)
+struct rz_ddrmc_bitfield {
+	u32 bitmask;
+};
 
 struct rzg2l_edac_info {
 	const struct rz_ddrmc_regs *regs;
+	const struct rz_ddrmc_bitfield *field_mask;
 };
 
 static const struct rz_ddrmc_regs rzg2l_ddrmc_regs[RZ_ECC_MAX_REGS] = {
@@ -142,12 +136,22 @@ static const struct rz_ddrmc_regs rzv2l_ddrmc_regs[RZ_ECC_MAX_REGS] = {
 	[ECC_FRC_ERR_REG]		= { 0x190, GENMASK(15, 8) },
 };
 
+static const struct rz_ddrmc_bitfield rzg2l_ddrmc_field_mask[RZ_ECC_MAX_FIELD] = {
+	[ECC_INT_STS_CE_MSK]		= { 0x103 },
+	[ECC_INT_STS_UE_MSK]		= { 0xC },
+	[ECC_INT_STS_SCRB_MSK]		= { 0x80 },
+	[ECC_INT_MSK_MASTER_ECC]	= { BIT(1) },
+	[ECC_INT_MSK_MASTER_GLB]	= { BIT(31) },
+};
+
 static const struct rzg2l_edac_info rzg2l_info = {
 	.regs = rzg2l_ddrmc_regs,
+	.field_mask = rzg2l_ddrmc_field_mask,
 };
 
 static const struct rzg2l_edac_info rzv2l_info = {
 	.regs = rzv2l_ddrmc_regs,
+	.field_mask = rzg2l_ddrmc_field_mask,
 };
 
 struct rzg2l_edac_priv_data {
@@ -456,7 +460,7 @@ static irqreturn_t edac_ecc_isr(int irq, void *dev_id)
 	if (!(int_status & priv->info->regs[ECC_INT_MSK_ECC_REG].bitmask))
 		return IRQ_NONE;
 
-	if (int_status & ECC_INT_STS_CE_MSK) {
+	if (int_status & priv->info->field_mask[ECC_INT_STS_CE_MSK].bitmask) {
 		err_addr = rzg2l_edac_read(priv, ECC_SIG_CE_ADDR2_REG) &
 				priv->info->regs[ECC_SIG_CE_ADDR2_REG].bitmask;
 		err_addr = (err_addr << 32) |
@@ -481,7 +485,7 @@ static irqreturn_t edac_ecc_isr(int irq, void *dev_id)
 			     mci->ctl_name, "");
 	}
 
-	if (int_status & ECC_INT_STS_UE_MSK) {
+	if (int_status & priv->info->field_mask[ECC_INT_STS_UE_MSK].bitmask) {
 		err_addr = rzg2l_edac_read(priv, ECC_SIG_UE_ADDR2_REG) &
 				priv->info->regs[ECC_SIG_UE_ADDR2_REG].bitmask;
 		err_addr = (err_addr << 32) |
@@ -513,7 +517,8 @@ static irqreturn_t edac_ecc_isr(int irq, void *dev_id)
 	/* For ecc scrub start complete and ECC writeback command not be
 	 * executed.
 	 * */
-	if (int_status & ~(ECC_INT_STS_CE_MSK | ECC_INT_STS_UE_MSK))
+	if (int_status & ~(priv->info->field_mask[ECC_INT_STS_CE_MSK].bitmask |
+				priv->info->field_mask[ECC_INT_STS_UE_MSK].bitmask))
 		edac_printk(KERN_ERR, EDAC_MC,
 			"Scrubbing and writeback failed IRQ cleared\n");
 
@@ -600,7 +605,7 @@ static int rzg2l_edac_mc_probe(struct platform_device *pdev)
 	init_mem_layout(mci);
 
 	/* mask all the interrupts in master */
-	val = ECC_INT_MSK_ALL;
+	val = priv->info->regs[ECC_INT_MSK_MASTER_REG].bitmask;
 	rzg2l_edac_write(priv, ECC_INT_MSK_MASTER_REG, val);
 
 	/* Setup Interrupt handler for ECC */
@@ -658,7 +663,8 @@ static int rzg2l_edac_mc_probe(struct platform_device *pdev)
 
 	/* Enable the ECC interrupt in master */
 	val = rzg2l_edac_read(priv, ECC_INT_MSK_MASTER_REG);
-	val &= ~(ECC_INT_MSK_MASTER_ECC | ECC_INT_MSK_MASTER_GLB);
+	val &= ~(priv->info->field_mask[ECC_INT_MSK_MASTER_ECC].bitmask |
+			priv->info->field_mask[ECC_INT_MSK_MASTER_GLB].bitmask);
 	rzg2l_edac_write(priv, ECC_INT_MSK_MASTER_REG, val);
 
 	/* Ack all ECC interrupt in advance */
@@ -683,7 +689,7 @@ static void rzg2l_edac_mc_remove(struct platform_device *pdev)
 
 	/* Mask all interrupt from DDR controller in int_mask_master */
 	val = rzg2l_edac_read(priv, ECC_INT_MSK_MASTER_REG);
-	val |= ECC_INT_MSK_ALL;
+	val |= priv->info->regs[ECC_INT_MSK_MASTER_REG].bitmask;
 	rzg2l_edac_write(priv, ECC_INT_MSK_MASTER_REG, val);
 
 	/* Mask all ECC interrupt */
