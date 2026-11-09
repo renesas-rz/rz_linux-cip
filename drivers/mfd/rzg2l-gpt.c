@@ -97,9 +97,9 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	ret = device_property_read_u32(dev, "gpt,max-channels", &val);
 	gpt->max_hw_channels = ret ? info->max_hw_channels : val;
 
-	gpt->id = of_alias_get_id(dev->of_node, "gpt");
-	if ((int)gpt->id < 0)
-		gpt->id = pdev->id >= 0 ? pdev->id : 0;
+	ret = device_property_read_u32(dev, "gpt-channel-id", &gpt->id);
+	if (ret)
+		gpt->id = 0;
 
 	gpt->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gpt->mmio))
