@@ -82,7 +82,6 @@
 #endif
 		serial3 = &scif0;
 		mmc1 = &sdhi1;
-		gpt0 = &gpt0;
 	};
 
 	vqmmc_sd1_pvdd: regulator-vqmmc-sd1-pvdd {
