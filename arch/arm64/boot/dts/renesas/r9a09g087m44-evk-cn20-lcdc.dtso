@@ -25,6 +25,18 @@
 
 #include "rzt2h-n2h-evk-du-adv7513.dtsi"
 
+&{/keys} {
+    /* P18_2 is used for DU function LCDC_DATB3. */
+    key-1 {
+        status = "disabled";
+    };
+};
+
+&sci1 {
+       /* SCI1 shares P18_2 - P18_6 depending on RSCI1_SEL. */
+       status = "disabled";
+};
+
 &{/leds/led-4} {
 	/* P18_1 is used for DU function LCDC_DATB2. */
 	status = "disabled";
