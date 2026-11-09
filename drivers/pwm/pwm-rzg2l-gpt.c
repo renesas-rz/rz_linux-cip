@@ -1133,7 +1133,6 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	unsigned int i, j;
 	int ret = 0, irq;
 	char *irq_name, *req_name;
-	u32 channel_id;
 	bool use_icu_ovf;
 
 	if (!gpt)
@@ -1175,10 +1174,6 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 
 	use_icu_ovf = !(gpt->info->flags & RZG2L_GPT_HAS_OVF_IRQ);
 	if (use_icu_ovf) {
-		ret = of_property_read_u32(parent->of_node, "gpt-channel-id", &channel_id);
-		if (ret)
-			return dev_err_probe(dev, ret, "Failed to read gpt-channel-id\n");
-
 		icu_np = of_parse_phandle(parent->of_node, "renesas,icu", 0);
 		if (!icu_np)
 			return dev_err_probe(dev, -ENODEV, "Failed to parse ICU node\n");
@@ -1193,7 +1188,7 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 				return ret;
 			}
 			if (use_icu_ovf && gpt_irqs[j].res_num == GTCIV) {
-				irq = rzv2h_icu_gpt_irq_mapping(icu_np, i, channel_id);
+				irq = rzv2h_icu_gpt_irq_mapping(icu_np, i, gpt->id);
 				if (irq == -ENODEV)
 					irq = -EPROBE_DEFER;
 			} else
