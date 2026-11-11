@@ -74,7 +74,7 @@
  * Parallel RGB is selected by SW_LCD_EN.
  */
 #define RZG3E_SMARC_MIPI_DSI_ENABLE	SW_ON
-#define RZG3E_SMARC_LVDS_ENABLE		SW_OFF
+#define RZG3E_SMARC_LVDS_ENABLE		SW_ON
 
 /*
  * PMOD0 GPIO selections:
